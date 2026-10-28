@@ -1050,20 +1050,18 @@ export default function App() {
                 )}
               </>
             ) : (
-              <div className="snapshot-notice">
-                <Check size={18} />
-                <div>
-                  <strong>
-                    {result?.source === 'gpx'
-                      ? t('Original GPX geometry')
-                      : t('Saved route, ready to explore')}
-                  </strong>
-                  <p>{t('Save and export without changing any points.')}</p>
-                  <Button variant="ghost" className="text-button" onClick={editSnapshot}>
-                    <Pencil size={14} />
-                    {t('Edit waypoints')}
-                  </Button>
-                </div>
+              <div className="snapshot-panel">
+                <Alert className="snapshot-notice" role="note">
+                  <Info size={18} aria-hidden="true" />
+                  <div>
+                    <strong>{t('Original geometry preserved')}</strong>
+                    <p>{t('Viewing and exporting do not recalculate the route. Switch to editing points separately.')}</p>
+                  </div>
+                </Alert>
+                <Button variant="outline" className="secondary snapshot-edit" onClick={editSnapshot}>
+                  <Pencil size={18} aria-hidden="true" />
+                  {t('Edit waypoints')}
+                </Button>
               </div>
             )}
             {busy && (

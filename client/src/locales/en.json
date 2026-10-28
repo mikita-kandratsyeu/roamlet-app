@@ -281,5 +281,7 @@
   "Import GPX on map": "Import GPX on map",
   "Language / LANGUAGE": "LANGUAGE / ЯЗЫК",
   "System theme follows OS settings. Language and theme are saved locally.": "System theme follows OS settings. Language and theme are saved locally.",
-  "Theme and language do not change the route, calculation or map position.": "Theme and language do not change the route, calculation or map position."
+  "Theme and language do not change the route, calculation or map position.": "Theme and language do not change the route, calculation or map position.",
+  "Original geometry preserved": "Original geometry preserved",
+  "Viewing and exporting do not recalculate the route. Switch to editing points separately.": "Viewing and exporting do not recalculate the route. Switch to editing points separately."
 }
