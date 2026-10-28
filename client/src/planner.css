@@ -426,6 +426,9 @@
   margin-top: 10px;
 }
 .planner-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 10px 16px 16px;
   margin: 0 16px;
   padding-left: 0;
@@ -442,9 +445,9 @@
 .route-actions .primary:hover:not(:disabled) {
   background: color-mix(in srgb, var(--primary) 88%, var(--foreground));
 }
-.import-action {
+.planner-footer .import-action {
   color: var(--foreground);
-  padding-top: 10px;
+  padding: 10px 0;
   min-height: 44px;
   font-size: 12px;
 }
@@ -855,7 +858,7 @@
     min-height: 72px;
   }
   .panel-collapsed .planner-footer {
-    display: block;
+    display: flex;
   }
   .panel-collapsed .route-ready .import-action {
     display: none;

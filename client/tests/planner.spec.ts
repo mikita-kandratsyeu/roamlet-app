@@ -535,6 +535,11 @@ test('matches Figma planner geometry while preserving branding and responsive el
   await expect(page.locator('.brand-mark img')).toHaveAttribute('src', '/icon.svg');
   await expect(page.locator('.brand-wordmark')).toHaveText('Roamlet');
   await expect(page.locator('.app-header')).toHaveCSS('height', '64px');
+  const actions = await page.locator('.route-actions').boundingBox();
+  const importButton = await page.locator('.planner-footer .import-action').boundingBox();
+  expect(importButton!.y - actions!.y - actions!.height).toBeCloseTo(10, 0);
+  await expect(page.locator('.route-actions')).toHaveCSS('gap', '8px');
+  await expect(page.locator('.planner-footer .import-action')).toHaveCSS('height', '44px');
   await createRoute(page);
   await expect(page.locator('.planner')).toHaveCSS('width', mobile ? '390px' : '420px');
   if (mobile) {
