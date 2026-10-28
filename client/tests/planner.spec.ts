@@ -550,7 +550,10 @@ test('matches Figma planner geometry while preserving branding and responsive el
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('point edits preserve the camera and location does not add stops', async ({ page, context }) => {
+test('point edits preserve the camera and location does not add stops', async ({
+  page,
+  context,
+}) => {
   await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
   const mapView = () => page.evaluate(() => localStorage.getItem('roamlet:map-view:v1'));
   await expect.poll(mapView).not.toBeNull();

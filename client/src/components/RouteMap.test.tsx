@@ -310,7 +310,16 @@ it('keeps the camera unchanged during point edits and only fits an explicit requ
   const { rerender } = render(<RouteMap {...props} waypoints={[point]} />);
   act(() => mocks.handlers.get('load')!());
   expect(mocks.fit).not.toHaveBeenCalled();
-  const next = { ...props, waypoints: [point, { ...point, id: 'finish', coordinate: [12, 48] as [number, number] }], segments: [[[11, 47], [12, 48]]] as [number, number][][] };
+  const next = {
+    ...props,
+    waypoints: [point, { ...point, id: 'finish', coordinate: [12, 48] as [number, number] }],
+    segments: [
+      [
+        [11, 47],
+        [12, 48],
+      ],
+    ] as [number, number][][],
+  };
   rerender(<RouteMap {...next} />);
   expect(mocks.fit).not.toHaveBeenCalled();
   rerender(<RouteMap {...next} fitToken={1} />);
@@ -325,7 +334,8 @@ it('keeps the camera unchanged during point edits and only fits an explicit requ
 it.each([true, false])('location recenters without adding a stop (editable: %s)', (editable) => {
   vi.stubGlobal('navigator', {
     geolocation: {
-      getCurrentPosition: (success: PositionCallback) => success({ coords: { longitude: 13, latitude: 49 } } as GeolocationPosition),
+      getCurrentPosition: (success: PositionCallback) =>
+        success({ coords: { longitude: 13, latitude: 49 } } as GeolocationPosition),
     },
   });
   render(<RouteMap {...props} editable={editable} />);
