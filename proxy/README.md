@@ -1,6 +1,6 @@
 # @roamlet/proxy
 
-Private, dependency-free Node.js >=22 ESM package. Run scripts from `proxy/`:
+Private, dependency-free Node.js >=24 ESM package. Run scripts from `proxy/`:
 
 - `npm run dev`: watch mode, loading `.env` when present.
 - `npm start`: production server, loading `.env` when present.

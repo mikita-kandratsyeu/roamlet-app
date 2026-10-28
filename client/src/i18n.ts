@@ -1,5 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import english from './locales/en.json';
+import russian from './locales/ru.json';
 
 export const LANGUAGE_KEY = 'roamlet-language';
 export function detectLanguage(): 'en' | 'ru' {
@@ -15,11 +17,9 @@ export function detectLanguage(): 'en' | 'ru' {
     : 'en';
 }
 
-
-
 void i18n.use(initReactI18next).init({
   resources: {
-    en: { translation: Object.fromEntries(Object.keys(russian).map((key) => [key, key])) },
+    en: { translation: english },
     ru: { translation: russian },
   },
   lng: detectLanguage(),

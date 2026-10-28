@@ -2,6 +2,23 @@ import { afterEach, expect, it, vi } from 'vitest';
 import i18n, { detectLanguage, formatNumber, LANGUAGE_KEY, translateMessage } from './i18n';
 import { formatDistance, formatDuration } from './components/Statistics';
 import { importGpx } from './domain/gpx';
+import english from './locales/en.json';
+import russian from './locales/ru.json';
+
+it('loads complete JSON dictionaries with matching keys and interpolation placeholders', async () => {
+  expect(Object.keys(russian).sort()).toEqual(Object.keys(english).sort());
+  for (const key of Object.keys(english) as Array<keyof typeof english>) {
+    expect(english[key].trim(), key).not.toBe('');
+    expect(russian[key].trim(), key).not.toBe('');
+    expect(russian[key].match(/\{\{[^}]+\}\}/g)?.sort() ?? [], key).toEqual(
+      english[key].match(/\{\{[^}]+\}\}/g)?.sort() ?? [],
+    );
+  }
+  await i18n.changeLanguage('en');
+  expect(i18n.t('My routes')).toBe(english['My routes']);
+  await i18n.changeLanguage('ru');
+  expect(i18n.t('My routes')).toBe(russian['My routes']);
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
