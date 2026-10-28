@@ -18,7 +18,9 @@ export const profiles: Record<Activity, string> = {
 class NoRouteError extends Error {}
 export async function checkRoutingConfiguration(signal?: AbortSignal): Promise<boolean> {
   if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
-  return String(import.meta.env.VITE_MAPBOX_ACCESS_TOKEN ?? '').trim().startsWith('pk.');
+  return String(import.meta.env.VITE_MAPBOX_ACCESS_TOKEN ?? '')
+    .trim()
+    .startsWith('pk.');
 }
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -73,7 +75,9 @@ export async function requestJson(
     if (data && typeof data === 'object' && 'code' in data && data.code !== 'Ok') {
       if (data.code === 'NoRoute' || data.code === 'NoSegment')
         throw new NoRouteError('No route was returned. Try a different location.');
-      throw new Error('The routing service is unavailable. Try again later; your saved routes are safe.');
+      throw new Error(
+        'The routing service is unavailable. Try again later; your saved routes are safe.',
+      );
     }
     return data;
   } catch (error) {
@@ -225,7 +229,12 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
     throw new Error('Enter a place or address between 3 and 200 characters.');
   if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
   if (searches.has(text)) return structuredClone(searches.get(text)!);
-  const params = new URLSearchParams({ q: text, limit: '5', permanent: 'true', autocomplete: 'false' });
+  const params = new URLSearchParams({
+    q: text,
+    limit: '5',
+    permanent: 'true',
+    autocomplete: 'false',
+  });
   const data = object(
     await requestJson(`/search/geocode/v6/forward?${params}`, { method: 'GET' }, signal),
   );
@@ -235,9 +244,12 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
     const feature = object(raw),
       geometry = object(feature.geometry),
       properties = object(feature.properties);
-    const name = typeof properties.full_address === 'string'
-      ? properties.full_address
-      : [properties.name, properties.place_formatted].filter((value) => typeof value === 'string' && value).join(', ');
+    const name =
+      typeof properties.full_address === 'string'
+        ? properties.full_address
+        : [properties.name, properties.place_formatted]
+            .filter((value) => typeof value === 'string' && value)
+            .join(', ');
     if (!validCoordinate(geometry.coordinates) || !name)
       throw new Error('The search service returned an invalid location.');
     return { name, coordinate: geometry.coordinates };

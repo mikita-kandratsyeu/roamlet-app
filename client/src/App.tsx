@@ -956,8 +956,12 @@ export default function App() {
                 <Info size={16} />
                 <span>
                   {configurationUnavailable
-                    ? t('Mapbox configuration could not be checked. GPX and saved routes still work.')
-                    : t('Configure a public Mapbox token in VITE_MAPBOX_ACCESS_TOKEN. GPX and saved routes remain available.')}
+                    ? t(
+                        'Mapbox configuration could not be checked. GPX and saved routes still work.',
+                      )
+                    : t(
+                        'Configure a public Mapbox token in VITE_MAPBOX_ACCESS_TOKEN. GPX and saved routes remain available.',
+                      )}
                 </span>
                 <Button variant="ghost" className="text-button" onClick={() => setHelpOpen(true)}>
                   {t('Setup')}
@@ -1144,7 +1148,9 @@ export default function App() {
                 Mapbox
               </a>
               {t('. Set')} <code>VITE_MAPBOX_ACCESS_TOKEN</code>{' '}
-              {t('in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions. Maps, routes, search and terrain are requested directly from Mapbox.')}
+              {t(
+                'in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions. Maps, routes, search and terrain are requested directly from Mapbox.',
+              )}
             </p>
             <h3>{t('Your route, your device')}</h3>
             <p>

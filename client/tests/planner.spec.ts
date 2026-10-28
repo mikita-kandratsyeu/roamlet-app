@@ -10,7 +10,8 @@ const fixture = {
   code: 'Ok',
   routes: [
     {
-      distance: 640, duration: 240,
+      distance: 640,
+      duration: 240,
       geometry: { type: 'LineString', coordinates },
     },
   ],

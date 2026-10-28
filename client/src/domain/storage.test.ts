@@ -1,6 +1,13 @@
 import 'fake-indexeddb/auto';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { deleteRoute, duplicateRoute, listRoutes, RouteDatabase, routeDb, saveRoute } from './storage';
+import {
+  deleteRoute,
+  duplicateRoute,
+  listRoutes,
+  RouteDatabase,
+  routeDb,
+  saveRoute,
+} from './storage';
 import Dexie from 'dexie';
 import type { PlannedRoute } from './types';
 
@@ -47,7 +54,10 @@ describe('route persistence', () => {
     const upgraded = new RouteDatabase(name);
     try {
       await upgraded.open();
-      expect((await upgraded.routes.toArray()).map(route => route.id).sort()).toEqual(['gpx', 'map']);
+      expect((await upgraded.routes.toArray()).map((route) => route.id).sort()).toEqual([
+        'gpx',
+        'map',
+      ]);
     } finally {
       await upgraded.delete();
     }

@@ -132,30 +132,22 @@ Saved/imported routes open as snapshots and are never silently rerouted. Coordin
 - Production output includes a large map/vendor JavaScript chunk; further lazy loading is a sensible optimization before broader launch.
 - Deploy at the origin root with SPA fallback; base-path deployments need corresponding asset/service-worker path configuration.
 
-## Mapbox migration verification (28 October 2026)
+## Verification
 
-- Unit tests, typecheck, lint, formatting and production build verified. Proxy suite: 24 tests; client suite: 185 tests.
-- Chromium: 20 of 24 desktop/mobile checks passed; the four failures are pre-existing assertions about header button count and library tab order, not routing/map failures. Mapbox proxy integration and all three production offline checks passed.
-- Live cycling and walking routes in Gomel, permanent place search and Mapbox Outdoors style access returned HTTP 200. The browser displayed the Mapbox map and a routed 1 km cycling path. Terrain-RGB returned provider HTTP 429, so the elevation chart correctly reported unavailable data instead of preventing save/export.
-- Credentials were loaded from gitignored workspace `.env` files and were not committed. No claim is made that successful API access establishes country/payment or redistribution permission.
+Browser-only architecture verification is pending. No earlier test counts establish validation of the current frontend-only build.
 
-## Verification history (before Mapbox migration)
+Run targeted client tests for changed workflows, then the full validation commands as appropriate:
 
-The results below describe earlier ORS/MapLibre revisions, not live Mapbox-account validation.
+```sh
+yarn test:client
+yarn typecheck
+yarn lint
+yarn format:check
+yarn build
+yarn test:e2e
+yarn test:offline
+```
 
-Executed with Node 25.6.1, Yarn Classic 1.22.22 and public npm registry dependencies. Initial proxy migration verification:
+Unit/component coverage should include routing/search/terrain failures, storage version 2 cleanup, Mapbox/GPX retention, GPX metadata, map-view persistence, language/theme state and keyboard focus. Browser checks should cover desktop/mobile route planning, save/reload/export and missing-token handling. Production offline checks should verify the static shell, local library and GPX workflows without caching external basemap or provider responses. Browser tests use synthetic styles/geometry only as test fixtures; production has no fixture fallback.
 
-- `yarn test`: **56 client tests + 15 proxy tests** passing: domain/persistence/GPX/routing/UI and actual HTTP proxy authentication, whitelist/validation, origin checks, quotas, cancellation, response bounds and static serving.
-- `yarn test:e2e`: **10 passing** Chromium workflows across desktop and Pixel 7 mobile viewports: create/recalculate, save/reload/reopen/export, import/error handling, rename/duplicate/filter/delete, hiking/search/service failures and round trips.
-- `yarn test:offline`: **3 passing** production browser checks: offline reload/library/GPX export, no external map caching, missing-key failure, waypoint-only GPX conversion handling.
-- `yarn test:integration`: **1 passing** browser → real Node proxy → local test upstream flow. Search, route, save/reload/export pass; the upstream requires the server-only sentinel key and the browser/bundle has no provider key or ORS API URL.
-- `yarn typecheck`, `yarn lint`, `yarn build`: passed; Vite reports the large-chunk optimization warning noted above.
-- Dev server started through the VS Code `Roamlet: dev` task at `http://127.0.0.1:5173/`; HTTP response and real map tiles/attribution were inspected in the integrated browser.
-
-Map-view follow-up verification: **15 targeted unit/component tests and 2 real-map Chromium desktop/mobile tests passed** for timezone/locale inference, corrupt/blocked storage, exact saved-view restoration and opened-route fit precedence. Type checking, lint and production build passed. Existing proxy-migration suites above were not rerun for this scoped map-only change.
-
-Branding/i18n/Yarn follow-up verification with Yarn **4.18.1**: `yarn install --immutable`, `yarn format:check`, `yarn lint`, `yarn typecheck`, and `yarn build` passed. The complete unit suites passed (**81 client + 15 proxy tests**), including Russian switching/persistence, live notice translation, locale-aware statistics, unchanged route/map state, and correct tile-provider attribution. Browser suites passed (**12 desktop/mobile workflows + 3 offline checks + 1 proxy integration check**). The offline check verifies cached self-hosted font assets and no failed bundled-asset requests. The integrated browser confirmed the new logo/palette, Cyrillic Manrope, language switching, visible linked OpenStreetMap credits, and no horizontal overflow at 320 px and 1440 px. The existing vendor chunk-size warning remains; live valid-key ORS responses were not tested.
-
-Browser planning tests use test-only HTTP fixtures, not real hosted routes. The integration suite uses an actual Node proxy and a local synthetic upstream with a test-only sentinel key; production code has no fixture fallback. Production offline/missing-key tests build without a provider key and run the real proxy/static server. Real valid-key ORS service responses remain unverified.
-
-The IDE initially discovered no tests, so configured CLI runners were used. Chromium was installed through the client workspace's Playwright CLI. Migration verification caught a production service-worker bootstrap request to `/` using `Accept: */*`; the static server was fixed to serve the root index for that request while keeping other SPA fallback rules strict. Client keys and upstream URLs were removed from the frontend configuration; production browser testing asserts that the build and request headers do not contain them.
+Latest live account checks returned HTTP 200 for cycling/walking routes, permanent place search and the Mapbox Outdoors style; Terrain-RGB returned HTTP 429. These checks do not establish browser-only validation, country/payment eligibility, permanent-storage permission or GPX redistribution rights. Public credentials belong in gitignored client environment files and are expected to be visible in the built frontend and requests.

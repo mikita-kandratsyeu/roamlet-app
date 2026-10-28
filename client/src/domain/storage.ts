@@ -8,10 +8,15 @@ export class RouteDatabase extends Dexie {
   constructor(name = 'roamlet-routes') {
     super(name);
     this.version(1).stores({ routes: 'id, updatedAt, createdAt' });
-    this.version(2).stores({ routes: 'id, updatedAt, createdAt' }).upgrade(async transaction => {
-      // The owner requested removal of snapshots from the retired provider.
-      await transaction.table('routes').filter(route => !['mapbox', 'gpx'].includes(route.source)).delete();
-    });
+    this.version(2)
+      .stores({ routes: 'id, updatedAt, createdAt' })
+      .upgrade(async (transaction) => {
+        // The owner requested removal of snapshots from the retired provider.
+        await transaction
+          .table('routes')
+          .filter((route) => !['mapbox', 'gpx'].includes(route.source))
+          .delete();
+      });
   }
 }
 export const routeDb = new RouteDatabase();

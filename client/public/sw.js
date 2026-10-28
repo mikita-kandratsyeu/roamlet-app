@@ -1,4 +1,4 @@
-const CACHE = 'roamlet-shell-v4';
+const CACHE = 'roamlet-shell-v5';
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
@@ -42,12 +42,7 @@ self.addEventListener('activate', (event) => {
 });
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  if (
-    url.origin !== self.location.origin ||
-    event.request.method !== 'GET' ||
-    url.pathname.startsWith('/api/')
-  )
-    return;
+  if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)

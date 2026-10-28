@@ -18,7 +18,8 @@ const response = (
   routes: [
     {
       geometry: { type: 'LineString', coordinates },
-      distance: 1234, duration: 420,
+      distance: 1234,
+      duration: 420,
     },
   ],
 });
@@ -54,7 +55,9 @@ describe('MapboxRoutingService', () => {
     expect(url.searchParams.get('access_token')).toBe('pk.test-public-token');
     expect(fetcher.mock.calls[0][1]?.credentials).toBe('omit');
     expect(fetcher.mock.calls[0][1]?.headers).toEqual({ Accept: 'application/json' });
-    await expect(requestJson('https://external.invalid/', {})).rejects.toThrow('Unsupported Mapbox endpoint');
+    await expect(requestJson('https://external.invalid/', {})).rejects.toThrow(
+      'Unsupported Mapbox endpoint',
+    );
   });
   it('uses the cycling profile, terrain geometry distance and provider time', async () => {
     const fetcher = mockJson(response());
@@ -142,7 +145,10 @@ describe('MapboxRoutingService', () => {
     );
     expect(result).toHaveLength(1);
     expect(fetcher.mock.calls.length).toBeLessThanOrEqual(6);
-    const coordinates = new URL(String(fetcher.mock.calls[0][0])).pathname.split('/').at(-1)!.split(';');
+    const coordinates = new URL(String(fetcher.mock.calls[0][0])).pathname
+      .split('/')
+      .at(-1)!
+      .split(';');
     expect(coordinates).toHaveLength(4);
     expect(coordinates[0]).toEqual(coordinates.at(-1));
     expect(new URL(String(fetcher.mock.calls[0][0])).searchParams.has('options')).toBe(false);
@@ -151,7 +157,11 @@ describe('MapboxRoutingService', () => {
   it('stops early when routed length matches the target and samples only selected loops', async () => {
     vi.mocked(addTerrainElevation).mockClear();
     const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
-      const coordinates = new URL(String(url)).pathname.split('/').at(-1)!.split(';').map(point => point.split(',').map(Number));
+      const coordinates = new URL(String(url)).pathname
+        .split('/')
+        .at(-1)!
+        .split(';')
+        .map((point) => point.split(',').map(Number));
       return new Response(JSON.stringify(response(coordinates)), {
         headers: { 'Content-Type': 'application/json' },
       });
@@ -217,7 +227,10 @@ describe('MapboxRoutingService', () => {
   it('parses permanent geocoding results and requests only on submit', async () => {
     const fetcher = mockJson({
       features: [
-        { geometry: { coordinates: [11.4, 47.26] }, properties: { full_address: 'Innsbruck, Austria' } },
+        {
+          geometry: { coordinates: [11.4, 47.26] },
+          properties: { full_address: 'Innsbruck, Austria' },
+        },
       ],
     });
     const places = await searchPlaces('Innsbruck test');

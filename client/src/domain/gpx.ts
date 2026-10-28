@@ -203,22 +203,22 @@ export function exportGpx(route: PlannedRoute): string {
           name: xmlText(route.name),
           desc: xmlText(route.description),
           ...(route.source === 'mapbox'
-              ? {
-                  copyright: {
-                    '@_author': 'Mapbox / OpenStreetMap contributors',
+            ? {
+                copyright: {
+                  '@_author': 'Mapbox / OpenStreetMap contributors',
+                },
+                link: [
+                  {
+                    '@_href': 'https://www.mapbox.com/about/maps/',
+                    text: 'Routing and terrain by Mapbox',
                   },
-                  link: [
-                    {
-                      '@_href': 'https://www.mapbox.com/about/maps/',
-                      text: 'Routing and terrain by Mapbox',
-                    },
-                    {
-                      '@_href': 'https://www.openstreetmap.org/copyright',
-                      text: 'OpenStreetMap contributors',
-                    },
-                  ],
-                }
-              : {}),
+                  {
+                    '@_href': 'https://www.openstreetmap.org/copyright',
+                    text: 'OpenStreetMap contributors',
+                  },
+                ],
+              }
+            : {}),
         },
         wpt: route.waypoints.map((waypoint) => ({
           ...xmlPoint(waypoint.coordinate),
