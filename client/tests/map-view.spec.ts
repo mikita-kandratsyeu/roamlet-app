@@ -20,17 +20,25 @@ test('uses timezone region first, restores last local view, and fits an imported
     route.fulfill({
       json: {
         version: 8,
-        sources: {},
+        sources: {
+          fixture: {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          },
+        },
         layers: [
           { id: 'background', type: 'background', paint: { 'background-color': '#faf7f2' } },
+          { id: 'fixture', type: 'circle', source: 'fixture' },
         ],
       },
     }),
   );
   await page.goto('/');
-  await expect(page.locator('.mapboxgl-ctrl-logo')).toBeVisible();
-  await expect(page.locator('.map-issue')).toBeVisible();
-  const logo = await page.locator('.mapboxgl-ctrl-logo').boundingBox();
+  await expect(page.locator('.mapboxgl-ctrl-logo')).toHaveCount(0);
+  await expect(page.locator('.maplibregl-ctrl-attrib')).toBeVisible();
+  await expect(page.locator('.map-issue')).toHaveAttribute('href', 'https://www.openstreetmap.org/');
+  const logo = await page.locator('.maplibregl-ctrl-attrib').boundingBox();
   const feedback = await page.locator('.map-issue').boundingBox();
   expect(
     logo &&

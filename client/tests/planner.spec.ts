@@ -258,7 +258,7 @@ test('round trips route intermediate points with bounded search; responsive cont
     true,
   );
   await expect(
-    page.locator('.mapboxgl-ctrl-attrib').getByRole('link', { name: 'OpenStreetMap' }),
+    page.locator('.maplibregl-ctrl-attrib').getByRole('link', { name: 'OpenStreetMap' }),
   ).toBeVisible();
 });
 
@@ -282,7 +282,7 @@ test('Onest loads Latin and Cyrillic faces and keeps Russian controls within a 3
     page.locator('body'),
     page.getByRole('textbox', { name: 'Широта, долгота' }),
     page.getByRole('menuitem', { name: 'Мои маршруты' }),
-    page.locator('.mapboxgl-map'),
+    page.locator('.maplibregl-map'),
   ]) {
     await expect(element).toHaveCSS('font-family', /Onest Variable/);
   }
@@ -473,9 +473,9 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await expect(zoom).toHaveCSS('outline-width', '2px');
   await expect(zoom).toHaveCSS('outline-offset', '-2px');
   await expect(zoom).toHaveCSS('box-shadow', 'none');
-  await page.locator('.mapboxgl-canvas').focus();
-  await expect(page.locator('.mapboxgl-canvas')).toHaveCSS('outline-width', '2px');
-  await expect(page.locator('.mapboxgl-canvas')).toHaveCSS('outline-offset', '-3px');
+  await page.locator('.maplibregl-canvas').focus();
+  await expect(page.locator('.maplibregl-canvas')).toHaveCSS('outline-width', '2px');
+  await expect(page.locator('.maplibregl-canvas')).toHaveCSS('outline-offset', '-3px');
   await page.emulateMedia({ forcedColors: 'active' });
   await expect(page.locator(':root')).toHaveCSS('--focus-ring', 'Highlight');
   await zoom.focus();
@@ -728,8 +728,7 @@ for (const hidden of [false, true]) {
       '.map-issue',
       '.map-extra-controls',
       '#map-elevation-root',
-      '.mapboxgl-ctrl-logo',
-      '.mapboxgl-ctrl-attrib',
+      '.maplibregl-ctrl-attrib',
     ];
     for (const withRoute of [false, true]) {
       if (withRoute) {

@@ -1,8 +1,6 @@
 {
   "Preparing the map for your next route.": "Готовим карту для вашего следующего маршрута.",
   "The map took too long to load. Check your connection and reload the page.": "Карта загружается слишком долго. Проверьте соединение и обновите страницу.",
-  "Set VITE_MAPBOX_ACCESS_TOKEN to a public Mapbox token to display the map. Saved routes and GPX import/export remain available. Offline basemaps are not supported.": "Для отображения карты задайте публичный токен Mapbox в VITE_MAPBOX_ACCESS_TOKEN. Сохранённые маршруты, импорт и экспорт GPX доступны. Офлайн-карта не поддерживается.",
-  "VITE_MAPBOX_ACCESS_TOKEN must be a public Mapbox token (pk.), not a secret token.": "VITE_MAPBOX_ACCESS_TOKEN должен содержать публичный токен Mapbox (pk.), а не секретный токен.",
   "Choose an activity, then add your stops.": "Выберите занятие и добавьте точки.",
   "Search results": "Результаты поиска",
   "Drag to reorder stops": "Перетащите, чтобы изменить порядок точек",
@@ -300,11 +298,13 @@
   "Click the map or enter coordinates to add a start and finish.": "Нажмите на карту или введите координаты старта и финиша.",
   "Choose a starting point on the map or enter coordinates first.": "Выберите старт на карте или введите координаты.",
   "Add two stops to see distance and time.": "Добавьте две точки, чтобы увидеть расстояние и время.",
-  "Mapbox setup": "Настройка Mapbox",
-  "in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions. Maps and routes are requested directly from Mapbox.": "в окружении клиента и перезапустите Vite или пересоберите приложение. Используйте публичный токен pk. с минимальными правами и ограничениями URL. Карта и маршруты запрашиваются напрямую из Mapbox.",
   "Cycling and hiking use Mapbox cycling and walking profiles. Check access and trail conditions. Moving time is an estimate. Loops use intermediate points and may differ from the target distance. Elevation is shown only from imported GPX files with complete height data.": "Для велосипеда и походов используются Mapbox cycling и walking. Проверяйте доступ и состояние троп. Время приблизительное. Кольца подбираются через промежуточные точки; длина может отличаться от желаемой. Высоты показаны только для импортированных GPX с полными данными.",
-  "(ODbL). Maps and routing are provided by Mapbox. No map regions are downloaded for offline use. Provider ©": "(ODbL). Карту и маршрутизацию предоставляет Mapbox. Регионы карты не загружаются для офлайн-использования. Провайдер ©",
-  "Maps and route points go directly from your browser to Mapbox using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.": "Карта и точки маршрутов передаются из браузера напрямую в Mapbox с публичным токеном. Библиотека не загружается на сервер. После кеширования оболочки библиотека и GPX доступны офлайн, но карта требует интернет. Перед публикацией проверьте условия хранения и экспорта GPX.",
   "Location is not supported in this browser. Enter coordinates or click the map instead.": "Браузер не поддерживает определение местоположения. Введите координаты или нажмите на карту.",
-  "Location permission was denied or your position is unavailable. Enter coordinates or click the map instead.": "Доступ к местоположению запрещён или не удалось его определить. Введите координаты или нажмите на карту."
+  "Location permission was denied or your position is unavailable. Enter coordinates or click the map instead.": "Доступ к местоположению запрещён или не удалось его определить. Введите координаты или нажмите на карту.",
+  "Routing setup": "Настройка маршрутизации",
+  "in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions for Mapbox Directions only. The map uses MapLibre and OpenFreeMap without a token.": "в окружении клиента и перезапустите Vite или пересоберите приложение. Публичный токен pk. с минимальными правами и ограничениями URL нужен только для Mapbox Directions. Карта использует MapLibre и OpenFreeMap без токена.",
+  "(ODbL). Basemaps are provided by OpenFreeMap using OpenMapTiles data. No map regions are downloaded for offline use. Routing ©": "(ODbL). Подложку предоставляет OpenFreeMap на данных OpenMapTiles. Регионы карты не загружаются для офлайн-использования. Маршрутизация ©",
+  "Map requests go directly to the configured map provider (OpenFreeMap by default); route points go to Mapbox Directions using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.": "Запросы карты идут напрямую провайдеру подложки (по умолчанию OpenFreeMap); точки маршрута — в Mapbox Directions с публичным токеном. Локальная библиотека не загружается на сервер. После кеширования оболочки библиотека и GPX доступны офлайн, но карта требует интернет. Перед публикацией проверьте условия хранения и экспорта GPX.",
+  "Bright": "Светлая",
+  "Set VITE_MAP_STYLE to an HTTP(S) or root-relative style URL. Saved routes and GPX remain available. Offline basemaps are not supported.": "Укажите в VITE_MAP_STYLE HTTP(S)-адрес стиля или путь от корня сайта. Библиотека и GPX остаются доступны. Офлайн-подложки не поддерживаются."
 }

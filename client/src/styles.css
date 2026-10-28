@@ -36,7 +36,7 @@ button,
 input,
 textarea,
 select,
-.mapboxgl-map {
+.maplibregl-map {
   font: inherit;
 }
 button {
@@ -937,7 +937,7 @@ textarea::placeholder {
   position: absolute;
   inset: 0;
 }
-.dark .mapboxgl-canvas {
+.dark .maplibregl-canvas {
   filter: brightness(0.72) saturate(0.8);
 }
 .map-extra-controls {
@@ -970,8 +970,8 @@ textarea::placeholder {
   background: var(--muted);
 }
 .map-control:focus-visible,
-.mapboxgl-ctrl-attrib-button:focus-visible,
-.mapboxgl-canvas:focus-visible {
+.maplibregl-ctrl-attrib-button:focus-visible,
+.maplibregl-canvas:focus-visible {
   outline-offset: -2px;
 }
 .map-top-label {
@@ -1065,12 +1065,12 @@ textarea::placeholder {
 .desktop-panel-hidden .map-loading {
   left: var(--space);
 }
-.mapboxgl-ctrl-attrib {
+.maplibregl-ctrl-attrib {
   background: var(--surface) !important;
   color: var(--foreground);
   font-size: 10px !important;
 }
-.mapboxgl-ctrl-attrib a {
+.maplibregl-ctrl-attrib a {
   color: var(--foreground);
 }
 .waypoint-marker {

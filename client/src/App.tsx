@@ -1243,7 +1243,7 @@ export default function App() {
       {helpOpen && (
         <Dialog title={t('A few helpful things')} onClose={() => setHelpOpen(false)}>
           <div className="help-content">
-            <h3>{t('Mapbox setup')}</h3>
+            <h3>{t('Routing setup')}</h3>
             <p>
               {t('For deployment administrators: create a key at')}{' '}
               <a href="https://account.mapbox.com/auth/signup/" target="_blank" rel="noreferrer">
@@ -1251,7 +1251,7 @@ export default function App() {
               </a>
               {t('. Set')} <code>VITE_MAPBOX_ACCESS_TOKEN</code>{' '}
               {t(
-                'in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions. Maps and routes are requested directly from Mapbox.',
+                'in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions for Mapbox Directions only. The map uses MapLibre and OpenFreeMap without a token.',
               )}
             </p>
             <h3>{t('Your route, your device')}</h3>
@@ -1279,7 +1279,7 @@ export default function App() {
                 {t('OpenStreetMap contributors')}
               </a>{' '}
               {t(
-                '(ODbL). Maps and routing are provided by Mapbox. No map regions are downloaded for offline use. Provider ©',
+                '(ODbL). Basemaps are provided by OpenFreeMap using OpenMapTiles data. No map regions are downloaded for offline use. Routing ©',
               )}{' '}
               <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noreferrer">
                 Mapbox
@@ -1288,7 +1288,7 @@ export default function App() {
             </p>
             <p className="fine-print">
               {t(
-                'Maps and route points go directly from your browser to Mapbox using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.',
+                'Map requests go directly to the configured map provider (OpenFreeMap by default); route points go to Mapbox Directions using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.',
               )}
             </p>
           </div>

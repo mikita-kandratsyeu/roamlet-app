@@ -24,7 +24,7 @@ export default defineConfig({
     reuseExistingServer: false,
     env: {
       VITE_MAPBOX_ACCESS_TOKEN: '',
-      VITE_MAPBOX_STYLE: '',
+      VITE_MAP_STYLE: '',
     },
   },
 });

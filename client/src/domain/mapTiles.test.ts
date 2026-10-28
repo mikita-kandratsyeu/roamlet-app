@@ -1,40 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_MAPBOX_STYLE, mapTiles } from './mapTiles';
+import { DEFAULT_MAP_STYLE, mapTiles } from './mapTiles';
 
-const accessToken = 'pk.test-only-not-a-real-token';
-
-describe('Mapbox map configuration', () => {
-  it('uses the outdoors style by default with a public token', () => {
-    expect(mapTiles({ VITE_MAPBOX_ACCESS_TOKEN: accessToken })).toEqual({
-      accessToken,
-      style: DEFAULT_MAPBOX_STYLE,
+describe('MapLibre map configuration', () => {
+  it('uses OpenFreeMap without credentials by default', () => {
+    expect(mapTiles({})).toEqual({ style: DEFAULT_MAP_STYLE });
+    expect(DEFAULT_MAP_STYLE).toBe('https://tiles.openfreemap.org/styles/liberty');
+  });
+  it('trims the configured style and treats blank values as the default', () => {
+    expect(mapTiles({ VITE_MAP_STYLE: ' https://maps.example/style.json ' })).toEqual({
+      style: 'https://maps.example/style.json',
     });
-    expect(DEFAULT_MAPBOX_STYLE).toBe('mapbox://styles/mapbox/outdoors-v12');
+    expect(mapTiles({ VITE_MAP_STYLE: ' ' }).style).toBe(DEFAULT_MAP_STYLE);
   });
-  it('trims configured values and preserves the selected style', () => {
-    expect(
-      mapTiles({
-        VITE_MAPBOX_ACCESS_TOKEN: ` ${accessToken} `,
-        VITE_MAPBOX_STYLE: ' mapbox://styles/example/custom-style ',
-      }),
-    ).toEqual({ accessToken, style: 'mapbox://styles/example/custom-style' });
-    expect(mapTiles({ VITE_MAPBOX_ACCESS_TOKEN: accessToken, VITE_MAPBOX_STYLE: ' ' }).style).toBe(
-      DEFAULT_MAPBOX_STYLE,
-    );
-  });
-  it('requires a token even for a configured local style', () => {
-    expect(() => mapTiles({})).toThrow('VITE_MAPBOX_ACCESS_TOKEN');
-    expect(() =>
-      mapTiles({ VITE_MAPBOX_ACCESS_TOKEN: ' ', VITE_MAPBOX_STYLE: '/style.json' }),
-    ).toThrow('Saved routes and GPX import/export remain available');
-  });
-  it('rejects secret tokens without including the token in the error', () => {
-    const token = 'sk.test-only-not-a-real-token';
-    expect(() => mapTiles({ VITE_MAPBOX_ACCESS_TOKEN: token })).toThrow('public Mapbox token');
-    try {
-      mapTiles({ VITE_MAPBOX_ACCESS_TOKEN: token });
-    } catch (error) {
-      expect(String(error)).not.toContain(token);
-    }
-  });
+  it.each(['/style.json', 'http://localhost:5173/style.json'])(
+    'supports local style %s without a Mapbox token',
+    (style) => expect(mapTiles({ VITE_MAP_STYLE: style })).toEqual({ style }),
+  );
+  it.each(['mapbox://styles/mapbox/outdoors-v12', 'javascript:alert(1)', '//example.com/style.json', 'style.json', 'https://user:secret@example.com/style.json', '/\\\\example.com/style.json'])(
+    'rejects unsupported style URLs without exposing configuration: %s',
+    (style) => {
+      expect(() => mapTiles({ VITE_MAP_STYLE: style })).toThrow('VITE_MAP_STYLE');
+      try {
+        mapTiles({ VITE_MAP_STYLE: style });
+      } catch (error) {
+        expect(String(error)).not.toContain(style);
+      }
+    },
+  );
 });

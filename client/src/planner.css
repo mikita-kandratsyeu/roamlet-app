@@ -560,7 +560,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-.mapboxgl-canvas:focus-visible {
+.maplibregl-canvas:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -3px;
 }
@@ -587,10 +587,10 @@
   font-size: 12px;
   z-index: 2;
 }
-.mapboxgl-ctrl-bottom-right {
+.maplibregl-ctrl-bottom-right {
   max-width: calc(100% - 108px);
 }
-.mapboxgl-ctrl-attrib {
+.maplibregl-ctrl-attrib {
   max-width: 100%;
   overflow-wrap: anywhere;
 }

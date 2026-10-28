@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => ({
   theme: 'light',
 }));
 vi.mock('../theme', () => ({ useTheme: () => ({ resolvedTheme: mocks.theme }) }));
-vi.mock('mapbox-gl', () => ({
+vi.mock('maplibre-gl', () => ({
   default: {
     Map: class {
       constructor(options: unknown) {
@@ -110,7 +110,7 @@ const mockStorage = () => {
 beforeEach(() => {
   mockStorage();
   vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'pk.test-only-not-a-real-token');
-  vi.stubEnv('VITE_MAPBOX_STYLE', '');
+  vi.stubEnv('VITE_MAP_STYLE', '');
   vi.clearAllMocks();
   mocks.theme = 'light';
   mocks.handlers.clear();
@@ -168,9 +168,9 @@ it('changes supported styles and restores actual geometry without resetting the 
   act(() => mocks.handlers.get('load')?.());
   const fitCalls = mocks.fit.mock.calls.length;
   fireEvent.change(screen.getByRole('combobox', { name: 'Map style' }), {
-    target: { value: 'mapbox://styles/mapbox/streets-v12' },
+    target: { value: 'https://tiles.openfreemap.org/styles/bright' },
   });
-  expect(mocks.setStyle).toHaveBeenCalledWith('mapbox://styles/mapbox/streets-v12');
+  expect(mocks.setStyle).toHaveBeenCalledWith('https://tiles.openfreemap.org/styles/bright');
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
   act(() => mocks.handlers.get('style.load')?.());
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
@@ -185,14 +185,14 @@ it('changes supported styles and restores actual geometry without resetting the 
   expect(mocks.options).toHaveBeenCalledTimes(1);
 });
 
-it('offers only Outdoors and Streets with matching decorative icons', () => {
+it('offers Streets and Bright with decorative icons', () => {
   render(<RouteMap {...props} />);
   expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
-    'Outdoors',
     'Streets',
+    'Bright',
   ]);
   expect(screen.queryByRole('radio', { name: 'Satellite' })).not.toBeInTheDocument();
-  for (const label of ['Outdoors', 'Streets']) {
+  for (const label of ['Streets', 'Bright']) {
     const icon = screen.getByRole('radio', { name: label }).querySelector('svg');
     expect(icon).toHaveAttribute('aria-hidden', 'true');
     expect(icon).toHaveAttribute('width', '18');
@@ -200,38 +200,37 @@ it('offers only Outdoors and Streets with matching decorative icons', () => {
   }
 });
 
-it('uses the configured Mapbox style, official logo and source attribution control', () => {
-  vi.stubEnv('VITE_MAPBOX_STYLE', '/test-style.json');
+it('uses the configured MapLibre style and source attribution without Mapbox credentials', () => {
+  vi.stubEnv('VITE_MAP_STYLE', '/test-style.json');
   render(<RouteMap {...props} />);
   expect(mocks.options).toHaveBeenCalledWith(
-    expect.objectContaining({
-      accessToken: 'pk.test-only-not-a-real-token',
-      style: '/test-style.json',
-      logoPosition: 'bottom-left',
-      attributionControl: false,
-    }),
+    expect.objectContaining({ style: '/test-style.json', attributionControl: false }),
   );
+  expect(mocks.options.mock.calls[0][0]).not.toHaveProperty('accessToken');
+  expect(mocks.options.mock.calls[0][0]).not.toHaveProperty('logoPosition');
   expect(mocks.attribution).toHaveBeenCalledWith({ compact: false });
   expect(mocks.control).toHaveBeenCalledWith(expect.anything(), 'bottom-right');
 });
 
-it('shows persistent configuration UI without initializing a map when the public token is missing', () => {
-  vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', '');
+it('shows persistent configuration UI for an unsupported map style', () => {
+  vi.stubEnv('VITE_MAP_STYLE', 'mapbox://styles/mapbox/outdoors-v12');
   render(<RouteMap {...props} />);
   expect(mocks.options).not.toHaveBeenCalled();
-  expect(screen.getByRole('status')).toHaveTextContent('VITE_MAPBOX_ACCESS_TOKEN');
+  expect(screen.getByRole('status')).toHaveTextContent('VITE_MAP_STYLE');
   expect(screen.getByRole('status')).toHaveTextContent('Offline basemaps are not supported');
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Use my location' })).toBeDisabled();
   expect(screen.queryByRole('button', { name: 'Dismiss map notice' })).not.toBeInTheDocument();
 });
 
-it('does not initialize Mapbox with a secret browser token', () => {
-  vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'sk.test-only-not-a-real-token');
+it.each(['', 'sk.test-only-not-a-real-token'])('initializes the map independently of routing token %s', (token) => {
+  vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', token);
   render(<RouteMap {...props} />);
-  expect(mocks.options).not.toHaveBeenCalled();
-  expect(screen.getByRole('status')).toHaveTextContent('public Mapbox token');
-  expect(screen.getByRole('status')).not.toHaveTextContent('sk.test-only-not-a-real-token');
+  expect(mocks.options).toHaveBeenCalledTimes(1);
+  expect(mocks.options.mock.calls[0][0]).not.toHaveProperty('accessToken');
+  act(() => mocks.handlers.get('load')?.());
+  expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
 });
 
 it('preserves pointer editing, marker cleanup and read-only view mode', () => {

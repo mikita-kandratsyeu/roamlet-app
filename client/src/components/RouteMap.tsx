@@ -2,15 +2,14 @@ import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
+import maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView, saveMapView } from '../domain/mapView';
-import { mapTiles, MAPBOX_TOKEN_REQUIRED_MESSAGE, DEFAULT_MAPBOX_STYLE } from '../domain/mapTiles';
+import { mapTiles, MAP_STYLE_CONFIGURATION_MESSAGE, DEFAULT_MAP_STYLE, BRIGHT_MAP_STYLE } from '../domain/mapTiles';
 import {
   LocateFixed,
   Scan,
   MousePointer2,
-  Trees,
   Map as MapIcon,
   Plus,
   Minus,
@@ -62,13 +61,13 @@ export function RouteMap(props: Props) {
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const container = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
+  const map = useRef<maplibregl.Map | null>(null);
   const latest = useRef(props);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mapError, setMapError] = useState('');
   const [configurationError, setConfigurationError] = useState(false);
-  const configuredStyle = import.meta.env.VITE_MAPBOX_STYLE?.trim() || DEFAULT_MAPBOX_STYLE;
+  const configuredStyle = import.meta.env.VITE_MAP_STYLE?.trim() || DEFAULT_MAP_STYLE;
   const [style, setStyle] = useState(configuredStyle);
   const [locating, setLocating] = useState(false);
   const lastFitToken = useRef(0);
@@ -79,7 +78,7 @@ export function RouteMap(props: Props) {
     if (!region || !workspace || !toolbar) return;
     const attribution = [
       ...region.querySelectorAll<HTMLElement>(
-        '.mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right',
+        '.maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right',
       ),
     ];
     const stylePicker = region.querySelector<HTMLElement>('.map-top-label');
@@ -136,8 +135,8 @@ export function RouteMap(props: Props) {
     map.current?.setStyle(next);
   }
   const styles = [
-    { value: DEFAULT_MAPBOX_STYLE, label: t('Outdoors') },
-    { value: 'mapbox://styles/mapbox/streets-v12', label: t('Streets') },
+    { value: DEFAULT_MAP_STYLE, label: t('Streets') },
+    { value: BRIGHT_MAP_STYLE, label: t('Bright') },
   ];
   if (!styles.some((item) => item.value === configuredStyle))
     styles.unshift({ value: configuredStyle, label: t('Configured map') });
@@ -149,21 +148,18 @@ export function RouteMap(props: Props) {
     let tiles: ReturnType<typeof mapTiles>;
     try {
       tiles = mapTiles({
-        VITE_MAPBOX_ACCESS_TOKEN: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN,
-        VITE_MAPBOX_STYLE: import.meta.env.VITE_MAPBOX_STYLE,
+        VITE_MAP_STYLE: import.meta.env.VITE_MAP_STYLE,
       });
     } catch (error) {
       setConfigurationError(true);
-      setMapError(error instanceof Error ? error.message : MAPBOX_TOKEN_REQUIRED_MESSAGE);
+      setMapError(error instanceof Error ? error.message : MAP_STYLE_CONFIGURATION_MESSAGE);
       return;
     }
-    let instance: mapboxgl.Map;
+    let instance: maplibregl.Map;
     try {
-      instance = new mapboxgl.Map({
+      instance = new maplibregl.Map({
         container: container.current,
         ...initialMapView(),
-        accessToken: tiles.accessToken,
-        logoPosition: 'bottom-left',
         attributionControl: false,
         locale: {
           'NavigationControl.ZoomIn': i18n.t('Zoom in'),
@@ -205,7 +201,7 @@ export function RouteMap(props: Props) {
       if (moved) persistView();
     };
     window.addEventListener('pagehide', persistOnHide);
-    instance.addControl(new mapboxgl.AttributionControl({ compact: false }), 'bottom-right');
+    instance.addControl(new maplibregl.AttributionControl({ compact: false }), 'bottom-right');
     const installRouteLayers = () => {
       if (!instance.getSource('route')) {
         instance.addSource('route', {
@@ -269,7 +265,7 @@ export function RouteMap(props: Props) {
   }, [ready, resolvedTheme]);
   useEffect(() => {
     if (!ready || !map.current) return;
-    const source = map.current.getSource('route') as mapboxgl.GeoJSONSource;
+    const source = map.current.getSource('route') as maplibregl.GeoJSONSource;
     source.setData({
       type: 'FeatureCollection',
       features: props.segments
@@ -296,7 +292,7 @@ export function RouteMap(props: Props) {
       element.title = `${label}${props.editable ? t(' — drag to reposition') : ''}`;
       element.setAttribute('aria-label', element.title);
       element.addEventListener('click', (event) => event.stopPropagation());
-      const marker = new mapboxgl.Marker({ element, draggable: props.editable })
+      const marker = new maplibregl.Marker({ element, draggable: props.editable })
         .setLngLat([point.coordinate[0], point.coordinate[1]])
         .addTo(map.current!);
       marker.on('dragend', () => {
@@ -309,10 +305,10 @@ export function RouteMap(props: Props) {
   }, [ready, props.waypoints, props.editable, t]);
   useEffect(() => {
     const labels = [
-      ['.mapboxgl-ctrl-zoom-in', t('Zoom in')],
-      ['.mapboxgl-ctrl-zoom-out', t('Zoom out')],
-      ['.mapboxgl-ctrl-attrib-button', t('Toggle attribution')],
-      ['.mapboxgl-canvas', t('Map')],
+      ['.maplibregl-ctrl-zoom-in', t('Zoom in')],
+      ['.maplibregl-ctrl-zoom-out', t('Zoom out')],
+      ['.maplibregl-ctrl-attrib-button', t('Toggle attribution')],
+      ['.maplibregl-canvas', t('Map')],
     ];
     for (const [selector, label] of labels) {
       const element = container.current?.querySelector(selector);
@@ -327,7 +323,7 @@ export function RouteMap(props: Props) {
       : props.waypoints.map((w) => w.coordinate);
     if (!coordinates.length) return;
     lastFitToken.current = props.fitToken;
-    const bounds = new mapboxgl.LngLatBounds();
+    const bounds = new maplibregl.LngLatBounds();
     coordinates.forEach((c) => bounds.extend([c[0], c[1]]));
     map.current.fitBounds(bounds, {
       padding: mapFitPadding(container.current),
@@ -436,7 +432,7 @@ export function RouteMap(props: Props) {
               ? props.segments.flat()
               : props.waypoints.map((w) => w.coordinate);
             if (!coordinates.length) return;
-            const bounds = new mapboxgl.LngLatBounds();
+            const bounds = new maplibregl.LngLatBounds();
             coordinates.forEach((c) => bounds.extend([c[0], c[1]]));
             map.current?.fitBounds(bounds, {
               padding: mapFitPadding(container.current),
@@ -467,8 +463,8 @@ export function RouteMap(props: Props) {
           >
             {styles.map((item) => (
               <ToggleGroupItem key={item.value} value={item.value}>
-                {item.value === DEFAULT_MAPBOX_STYLE && <Trees size={18} aria-hidden="true" />}
-                {item.value === 'mapbox://styles/mapbox/streets-v12' && (
+                {item.value === DEFAULT_MAP_STYLE && <MapIcon size={18} aria-hidden="true" />}
+                {item.value === BRIGHT_MAP_STYLE && (
                   <MapIcon size={18} aria-hidden="true" />
                 )}
                 {item.label}
@@ -492,7 +488,7 @@ export function RouteMap(props: Props) {
           {ready && (
             <a
               className="map-issue"
-              href="https://apps.mapbox.com/feedback/"
+              href="https://www.openstreetmap.org/"
               target="_blank"
               rel="noreferrer"
             >

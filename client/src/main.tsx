@@ -4,7 +4,7 @@ import App from './App';
 import { ThemeProvider } from './theme';
 import './i18n';
 import '@fontsource-variable/onest';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
 import './planner.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(

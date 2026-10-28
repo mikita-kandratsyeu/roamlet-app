@@ -27,7 +27,7 @@ export default defineConfig({
     reuseExistingServer: false,
     env: {
       VITE_MAPBOX_ACCESS_TOKEN: 'pk.test-only-not-a-real-token',
-      VITE_MAPBOX_STYLE: '/__fixtures__/map-style.json',
+      VITE_MAP_STYLE: '/__fixtures__/map-style.json',
     },
   },
 });

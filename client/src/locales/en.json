@@ -1,8 +1,6 @@
 {
   "Preparing the map for your next route.": "Preparing the map for your next route.",
   "The map took too long to load. Check your connection and reload the page.": "The map took too long to load. Check your connection and reload the page.",
-  "Set VITE_MAPBOX_ACCESS_TOKEN to a public Mapbox token to display the map. Saved routes and GPX import/export remain available. Offline basemaps are not supported.": "Set VITE_MAPBOX_ACCESS_TOKEN to a public Mapbox token to display the map. Saved routes and GPX import/export remain available. Offline basemaps are not supported.",
-  "VITE_MAPBOX_ACCESS_TOKEN must be a public Mapbox token (pk.), not a secret token.": "VITE_MAPBOX_ACCESS_TOKEN must be a public Mapbox token (pk.), not a secret token.",
   "Choose an activity, then add your stops.": "Choose an activity, then add your stops.",
   "Search results": "Search results",
   "Drag to reorder stops": "Drag to reorder stops",
@@ -300,11 +298,13 @@
   "Click the map or enter coordinates to add a start and finish.": "Click the map or enter coordinates to add a start and finish.",
   "Choose a starting point on the map or enter coordinates first.": "Choose a starting point on the map or enter coordinates first.",
   "Add two stops to see distance and time.": "Add two stops to see distance and time.",
-  "Mapbox setup": "Mapbox setup",
-  "in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions. Maps and routes are requested directly from Mapbox.": "in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions. Maps and routes are requested directly from Mapbox.",
   "Cycling and hiking use Mapbox cycling and walking profiles. Check access and trail conditions. Moving time is an estimate. Loops use intermediate points and may differ from the target distance. Elevation is shown only from imported GPX files with complete height data.": "Cycling and hiking use Mapbox cycling and walking profiles. Check access and trail conditions. Moving time is an estimate. Loops use intermediate points and may differ from the target distance. Elevation is shown only from imported GPX files with complete height data.",
-  "(ODbL). Maps and routing are provided by Mapbox. No map regions are downloaded for offline use. Provider ©": "(ODbL). Maps and routing are provided by Mapbox. No map regions are downloaded for offline use. Provider ©",
-  "Maps and route points go directly from your browser to Mapbox using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.": "Maps and route points go directly from your browser to Mapbox using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.",
   "Location is not supported in this browser. Enter coordinates or click the map instead.": "This browser does not support location access. Enter coordinates or click the map.",
-  "Location permission was denied or your position is unavailable. Enter coordinates or click the map instead.": "Location access was denied or your position could not be found. Enter coordinates or click the map."
+  "Location permission was denied or your position is unavailable. Enter coordinates or click the map instead.": "Location access was denied or your position could not be found. Enter coordinates or click the map.",
+  "Routing setup": "Routing setup",
+  "in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions for Mapbox Directions only. The map uses MapLibre and OpenFreeMap without a token.": "in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions for Mapbox Directions only. The map uses MapLibre and OpenFreeMap without a token.",
+  "(ODbL). Basemaps are provided by OpenFreeMap using OpenMapTiles data. No map regions are downloaded for offline use. Routing ©": "(ODbL). Basemaps are provided by OpenFreeMap using OpenMapTiles data. No map regions are downloaded for offline use. Routing ©",
+  "Map requests go directly to the configured map provider (OpenFreeMap by default); route points go to Mapbox Directions using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.": "Map requests go directly to the configured map provider (OpenFreeMap by default); route points go to Mapbox Directions using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.",
+  "Bright": "Bright",
+  "Set VITE_MAP_STYLE to an HTTP(S) or root-relative style URL. Saved routes and GPX remain available. Offline basemaps are not supported.": "Set VITE_MAP_STYLE to an HTTP(S) or root-relative style URL. Saved routes and GPX remain available. Offline basemaps are not supported."
 }
