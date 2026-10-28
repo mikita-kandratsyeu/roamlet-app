@@ -121,7 +121,7 @@ Saved/imported routes open as snapshots and are never silently rerouted. Coordin
 
 ## Known limitations
 
-- Latest live account checks returned HTTP 200 for the Mapbox style, cycling/walking routes and permanent search, but Terrain-RGB returned HTTP 429. Browser-only verification is pending; successful service responses do not certify route quality or account/legal permissions.
+- Latest live account checks returned HTTP 200 for the Mapbox style, cycling/walking routes and permanent search, but Terrain-RGB returned HTTP 429. Direct-browser routing/search is verified; successful service responses do not certify route quality or account/legal permissions.
 - Mapbox cycling/walking profiles are not certified gravel/trail access recommendations. Access restrictions and surface quality depend on geographic data. Surface breakdown is unavailable; terrain elevations and travel times are estimates.
 - Loop targets are approximate. The same network may yield one unique alternative or no viable loop. Loop geometry can be saved/exported unchanged; switching to manual editing recalculates a new route.
 - Editing an imported GPX explicitly converts its start/finish into a newly routed path and replaces the original geometry after confirmation. Multi-track gaps are otherwise preserved. A waypoint-only file is importable/saveable/exportable but cannot be converted through this editor.
@@ -134,7 +134,7 @@ Saved/imported routes open as snapshots and are never silently rerouted. Coordin
 
 ## Verification
 
-Browser-only architecture verification is pending. No earlier test counts establish validation of the current frontend-only build.
+Latest browser-only verification (28 October 2026): 108 targeted unit tests passed, along with typecheck, lint, formatting and production build. Eight desktop/mobile route/search/loop/import/export checks, all three static production offline checks and two map-view checks passed. Direct-browser Mapbox routing/search from the Vite module returned a 1.020 km Gomel route and five Minsk search results. Terrain-RGB still returned HTTP 429 due to provider quota.
 
 Run targeted client tests for changed workflows, then the full validation commands as appropriate:
 
@@ -150,4 +150,4 @@ yarn test:offline
 
 Unit/component coverage should include routing/search/terrain failures, storage version 2 cleanup, Mapbox/GPX retention, GPX metadata, map-view persistence, language/theme state and keyboard focus. Browser checks should cover desktop/mobile route planning, save/reload/export and missing-token handling. Production offline checks should verify the static shell, local library and GPX workflows without caching external basemap or provider responses. Browser tests use synthetic styles/geometry only as test fixtures; production has no fixture fallback.
 
-Latest live account checks returned HTTP 200 for cycling/walking routes, permanent place search and the Mapbox Outdoors style; Terrain-RGB returned HTTP 429. These checks do not establish browser-only validation, country/payment eligibility, permanent-storage permission or GPX redistribution rights. Public credentials belong in gitignored client environment files and are expected to be visible in the built frontend and requests.
+Latest live account checks returned HTTP 200 for cycling/walking routes, permanent place search and the Mapbox Outdoors style; Terrain-RGB returned HTTP 429. Successful service and browser checks do not establish country/payment eligibility, permanent-storage permission or GPX redistribution rights. Public credentials belong in gitignored client environment files and are expected to be visible in the built frontend and requests.
