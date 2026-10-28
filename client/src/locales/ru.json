@@ -282,6 +282,9 @@
   "Language / LANGUAGE": "ЯЗЫК / LANGUAGE",
   "System theme follows OS settings. Language and theme are saved locally.": "Системная тема следует настройкам ОС. Выбор языка и темы сохраняется локально.",
   "Theme and language do not change the route, calculation or map position.": "Тема и язык не меняют маршрут, расчёт или положение карты.",
+  "Clear all stops?": "Удалить все точки?",
+  "This removes all stops and the calculated route. Saved routes are not affected.": "Все точки и рассчитанный маршрут будут удалены. Сохранённые маршруты не затрагиваются.",
+  "Clear stops": "Удалить все точки",
   "Original geometry preserved": "Исходная геометрия сохранена",
   "Viewing and exporting do not recalculate the route. Switch to editing points separately.": "Просмотр и экспорт не пересчитывают маршрут. Перейдите к изменению точек отдельно."
 }

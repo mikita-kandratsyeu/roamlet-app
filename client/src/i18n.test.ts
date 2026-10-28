@@ -25,6 +25,13 @@ it('loads complete JSON dictionaries with matching keys and interpolation placeh
 
 it.each([
   ['New route', 'New route', 'Новый маршрут'],
+  ['Clear all stops?', 'Clear all stops?', 'Удалить все точки?'],
+  ['Clear stops', 'Clear stops', 'Удалить все точки'],
+  [
+    'This removes all stops and the calculated route. Saved routes are not affected.',
+    'This removes all stops and the calculated route. Saved routes are not affected.',
+    'Все точки и рассчитанный маршрут будут удалены. Сохранённые маршруты не затрагиваются.',
+  ],
   ['Save route', 'Save route', 'Сохранить маршрут'],
   ['Untitled adventure', 'Untitled route', 'Новый маршрут'],
   ['A good route starts somewhere', 'Add a starting point', 'Добавьте начальную точку'],
