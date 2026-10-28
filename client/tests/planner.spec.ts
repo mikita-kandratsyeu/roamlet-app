@@ -99,6 +99,30 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   expect(directions).toEqual([]);
 });
 
+test('manual controls keep logical order and remain reachable at 320px in Russian', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Dark', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
+  const tool = page.getByRole('button', { name: 'Ручное рисование', exact: true });
+  await expect(tool).toHaveAttribute('aria-pressed', 'true');
+  await expect(tool).toHaveCSS('background-color', 'rgb(167, 207, 175)');
+  const controls = page.getByRole('group', { name: 'Управление картой', exact: true });
+  const buttons = controls.locator('button');
+  await expect(buttons).toHaveCount(6);
+  for (const button of await buttons.all()) {
+    await expect(button).toBeVisible();
+    const box = (await button.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(320);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('manual routes retain exact points when saved, reopened and edited', async ({ page }) => {
   const directions: string[] = [];
   page.on('request', (request) => {
