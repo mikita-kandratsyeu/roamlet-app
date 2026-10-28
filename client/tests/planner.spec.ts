@@ -174,3 +174,65 @@ test('round trips use real provider round-trip requests; responsive controls sta
     page.locator('.maplibregl-ctrl-attrib').getByRole('link', { name: 'OpenStreetMap' }),
   ).toBeVisible();
 });
+
+test('split header keeps route creation direct and supports an accessible responsive menu', async ({
+  page,
+}, testInfo) => {
+  const trigger = page.getByRole('button', { name: 'Menu', exact: true });
+  await expect(page.getByRole('banner').getByRole('button')).toHaveCount(2);
+  for (const control of [trigger, page.getByRole('button', { name: 'New route', exact: true })]) {
+    const bounds = await control.boundingBox();
+    expect(bounds?.width).toBeGreaterThanOrEqual(44);
+    expect(bounds?.height).toBeGreaterThanOrEqual(44);
+  }
+  await trigger.click();
+  await expect(page.getByRole('menuitem', { name: 'My routes' })).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(page.getByRole('menuitem', { name: 'Help and data sources' })).toBeFocused();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitemradio', { name: 'English' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(trigger).toBeFocused();
+  await expect(page.getByRole('menu')).not.toBeVisible();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('menu')).not.toBeVisible();
+  expect(await page.evaluate(() => document.activeElement?.closest('.header-menu') === null)).toBe(
+    true,
+  );
+  await trigger.click();
+  await page.getByRole('heading', { name: 'Where shall we go?' }).click();
+  await expect(page.getByRole('menu')).not.toBeVisible();
+  await trigger.click();
+  await page.getByRole('menuitem', { name: 'Help and data sources' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await page.getByRole('menuitemradio', { name: 'Русский' }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
+  if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 740 });
+  await expect(page.getByRole('button', { name: 'Новый маршрут', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Меню', exact: true }).click();
+  await expect(page.getByRole('menuitemradio', { name: 'Русский' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  const panel = await page.getByRole('menu').boundingBox();
+  expect(panel?.x).toBeGreaterThanOrEqual(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
+  await page.getByRole('button', { name: 'Меню', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'English' }).click();
+  await createRoute(page);
+  await trigger.click();
+  await page.getByRole('button', { name: 'New route', exact: true }).click();
+  await expect(page.getByRole('menu')).not.toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Leave this route?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'New route', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+});
