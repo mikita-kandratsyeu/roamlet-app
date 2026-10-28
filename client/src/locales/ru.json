@@ -206,7 +206,7 @@
   "Unsupported activity.": "Этот вид активности не поддерживается. Выберите велосипед или пеший поход.",
   "The service returned an invalid response.": "Сервис вернул ответ, который не удалось обработать. Попробуйте позже.",
   "Unsupported Mapbox endpoint.": "Неподдерживаемый адрес API Mapbox.",
-  "The routing request was rejected. Check server configuration and provider account permissions.": "Провайдер отклонил запрос маршрута. Администратору сервера нужно проверить API-ключ и права аккаунта провайдера.",
+  "The routing request was rejected. Check the public Mapbox token, URL restrictions and account permissions.": "Mapbox отклонил запрос. Проверьте публичный токен, разрешённые URL и права аккаунта.",
   "Routing quota reached. Wait a moment or check your provider account limits.": "Лимит расчёта маршрутов исчерпан. Попробуйте позже. Если ошибка повторяется, администратору сервера нужно проверить лимиты аккаунта провайдера.",
   "Routing quota reached.": "Лимит расчёта маршрутов исчерпан. Попробуйте позже.",
   "The routing service is unavailable. Try again later; your saved routes are safe.": "Сервис расчёта маршрутов недоступен. Попробуйте позже. Это не влияет на маршруты, уже сохранённые в этом браузере.",

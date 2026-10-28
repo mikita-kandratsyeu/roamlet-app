@@ -57,7 +57,7 @@ export async function requestJson(
     if (!response.ok) {
       if (response.status === 401 || response.status === 403)
         throw new Error(
-          'The routing request was rejected. Check server configuration and provider account permissions.',
+          'The routing request was rejected. Check the public Mapbox token, URL restrictions and account permissions.',
         );
       if (response.status === 429)
         throw new Error(
