@@ -30,6 +30,10 @@ const invalid = () => new SafeError(400, 'INVALID_REQUEST', 'The request is inva
 const upstreamInvalid = () => new SafeError(502, 'INVALID_UPSTREAM_RESPONSE', 'The routing service returned an invalid response.');
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const finite = value => typeof value === 'number' && Number.isFinite(value);
+const hasControlCharacters = value => [...value].some(character => {
+  const code = character.codePointAt(0);
+  return code < 32 || code === 127;
+});
 function fields(value, allowed) {
   if (!object(value) || Object.keys(value).some(name => !allowed.includes(name))) throw invalid();
 }
@@ -58,7 +62,7 @@ function geocodeParams(params) {
   if ([...params.keys()].some(k => !['text', 'size'].includes(k)) || params.getAll('text').length !== 1 || params.getAll('size').length > 1) throw invalid();
   const text = params.get('text').trim();
   const size = params.get('size') ?? '5';
-  if (text.length < 3 || text.length > 200 || /[\u0000-\u001f\u007f]/u.test(text) || !/^[1-5]$/.test(size)) throw invalid();
+  if (text.length < 3 || text.length > 200 || hasControlCharacters(text) || !/^[1-5]$/.test(size)) throw invalid();
   return new URLSearchParams({ text, size });
 }
 function json(res, status, data, head = false) {
@@ -93,12 +97,14 @@ async function readBody(req) {
   });
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw invalid(); }
 }
-function sameOrigin(req) {
+function sameOrigin(req, publicOrigin) {
   if (!req.headers.origin) return true;
   try {
     const origin = new URL(req.headers.origin);
+    if (!['http:', 'https:'].includes(origin.protocol) || origin.origin !== req.headers.origin) return false;
+    if (publicOrigin) return origin.origin === publicOrigin;
     const host = new URL(`http://${req.headers.host}`);
-    return ['http:', 'https:'].includes(origin.protocol) && origin.origin === req.headers.origin && origin.host === host.host;
+    return origin.host === host.host;
   } catch { return false; }
 }
 function positive(value, fallback, max) {
@@ -114,7 +120,8 @@ async function serveStatic(req, res, pathname, distPath) {
   if (!['GET', 'HEAD'].includes(req.method)) throw new SafeError(405, 'METHOD_NOT_ALLOWED', 'The method is not allowed.');
   const missing = () => new SafeError(404, 'NOT_FOUND', 'The resource was not found.');
   const pieces = pathname.split('/');
-  if (pieces.some(p => p.startsWith('.') || ['src', 'source', 'node_modules'].includes(p)) || pathname.includes('\\') || /[\u0000-\u001f\u007f]/u.test(pathname)) throw missing();
+  if (pieces.some(p => p.startsWith('.') || ['src', 'source', 'node_modules'].includes(p)) ||
+      pathname.includes('\\') || hasControlCharacters(pathname) || extname(pathname).toLowerCase() === '.map') throw missing();
   let root;
   try { root = await realpath(distPath); } catch { throw missing(); }
   let path = resolve(root, `.${pathname}`);
@@ -152,7 +159,14 @@ export function createProxyServer({
   fetchImpl = globalThis.fetch, distPath = defaultDist,
   rateLimit = process.env.PROXY_RATE_LIMIT, rateWindowMs = process.env.PROXY_RATE_WINDOW_MS,
   maxRateEntries = 10000, timeoutMs = 25000,
+  publicOrigin = process.env.PUBLIC_ORIGIN || '',
 } = {}) {
+  if (publicOrigin) {
+    const origin = new URL(publicOrigin);
+    if (!['http:', 'https:'].includes(origin.protocol) || origin.origin !== publicOrigin) {
+      throw new Error('PUBLIC_ORIGIN must be an HTTP(S) origin without a path.');
+    }
+  }
   key = String(key).trim();
   const upstreamBase = new URL(base);
   if (!['http:', 'https:'].includes(upstreamBase.protocol) || upstreamBase.username || upstreamBase.password || upstreamBase.search || upstreamBase.hash || !/^\/*$/.test(upstreamBase.pathname)) throw new Error('ORS_URL must be an HTTP(S) service origin.');
@@ -247,7 +261,7 @@ export function createProxyServer({
   }
   const server = createServer(async (req, res) => {
     try {
-      if (!sameOrigin(req) || req.headers['sec-fetch-site'] === 'cross-site') throw new SafeError(403, 'FORBIDDEN_ORIGIN', 'Cross-origin requests are not allowed.');
+      if (!sameOrigin(req, publicOrigin) || req.headers['sec-fetch-site'] === 'cross-site') throw new SafeError(403, 'FORBIDDEN_ORIGIN', 'Cross-origin requests are not allowed.');
       if (!req.url?.startsWith('/') || req.url.startsWith('//')) throw invalid();
       let pathname;
       try { pathname = decodeURIComponent(req.url.split('?')[0]); } catch { throw invalid(); }

@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import App from './App';
 import { routeDb } from './domain/storage';
+import { checkRoutingConfiguration } from './services/routing';
 const provider = vi.hoisted(() => ({ calculateRoute: vi.fn(), calculateAlternatives: vi.fn() }));
 vi.mock('./services/routing', () => ({ checkRoutingConfiguration: vi.fn().mockResolvedValue(true), routingProvider: provider, searchPlaces: vi.fn().mockResolvedValue([]) }));
 vi.mock('./components/RouteMap', () => ({ RouteMap: ({ segments }: { segments: unknown[] }) => <div data-testid="map" data-segments={segments.length}>Map</div> }));
 const geometry = [[11.4, 47.26, 600], [11.405, 47.265, 630], [11.41, 47.27, 615]];
 beforeEach(async () => {
   cleanup(); await routeDb.routes.clear(); vi.clearAllMocks();
+  vi.mocked(checkRoutingConfiguration).mockResolvedValue(true);
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
   provider.calculateRoute.mockResolvedValue({ segments: [geometry], stats: { distance: 1342, duration: 480, ascent: 30, descent: 15 } });

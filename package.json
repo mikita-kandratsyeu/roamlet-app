@@ -25,6 +25,7 @@
     "test:offline": "yarn workspace @roamlet/client test:offline"
   },
   "devDependencies": {
+    "typescript": "~5.9.3",
     "eslint": "^9.39.0",
     "@eslint/js": "^9.39.0",
     "typescript-eslint": "^8.46.0",

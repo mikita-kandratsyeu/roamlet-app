@@ -126,6 +126,24 @@ test('only exposes enumerated APIs and methods; rejects cross-origin and does no
   assert.equal(preflight.headers.get('access-control-allow-origin'), null);
 });
 
+test('preserved Vite Host/Origin and optional public origin support configuration health', async t => {
+  const url = await proxy(t, { key: '', rateLimit: 1, publicOrigin: '' });
+  for (const port of [5173, 4174]) {
+    const headers = { host: `localhost:${port}`, origin: `http://localhost:${port}` };
+    const health = await raw(url, '/api/health', { headers });
+    assert.equal(health.status, 200);
+    assert.deepEqual(JSON.parse(health.body), { configured: false });
+  }
+  await fetch(url + search);
+  await fetch(url + search);
+  assert.equal((await raw(url, '/api/health', { headers: { host: 'localhost:5173', origin: 'http://localhost:5173' } })).status, 200);
+  const publicUrl = await proxy(t, { publicOrigin: 'https://app.example.org' });
+  assert.equal((await fetch(publicUrl + '/api/health', { headers: { origin: 'https://app.example.org' } })).status, 200);
+  assert.equal((await fetch(publicUrl + '/api/health', { headers: { origin: publicUrl } })).status, 403);
+  assert.equal((await fetch(publicUrl + '/api/health')).status, 200);
+  assert.throws(() => createProxyServer({ publicOrigin: 'https://app.example.org/path' }));
+});
+
 test('socket-IP quota ignores spoofed forwarding headers and resets after window', async t => {
   const url = await proxy(t, { rateLimit: 1, rateWindowMs: 80, maxRateEntries: 1 });
   assert.equal((await fetch(url + search, { headers: { 'x-forwarded-for': '1.2.3.4' } })).status, 200);
@@ -225,6 +243,7 @@ test('static SPA hosting supports HEAD, MIME/cache policy, and safe HTML-only fa
     writeFile(dist + '/assets/app-123.js', 'export const ready = true;'),
     writeFile(dist + '/sw.js', '/* service worker */'),
     writeFile(dist + '/.env', 'DO_NOT_EXPOSE'),
+    writeFile(dist + '/assets/app-123.js.map', 'DO_NOT_EXPOSE'),
     writeFile(fixture + 'outside.txt', 'DO_NOT_EXPOSE'),
   ]);
   await symlink(fixture + 'outside.txt', dist + '/escape.txt');
@@ -243,7 +262,7 @@ test('static SPA hosting supports HEAD, MIME/cache policy, and safe HTML-only fa
   assert.equal(asset.headers.get('content-length'), '26');
   assert.equal(await asset.text(), '');
   assert.equal((await fetch(url + '/sw.js')).headers.get('cache-control'), 'no-cache');
-  for (const path of ['/missing.js', '/assets/missing.js', '/.env', '/%2eenv', '/src/main.js', '/source/main.js', '/escape.txt', '/../outside.txt', '/%2e%2e/outside.txt', '/assets/%2e%2e/%2e%2e/outside.txt', '/..%5coutside.txt', '/%00', '/api/not-real']) {
+  for (const path of ['/missing.js', '/assets/missing.js', '/assets/app-123.js.map', '/.env', '/%2eenv', '/src/main.js', '/source/main.js', '/escape.txt', '/../outside.txt', '/%2e%2e/outside.txt', '/assets/%2e%2e/%2e%2e/outside.txt', '/..%5coutside.txt', '/%00', '/api/not-real']) {
     const result = await raw(url, path, { headers: { accept: 'text/html' } });
     assert.equal(result.status, 404, path);
     assert.equal(result.body.includes('DO_NOT_EXPOSE'), false);

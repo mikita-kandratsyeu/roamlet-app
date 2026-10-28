@@ -72,7 +72,9 @@ yarn test:offline
 | `VITE_TILE_ATTRIBUTION` | Tile provider's required attribution HTML, from trusted deployment configuration |
 | `VITE_TILE_MAX_ZOOM` | Native raster tile maximum zoom, default 19 |
 
-The client directly calls `/v2/directions/cycling-regular/geojson`, `/v2/directions/foot-hiking/geojson`, and `/geocode/search`. A self-hosted directions-only ORS instance needs a compatible geocoding endpoint/proxy or place search will report an error; coordinate/map input still works. Custom services must permit browser CORS and the documented ORS request format. Hosted ORS requires a key; no credentials are committed or automatically created.
+The client calls only `POST /api/directions/cycling-regular/geojson`, `POST /api/directions/foot-hiking/geojson`, `GET /api/geocode/search` and `GET /api/health`. The proxy adds the private key and forwards to the fixed configured upstream (`/v2/directions/...`, `/geocode/search`); it is not a generic URL-forwarding endpoint. Health returns only whether routing is configured. A directions-only self-hosted instance still needs compatible geocoding; failures are shown honestly. Upstream browser CORS is no longer required because provider requests originate on the server.
+
+The proxy validates profile, point count, coordinate bounds, round-trip options and search parameters; caps request/response sizes, applies per-socket-IP rate limits, rejects cross-origin browser requests, supports request cancellation/timeouts, and returns sanitized failures. No inbound Authorization header is forwarded. API responses are not cached by the service worker. These controls protect basic deployments but **are not authentication**: a public endpoint can still be called by non-browser clients. Before broad release add ingress-level abuse protection and global/provider-budget limits. Rate limits are process-local; behind an ingress, socket IP limits may be shared by all visitors. Forwarded IP headers are not trusted automatically.
 
 ### Provider evaluation
 
@@ -84,14 +86,18 @@ Default OSM tiles comply with browser Referer/User-Agent and ordinary HTTP cachi
 
 ## Architecture
 
-- `src/domain/types.ts`: typed route/provider contract, `[longitude, latitude, elevation?]` coordinates, metres and seconds.
-- `src/domain/stats.ts`: validated geospatial/elevation calculations without joining disconnected GPX segments.
-- `src/domain/gpx.ts`: bounded XML parser/serializer; rejects DTD/entity declarations, malformed coordinates/XML and files over 10 MiB or 100,000 points. Imported standalone waypoints are separate from track segments. Display-only track endpoint pins never change exported GPX waypoints.
-- `src/domain/storage.ts`: Dexie persistence, validation, fresh identifiers/timestamps for duplicates.
-- `src/services/routing.ts`: provider interface implementation, request handling, caching, profiles, geocoding.
-- `src/components/`: map lifecycle, statistics, library and dialogs.
-- `src/App.tsx`: route editor and workflow orchestration. Saved/imported routes open as snapshots, never silently rerouted.
-- `public/sw.js`: same-origin app-shell cache only; no tile/routing caching. Production installation caches HTML and its content-hashed JavaScript/CSS. HTTPS or localhost is required.
+Yarn workspaces keep the application in two folders:
+
+- `client/`: React/TypeScript/Vite app, browser tests, assets and public environment settings.
+- `proxy/`: dependency-free Node.js HTTP API proxy, private environment settings and Node tests. Also serves the production client build.
+- `scripts/dev.mjs`: starts both workspaces and terminates the sibling if either development process exits.
+- `client/src/domain/`: typed route/provider contracts, geometry calculations, bounded GPX parsing/export and Dexie persistence.
+- `client/src/services/routing.ts`: same-origin proxy requests, routing profiles and bounded in-memory caches; no provider keys or upstream URLs.
+- `client/src/components/`: map, statistics, library and dialogs.
+- `client/src/App.tsx`: editor/workflow state, including a non-secret proxy-health configuration check.
+- `client/public/sw.js`: production app shell only; explicitly excludes `/api` and all third-party map/routing URLs.
+
+Saved/imported routes open as snapshots and are never silently rerouted. Coordinates use `[longitude, latitude, elevation?]`, distances metres and durations seconds. GPX files are bounded to 10 MiB/100,000 points; segment boundaries and standalone waypoints are preserved. HTTPS or localhost is required for the service worker.
 
 ## Known limitations
 
@@ -100,7 +106,7 @@ Default OSM tiles comply with browser Referer/User-Agent and ordinary HTTP cachi
 - Loop targets are approximate. The same network may yield one unique alternative or no viable loop. Loop geometry can be saved/exported unchanged; switching to manual editing recalculates a new route.
 - Editing an imported GPX explicitly converts its start/finish into a newly routed path and replaces the original geometry after confirmation. Multi-track gaps are otherwise preserved. A waypoint-only file is importable/saveable/exportable but cannot be converted through this editor.
 - GPX export preserves point order, segment boundaries, elevations, route name/description and standalone waypoints. It does not preserve every arbitrary vendor extension, original XML layout, per-point timestamps or separate track names; routes are exported as GPX tracks. Imported activity defaults to Hiking and can be changed.
-- No navigation, tracking, cloud backup, direct Strava/Komoot publishing, private server, offline maps, dark theme or route surface analytics. Use the destination app/device's officially supported GPX upload workflow.
+- No navigation, tracking, cloud backup, direct Strava/Komoot publishing, offline maps, dark theme or route surface analytics. The private-key API proxy is the only backend. Use the destination app/device's officially supported GPX upload workflow.
 - Local browser data can be removed by storage eviction, private browsing, or clearing site data; export important routes as backups.
 - MapLibre requires WebGL. A map/tile outage is reported, never replaced by fake map content. On very small screens, the route sheet scrolls/collapses to keep the map accessible.
 - Production output currently includes a large MapLibre/vendor JavaScript chunk (Vite's size warning); builds pass, but further lazy loading is a sensible optimization before broader launch.
