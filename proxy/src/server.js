@@ -124,7 +124,9 @@ async function serveStatic(req, res, pathname, distPath) {
       pathname.includes('\\') || hasControlCharacters(pathname) || extname(pathname).toLowerCase() === '.map') throw missing();
   let root;
   try { root = await realpath(distPath); } catch { throw missing(); }
-  let path = resolve(root, `.${pathname}`);
+  // The root is a concrete app-shell resource, including service-worker precaching.
+  // Only missing client-side routes below the root require an HTML navigation.
+  let path = resolve(root, pathname === '/' ? 'index.html' : `.${pathname}`);
   if (!within(root, path)) throw missing();
   let info;
   try {

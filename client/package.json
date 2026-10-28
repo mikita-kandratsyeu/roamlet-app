@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "lint": "eslint . --config ../eslint.config.js",
     "test:e2e": "playwright test",
-    "test:offline": "playwright test --config playwright.offline.config.ts"
+    "test:offline": "playwright test --config playwright.offline.config.ts",
+    "test:integration": "playwright test --config playwright.proxy.config.ts"
   },
   "dependencies": {
     "react": "^19.2.0",

@@ -47,6 +47,7 @@ yarn preview
 yarn workspace @roamlet/client playwright install chromium
 yarn test:e2e
 yarn test:offline
+yarn test:integration
 ```
 
 ## Implemented workflows

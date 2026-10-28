@@ -255,6 +255,23 @@ test('static SPA hosting supports HEAD, MIME/cache policy, and safe HTML-only fa
     assert.equal(response.headers.get('cache-control'), 'no-cache');
     assert.match(await response.text(), /Roamlet/);
   }
+  // Service-worker installation fetches the root with Accept: */*, not text/html.
+  for (const headers of [{}, { accept: '*/*' }, { accept: 'application/json' }]) {
+    const root = await fetch(url + '/', { headers });
+    assert.equal(root.status, 200);
+    assert.match(root.headers.get('content-type'), /text\/html/);
+    assert.equal(root.headers.get('cache-control'), 'no-cache');
+    assert.equal(root.headers.get('content-security-policy'), null);
+    assert.match(await root.text(), /Roamlet/);
+  }
+  const rootHead = await fetch(url + '/', { method: 'HEAD' });
+  assert.equal(rootHead.status, 200);
+  assert.equal(await rootHead.text(), '');
+  const worker = await fetch(url + '/sw.js', { headers: { accept: '*/*', 'service-worker': 'script' } });
+  assert.equal(worker.status, 200);
+  assert.match(worker.headers.get('content-type'), /text\/javascript/);
+  assert.equal(worker.headers.get('cache-control'), 'no-cache');
+  assert.equal(worker.headers.get('content-security-policy'), null);
   const asset = await fetch(url + '/assets/app-123.js', { method: 'HEAD' });
   assert.equal(asset.status, 200);
   assert.match(asset.headers.get('content-type'), /text\/javascript/);

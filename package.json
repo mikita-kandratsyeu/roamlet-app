@@ -22,7 +22,8 @@
     "test:client": "yarn workspace @roamlet/client test",
     "test:proxy": "yarn workspace @roamlet/proxy test",
     "test:e2e": "yarn workspace @roamlet/client test:e2e",
-    "test:offline": "yarn workspace @roamlet/client test:offline"
+    "test:offline": "yarn workspace @roamlet/client test:offline",
+    "test:integration": "yarn workspace @roamlet/client test:integration"
   },
   "devDependencies": {
     "typescript": "~5.9.3",
