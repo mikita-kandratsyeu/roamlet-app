@@ -26,7 +26,7 @@ yarn dev
 
 Requires Node.js 24+ in every workspace and the pinned Yarn release. `.nvmrc` selects Node.js 24 LTS (`nvm install && nvm use`); newer Node.js versions are also supported. Yarn’s default install-script restrictions remain in place; only esbuild’s required build script is explicitly allowed via `dependenciesMeta`. Create a [Mapbox account](https://account.mapbox.com/auth/signup/) and check quotas, billing, country/payment eligibility and service terms. Store `MAPBOX_ACCESS_TOKEN` only in `proxy/.env` or server secret settings; the browser never receives that token. Configure a separate public `pk.*` token as `VITE_MAPBOX_ACCESS_TOKEN` for Mapbox GL JS; this token is intentionally visible in the built client and must use minimal scopes and permitted-URL restrictions. Restart the proxy after changing server settings; restart Vite or rebuild after changing public map settings. Missing server credentials disable routing/search/terrain; missing public credentials disable the basemap. Local library and GPX remain usable. Permanent geocoding requires the appropriate paid-account access; a card-free trial may support routing/maps but reject permanent search.
 
-`yarn dev` starts two workspace processes: Vite at `http://127.0.0.1:5173` and the proxy at `http://127.0.0.1:3001`. Vite forwards `/api` to the proxy; the client always uses same-origin relative URLs. Client public settings live in `client/.env.local`; old root `.env.local`, `ORS_API_KEY`, `ORS_URL`, `VITE_ORS_API_KEY` and `VITE_TILE_*` settings are no longer used. Do not copy old provider keys or secret Mapbox tokens into the client workspace. `.env` files in both workspaces are gitignored.
+`yarn dev` starts two workspace processes: Vite at `http://127.0.0.1:5173` and the proxy at `http://127.0.0.1:3001`. Vite forwards `/api` to the proxy; the client always uses same-origin relative URLs. Client public settings live in `client/.env.local` (or `client/.env`, also loaded by Vite); old root `.env.local`, `ORS_API_KEY`, `ORS_URL`, `VITE_ORS_API_KEY` and `VITE_TILE_*` settings are no longer used. Do not copy old provider keys or secret Mapbox tokens into the client workspace. `.env` files in both workspaces are gitignored.
 
 ### Production: one Node.js service
 
@@ -104,7 +104,7 @@ Mapbox now supplies the map, cycling/walking routes, permanent geocoding and ter
 
 Routing caches exact input/profile responses for five minutes (20 entries); permanent search caches 30 explicit queries. API calls have a 25-second timeout; terrain fetch/decode has a 10-second deadline. Cancellation, credential, quota, network and service errors remain explicit; no straight-line fallback is used. Map loads, Directions requests, permanent geocoding and terrain usage have distinct account-dependent billing. Mapbox spending alerts are not a hard spending cap; use ingress/global budgets before public launch.
 
-**Before publication verify Mapbox account/payment eligibility for Belarus, commercial terms, storage and GPX redistribution permissions, permanent-geocoding access, usage budgets and attribution.** User approval to preserve storage/export is a product decision, not a legal grant from Mapbox. No valid Mapbox credentials were supplied for live-account verification. Browser tests use local synthetic styles/geometry, never production fallback data. See [third-party licenses and data policies](./THIRD_PARTY_LICENSES.md). Nominatim is intentionally not used.
+**Before publication verify Mapbox account/payment eligibility for Belarus, commercial terms, storage and GPX redistribution permissions, permanent-geocoding access, usage budgets and attribution.** User approval to preserve storage/export is a product decision, not a legal grant from Mapbox. Live account verification with locally configured tokens returned HTTP 200 for cycling, walking, permanent geocoding and the Outdoors style. Terrain-RGB returned upstream HTTP 429; routes remain usable without heights until that account quota/access issue is resolved. Browser automation uses local synthetic styles/geometry, never production fallback data. See [third-party licenses and data policies](./THIRD_PARTY_LICENSES.md). Nominatim is intentionally not used.
 
 ## Architecture
 
@@ -133,6 +133,13 @@ Saved/imported routes open as snapshots and are never silently rerouted. Coordin
 - Mapbox GL JS requires WebGL and a public map token. A missing token or map outage is reported, never replaced by fake production content. On small screens, the route sheet scrolls/collapses to keep the map accessible.
 - Production output includes a large map/vendor JavaScript chunk; further lazy loading is a sensible optimization before broader launch.
 - Deploy at the origin root with SPA fallback; base-path deployments need corresponding asset/service-worker path configuration.
+
+## Mapbox migration verification (28 October 2026)
+
+- Unit tests, typecheck, lint, formatting and production build verified. Proxy suite: 24 tests; client suite: 185 tests.
+- Chromium: 20 of 24 desktop/mobile checks passed; the four failures are pre-existing assertions about header button count and library tab order, not routing/map failures. Mapbox proxy integration and all three production offline checks passed.
+- Live cycling and walking routes in Gomel, permanent place search and Mapbox Outdoors style access returned HTTP 200. The browser displayed the Mapbox map and a routed 1 km cycling path. Terrain-RGB returned provider HTTP 429, so the elevation chart correctly reported unavailable data instead of preventing save/export.
+- Credentials were loaded from gitignored workspace `.env` files and were not committed. No claim is made that successful API access establishes country/payment or redistribution permission.
 
 ## Verification history (before Mapbox migration)
 
