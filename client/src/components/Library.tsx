@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bike, Footprints, Search, Copy, Trash2, Pencil, FolderHeart } from 'lucide-react';
 import type { PlannedRoute } from '../domain/types';
 import { listRoutes, saveRoute, deleteRoute, duplicateRoute } from '../domain/storage';
@@ -24,6 +24,27 @@ export function Library({
   const [deleting, setDeleting] = useState<PlannedRoute | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const searchInput = useRef<HTMLInputElement>(null);
+  const editInput = useRef<HTMLInputElement>(null);
+  const keepButton = useRef<HTMLButtonElement>(null);
+  const actionTrigger = useRef<HTMLButtonElement | null>(null);
+  const restoreFocus = useRef(false);
+  useEffect(() => {
+    if (busy) return;
+    if (editing) editInput.current?.focus();
+    else if (deleting) keepButton.current?.focus();
+    else if (restoreFocus.current) {
+      restoreFocus.current = false;
+      const target = actionTrigger.current;
+      if (target?.isConnected && !target.disabled) target.focus();
+      else searchInput.current?.focus();
+    }
+  }, [editing, deleting, busy]);
+  function closeDetails() {
+    restoreFocus.current = true;
+    setEditing(null);
+    setDeleting(null);
+  }
   useEffect(() => {
     let active = true;
     listRoutes()
@@ -42,6 +63,7 @@ export function Library({
     };
   }, []);
   async function mutate(operation: () => Promise<unknown>) {
+    restoreFocus.current = true;
     setBusy(true);
     setError('');
     try {
@@ -59,13 +81,14 @@ export function Library({
     `${r.name} ${r.description}`.toLowerCase().includes(query.toLowerCase()),
   );
   return (
-    <Dialog title={t('Your route library')} onClose={onClose} wide>
+    <Dialog title={t('Your route library')} onClose={onClose} initialFocusRef={searchInput} wide>
       <p className="muted">
         {t('Good routes are worth keeping. Saved on this device, no account needed.')}
       </p>
       <label className="library-search">
         <Search size={18} />
         <input
+          ref={searchInput}
           aria-label={t('Search saved routes')}
           placeholder={t('Find a saved route…')}
           value={query}
@@ -110,7 +133,9 @@ export function Library({
                   className="icon-button"
                   disabled={busy}
                   aria-label={t('Edit {{name}}', { name: route.name })}
-                  onClick={() => {
+                  onClick={(event) => {
+                    actionTrigger.current = event.currentTarget;
+                    restoreFocus.current = false;
                     setEditing(route);
                     setDeleting(null);
                     setName(route.name);
@@ -123,7 +148,10 @@ export function Library({
                   className="icon-button"
                   disabled={busy}
                   aria-label={t('Duplicate {{name}}', { name: route.name })}
-                  onClick={() => void mutate(() => duplicateRoute(route))}
+                  onClick={(event) => {
+                    actionTrigger.current = event.currentTarget;
+                    void mutate(() => duplicateRoute(route));
+                  }}
                 >
                   <Copy size={16} />
                 </button>
@@ -131,7 +159,9 @@ export function Library({
                   className="icon-button"
                   disabled={busy}
                   aria-label={t('Delete {{name}}', { name: route.name })}
-                  onClick={() => {
+                  onClick={(event) => {
+                    actionTrigger.current = event.currentTarget;
+                    restoreFocus.current = false;
                     setDeleting(route);
                     setEditing(null);
                   }}
@@ -163,6 +193,7 @@ export function Library({
           <label>
             {t('Route name')}
             <input
+              ref={editInput}
               required
               maxLength={120}
               value={name}
@@ -182,7 +213,7 @@ export function Library({
               type="button"
               className="secondary"
               disabled={busy}
-              onClick={() => setEditing(null)}
+              onClick={closeDetails}
             >
               {t('Cancel')}
             </button>
@@ -199,7 +230,7 @@ export function Library({
             {t('from this device? This cannot be undone.')}
           </p>
           <div className="button-row">
-            <button className="secondary" disabled={busy} onClick={() => setDeleting(null)}>
+            <button ref={keepButton} className="secondary" disabled={busy} onClick={closeDetails}>
               {t('Keep route')}
             </button>
             <button

@@ -81,6 +81,8 @@ export default function App() {
   const [selectedAlternative, setSelectedAlternative] = useState(-1);
   const routeIdentity = useRef(identity());
   const fileInput = useRef<HTMLInputElement>(null);
+  const routeNameInput = useRef<HTMLInputElement>(null);
+  const confirmationCancel = useRef<HTMLButtonElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const request = useRef<AbortController | null>(null);
   const searchRequest = useRef<AbortController | null>(null);
@@ -909,6 +911,7 @@ export default function App() {
       {saveOpen && (
         <Dialog
           title={t('Save your adventure')}
+          initialFocusRef={routeNameInput}
           onClose={() => {
             if (!saving) setSaveOpen(false);
           }}
@@ -923,7 +926,7 @@ export default function App() {
             <label>
               {t('Route name')}
               <input
-                autoFocus
+                ref={routeNameInput}
                 required
                 maxLength={120}
                 value={name}
@@ -968,10 +971,10 @@ export default function App() {
         </Dialog>
       )}
       {confirmation && (
-        <Dialog title={t(confirmation.title)} onClose={() => setConfirmation(null)}>
+        <Dialog title={t(confirmation.title)} initialFocusRef={confirmationCancel} onClose={() => setConfirmation(null)}>
           <p>{t(confirmation.text)}</p>
           <div className="button-row">
-            <button className="secondary" onClick={() => setConfirmation(null)}>
+            <button ref={confirmationCancel} className="secondary" onClick={() => setConfirmation(null)}>
               {t('Cancel')}
             </button>
             <button

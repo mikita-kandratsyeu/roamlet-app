@@ -19,6 +19,7 @@
   --line: #dce2d6;
   --cream: #faf7f2;
   --surface: #fffdf9;
+  --focus-ring: var(--green);
 }
 * {
   box-sizing: border-box;
@@ -37,16 +38,6 @@ button {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
-}
-button,
-a,
-input,
-textarea {
-  outline-offset: 4px;
-}
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--green);
 }
 button {
   color: inherit;
@@ -91,11 +82,6 @@ textarea {
   border-radius: 8px;
   padding: 11px 12px;
   min-width: 0;
-}
-input:focus,
-textarea:focus {
-  outline: 2px solid #a5c4b3;
-  outline-offset: 1px;
 }
 textarea {
   resize: vertical;
@@ -257,9 +243,6 @@ textarea {
 .header-menu-item:focus-visible {
   background: var(--sage-light);
 }
-.header-menu-item:focus-visible {
-  outline-offset: -2px;
-}
 .header-menu-separator {
   height: 1px;
   margin: 8px 4px;
@@ -405,9 +388,6 @@ textarea {
   outline: none;
   font-size: 12px;
   background: none;
-}
-.place-search:focus-within {
-  outline: 2px solid #a5c4b3;
 }
 .place-search button {
   border: 0;
@@ -1230,22 +1210,45 @@ textarea {
   color: var(--cream);
 }
 button:focus-visible,
-a:focus-visible,
-select:focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: 4px;
+a[href]:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible,
+input:focus,
+textarea:focus,
+.place-search:has(input:focus),
+.library-search:has(input:focus) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+/* Composite fields show one indicator on the container, not a second one on the input. */
+.place-search input:focus,
+.library-search input:focus {
+  outline: none;
+  box-shadow: none;
+}
+.header-menu-item:focus-visible,
+.maplibregl-ctrl-group button:focus-visible,
+.maplibregl-ctrl-attrib-button:focus-visible {
+  outline-offset: -2px;
+}
+.maplibregl-ctrl-group button:focus,
+.maplibregl-ctrl-group button:focus:focus-visible,
+.maplibregl-ctrl-attrib-button:focus {
+  box-shadow: none;
+}
+.maplibregl-canvas:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -3px;
 }
 input,
 textarea,
 .dialog {
   color: var(--green);
 }
-input:focus,
-textarea:focus,
-.place-search:focus-within,
-.library-search:focus-within {
-  outline: 2px solid var(--green);
-  outline-offset: 2px;
+@media (forced-colors: active) {
+  :root {
+    --focus-ring: Highlight;
+  }
 }
 input,
 textarea,
