@@ -326,7 +326,7 @@ export function RouteMap(props: Props) {
   function locate() {
     if (!navigator.geolocation) {
       props.onError(
-        'Location is not supported in this browser. Search for a place or click the map instead.',
+        'Location is not supported in this browser. Enter coordinates or click the map instead.',
       );
       return;
     }
@@ -340,7 +340,7 @@ export function RouteMap(props: Props) {
       () => {
         setLocating(false);
         props.onError(
-          'Location permission was denied or your position is unavailable. Search for a place or click the map instead.',
+          'Location permission was denied or your position is unavailable. Enter coordinates or click the map instead.',
         );
       },
       { timeout: 10000 },

@@ -6,7 +6,6 @@ import type {
   Waypoint,
 } from '../domain/types';
 import { calculateStats } from '../domain/stats';
-import { addTerrainElevation } from './elevation';
 import { coordinateDistance, loopWaypoints } from './loops';
 import { mapboxUrl } from './mapbox';
 
@@ -68,7 +67,7 @@ export async function requestJson(
           'The routing service is unavailable. Try again later; your saved routes are safe.',
         );
       throw new NoRouteError(
-        `No route or location found (service ${response.status}). Try points closer to accessible roads or trails, or a shorter route.`,
+        `No route found (service ${response.status}). Try points closer to accessible roads or trails, or a shorter route.`,
       );
     }
     const data: unknown = await response.json();
@@ -99,13 +98,12 @@ export class MapboxRoutingService implements RoutingProvider {
     coordinates: Coordinate[],
     activity: Activity,
     signal?: AbortSignal,
-    elevation = true,
   ): Promise<RoutingResult> {
     if (!coordinates.every(validCoordinate))
       throw new Error('Route locations must contain valid longitude and latitude.');
     if (!(activity in profiles)) throw new Error('Invalid route activity.');
     const coordinatesPath = coordinates.map((c) => c.slice(0, 2).join(',')).join(';');
-    const cacheKey = JSON.stringify([activity, coordinatesPath, elevation]);
+    const cacheKey = JSON.stringify([activity, coordinatesPath]);
     const cached = this.cache.get(cacheKey);
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
     if (cached && Date.now() - cached.time < 300_000) return structuredClone(cached.result);
@@ -137,9 +135,10 @@ export class MapboxRoutingService implements RoutingProvider {
       summary.distance < 0
     )
       throw new Error('The service returned invalid route statistics.');
-    const points = elevation
-      ? await addTerrainElevation(geometry.coordinates, signal)
-      : geometry.coordinates;
+    const points: Coordinate[] = geometry.coordinates.map(([longitude, latitude]) => [
+      longitude,
+      latitude,
+    ]);
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
     const segments: Coordinate[][] = [points];
     const stats = calculateStats(segments, activity);
@@ -181,7 +180,6 @@ export class MapboxRoutingService implements RoutingProvider {
             loopWaypoints(start.coordinate, radius, bearing + attempt * 10),
             activity,
             signal,
-            false,
           );
         } catch (error) {
           if (!(error instanceof NoRouteError)) throw error;
@@ -208,53 +206,8 @@ export class MapboxRoutingService implements RoutingProvider {
     }
     if (!results.length)
       throw new Error('The service did not return a closed loop. Try a different start location.');
-    for (const result of results) {
-      result.segments = [await addTerrainElevation(result.segments[0], signal)];
-      const stats = calculateStats(result.segments, activity);
-      result.stats = { ...stats, duration: result.stats.duration };
-    }
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
     return results;
   }
 }
 export const routingProvider = new MapboxRoutingService();
-export interface Place {
-  name: string;
-  coordinate: Coordinate;
-}
-const searches = new Map<string, Place[]>();
-export async function searchPlaces(query: string, signal?: AbortSignal): Promise<Place[]> {
-  const text = query.trim();
-  if (text.length < 3 || text.length > 200)
-    throw new Error('Enter a place or address between 3 and 200 characters.');
-  if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
-  if (searches.has(text)) return structuredClone(searches.get(text)!);
-  const params = new URLSearchParams({
-    q: text,
-    limit: '5',
-    permanent: 'true',
-    autocomplete: 'false',
-  });
-  const data = object(
-    await requestJson(`/search/geocode/v6/forward?${params}`, { method: 'GET' }, signal),
-  );
-  if (!Array.isArray(data.features))
-    throw new Error('The search service returned invalid locations.');
-  const places = data.features.map((raw: unknown) => {
-    const feature = object(raw),
-      geometry = object(feature.geometry),
-      properties = object(feature.properties);
-    const name =
-      typeof properties.full_address === 'string'
-        ? properties.full_address
-        : [properties.name, properties.place_formatted]
-            .filter((value) => typeof value === 'string' && value)
-            .join(', ');
-    if (!validCoordinate(geometry.coordinates) || !name)
-      throw new Error('The search service returned an invalid location.');
-    return { name, coordinate: geometry.coordinates };
-  });
-  if (searches.size >= 30) searches.delete(searches.keys().next().value!);
-  searches.set(text, structuredClone(places));
-  return places;
-}

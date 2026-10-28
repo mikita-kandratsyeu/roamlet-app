@@ -15,7 +15,7 @@ describe('GPX', () => {
     const route = importGpx(fixture);
     route.source = 'mapbox';
     const xml = exportGpx(route);
-    expect(xml).toContain('Routing and terrain by Mapbox');
+    expect(xml).toContain('Routing by Mapbox');
     expect(xml).toContain('https://www.mapbox.com/about/maps/');
     expect(xml).toContain('Mapbox / OpenStreetMap contributors');
     expect(xml).not.toContain('<license>');

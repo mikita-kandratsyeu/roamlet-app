@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MapboxRoutingService, requestJson, searchPlaces } from './routing';
-import { addTerrainElevation } from './elevation';
-vi.mock('./elevation', () => ({ addTerrainElevation: vi.fn(async (coordinates) => coordinates) }));
+import { MapboxRoutingService, requestJson } from './routing';
+import * as routing from './routing';
+import { mapboxUrl } from './mapbox';
 import type { Waypoint } from '../domain/types';
 const points: Waypoint[] = [
   { id: 'a', name: 'A', coordinate: [11.4, 47.26] },
@@ -59,7 +59,7 @@ describe('MapboxRoutingService', () => {
       'Unsupported Mapbox endpoint',
     );
   });
-  it('uses the cycling profile, terrain geometry distance and provider time', async () => {
+  it('uses cycling geometry distance and provider time, discarding provider heights', async () => {
     const fetcher = mockJson(response());
     const result = await new MapboxRoutingService().calculateRoute(points, 'cycling');
     const url = new URL(String(fetcher.mock.calls[0][0]));
@@ -68,12 +68,16 @@ describe('MapboxRoutingService', () => {
     expect(url.searchParams.get('steps')).toBe('false');
     expect(fetcher.mock.calls[0][1]?.method).toBe('GET');
     expect(fetcher.mock.calls[0][1]?.body).toBeUndefined();
-    expect(addTerrainElevation).toHaveBeenCalled();
-    expect(result.segments[0]).toHaveLength(3);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(result.segments[0]).toEqual([
+      [11.4, 47.26],
+      [11.405, 47.265],
+      [11.41, 47.27],
+    ]);
     expect(result.stats.distance).toBeGreaterThan(1300);
     expect(result.stats.duration).toBe(420);
-    expect(result.stats.ascent).toBe(25);
-    expect(result.stats.descent).toBe(15);
+    expect(result.stats.ascent).toBeUndefined();
+    expect(result.stats.descent).toBeUndefined();
   });
   it('routes hiking with walking, not a cycling fallback', async () => {
     const fetcher = mockJson(response());
@@ -144,7 +148,19 @@ describe('MapboxRoutingService', () => {
       20000,
     );
     expect(result).toHaveLength(1);
+    expect(result[0].segments[0]).toEqual([
+      [11.4, 47.26],
+      [11.42, 47.28],
+      [11.4, 47.26],
+    ]);
+    expect(result[0].stats.ascent).toBeUndefined();
+    expect(result[0].stats.descent).toBeUndefined();
     expect(fetcher.mock.calls.length).toBeLessThanOrEqual(6);
+    expect(
+      fetcher.mock.calls.every(([url]) =>
+        new URL(String(url)).pathname.startsWith('/directions/v5/mapbox/'),
+      ),
+    ).toBe(true);
     const coordinates = new URL(String(fetcher.mock.calls[0][0])).pathname
       .split('/')
       .at(-1)!
@@ -154,8 +170,7 @@ describe('MapboxRoutingService', () => {
     expect(new URL(String(fetcher.mock.calls[0][0])).searchParams.has('options')).toBe(false);
     expect(String(fetcher.mock.calls[0][0])).not.toEqual(String(fetcher.mock.calls.at(-1)![0]));
   });
-  it('stops early when routed length matches the target and samples only selected loops', async () => {
-    vi.mocked(addTerrainElevation).mockClear();
+  it('stops early when routed length matches the target without elevation requests', async () => {
     const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
       const coordinates = new URL(String(url)).pathname
         .split('/')
@@ -173,10 +188,12 @@ describe('MapboxRoutingService', () => {
     );
     expect(results).toHaveLength(2);
     expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(addTerrainElevation).toHaveBeenCalledTimes(2);
     for (const result of results) {
       expect(result.stats.distance).toBeCloseTo(20000, 0);
       expect(result.stats.duration).toBe(420);
+      expect(result.stats.ascent).toBeUndefined();
+      expect(result.stats.descent).toBeUndefined();
+      expect(result.segments[0].every((point) => point.length === 2)).toBe(true);
     }
   });
   it('stops after the bounded search and rejects a nonclosed loop', async () => {
@@ -224,25 +241,20 @@ describe('MapboxRoutingService', () => {
       'internet connection',
     );
   });
-  it('parses permanent geocoding results and requests only on submit', async () => {
-    const fetcher = mockJson({
-      features: [
-        {
-          geometry: { coordinates: [11.4, 47.26] },
-          properties: { full_address: 'Innsbruck, Austria' },
-        },
-      ],
-    });
-    const places = await searchPlaces('Innsbruck test');
-    expect(places[0].name).toBe('Innsbruck, Austria');
-    const url = new URL(String(fetcher.mock.calls[0][0]));
-    expect(url.pathname).toBe('/search/geocode/v6/forward');
-    expect(url.searchParams.get('permanent')).toBe('true');
-    expect(url.searchParams.get('autocomplete')).toBe('false');
-    const controller = new AbortController();
-    controller.abort();
-    await expect(searchPlaces('Innsbruck test', controller.signal)).rejects.toMatchObject({
-      name: 'AbortError',
-    });
+  it('does not expose an address search helper', () => {
+    expect(routing).not.toHaveProperty('searchPlaces');
+  });
+  it.each([
+    '/search/geocode/v6/forward?q=Innsbruck',
+    '/geocoding/v5/mapbox.places/Innsbruck.json',
+    '/v4/mapbox.terrain-rgb/1/1/1.pngraw',
+    '/directions/v5/mapbox/driving/11,47;12,48',
+    '/directions/v5/mapbox/cycling/../../../../search/geocode/v6/forward?q=Innsbruck',
+    '//external.invalid/directions/v5/mapbox/cycling/11,47;12,48',
+  ])('rejects unsupported endpoint %s without making a request', async (path) => {
+    const fetcher = mockJson({});
+    expect(() => mapboxUrl(path)).toThrow('Unsupported Mapbox endpoint');
+    await expect(requestJson(path, {})).rejects.toThrow('Unsupported Mapbox endpoint');
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

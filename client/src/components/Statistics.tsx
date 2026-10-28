@@ -41,7 +41,12 @@ export function Statistics({
       mobile.removeEventListener('change', updateTarget);
     };
   }, []);
-  const samples = useMemo(() => (route ? elevationSamples(route.segments) : []), [route]);
+  const samples = useMemo(
+    () => (route?.source === 'gpx' ? elevationSamples(route.segments) : []),
+    [route],
+  );
+  const showElevation =
+    samples.length > 1 && route?.stats.ascent !== undefined && route.stats.descent !== undefined;
   const minimum = samples.length
     ? samples.reduce((min, s) => Math.min(min, s.elevation), Infinity)
     : 0;
@@ -54,96 +59,91 @@ export function Statistics({
   const chartSamples = samples.filter(
     (_, i) => i % Math.max(1, Math.ceil(samples.length / 400)) === 0 || i === samples.length - 1,
   );
-  const elevationProfile =
-    samples.length > 1 ? (
-      <details className="elevation-box" open={!compact}>
-        <summary className="section-heading">
-          <span>{t('Elevation profile')}</span>
-          <span className="elevation-toggle" aria-hidden="true">
-            <ChevronDown size={18} />
+  const elevationProfile = showElevation ? (
+    <details className="elevation-box" open={!compact}>
+      <summary className="section-heading">
+        <span>{t('Elevation profile')}</span>
+        <span className="elevation-toggle" aria-hidden="true">
+          <ChevronDown size={18} />
+        </span>
+      </summary>
+      <>
+        <ChartContainer
+          config={{ elevation: { label: t('Elevation'), color: 'var(--primary)' } }}
+          className="elevation-chart"
+          role="img"
+          aria-label={t('Elevation from {{minimum}} to {{maximum}} metres', {
+            minimum: formatNumber(Math.round(minimum)),
+            maximum: formatNumber(Math.round(maximum)),
+          })}
+        >
+          <AreaChart data={chartSamples} margin={{ top: 12, right: 4, bottom: 0, left: 0 }}>
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--color-elevation)" stopOpacity={0.15} />
+                <stop offset="100%" stopColor="var(--color-elevation)" stopOpacity={0.03} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} stroke="var(--border)" />
+            <XAxis
+              dataKey="distance"
+              type="number"
+              domain={[0, total]}
+              ticks={[0, total / 3, (total * 2) / 3, total]}
+              tickFormatter={(distance: number) =>
+                distance === total
+                  ? formatDistance(distance)
+                  : formatNumber(distance / 1000, { maximumFractionDigits: 1 })
+              }
+              tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+              axisLine={false}
+              tickLine={false}
+              height={20}
+            />
+            <YAxis
+              dataKey="elevation"
+              domain={['dataMin - 5', 'dataMax + 5']}
+              tickFormatter={(elevation: number) => `${formatNumber(elevation)} ${t('m')}`}
+              tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+              axisLine={false}
+              tickLine={false}
+              width={44}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(_, payload) =>
+                    formatDistance(Number(payload[0]?.payload.distance ?? 0))
+                  }
+                  formatter={(value) => `${formatNumber(Math.round(Number(value)))} ${t('m')}`}
+                />
+              }
+            />
+            <Area
+              dataKey="elevation"
+              type="linear"
+              fill={`url(#${gradientId})`}
+              stroke="var(--color-elevation)"
+              strokeWidth={2}
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ChartContainer>
+        <div className="chart-labels sr-only">
+          <span>
+            {formatNumber(Math.round(minimum))}–{formatNumber(Math.round(maximum))} {t('m')}
           </span>
-        </summary>
-        <>
-          <ChartContainer
-            config={{ elevation: { label: t('Elevation'), color: 'var(--primary)' } }}
-            className="elevation-chart"
-            role="img"
-            aria-label={t('Elevation from {{minimum}} to {{maximum}} metres', {
-              minimum: formatNumber(Math.round(minimum)),
-              maximum: formatNumber(Math.round(maximum)),
-            })}
-          >
-            <AreaChart data={chartSamples} margin={{ top: 12, right: 4, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-elevation)" stopOpacity={0.15} />
-                  <stop offset="100%" stopColor="var(--color-elevation)" stopOpacity={0.03} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} stroke="var(--border)" />
-              <XAxis
-                dataKey="distance"
-                type="number"
-                domain={[0, total]}
-                ticks={[0, total / 3, (total * 2) / 3, total]}
-                tickFormatter={(distance: number) =>
-                  distance === total
-                    ? formatDistance(distance)
-                    : formatNumber(distance / 1000, { maximumFractionDigits: 1 })
-                }
-                tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                axisLine={false}
-                tickLine={false}
-                height={20}
-              />
-              <YAxis
-                dataKey="elevation"
-                domain={['dataMin - 5', 'dataMax + 5']}
-                tickFormatter={(elevation: number) => `${formatNumber(elevation)} ${t('m')}`}
-                tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                axisLine={false}
-                tickLine={false}
-                width={44}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    labelFormatter={(_, payload) =>
-                      formatDistance(Number(payload[0]?.payload.distance ?? 0))
-                    }
-                    formatter={(value) => `${formatNumber(Math.round(Number(value)))} ${t('m')}`}
-                  />
-                }
-              />
-              <Area
-                dataKey="elevation"
-                type="linear"
-                fill={`url(#${gradientId})`}
-                stroke="var(--color-elevation)"
-                strokeWidth={2}
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ChartContainer>
-          <div className="chart-labels sr-only">
-            <span>
-              {formatNumber(Math.round(minimum))}–{formatNumber(Math.round(maximum))} {t('m')}
-            </span>
-            <span>{formatDistance(total)}</span>
-          </div>
-          <p className="fine-print">
-            {route?.source !== 'gpx'
-              ? t('Elevation: provider terrain model, not a survey.')
-              : t('Elevation: GPX file, when available.')}
-          </p>
-        </>
-      </details>
-    ) : null;
+          <span>{formatDistance(total)}</span>
+        </div>
+        <p className="fine-print">{t('Elevation: GPX file, when available.')}</p>
+      </>
+    </details>
+  ) : null;
   if (!route)
     return (
       <section className="statistics statistics-empty" aria-label={t('Route statistics')}>
         <Info size={18} aria-hidden="true" />
-        <p>{emptyHint || t('Add two stops to see distance, time and elevation.')}</p>
+        <p>{emptyHint || t('Add two stops to see distance and time.')}</p>
       </section>
     );
   return (
@@ -157,22 +157,22 @@ export function Statistics({
           <dt>{t('Est. moving time')}</dt>
           <dd>{formatDuration(route.stats.duration)}</dd>
         </div>
-        <div className="stat-card">
-          <dt>{t('Elevation gain')}</dt>
-          <dd>
-            {route.stats.ascent !== undefined
-              ? `${formatNumber(Math.round(route.stats.ascent))} ${t('m')}`
-              : t('Unavailable')}
-          </dd>
-        </div>
-        <div className="stat-card">
-          <dt>{t('Elevation loss')}</dt>
-          <dd>
-            {route.stats.descent !== undefined
-              ? `${formatNumber(Math.round(route.stats.descent))} ${t('m')}`
-              : t('Unavailable')}
-          </dd>
-        </div>
+        {showElevation && (
+          <>
+            <div className="stat-card">
+              <dt>{t('Elevation gain')}</dt>
+              <dd>
+                {formatNumber(Math.round(route.stats.ascent!))} {t('m')}
+              </dd>
+            </div>
+            <div className="stat-card">
+              <dt>{t('Elevation loss')}</dt>
+              <dd>
+                {formatNumber(Math.round(route.stats.descent!))} {t('m')}
+              </dd>
+            </div>
+          </>
+        )}
       </dl>
       <p className="fine-print">
         {t('Time is an estimate, excluding stops.')}

@@ -31,6 +31,21 @@ function route(segments: Coordinate[][]): PlannedRoute {
   };
 }
 
+it('hides paid elevation metrics for Mapbox snapshots even when old data contains heights', () => {
+  const snapshot = route([
+    [
+      [31, 52, 100],
+      [31.01, 52.01, 125],
+    ],
+  ]);
+  render(<Statistics route={{ ...snapshot, source: 'mapbox' }} />);
+  expect(screen.getByText('Distance')).toBeInTheDocument();
+  expect(screen.queryByText('Elevation gain')).not.toBeInTheDocument();
+  expect(screen.queryByText('Elevation loss')).not.toBeInTheDocument();
+  expect(screen.queryByText('Elevation profile')).not.toBeInTheDocument();
+  expect(screen.queryByText('Unavailable')).not.toBeInTheDocument();
+});
+
 for (const desktop of [false, true]) {
   it(`hides unavailable profiles and removes them after changing routes (desktop: ${desktop})`, () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
@@ -68,6 +83,8 @@ for (const desktop of [false, true]) {
       [],
     ] as Coordinate[][][]) {
       rerender(<Statistics route={route(segments)} />);
+      expect(screen.queryByText('Elevation gain')).not.toBeInTheDocument();
+      expect(screen.queryByText('Elevation loss')).not.toBeInTheDocument();
       expect(screen.queryByText('Elevation profile')).not.toBeInTheDocument();
       expect(screen.queryByTestId('elevation-chart')).not.toBeInTheDocument();
       expect(portal).toBeEmptyDOMElement();

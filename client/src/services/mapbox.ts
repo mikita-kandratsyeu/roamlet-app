@@ -8,11 +8,7 @@ export function publicMapboxToken(): string {
 }
 
 export function mapboxUrl(path: string): URL {
-  if (
-    !/^\/(?:directions\/v5\/mapbox\/(?:cycling|walking)\/|search\/geocode\/v6\/forward(?:\?|$)|v4\/mapbox\.terrain-rgb\/)/.test(
-      path,
-    )
-  )
+  if (!/^\/directions\/v5\/mapbox\/(?:cycling|walking)\/[0-9eE+.,;-]+(?:\?[^#]*)?$/.test(path))
     throw new Error('Unsupported Mapbox endpoint.');
   const url = new URL(path, 'https://api.mapbox.com');
   url.searchParams.set('access_token', publicMapboxToken());

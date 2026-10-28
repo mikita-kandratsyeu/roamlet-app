@@ -8,7 +8,6 @@ const provider = vi.hoisted(() => ({ calculateRoute: vi.fn(), calculateAlternati
 vi.mock('./services/routing', () => ({
   checkRoutingConfiguration: vi.fn().mockResolvedValue(true),
   routingProvider: provider,
-  searchPlaces: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('./components/RouteMap', () => ({
   RouteMap: ({ segments }: { segments: unknown[] }) => (
@@ -50,10 +49,10 @@ function selectLanguage(label: string) {
   fireEvent.click(screen.getByRole('menuitemradio', { name: label }));
 }
 function addCoordinate(text: string) {
-  fireEvent.change(screen.getByRole('textbox', { name: 'Search places or coordinates' }), {
+  fireEvent.change(screen.getByRole('textbox', { name: 'Latitude, longitude' }), {
     target: { value: text },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add coordinates' }));
 }
 async function plan() {
   addCoordinate('47.26, 11.4');
@@ -173,6 +172,19 @@ describe('route planner interactions', () => {
     expect(within(dialog).getByRole('button', { name: 'Удалить все точки' })).toBeInTheDocument();
   });
 
+  it('accepts only coordinates and never offers address search', () => {
+    render(<App />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Latitude, longitude' }), {
+      target: { value: 'Minsk' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add coordinates' }));
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Enter coordinates as latitude, longitude.',
+    );
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Search', exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Search results' })).not.toBeInTheDocument();
+  });
   it('starts with an actionable empty overview instead of unavailable metrics', () => {
     render(<App />);
     expect(screen.getByRole('button', { name: 'Save route' })).toBeDisabled();
@@ -180,9 +192,7 @@ describe('route planner interactions', () => {
     expect(screen.getByRole('button', { name: 'Calculate route' })).toBeDisabled();
     expect(screen.getByText('Where shall we go?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add a stop' })).toBeEnabled();
-    expect(
-      screen.getByText('Add two stops to see distance, time and elevation.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Add two stops to see distance and time.')).toBeInTheDocument();
     expect(screen.queryByText('Unavailable')).not.toBeInTheDocument();
   });
   it('retries a failed calculation without duplicate requests or stale export', async () => {

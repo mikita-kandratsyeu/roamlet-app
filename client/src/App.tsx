@@ -12,7 +12,6 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   MapPinPlus,
-  Search,
   Plus,
   ArrowDownUp,
   ArrowUp,
@@ -39,12 +38,7 @@ import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from
 import { importGpx, exportGpx, gpxFilename } from './domain/gpx';
 import { calculateStats } from './domain/stats';
 import { saveRoute } from './domain/storage';
-import {
-  checkRoutingConfiguration,
-  routingProvider,
-  searchPlaces,
-  type Place,
-} from './services/routing';
+import { checkRoutingConfiguration, routingProvider } from './services/routing';
 import { RouteMap } from './components/RouteMap';
 import { Statistics, formatDistance, formatDuration } from './components/Statistics';
 import { Dialog } from './components/Dialog';
@@ -118,8 +112,6 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const [query, setQuery] = useState('');
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [searching, setSearching] = useState(false);
   const [searchTarget, setSearchTarget] = useState<string | null>(null);
   const [fitToken, setFitToken] = useState(0);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -136,7 +128,6 @@ export default function App() {
   const confirmationCancel = useRef<HTMLButtonElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const request = useRef<AbortController | null>(null);
-  const searchRequest = useRef<AbortController | null>(null);
   const fail = (text: string) => setNotice({ text, error: true });
 
   useEffect(() => {
@@ -188,7 +179,6 @@ export default function App() {
   useEffect(
     () => () => {
       request.current?.abort();
-      searchRequest.current?.abort();
     },
     [],
   );
@@ -231,9 +221,6 @@ export default function App() {
       fail('A route supports up to 25 stops. Remove a stop before adding another.');
       return;
     }
-    searchRequest.current?.abort();
-    setSearching(false);
-    setPlaces([]);
     setQuery('');
     setSearchTarget(null);
   }
@@ -274,7 +261,6 @@ export default function App() {
     setPlanningMode('point');
     setDirty(false);
     setQuery('');
-    setPlaces([]);
     setSearchTarget(null);
   }
   function openRoute(route: PlannedRoute) {
@@ -293,7 +279,6 @@ export default function App() {
     setPanelHidden(false);
     setFitToken((token) => token + 1);
     setSearchTarget(null);
-    setPlaces([]);
     setQuery('');
   }
   function currentRoute(): PlannedRoute | null {
@@ -366,37 +351,26 @@ export default function App() {
       fail(errorMessage(error));
     }
   }
-  async function search(event: React.FormEvent) {
+  function addCoordinates(event: React.FormEvent) {
     event.preventDefault();
-    searchRequest.current?.abort();
-    setSearching(false);
     setNotice(null);
-    setPlaces([]);
-    const coordinateMatch = query.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
-    if (coordinateMatch) {
-      const latitude = Number(coordinateMatch[1]),
-        longitude = Number(coordinateMatch[2]);
-      if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
-        fail('Use latitude −90 to 90 and longitude −180 to 180.');
-        return;
-      }
-      addLocation([longitude, latitude]);
+    const match = query.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    if (!match) {
+      fail('Enter coordinates as latitude, longitude.');
       return;
     }
-    const controller = new AbortController();
-    searchRequest.current = controller;
-    setSearching(true);
-    try {
-      const found = await searchPlaces(query, controller.signal);
-      if (!controller.signal.aborted) {
-        setPlaces(found);
-        if (!found.length) fail('No places found. Try a town, address, or latitude, longitude.');
-      }
-    } catch (error) {
-      if (!controller.signal.aborted) fail(errorMessage(error));
-    } finally {
-      if (!controller.signal.aborted) setSearching(false);
+    const latitude = Number(match[1]),
+      longitude = Number(match[2]);
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      Math.abs(latitude) > 90 ||
+      Math.abs(longitude) > 180
+    ) {
+      fail('Use latitude −90 to 90 and longitude −180 to 180.');
+      return;
     }
+    addLocation([longitude, latitude]);
   }
   function changeActivity(next: Activity) {
     if (next === activity) return;
@@ -456,7 +430,7 @@ export default function App() {
   }
   async function generateLoops() {
     if (!waypoints.length) {
-      fail('Choose a starting point on the map or with search first.');
+      fail('Choose a starting point on the map or enter coordinates first.');
       return;
     }
     invalidate();
@@ -696,46 +670,35 @@ export default function App() {
                   </ToggleGroupItem>
                 </ToggleGroup>
                 <Label className="search-label" htmlFor="place-search-input">
-                  {t('Find a place or enter coordinates')}
+                  {t('Enter coordinates')}
                 </Label>
-                <form className="place-search" onSubmit={(event) => void search(event)}>
-                  <Search size={16} aria-hidden="true" />
+                <form className="place-search" onSubmit={addCoordinates}>
+                  <MapPinPlus size={16} aria-hidden="true" />
                   <Input
                     ref={searchInput}
                     id="place-search-input"
-                    aria-label={t('Search places or coordinates')}
+                    aria-label={t('Latitude, longitude')}
                     value={query}
-                    onChange={(event) => {
-                      searchRequest.current?.abort();
-                      setSearching(false);
-                      setQuery(event.target.value);
-                      setPlaces([]);
-                    }}
+                    onChange={(event) => setQuery(event.target.value)}
                     placeholder={
                       searchTarget
-                        ? t('Find a replacement stop…')
-                        : t('Search places or coordinates…')
+                        ? t('Replacement latitude, longitude…')
+                        : t('Latitude, longitude…')
                     }
                     maxLength={200}
                   />
                   <Button
                     type="submit"
                     variant="ghost"
-                    aria-label={t('Search')}
-                    disabled={searching || !query.trim()}
+                    aria-label={t('Add coordinates')}
+                    disabled={!query.trim()}
                   >
-                    {searching ? (
-                      <LoaderCircle size={18} className="spin" />
-                    ) : (
-                      <>
-                        <span className="search-submit-label">{t('Find')}</span>
-                        <Search className="search-submit-icon" size={18} />
-                      </>
-                    )}
+                    <span className="search-submit-label">{t('Add')}</span>
+                    <Plus className="search-submit-icon" size={18} />
                   </Button>
                 </form>
                 <p className="search-help">
-                  <span>{t('Search with the button or Enter · latitude, longitude')}</span>
+                  <span>{t('Add with the button or Enter · latitude, longitude')}</span>
                 </p>
                 {searchTarget && (
                   <Button
@@ -746,27 +709,12 @@ export default function App() {
                     {t('Cancel replacing stop')}
                   </Button>
                 )}
-                {places.length > 0 && (
-                  <ul className="search-results" aria-label={t('Search results')}>
-                    {places.map((place, index) => (
-                      <li key={index}>
-                        <Button
-                          variant="ghost"
-                          onClick={() => addLocation(place.coordinate, place.name)}
-                        >
-                          {place.name}
-                          <Plus size={16} />
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
                 {!waypoints.length ? (
                   <Card className="stops-empty">
                     <MapPinPlus size={26} aria-hidden="true" />
                     <div>
                       <strong>{t('Where shall we go?')}</strong>
-                      <p>{t('Click the map or search for a place to add a start and finish.')}</p>
+                      <p>{t('Click the map or enter coordinates to add a start and finish.')}</p>
                     </div>
                   </Card>
                 ) : (
@@ -1295,7 +1243,7 @@ export default function App() {
       {helpOpen && (
         <Dialog title={t('A few helpful things')} onClose={() => setHelpOpen(false)}>
           <div className="help-content">
-            <h3>{t('Connect routing & search')}</h3>
+            <h3>{t('Mapbox setup')}</h3>
             <p>
               {t('For deployment administrators: create a key at')}{' '}
               <a href="https://account.mapbox.com/auth/signup/" target="_blank" rel="noreferrer">
@@ -1303,7 +1251,7 @@ export default function App() {
               </a>
               {t('. Set')} <code>VITE_MAPBOX_ACCESS_TOKEN</code>{' '}
               {t(
-                'in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions. Maps, routes, search and terrain are requested directly from Mapbox.',
+                'in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions. Maps and routes are requested directly from Mapbox.',
               )}
             </p>
             <h3>{t('Your route, your device')}</h3>
@@ -1321,7 +1269,7 @@ export default function App() {
             <h3>{t('Real data, honest limits')}</h3>
             <p>
               {t(
-                'Cycling and hiking use Mapbox cycling and walking profiles. Access and surface quality depend on mapped data; always check conditions. Moving time and Terrain-RGB elevations are estimates. Loops are generated with intermediate points and may differ from the target distance.',
+                'Cycling and hiking use Mapbox cycling and walking profiles. Check access and trail conditions. Moving time is an estimate. Loops use intermediate points and may differ from the target distance. Elevation is shown only from imported GPX files with complete height data.',
               )}
             </p>
             <h3>{t('Data & attribution')}</h3>
@@ -1331,7 +1279,7 @@ export default function App() {
                 {t('OpenStreetMap contributors')}
               </a>{' '}
               {t(
-                '(ODbL). Maps, routing, terrain and place search are provided by Mapbox. No map regions are downloaded for offline use. Provider ©',
+                '(ODbL). Maps and routing are provided by Mapbox. No map regions are downloaded for offline use. Provider ©',
               )}{' '}
               <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noreferrer">
                 Mapbox
@@ -1340,7 +1288,7 @@ export default function App() {
             </p>
             <p className="fine-print">
               {t(
-                'Maps, searches, route points and terrain requests go directly from your browser to Mapbox using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.',
+                'Maps and route points go directly from your browser to Mapbox using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.',
               )}
             </p>
           </div>

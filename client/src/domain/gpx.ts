@@ -210,7 +210,7 @@ export function exportGpx(route: PlannedRoute): string {
                 link: [
                   {
                     '@_href': 'https://www.mapbox.com/about/maps/',
-                    text: 'Routing and terrain by Mapbox',
+                    text: 'Routing by Mapbox',
                   },
                   {
                     '@_href': 'https://www.openstreetmap.org/copyright',

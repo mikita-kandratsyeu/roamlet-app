@@ -12,15 +12,15 @@ const fixture = {
     {
       distance: 640,
       duration: 240,
-      geometry: { type: 'LineString', coordinates },
+      geometry: { type: 'LineString', coordinates: coordinates.map((point) => point.slice(0, 2)) },
     },
   ],
 };
 const gpx =
   '<?xml version="1.0"?><gpx version="1.1" creator="Roamlet test" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>Mountain morning</name></metadata><wpt lat="47.2692" lon="11.4041"><name>Meeting point</name></wpt><trk><name>Mountain morning</name><trkseg><trkpt lat="47.2692" lon="11.4041"><ele>600</ele></trkpt><trkpt lat="47.2697" lon="11.405"><ele>620</ele></trkpt></trkseg><trkseg><trkpt lat="47.27" lon="11.409"><ele>630</ele></trkpt><trkpt lat="47.271" lon="11.411"><ele>610</ele></trkpt></trkseg></trk></gpx>';
 async function addPoint(page: Page, text: string) {
-  await page.getByRole('textbox', { name: 'Search places or coordinates' }).fill(text);
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(text);
+  await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
 }
 async function requestNewRoute(page: Page) {
   const button = page.getByRole('button', { name: 'New route', exact: true });
@@ -60,18 +60,6 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://*.mapbox.com/**', (route) => route.abort());
   // Fixtures are confined to browser tests. Production never substitutes geometry.
   await page.route('**/directions/v5/mapbox/**', (route) => route.fulfill({ json: fixture }));
-  await page.route('**/search/geocode/v6/forward?**', (route) =>
-    route.fulfill({
-      json: {
-        features: [
-          {
-            geometry: { coordinates: [11.4041, 47.2692] },
-            properties: { full_address: 'Innsbruck, Austria' },
-          },
-        ],
-      },
-    }),
-  );
   await page.goto('/');
 });
 test('creates, recalculates, saves, reloads, reopens and exports actual returned points', async ({
@@ -104,7 +92,7 @@ test('creates, recalculates, saves, reloads, reopens and exports actual returned
   }
   expect(text).toContain('Weekend escape');
   expect(text).toContain('Along the river');
-  expect(text).toContain('<ele>630</ele>');
+  expect(text).not.toContain('<ele>');
   expect(errors).toEqual([]);
 });
 test('imports multiple segments, preserves GPX geometry and errors gracefully', async ({
@@ -170,10 +158,19 @@ test('edits names, duplicates, filters and confirms deletion', async ({ page }) 
   await page.getByRole('button', { name: 'Delete route', exact: true }).click();
   await expect(page.locator('.library-route')).toHaveCount(1);
 });
-test('search works on submit; hiking and service failures are honest', async ({ page }) => {
-  await page.getByRole('textbox', { name: 'Search places or coordinates' }).fill('Innsbruck');
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
-  await page.getByRole('button', { name: 'Innsbruck, Austria' }).click();
+test('coordinate input replaces paid search; hiking and service failures are honest', async ({
+  page,
+}) => {
+  const paidRequests: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.includes('/search/geocode/') || url.pathname.includes('terrain-rgb'))
+      paidRequests.push(url.pathname);
+  });
+  await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill('Innsbruck');
+  await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Enter coordinates');
+  await addPoint(page, '47.2692, 11.4041');
   await page.getByRole('radio', { name: 'Hiking', exact: true }).click();
   const request = page.waitForRequest('**/directions/v5/mapbox/walking/**');
   await addPoint(page, '47.271, 11.411');
@@ -185,6 +182,7 @@ test('search works on submit; hiking and service failures are honest', async ({ 
   await addPoint(page, '47.28, 11.42');
   await expect(page.getByRole('alert')).toContainText('quota');
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+  expect(paidRequests).toEqual([]);
 });
 test('round trips route intermediate points with bounded search; responsive controls stay reachable', async ({
   page,
@@ -243,7 +241,7 @@ test('Onest loads Latin and Cyrillic faces and keeps Russian controls within a 3
   await page.getByRole('button', { name: 'Меню', exact: true }).click();
   for (const element of [
     page.locator('body'),
-    page.getByRole('textbox', { name: 'Поиск мест или координат' }),
+    page.getByRole('textbox', { name: 'Широта, долгота' }),
     page.getByRole('menuitem', { name: 'Мои маршруты' }),
     page.locator('.mapboxgl-map'),
   ]) {
@@ -356,13 +354,13 @@ test('header supports desktop creation and an accessible compact menu', async ({
 test('focus indicators are single and keyboard focus follows fields, dialogs, library actions and map controls', async ({
   page,
 }) => {
-  const search = page.getByRole('textbox', { name: 'Search places or coordinates' });
+  const search = page.getByRole('textbox', { name: 'Latitude, longitude' });
   await search.fill('Innsbruck');
   await expect(search).toHaveCSS('outline-width', '2px');
   await expect(page.locator('.place-search')).toHaveCSS('outline-width', '0px');
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Search', exact: true })).toBeFocused();
-  await expect(page.getByRole('button', { name: 'Search', exact: true })).toHaveCSS(
+  await expect(page.getByRole('button', { name: 'Add coordinates', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Add coordinates', exact: true })).toHaveCSS(
     'outline-width',
     '2px',
   );
@@ -541,6 +539,17 @@ test('matches Figma planner geometry while preserving branding and responsive el
   await expect(page.locator('.route-actions')).toHaveCSS('gap', '8px');
   await expect(page.locator('.planner-footer .import-action')).toHaveCSS('height', '44px');
   await createRoute(page);
+  await expect(page.locator('.elevation-box')).toHaveCount(0);
+  await expect(page.getByText('Elevation gain', { exact: true })).toHaveCount(0);
+  await page
+    .getByLabel('Import GPX file')
+    .setInputFiles({
+      name: 'heights.gpx',
+      mimeType: 'application/gpx+xml',
+      buffer: Buffer.from(gpx),
+    });
+  await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Mountain morning' })).toBeVisible();
   await expect(page.locator('.planner')).toHaveCSS('width', mobile ? '390px' : '420px');
   if (mobile) {
     await expect(page.locator('.elevation-box')).not.toHaveAttribute('open');
