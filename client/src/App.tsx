@@ -1055,10 +1055,18 @@ export default function App() {
                   <Info size={18} aria-hidden="true" />
                   <div>
                     <strong>{t('Original geometry preserved')}</strong>
-                    <p>{t('Viewing and exporting do not recalculate the route. Switch to editing points separately.')}</p>
+                    <p>
+                      {t(
+                        'Viewing and exporting do not recalculate the route. Switch to editing points separately.',
+                      )}
+                    </p>
                   </div>
                 </Alert>
-                <Button variant="outline" className="secondary snapshot-edit" onClick={editSnapshot}>
+                <Button
+                  variant="outline"
+                  className="secondary snapshot-edit"
+                  onClick={editSnapshot}
+                >
                   <Pencil size={18} aria-hidden="true" />
                   {t('Edit waypoints')}
                 </Button>

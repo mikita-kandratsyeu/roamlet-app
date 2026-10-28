@@ -117,16 +117,20 @@ test('imports multiple segments, preserves GPX geometry and errors gracefully', 
   });
   await expect(page.locator('.planner')).toContainText('Mountain morning');
   const snapshot = page.locator('.snapshot-notice');
-  const edit = page.getByRole('button', { name: 'Edit points', exact: true });
+  const edit = page.getByRole('button', { name: 'Edit waypoints', exact: true });
   await expect(snapshot).toContainText('Original geometry preserved');
   await expect(snapshot).toHaveCSS('padding', '12px');
   await expect(snapshot).toHaveCSS('border-radius', '8px');
   await expect(snapshot.locator('button')).toHaveCount(0);
   await expect(edit).toHaveCSS('height', '44px');
-  const noticeBox = await snapshot.boundingBox();
-  const editBox = await edit.boundingBox();
-  expect(Math.abs(editBox!.y - noticeBox!.y - noticeBox!.height - 10)).toBeLessThan(1);
-  expect(editBox!.width).toBeCloseTo(noticeBox!.width, 0);
+  await expect
+    .poll(async () => {
+      const noticeBox = await snapshot.boundingBox();
+      const editBox = await edit.boundingBox();
+      return Math.abs(editBox!.y - noticeBox!.y - noticeBox!.height - 10);
+    })
+    .toBeLessThan(1);
+  expect((await edit.boundingBox())!.width).toBeCloseTo((await snapshot.boundingBox())!.width, 0);
   const downloaded = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export GPX' }).click();
   const text = await readFile((await (await downloaded).path())!, 'utf8');
