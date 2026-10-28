@@ -532,6 +532,18 @@ test('matches Figma planner geometry while preserving branding and responsive el
     const chart = await page.locator('#map-elevation-root').boundingBox();
     expect(chart?.x).toBe(478);
     expect(chart?.width).toBe(714);
+    const summary = page.locator('.elevation-box summary');
+    await expect(summary).toHaveText('Elevation profile');
+    await expect(summary.locator('.elevation-toggle')).toHaveCSS('width', '32px');
+    expect(await summary.evaluate((element) => getComputedStyle(element, '::after').content)).toBe(
+      'none',
+    );
+    await summary.click();
+    await expect(page.locator('.elevation-box')).not.toHaveAttribute('open');
+    await expect(page.locator('.elevation-chart')).not.toBeVisible();
+    await summary.press('Enter');
+    await expect(page.locator('.elevation-box')).toHaveAttribute('open');
+    await expect(page.locator('.elevation-chart')).toBeVisible();
     await page.getByRole('button', { name: 'Hide planner' }).click();
     await expect(page.locator('#map-elevation-root .elevation-box')).toBeVisible();
   }

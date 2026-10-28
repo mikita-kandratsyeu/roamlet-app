@@ -3,7 +3,7 @@ import { useMemo, useId, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from './ui/chart';
-import { Info } from 'lucide-react';
+import { ChevronDown, Info } from 'lucide-react';
 import type { PlannedRoute } from '../domain/types';
 import { elevationSamples } from '../domain/stats';
 import i18n, { formatNumber } from '../i18n';
@@ -59,7 +59,9 @@ export function Statistics({
       <details className="elevation-box" open={!compact}>
         <summary className="section-heading">
           <span>{t('Elevation profile')}</span>
-          <span className="small muted">{t('metres')}</span>
+          <span className="elevation-toggle" aria-hidden="true">
+            <ChevronDown size={18} />
+          </span>
         </summary>
         <>
           <ChartContainer
@@ -97,10 +99,11 @@ export function Statistics({
               <YAxis
                 dataKey="elevation"
                 domain={['dataMin - 5', 'dataMax + 5']}
+                tickFormatter={(elevation: number) => `${formatNumber(elevation)} ${t('m')}`}
                 tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
                 axisLine={false}
                 tickLine={false}
-                width={32}
+                width={44}
               />
               <ChartTooltip
                 content={

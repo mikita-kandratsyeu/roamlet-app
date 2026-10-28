@@ -422,7 +422,7 @@
   height: 112px;
 }
 #map-elevation-root .elevation-box summary {
-  min-height: 22px;
+  min-height: 32px;
 }
 #map-elevation-root .elevation-box .fine-print {
   font-size: 10px;
@@ -431,11 +431,29 @@
   left: var(--space);
   width: min(714px, calc(100% - var(--space) * 2 - 74px));
 }
-.elevation-box summary::after {
-  content: '⌄';
+.elevation-box summary {
+  min-height: 32px;
+  gap: 12px;
 }
+.elevation-box summary::after,
 .elevation-box[open] summary::after {
-  content: '⌃';
+  content: none;
+}
+.elevation-toggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+}
+.elevation-box summary:hover .elevation-toggle {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.elevation-box[open] .elevation-toggle svg {
+  transform: rotate(180deg);
 }
 .map-top-label {
   display: none;
