@@ -20,15 +20,13 @@ const response = (
   ],
 });
 function mockJson(data: unknown, status = 200) {
-  return vi
-    .spyOn(globalThis, 'fetch')
-    .mockImplementation(
-      async () =>
-        new Response(JSON.stringify(data), {
-          status,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-    );
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(
+    async () =>
+      new Response(JSON.stringify(data), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+  );
 }
 afterEach(() => {
   vi.unstubAllEnvs();

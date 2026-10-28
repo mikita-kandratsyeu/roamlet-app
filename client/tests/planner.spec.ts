@@ -80,13 +80,11 @@ test('creates, recalculates, saves, reloads, reopens and exports actual returned
 test('imports multiple segments, preserves GPX geometry and errors gracefully', async ({
   page,
 }) => {
-  await page
-    .getByLabel('Import GPX file')
-    .setInputFiles({
-      name: 'mountain.gpx',
-      mimeType: 'application/gpx+xml',
-      buffer: Buffer.from(gpx),
-    });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'mountain.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
   await expect(page.getByRole('heading', { name: 'Mountain morning' })).toBeVisible();
   const downloaded = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export GPX' }).click();
@@ -94,13 +92,11 @@ test('imports multiple segments, preserves GPX geometry and errors gracefully', 
   expect(text.match(/<trkseg>/g)).toHaveLength(2);
   expect(text.match(/<trkpt\s/g)).toHaveLength(4);
   expect(text).toContain('Meeting point');
-  await page
-    .getByLabel('Import GPX file')
-    .setInputFiles({
-      name: 'broken.gpx',
-      mimeType: 'application/gpx+xml',
-      buffer: Buffer.from('<gpx><trk><'),
-    });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'broken.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from('<gpx><trk><'),
+  });
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Mountain morning' })).toBeVisible();
 });

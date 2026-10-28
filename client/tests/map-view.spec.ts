@@ -44,13 +44,11 @@ test('uses timezone region first, restores last local view, and fits an imported
     .toBe(7);
   const gpx =
     '<gpx version="1.1"><trk><name>Different region</name><trkseg><trkpt lat="47.26" lon="11.4"/><trkpt lat="47.27" lon="11.41"/></trkseg></trk></gpx>';
-  await page
-    .getByLabel('Import GPX file')
-    .setInputFiles({
-      name: 'different.gpx',
-      mimeType: 'application/gpx+xml',
-      buffer: Buffer.from(gpx),
-    });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'different.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
   await expect
     .poll(() =>
       page.evaluate(

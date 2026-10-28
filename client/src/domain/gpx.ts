@@ -173,9 +173,9 @@ export function importGpx(input: string): PlannedRoute {
 }
 
 function xmlText(value: string): string {
-  // eslint-disable-next-line no-control-regex -- Intentionally reject control characters forbidden in XML.
   if (
     typeof value !== 'string' ||
+    // eslint-disable-next-line no-control-regex -- Intentionally reject control characters forbidden in XML.
     /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/u.test(value) ||
     /[\uD800-\uDFFF]/u.test(value)
   )
@@ -238,10 +238,10 @@ export function exportGpx(route: PlannedRoute): string {
 }
 
 export function gpxFilename(name: string): string {
-  // eslint-disable-next-line no-control-regex -- Intentionally sanitize control characters in filenames.
   const safe =
     name
       .normalize('NFKC')
+      // eslint-disable-next-line no-control-regex -- Intentionally sanitize control characters in filenames.
       .replace(/[<>:"/\\|?*\u0000-\u001F\u007F]/g, '-')
       .replace(/\.gpx$/i, '')
       .replace(/^[.\s]+|[.\s]+$/g, '')

@@ -11,13 +11,11 @@ test('production shell keeps saved routes and GPX export available offline, with
     await navigator.serviceWorker.ready;
   });
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
-  await page
-    .getByLabel('Import GPX file')
-    .setInputFiles({
-      name: 'offline.gpx',
-      mimeType: 'application/gpx+xml',
-      buffer: Buffer.from(gpx),
-    });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'offline.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('button', { name: 'Save to library' }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
@@ -66,15 +64,13 @@ test('missing credentials show a clear failure, with no fake route', async ({ pa
 });
 test('waypoint-only GPX remains usable and cannot crash route conversion', async ({ page }) => {
   await page.goto('/');
-  await page
-    .getByLabel('Import GPX file')
-    .setInputFiles({
-      name: 'waypoint.gpx',
-      mimeType: 'application/gpx+xml',
-      buffer: Buffer.from(
-        '<gpx version="1.1"><wpt lat="47.2692" lon="11.4041"><name>Meeting point</name></wpt></gpx>',
-      ),
-    });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'waypoint.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(
+      '<gpx version="1.1"><wpt lat="47.2692" lon="11.4041"><name>Meeting point</name></wpt></gpx>',
+    ),
+  });
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
   await page.getByRole('button', { name: 'Edit waypoints', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('isolated points');

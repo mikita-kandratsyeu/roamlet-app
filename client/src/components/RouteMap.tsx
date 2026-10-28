@@ -31,7 +31,11 @@ export function RouteMap(props: Props) {
     if (!container.current) return;
     let tiles: ReturnType<typeof mapTiles>;
     try {
-      tiles = mapTiles(import.meta.env);
+      tiles = mapTiles({
+        VITE_TILE_URL: import.meta.env.VITE_TILE_URL,
+        VITE_TILE_ATTRIBUTION: import.meta.env.VITE_TILE_ATTRIBUTION,
+        VITE_TILE_MAX_ZOOM: import.meta.env.VITE_TILE_MAX_ZOOM,
+      });
     } catch (error) {
       setMapError(
         error instanceof Error
