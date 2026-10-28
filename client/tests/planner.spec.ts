@@ -378,11 +378,11 @@ test('persists light and dark themes across reloads and themes dialogs and map c
   await page.getByRole('menuitemradio', { name: 'Dark', exact: true }).click();
   await expect(page.getByRole('menu')).not.toBeVisible();
   await expect(page.locator('html')).toHaveClass(/dark/);
+  await page.reload();
+  await expect(page.locator('html')).toHaveClass(/dark/);
   const darkSurface = await page
     .locator('.app-header')
     .evaluate((element) => getComputedStyle(element).backgroundColor);
-  await page.reload();
-  await expect(page.locator('html')).toHaveClass(/dark/);
   await menu.click();
   await expect(page.getByRole('menuitemradio', { name: 'Dark', exact: true })).toHaveAttribute(
     'aria-checked',
@@ -436,4 +436,15 @@ test('uses subtle surface motion and respects reduced-motion preferences', async
   await expect(page.locator('.planner')).toHaveCSS('transition-duration', '0s');
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
+});
+
+test('centers the saved-route empty-state icon above its text', async ({ page }) => {
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'My routes' }).click();
+  await expect(page.getByRole('heading', { name: 'No saved routes yet' })).toBeVisible();
+  const empty = await page.locator('.library-empty').boundingBox();
+  const icon = await page.locator('.library-empty > svg').boundingBox();
+  expect(empty).not.toBeNull();
+  expect(icon).not.toBeNull();
+  expect(Math.abs(icon!.x + icon!.width / 2 - (empty!.x + empty!.width / 2))).toBeLessThan(1);
 });
