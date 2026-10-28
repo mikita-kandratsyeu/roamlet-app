@@ -87,10 +87,10 @@ ESLint checks code quality; Prettier handles consistent formatting. `eslint-conf
 
 ## Configuration and providers
 
-| Variable | Meaning |
-| --- | --- |
+| Variable                   | Meaning                                                                                                                       |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `VITE_MAPBOX_ACCESS_TOKEN` | One **public** `pk.*` token for maps, Directions, permanent Geocoding v6 and Terrain-RGB; minimal scopes and URL restrictions |
-| `VITE_MAPBOX_STYLE` | Mapbox GL style; default `mapbox://styles/mapbox/outdoors-v12` |
+| `VITE_MAPBOX_STYLE`        | Mapbox GL style; default `mapbox://styles/mapbox/outdoors-v12`                                                                |
 
 All maps/styles/fonts/tiles, Directions v5, Geocoding v6 and Terrain-RGB requests go directly from the browser to `https://api.mapbox.com` using the same public token. The client normalizes routing/search responses to its domain contracts. There are no runtime application API endpoints or server credentials. The service worker caches only the static frontend shell, not provider requests.
 
