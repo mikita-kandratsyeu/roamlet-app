@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
+import { initialMapView, saveMapView } from '../domain/mapView';
 import { LocateFixed, Maximize, MapPin } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -21,12 +22,25 @@ export function RouteMap(props: Props) {
     let instance: maplibregl.Map;
     try {
       instance = new maplibregl.Map({
-        container: container.current, center: [11.4041, 47.2692], zoom: 12,
+        container: container.current, ...initialMapView(),
         attributionControl: false,
         style: { version: 8, sources: { osm: { type: 'raster', tiles: [import.meta.env.VITE_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: Number(import.meta.env.VITE_TILE_MAX_ZOOM) || 19, attribution: import.meta.env.VITE_TILE_ATTRIBUTION || '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' } }, layers: [{ id: 'base', type: 'raster', source: 'osm' }] },
       });
     } catch { setMapError('This browser cannot render the interactive map. Enable WebGL or try another browser. GPX and saved routes remain available.'); return; }
     map.current = instance;
+    let moved = false;
+    let storageWarningShown = false;
+    const persistView = () => {
+      const center = instance.getCenter().wrap();
+      const saved = saveMapView({ center: [center.lng, center.lat], zoom: instance.getZoom(), bearing: instance.getBearing(), pitch: instance.getPitch() });
+      if (!saved && !storageWarningShown) {
+        storageWarningShown = true;
+        setMapError('Your browser cannot save the last map view. The map still works, but its position may reset after reloading.');
+      }
+    };
+    instance.on('moveend', () => { moved = true; persistView(); });
+    const persistOnHide = () => { if (moved) persistView(); };
+    window.addEventListener('pagehide', persistOnHide);
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     instance.addControl(new maplibregl.AttributionControl({ compact: false }), 'bottom-right');
     instance.on('load', () => {
@@ -39,7 +53,7 @@ export function RouteMap(props: Props) {
     instance.on('click', event => { if (latest.current.editable) latest.current.onAdd([event.lngLat.lng, event.lngLat.lat]); });
     const observer = new ResizeObserver(() => instance.resize());
     observer.observe(container.current);
-    return () => { observer.disconnect(); instance.remove(); map.current = null; };
+    return () => { window.removeEventListener('pagehide', persistOnHide); observer.disconnect(); if (moved) persistView(); instance.remove(); map.current = null; };
   }, []);
   useEffect(() => {
     if (!ready || !map.current) return;

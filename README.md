@@ -53,6 +53,8 @@ yarn test:integration
 ## Implemented workflows
 
 - Real MapLibre raster map with visible OSM attribution, zoom/pan, fit-to-route, optional user location, click-to-add, and draggable waypoint pins.
+- Initial viewport priority: opened route → locally saved map view → approximate browser timezone/locale region → world overview. Known IANA timezones select a regional view, other supported continent timezones select a wider view; otherwise locale country/language is a fallback. Browser settings are **not actual geolocation** and may be unrelated to the user's position. No IP lookup, inference API, or automatic location permission prompt is used.
+- Completed map movements save center, zoom, bearing and pitch under `roamlet:map-view:v1` in localStorage. Saved views take priority on reload, while opening/importing a route still fits its geometry. Malformed stored views are ignored; blocked/quota-limited storage does not prevent map use and shows a nonfatal save notice. Clearing site data resets the preference.
 - Manual routing with up to 50 stops; replacement search, reorder, remove, reverse, automatic cancellable recalculation, and distinct cycling/hiking profiles.
 - Loop discovery with a 2–100 km target and two separately requested ORS round trips. Identical results are deduplicated; nonclosed responses are rejected.
 - Place/address search on explicit submission via ORS geocoding. A `latitude, longitude` input works without a key.
@@ -115,7 +117,7 @@ Saved/imported routes open as snapshots and are never silently rerouted. Coordin
 
 ## Verification (28 October 2026)
 
-Executed with Node 25.6.1, Yarn Classic 1.22.22 and public npm registry dependencies:
+Executed with Node 25.6.1, Yarn Classic 1.22.22 and public npm registry dependencies. Initial proxy migration verification:
 
 - `yarn test`: **56 client tests + 15 proxy tests** passing: domain/persistence/GPX/routing/UI and actual HTTP proxy authentication, whitelist/validation, origin checks, quotas, cancellation, response bounds and static serving.
 - `yarn test:e2e`: **10 passing** Chromium workflows across desktop and Pixel 7 mobile viewports: create/recalculate, save/reload/reopen/export, import/error handling, rename/duplicate/filter/delete, hiking/search/service failures and round trips.
@@ -123,6 +125,8 @@ Executed with Node 25.6.1, Yarn Classic 1.22.22 and public npm registry dependen
 - `yarn test:integration`: **1 passing** browser → real Node proxy → local test upstream flow. Search, route, save/reload/export pass; the upstream requires the server-only sentinel key and the browser/bundle has no provider key or ORS API URL.
 - `yarn typecheck`, `yarn lint`, `yarn build`: passed; Vite reports the large-chunk optimization warning noted above.
 - Dev server started through the VS Code `Roamlet: dev` task at `http://127.0.0.1:5173/`; HTTP response and real map tiles/attribution were inspected in the integrated browser.
+
+Map-view follow-up verification: **15 targeted unit/component tests and 2 real-map Chromium desktop/mobile tests passed** for timezone/locale inference, corrupt/blocked storage, exact saved-view restoration and opened-route fit precedence. Type checking, lint and production build passed. Existing proxy-migration suites above were not rerun for this scoped map-only change.
 
 Browser planning tests use test-only HTTP fixtures, not real hosted routes. The integration suite uses an actual Node proxy and a local synthetic upstream with a test-only sentinel key; production code has no fixture fallback. Production offline/missing-key tests build without a provider key and run the real proxy/static server. Real valid-key ORS service responses remain unverified.
 
