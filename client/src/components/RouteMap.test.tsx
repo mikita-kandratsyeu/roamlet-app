@@ -5,6 +5,7 @@ import { RouteMap } from './RouteMap';
 import i18n from '../i18n';
 const mocks = vi.hoisted(() => ({
   options: vi.fn(),
+  canvas: null as HTMLCanvasElement | null,
   handlers: new Map<string, (event?: { lngLat: { lng: number; lat: number } }) => void>(),
   markerOptions: vi.fn(),
   markerPosition: vi.fn(),
@@ -29,11 +30,14 @@ vi.mock('maplibre-gl', () => ({
     Map: class {
       constructor(options: unknown) {
         mocks.options(options);
+        mocks.canvas = this.canvas;
       }
       on(event: string, handler: () => void) {
         mocks.handlers.set(event, handler);
       }
       addControl = mocks.control;
+      canvas = document.createElement('canvas');
+      getCanvas() { return this.canvas; }
       addSource() {}
       addLayer() {}
       resize() {}

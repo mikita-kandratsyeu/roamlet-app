@@ -32,11 +32,14 @@ import {
   PanelLeftClose,
   Route as RouteIcon,
   GripVertical,
+  Ruler,
   Library as LibraryIcon,
 } from 'lucide-react';
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
 import { importGpx, exportGpx, gpxFilename } from './domain/gpx';
 import { calculateStats } from './domain/stats';
+import { manualRoute, MANUAL_STOP_LIMIT } from './domain/manualRoute';
+type PlanningMode = 'point' | 'loop' | 'manual';
 import { saveRoute } from './domain/storage';
 import { checkRoutingConfiguration, routingProvider } from './services/routing';
 import { RouteMap } from './components/RouteMap';
@@ -75,7 +78,8 @@ export default function App() {
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [result, setResult] = useState<PlannedRoute | null>(null);
   const [mode, setMode] = useState<'manual' | 'snapshot'>('manual');
-  const [planningMode, setPlanningMode] = useState<'point' | 'loop'>('point');
+  const [planningMode, setPlanningMode] = useState<PlanningMode>('point');
+  const stopLimit = planningMode === 'manual' ? MANUAL_STOP_LIMIT : 25;
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -131,7 +135,16 @@ export default function App() {
   const fail = (text: string) => setNotice({ text, error: true });
 
   useEffect(() => {
-    if (mode !== 'manual' || planningMode !== 'point' || waypoints.length < 2) return;
+    if (mode !== 'manual' || planningMode === 'loop' || waypoints.length < 2) return;
+    if (planningMode === 'manual') {
+      setBusy(false);
+      setResult({
+        ...routeIdentity.current, name: i18n.t('Untitled adventure'), description: '',
+        activity, waypoints, ...manualRoute(waypoints, activity),
+        updatedAt: new Date().toISOString(), source: 'manual',
+      });
+      return;
+    }
     const controller = new AbortController();
     request.current = controller;
     setBusy(true);
@@ -206,6 +219,35 @@ export default function App() {
     invalidate();
     setWaypoints(next);
   }
+  function changePlanningMode(next: PlanningMode) {
+    if (next === planningMode) return;
+    if (next === 'point' && waypoints.length > 25) {
+      fail('Automatic routing supports up to 25 stops. Remove points or keep manual mode.');
+      return;
+    }
+    const change = () => {
+      invalidate();
+      setSearchTarget(null);
+      setQuery('');
+      setPlanningMode(next);
+      if (next === 'loop') setWaypoints(waypoints.slice(0, 1));
+    };
+    if (next === 'loop' && waypoints.length > 1) {
+      setConfirmation({
+        title: 'Switch to a round trip?',
+        text: 'Only your starting point will be kept. Save or export the current route first to keep it.',
+        label: 'Switch to round trip', action: change,
+      });
+    } else if (waypoints.length > 1 && (next === 'manual' || planningMode === 'manual')) {
+      setConfirmation({
+        title: next === 'manual' ? 'Switch to manual drawing?' : 'Switch to automatic routing?',
+        text: next === 'manual'
+          ? 'Stops are kept, but the current geometry will be replaced by straight lines. Save or export the original first.'
+          : 'Stops are kept, but Directions will replace the straight lines with a road/path route. Save or export the original first.',
+        label: 'Switch mode', action: change,
+      });
+    } else change();
+  }
   function addLocation(coordinate: Coordinate, label?: string) {
     if (mode !== 'manual') return;
     const point: Waypoint = {
@@ -216,9 +258,9 @@ export default function App() {
     if (searchTarget)
       changeWaypoints(waypoints.map((w) => (w.id === searchTarget ? { ...point, id: w.id } : w)));
     else if (planningMode === 'loop') changeWaypoints([point]);
-    else if (waypoints.length < 25) changeWaypoints([...waypoints, point]);
+    else if (waypoints.length < stopLimit) changeWaypoints([...waypoints, point]);
     else {
-      fail('A route supports up to 25 stops. Remove a stop before adding another.');
+      fail(planningMode === 'manual' ? 'A manual route supports up to 1,000 points. Remove a point before adding another.' : 'A route supports up to 25 stops. Remove a stop before adding another.');
       return;
     }
     setQuery('');
@@ -272,7 +314,7 @@ export default function App() {
     setDescription(route.description);
     setActivity(route.activity);
     setMode('snapshot');
-    setPlanningMode('point');
+    setPlanningMode(route.source === 'manual' ? 'manual' : 'point');
     setDirty(false);
     setLibraryOpen(false);
     setCollapsed(false);
@@ -374,7 +416,7 @@ export default function App() {
   }
   function changeActivity(next: Activity) {
     if (next === activity) return;
-    if (mode === 'snapshot' && result?.source === 'gpx') {
+    if (mode === 'snapshot' && (result?.source === 'gpx' || result?.source === 'manual')) {
       setActivity(next);
       setResult({ ...result, activity: next, stats: calculateStats(result.segments, next) });
       setDirty(true);
@@ -403,6 +445,12 @@ export default function App() {
       return;
     }
     const source = result.source;
+    if (source === 'manual') {
+      invalidate();
+      setMode('manual');
+      setPlanningMode('manual');
+      return;
+    }
     const action = () => {
       let next = result.waypoints;
       if (source === 'gpx' || next.length < 2) {
@@ -636,27 +684,14 @@ export default function App() {
             </ToggleGroup>
             {mode === 'manual' ? (
               <>
+                {planningMode !== 'manual' && (
                 <ToggleGroup
                   type="single"
                   value={planningMode}
                   className="planning-tabs"
                   aria-label={t('Route style')}
                   onValueChange={(value) => {
-                    if ((value === 'point' || value === 'loop') && value !== planningMode) {
-                      const changeMode = () => {
-                        invalidate();
-                        setPlanningMode(value);
-                        if (value === 'loop') setWaypoints(waypoints.slice(0, 1));
-                      };
-                      if (value === 'loop' && waypoints.length > 1)
-                        setConfirmation({
-                          title: 'Switch to a round trip?',
-                          text: 'Only your starting point will be kept. Save or export the current route first to keep it.',
-                          label: 'Switch to round trip',
-                          action: changeMode,
-                        });
-                      else changeMode();
-                    }
+                    if (value === 'point' || value === 'loop') changePlanningMode(value);
                   }}
                 >
                   <ToggleGroupItem
@@ -669,6 +704,13 @@ export default function App() {
                     {t('Round trip')}
                   </ToggleGroupItem>
                 </ToggleGroup>
+                )}
+                {planningMode === 'manual' && (
+                  <p className="fine-print manual-mode-note">
+                    <Ruler size={14} aria-hidden="true" />
+                    {t('Straight lines between points. No road snapping.')}
+                  </p>
+                )}
                 <Label className="search-label" htmlFor="place-search-input">
                   {t('Enter coordinates')}
                 </Label>
@@ -725,7 +767,7 @@ export default function App() {
                         data-stop-id={point.id}
                         className={`${draggedStop === point.id ? 'dragging' : ''} ${dropTarget === point.id ? 'drop-target' : ''}`}
                         onDragOver={(event) => {
-                          if (!stopDrag.current || planningMode !== 'point') return;
+                          if (!stopDrag.current || planningMode === 'loop') return;
                           event.preventDefault();
                           event.stopPropagation();
                           event.dataTransfer.dropEffect = 'move';
@@ -741,7 +783,7 @@ export default function App() {
                         }}
                       >
                         <Card className="waypoint-card">
-                          {planningMode === 'point' && (
+                          {planningMode !== 'loop' && (
                             <span
                               className="stop-grip"
                               draggable
@@ -824,7 +866,7 @@ export default function App() {
                             {point.name}
                           </Button>
                           <div className="stop-controls">
-                            {planningMode === 'point' && (
+                            {planningMode !== 'loop' && (
                               <>
                                 <Button
                                   variant="ghost"
@@ -877,7 +919,7 @@ export default function App() {
                   </ol>
                 )}
                 <div className="waypoint-tools">
-                  {planningMode === 'point' && waypoints.length < 25 && (
+                  {planningMode !== 'loop' && waypoints.length < stopLimit && (
                     <Button
                       variant={waypoints.length ? 'ghost' : 'outline'}
                       className={`add-stop ${!waypoints.length ? 'add-stop-empty' : ''}`}
@@ -890,7 +932,7 @@ export default function App() {
                       {t('Add a stop')}
                     </Button>
                   )}
-                  {planningMode === 'point' && waypoints.length > 1 && (
+                  {planningMode !== 'loop' && waypoints.length > 1 && (
                     <Button
                       variant="ghost"
                       className="reverse-stops"
@@ -1043,7 +1085,7 @@ export default function App() {
                 </Button>
               </Alert>
             )}
-            {(routingConfigured === false || configurationUnavailable) && !notice?.error && (
+            {planningMode !== 'manual' && (routingConfigured === false || configurationUnavailable) && !notice?.error && (
               <div className="configuration-note">
                 <Info size={16} />
                 <span>
@@ -1109,7 +1151,10 @@ export default function App() {
           onImport={() => fileInput.current?.click()}
           segments={result?.segments || emptySegments}
           waypoints={mapWaypoints}
-          editable={mode === 'manual' && !busy && (planningMode === 'point' || !result)}
+          editable={mode === 'manual' && !busy && (planningMode !== 'loop' || !result)}
+          manualDrawing={planningMode === 'manual'}
+          onToggleManualDrawing={mode === 'manual' ? () => changePlanningMode(planningMode === 'manual' ? 'point' : 'manual') : result?.source === 'manual' ? editSnapshot : undefined}
+          onUndo={mode === 'manual' && planningMode === 'manual' && waypoints.length ? () => changeWaypoints(waypoints.slice(0, -1)) : undefined}
           fitToken={fitToken}
           onAdd={(coordinate) => addLocation(coordinate)}
           onMove={(id, coordinate) =>
@@ -1272,6 +1317,7 @@ export default function App() {
                 'Cycling and hiking use Mapbox cycling and walking profiles. Check access and trail conditions. Moving time is an estimate. Loops use intermediate points and may differ from the target distance. Elevation is shown only from imported GPX files with complete height data.',
               )}
             </p>
+            <p>{t('Manual routes connect your points directly without Directions. Time is estimated at 18 km/h cycling or 5 km/h hiking; roads, access and terrain are not checked.')}</p>
             <h3>{t('Data & attribution')}</h3>
             <p>
               {t('Map data ©')}{' '}

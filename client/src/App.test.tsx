@@ -10,9 +10,16 @@ vi.mock('./services/routing', () => ({
   routingProvider: provider,
 }));
 vi.mock('./components/RouteMap', () => ({
-  RouteMap: ({ segments }: { segments: unknown[] }) => (
-    <div data-testid="map" data-segments={segments.length}>
+  RouteMap: ({ segments, manualDrawing, onToggleManualDrawing, onUndo, onMove, waypoints }: {
+    segments: unknown[]; manualDrawing?: boolean; onToggleManualDrawing?: () => void;
+    onUndo?: () => void; onMove: (id: string, coordinate: [number, number]) => void;
+    waypoints: { id: string }[];
+  }) => (
+    <div data-testid="map" data-segments={segments.length} data-manual={manualDrawing} data-geometry={JSON.stringify(segments)}>
       Map
+      <button aria-pressed={manualDrawing} onClick={onToggleManualDrawing}>Manual drawing</button>
+      <button disabled={!onUndo} onClick={onUndo}>Undo last point</button>
+      <button disabled={!waypoints.length} onClick={() => onMove(waypoints[0].id, [11.5, 47.3])}>Move first map point</button>
     </div>
   ),
 }));
@@ -60,6 +67,72 @@ async function plan() {
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
 }
 describe('route planner interactions', () => {
+  it('draws, moves, reverses and undoes manual segments without Directions or a token', async () => {
+    vi.mocked(checkRoutingConfiguration).mockResolvedValue(false);
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    expect(screen.getByRole('button', { name: 'Manual drawing' })).toHaveAttribute('aria-pressed', 'true');
+    addCoordinate('47.26, 11.4');
+    addCoordinate('47.27, 11.41');
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify([[[11.4, 47.26], [11.41, 47.27]]]));
+    expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
+    expect(screen.queryByText('VITE_MAPBOX_ACCESS_TOKEN')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Move first map point' }));
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify([[[11.5, 47.3], [11.41, 47.27]]]));
+    fireEvent.click(screen.getByRole('button', { name: 'Reverse', exact: true }));
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify([[[11.41, 47.27], [11.5, 47.3]]]));
+    fireEvent.click(screen.getByRole('button', { name: 'Undo last point' }));
+    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+    addCoordinate('47.28, 11.42');
+    fireEvent.click(screen.getByRole('radio', { name: 'Hiking', exact: true }));
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+    expect(provider.calculateAlternatives).not.toHaveBeenCalled();
+  });
+
+  it('saves and reopens manual routes for editing without converting them to provider routes', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    addCoordinate('47.26, 11.4'); addCoordinate('47.27, 11.41');
+    fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), { target: { value: 'Hand drawn' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save to library' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect((await routeDb.routes.toArray())[0].source).toBe('manual');
+    openMenu(); fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Hand drawn Cycling/ }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Hiking', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit waypoints' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Manual drawing' })).toHaveAttribute('aria-pressed', 'true');
+    addCoordinate('47.28, 11.42');
+    expect(JSON.parse(screen.getByTestId('map').getAttribute('data-geometry')!)[0]).toHaveLength(3);
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+  });
+
+  it('requires confirmation before replacing manual geometry with automatic routing', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    addCoordinate('47.26, 11.4'); addCoordinate('47.27, 11.41');
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Switch to automatic routing?');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch mode' }));
+    await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(1));
+    expect(provider.calculateRoute.mock.calls[0][0]).toHaveLength(2);
+  });
+
+  it('supports more than 25 manual points without silently dropping them in automatic mode', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    for (let i = 0; i < 26; i++) addCoordinate(`47.${2600+i}, 11.4`);
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Automatic routing supports up to 25');
+    expect(screen.getByRole('button', { name: 'Manual drawing' })).toHaveAttribute('aria-pressed', 'true');
+    expect(JSON.parse(screen.getByTestId('map').getAttribute('data-geometry')!)[0]).toHaveLength(26);
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+  });
   it('focuses form fields and safe actions, and restores focus after editing or deleting a route', async () => {
     render(<App />);
     await plan();

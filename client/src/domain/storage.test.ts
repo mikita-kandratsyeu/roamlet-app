@@ -62,7 +62,7 @@ describe('route persistence', () => {
       await upgraded.delete();
     }
   });
-  it.each(['mapbox', 'gpx'] as const)(
+  it.each(['mapbox', 'gpx', 'manual'] as const)(
     'preserves %s snapshots without changing their source',
     async (source) => {
       const route = { ...fixture(), source };

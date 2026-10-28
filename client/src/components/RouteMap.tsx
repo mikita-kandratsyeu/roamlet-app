@@ -17,6 +17,8 @@ import {
   MousePointer2,
   Map as MapIcon,
   Sun,
+  Ruler,
+  Undo2,
   Plus,
   Minus,
   X,
@@ -62,6 +64,9 @@ interface Props {
   onError: (message: string) => void;
   onImport?: () => void;
   plannerHidden?: boolean;
+  manualDrawing?: boolean;
+  onToggleManualDrawing?: () => void;
+  onUndo?: () => void;
 }
 export function RouteMap(props: Props) {
   const { t } = useTranslation();
@@ -340,6 +345,23 @@ export function RouteMap(props: Props) {
       duration: mapMotionDuration(),
     });
   }, [ready, props.fitToken, props.segments, props.waypoints]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const canvas = map.current.getCanvas();
+    canvas.style.cursor = props.manualDrawing && props.editable ? 'crosshair' : '';
+    const undo = (event: KeyboardEvent) => {
+      if (props.manualDrawing && props.editable && props.onUndo &&
+          (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        props.onUndo();
+      }
+    };
+    canvas.addEventListener('keydown', undo);
+    return () => {
+      canvas.style.cursor = '';
+      canvas.removeEventListener('keydown', undo);
+    };
+  }, [ready, props.manualDrawing, props.editable, props.onUndo]);
   function locate() {
     if (!navigator.geolocation) {
       props.onError(
@@ -467,13 +489,39 @@ export function RouteMap(props: Props) {
         >
           <Scan size={18} />
         </Button>
+        <Button
+          variant={props.manualDrawing ? 'default' : 'outline'}
+          size="icon"
+          className="map-control map-manual-tool"
+          aria-label={t('Manual drawing')}
+          title={t('Manual drawing')}
+          aria-pressed={Boolean(props.manualDrawing)}
+          disabled={!ready || !props.onToggleManualDrawing}
+          onClick={props.onToggleManualDrawing}
+        >
+          <Ruler size={20} aria-hidden="true" />
+        </Button>
       </div>
       <div className="map-bottom-toolbar">
         <div className="map-bottom-leading">
           {ready && props.editable && (
-            <div className="map-hint">
-              <MousePointer2 size={16} />
-              <span>{t('Click the map to add a stop. Drag pins to refine.')}</span>
+            <div className="map-drawing-tools">
+              <div className="map-hint">
+                <MousePointer2 size={16} aria-hidden="true" />
+                <span>{props.manualDrawing ? t('Click to draw straight lines. Drag points to adjust.') : t('Click the map to add a stop. Drag pins to refine.')}</span>
+              </div>
+          {props.manualDrawing && props.editable && (
+            <Button
+              variant="outline" size="icon"
+              aria-label={t('Undo last point')}
+              title={t('Undo last point')}
+              disabled={!ready || !props.onUndo}
+              onClick={props.onUndo}
+            >
+              <Undo2 size={18} aria-hidden="true" />
+            </Button>
+          )}
+
             </div>
           )}
           <ToggleGroup
