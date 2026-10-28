@@ -77,7 +77,11 @@
     animation: surface-open 220ms var(--motion-ease) both;
   }
 
-  .header-menu-panel[data-state='closed'],
+  .header-menu-panel[data-state='closed'] {
+    animation: none;
+    pointer-events: none;
+  }
+
   .dialog[data-state='closed'] {
     animation: surface-close 140ms ease both;
     pointer-events: none;
