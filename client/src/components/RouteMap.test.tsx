@@ -189,19 +189,41 @@ it('changes supported styles and restores actual geometry without resetting the 
   expect(mocks.options).toHaveBeenCalledTimes(1);
 });
 
-it('offers Streets and Bright with decorative icons', () => {
+it('orders Standard before Light and uses distinct map and sun icons', () => {
   render(<RouteMap {...props} />);
   expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
-    'Streets',
-    'Bright',
+    'Standard',
+    'Light',
   ]);
-  expect(screen.queryByRole('radio', { name: 'Satellite' })).not.toBeInTheDocument();
-  for (const label of ['Streets', 'Bright']) {
+  expect(screen.getAllByRole('radio').map((item) => item.textContent)).toEqual([
+    'Standard',
+    'Light',
+  ]);
+  for (const [label, iconClass] of [
+    ['Standard', 'lucide-map'],
+    ['Light', 'lucide-sun'],
+  ]) {
     const icon = screen.getByRole('radio', { name: label }).querySelector('svg');
+    expect(icon).toHaveClass(iconClass);
     expect(icon).toHaveAttribute('aria-hidden', 'true');
     expect(icon).toHaveAttribute('width', '18');
     expect(icon).toHaveAttribute('height', '18');
   }
+});
+
+it('places a custom style last, gives it a layers icon and preserves its selection', () => {
+  vi.stubEnv('VITE_MAP_STYLE', '/custom-style.json');
+  render(<RouteMap {...props} />);
+  expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+    'Standard',
+    'Light',
+    'Custom',
+  ]);
+  expect(screen.getByRole('combobox', { name: 'Map style' })).toHaveValue('/custom-style.json');
+  expect(screen.getByRole('radio', { name: 'Custom' })).toHaveAttribute('data-state', 'on');
+  expect(screen.getByRole('radio', { name: 'Custom' }).querySelector('svg')).toHaveClass(
+    'lucide-layers',
+  );
 });
 
 it('uses the configured MapLibre style and source attribution without Mapbox credentials', () => {
@@ -462,6 +484,14 @@ it('switches map controls and existing warnings without recreating or refitting 
   await act(async () => {
     await i18n.changeLanguage('ru');
   });
+  expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+    'Стандартная',
+    'Светлая',
+  ]);
+  expect(screen.getAllByRole('radio').map((item) => item.textContent)).toEqual([
+    'Стандартная',
+    'Светлая',
+  ]);
   expect(screen.getByRole('button', { name: 'Моё местоположение' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Показать весь маршрут' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Приблизить' })).toHaveAttribute('title', 'Приблизить');

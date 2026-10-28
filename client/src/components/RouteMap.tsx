@@ -16,6 +16,7 @@ import {
   Scan,
   MousePointer2,
   Map as MapIcon,
+  Sun,
   Plus,
   Minus,
   X,
@@ -141,11 +142,11 @@ export function RouteMap(props: Props) {
     map.current?.setStyle(next);
   }
   const styles = [
-    { value: DEFAULT_MAP_STYLE, label: t('Streets') },
-    { value: BRIGHT_MAP_STYLE, label: t('Bright') },
+    { value: DEFAULT_MAP_STYLE, label: t('Standard map'), icon: MapIcon },
+    { value: BRIGHT_MAP_STYLE, label: t('Light map'), icon: Sun },
   ];
   if (!styles.some((item) => item.value === configuredStyle))
-    styles.unshift({ value: configuredStyle, label: t('Configured map') });
+    styles.push({ value: configuredStyle, label: t('Custom map'), icon: Layers });
   useEffect(() => {
     latest.current = props;
   });
@@ -485,8 +486,7 @@ export function RouteMap(props: Props) {
           >
             {styles.map((item) => (
               <ToggleGroupItem key={item.value} value={item.value}>
-                {item.value === DEFAULT_MAP_STYLE && <MapIcon size={18} aria-hidden="true" />}
-                {item.value === BRIGHT_MAP_STYLE && <MapIcon size={18} aria-hidden="true" />}
+                <item.icon size={18} aria-hidden="true" />
                 {item.label}
               </ToggleGroupItem>
             ))}

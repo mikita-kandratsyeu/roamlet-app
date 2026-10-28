@@ -306,5 +306,8 @@
   "(ODbL). Basemaps are provided by OpenFreeMap using OpenMapTiles data. No map regions are downloaded for offline use. Routing ©": "(ODbL). Basemaps are provided by OpenFreeMap using OpenMapTiles data. No map regions are downloaded for offline use. Routing ©",
   "Map requests go directly to the configured map provider (OpenFreeMap by default); route points go to Mapbox Directions using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.": "Map requests go directly to the configured map provider (OpenFreeMap by default); route points go to Mapbox Directions using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.",
   "Bright": "Bright",
-  "Set VITE_MAP_STYLE to an HTTP(S) or root-relative style URL. Saved routes and GPX remain available. Offline basemaps are not supported.": "Set VITE_MAP_STYLE to an HTTP(S) or root-relative style URL. Saved routes and GPX remain available. Offline basemaps are not supported."
+  "Set VITE_MAP_STYLE to an HTTP(S) or root-relative style URL. Saved routes and GPX remain available. Offline basemaps are not supported.": "Set VITE_MAP_STYLE to an HTTP(S) or root-relative style URL. Saved routes and GPX remain available. Offline basemaps are not supported.",
+  "Standard map": "Standard",
+  "Light map": "Light",
+  "Custom map": "Custom"
 }

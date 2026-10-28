@@ -306,5 +306,8 @@
   "(ODbL). Basemaps are provided by OpenFreeMap using OpenMapTiles data. No map regions are downloaded for offline use. Routing ©": "(ODbL). Подложку предоставляет OpenFreeMap на данных OpenMapTiles. Регионы карты не загружаются для офлайн-использования. Маршрутизация ©",
   "Map requests go directly to the configured map provider (OpenFreeMap by default); route points go to Mapbox Directions using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.": "Запросы карты идут напрямую провайдеру подложки (по умолчанию OpenFreeMap); точки маршрута — в Mapbox Directions с публичным токеном. Локальная библиотека не загружается на сервер. После кеширования оболочки библиотека и GPX доступны офлайн, но карта требует интернет. Перед публикацией проверьте условия хранения и экспорта GPX.",
   "Bright": "Светлая",
-  "Set VITE_MAP_STYLE to an HTTP(S) or root-relative style URL. Saved routes and GPX remain available. Offline basemaps are not supported.": "Укажите в VITE_MAP_STYLE HTTP(S)-адрес стиля или путь от корня сайта. Библиотека и GPX остаются доступны. Офлайн-подложки не поддерживаются."
+  "Set VITE_MAP_STYLE to an HTTP(S) or root-relative style URL. Saved routes and GPX remain available. Offline basemaps are not supported.": "Укажите в VITE_MAP_STYLE HTTP(S)-адрес стиля или путь от корня сайта. Библиотека и GPX остаются доступны. Офлайн-подложки не поддерживаются.",
+  "Standard map": "Стандартная",
+  "Light map": "Светлая",
+  "Custom map": "Своя"
 }
