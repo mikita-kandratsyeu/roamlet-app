@@ -39,7 +39,7 @@
   "Your route": "Your route",
   "Plan your next adventure": "Plan a route",
   "MAKE TIME FOR OUTSIDE": "ROUTE PLANNER",
-  "Where shall we go?": "Plan a route",
+  "Where shall we go?": "Where shall we go?",
   "Find your own way, one stop at a time.": "Add points to plan a cycling or hiking route.",
   "Edit route name": "Edit route name",
   "Activity profile": "Activity profile",
@@ -271,5 +271,12 @@
   "Theme": "Theme",
   "Light": "Light",
   "Dark": "Dark",
-  "System": "System"
+  "System": "System",
+  "Start with two points on the map": "Start with two points on the map",
+  "Find a place or enter coordinates": "Find a place or enter coordinates",
+  "Find": "Find",
+  "Search with the button or Enter · latitude, longitude": "Search with the button or Enter · latitude, longitude",
+  "Click the map or search for a place to add a start and finish.": "Click the map or search for a place to add a start and finish.",
+  "Time is an estimate, excluding stops.": "Time is an estimate, excluding stops.",
+  "Import GPX on map": "Import GPX on map"
 }

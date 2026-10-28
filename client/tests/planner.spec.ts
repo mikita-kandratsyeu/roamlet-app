@@ -22,6 +22,17 @@ async function addPoint(page: Page, text: string) {
   await page.getByRole('textbox', { name: 'Search places or coordinates' }).fill(text);
   await page.getByRole('button', { name: 'Search', exact: true }).click();
 }
+async function requestNewRoute(page: Page) {
+  const button = page.getByRole('button', { name: 'New route', exact: true });
+  if (await button.isVisible()) {
+    await button.press('Enter');
+    return button;
+  }
+  const menu = page.getByRole('button', { name: 'Menu', exact: true });
+  if (!(await page.getByRole('menu').isVisible())) await menu.click();
+  await page.getByRole('menuitem', { name: 'New route', exact: true }).press('Enter');
+  return menu;
+}
 async function createRoute(page: Page) {
   await addPoint(page, '47.2692, 11.4041');
   await addPoint(page, '47.271, 11.411');
@@ -185,7 +196,8 @@ test('round trips route intermediate points with bounded search; responsive cont
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
   if (testInfo.project.name === 'mobile') {
     await page.locator('.mobile-sheet-toggle').click();
-    await expect(page.locator('.planner')).toHaveCSS('height', '57px');
+    await expect(page.locator('.planner-scroll')).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export GPX' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Zoom in' })).toBeVisible();
     await page.locator('.mobile-sheet-toggle').click();
     await expect(page.getByRole('button', { name: 'Export GPX' })).toBeVisible();
@@ -225,34 +237,46 @@ test('Onest loads Latin and Cyrillic faces and keeps Russian controls within a 3
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('split header keeps route creation direct and supports an accessible responsive menu', async ({
+test('header supports desktop creation and an accessible compact menu', async ({
   page,
 }, testInfo) => {
   const trigger = page.getByRole('button', { name: 'Menu', exact: true });
-  await expect(page.getByRole('banner').getByRole('button')).toHaveCount(
-    testInfo.project.name === 'mobile' ? 3 : 4,
+  const compact = testInfo.project.name === 'mobile';
+  await expect(page.getByRole('banner').getByRole('button', { includeHidden: false })).toHaveCount(
+    compact ? 2 : 3,
   );
+  const firstItem = page.getByRole('menuitem', {
+    name: compact ? 'New route' : 'My routes',
+    exact: true,
+  });
   await expect(
     page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }),
   ).toBeVisible();
-  for (const control of [trigger, page.getByRole('button', { name: 'New route', exact: true })]) {
+  for (const control of [
+    trigger,
+    page.getByRole('button', { name: compact ? 'My routes' : 'New route', exact: true }),
+  ]) {
     const bounds = await control.boundingBox();
     expect(bounds?.width).toBeGreaterThanOrEqual(44);
     expect(bounds?.height).toBeGreaterThanOrEqual(44);
   }
   await trigger.click();
-  await expect(page.getByRole('menuitem', { name: 'My routes' })).toBeFocused();
+  await expect(firstItem).toBeFocused();
   await page.keyboard.press('End');
   await expect(page.getByRole('menuitem', { name: 'Help and data sources' })).toBeFocused();
   await page.keyboard.press('Home');
-  await expect(page.getByRole('menuitem', { name: 'My routes' })).toBeFocused();
+  await expect(firstItem).toBeFocused();
+  if (compact) {
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('menuitem', { name: 'My routes' })).toBeFocused();
+  }
   await page.keyboard.press('ArrowDown');
   await expect(page.getByRole('menuitemradio', { name: 'English' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused();
   await expect(page.getByRole('menu')).not.toBeVisible();
   await page.keyboard.press('ArrowDown');
-  await expect(page.getByRole('menuitem', { name: 'My routes' })).toBeFocused();
+  await expect(firstItem).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('menu')).not.toBeVisible();
   expect(await page.evaluate(() => document.activeElement?.closest('.header-menu') === null)).toBe(
@@ -272,7 +296,8 @@ test('split header keeps route creation direct and supports an accessible respon
   await expect(page.getByRole('menu')).not.toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 740 });
-  await expect(page.getByRole('button', { name: 'Новый маршрут', exact: true })).toBeVisible();
+  if (!compact)
+    await expect(page.getByRole('button', { name: 'Новый маршрут', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Меню', exact: true }).click();
   await expect(page.getByRole('menuitemradio', { name: 'Русский' })).toHaveAttribute(
     'aria-checked',
@@ -289,11 +314,11 @@ test('split header keeps route creation direct and supports an accessible respon
   await expect(page.getByRole('menu')).not.toBeVisible();
   await createRoute(page);
   await trigger.click();
-  await page.getByRole('button', { name: 'New route', exact: true }).click();
+  const creationFocus = await requestNewRoute(page);
   await expect(page.getByRole('menu')).not.toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Leave this route?' })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'New route', exact: true })).toBeFocused();
+  await expect(creationFocus).toBeFocused();
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
 });
 
@@ -302,8 +327,8 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
 }) => {
   const search = page.getByRole('textbox', { name: 'Search places or coordinates' });
   await search.fill('Innsbruck');
-  await expect(page.locator('.place-search')).toHaveCSS('outline-width', '2px');
-  await expect(search).toHaveCSS('outline-style', 'none');
+  await expect(search).toHaveCSS('outline-width', '2px');
+  await expect(page.locator('.place-search')).toHaveCSS('outline-width', '0px');
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Search', exact: true })).toBeFocused();
   await expect(page.getByRole('button', { name: 'Search', exact: true })).toHaveCSS(
@@ -313,10 +338,9 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await expect(page.locator('.place-search')).toHaveCSS('outline-style', 'none');
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
   await menu.press('ArrowDown');
-  await expect(page.getByRole('menuitem', { name: 'My routes' })).toHaveCSS(
-    'outline-offset',
-    '-2px',
-  );
+  const menuLibrary = page.getByRole('menuitem', { name: 'My routes' });
+  await menuLibrary.focus();
+  await expect(menuLibrary).toHaveCSS('outline-offset', '-2px');
   await page.getByRole('menuitem', { name: 'My routes' }).press('Enter');
   const librarySearch = page.getByRole('textbox', { name: 'Search saved routes' });
   await expect(librarySearch).toBeFocused();
@@ -329,8 +353,7 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await page.keyboard.press('Escape');
   await expect(menu).toBeFocused();
   await createRoute(page);
-  const newRoute = page.getByRole('button', { name: 'New route', exact: true });
-  await newRoute.press('Enter');
+  const newRoute = await requestNewRoute(page);
   await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(newRoute).toBeFocused();
@@ -358,8 +381,7 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await expect(librarySearch).toBeFocused();
   const edit = page.getByRole('button', { name: 'Edit Focus trip' });
   await expect(edit).toBeVisible();
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('Tab');
+  for (let step = 0; step < 4; step++) await page.keyboard.press('Tab');
   await expect(edit).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(name).toBeFocused();
@@ -472,4 +494,30 @@ test('centers the saved-route empty-state icon above its text', async ({ page })
   expect(empty).not.toBeNull();
   expect(icon).not.toBeNull();
   expect(Math.abs(icon!.x + icon!.width / 2 - (empty!.x + empty!.width / 2))).toBeLessThan(1);
+});
+
+test('matches Figma planner geometry while preserving branding and responsive elevation', async ({
+  page,
+}, testInfo) => {
+  const mobile = testInfo.project.name === 'mobile';
+  await page.setViewportSize(mobile ? { width: 390, height: 1100 } : { width: 1440, height: 1000 });
+  await expect(page.locator('.brand-mark img')).toHaveAttribute('src', '/icon.svg');
+  await expect(page.locator('.brand-wordmark')).toHaveText('Roamlet');
+  await expect(page.locator('.app-header')).toHaveCSS('height', '64px');
+  await createRoute(page);
+  await expect(page.locator('.planner')).toHaveCSS('width', mobile ? '390px' : '420px');
+  if (mobile) {
+    await expect(page.locator('.elevation-box')).not.toHaveAttribute('open');
+    await expect(page.locator('.statistics .elevation-box')).toHaveCount(1);
+    await page.locator('.mobile-sheet-toggle').click();
+    await expect(page.getByRole('button', { name: 'Export GPX' })).toBeVisible();
+  } else {
+    await expect(page.locator('#map-elevation-root .elevation-box')).toHaveAttribute('open');
+    const chart = await page.locator('#map-elevation-root').boundingBox();
+    expect(chart?.x).toBe(478);
+    expect(chart?.width).toBe(714);
+    await page.getByRole('button', { name: 'Hide planner' }).click();
+    await expect(page.locator('#map-elevation-root .elevation-box')).toBeVisible();
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

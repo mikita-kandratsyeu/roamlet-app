@@ -6,6 +6,7 @@ import './i18n';
 import '@fontsource-variable/onest';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './styles.css';
+import './planner.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>

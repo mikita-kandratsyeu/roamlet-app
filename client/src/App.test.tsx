@@ -163,7 +163,8 @@ describe('route planner interactions', () => {
     expect(screen.getByRole('button', { name: 'Save route' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Calculate route' })).toBeDisabled();
-    expect(screen.getByText('Add a starting point')).toBeInTheDocument();
+    expect(screen.getByText('Where shall we go?')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add a stop' })).toBeEnabled();
     expect(
       screen.getByText('Add two stops to see distance, time and elevation.'),
     ).toBeInTheDocument();
@@ -196,11 +197,14 @@ describe('route planner interactions', () => {
     expect(screen.getByRole('button', { name: 'Move stop 1 down' })).toBeEnabled();
   });
   it('confirms destructive routing mode changes and preserves stops on cancel', async () => {
-    vi.stubGlobal('ResizeObserver', class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    });
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
     render(<App />);
     await plan();
     fireEvent.click(screen.getByRole('radio', { name: 'Round trip' }));

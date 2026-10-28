@@ -340,12 +340,12 @@ it('keeps working and shows a nonfatal notice when local storage is blocked', ()
 it('updates route colors without touching the vector basemap or recreating or refitting the map', () => {
   const { rerender } = render(<RouteMap {...props} />);
   act(() => mocks.handlers.get('load')!());
-  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#173b30');
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#286046');
   const fitCalls = mocks.fit.mock.calls.length;
   mocks.theme = 'dark';
   rerender(<RouteMap {...props} />);
   expect(mocks.paint.mock.calls.every(([layer]) => layer.startsWith('route-'))).toBe(true);
-  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#bdd3a5');
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#9bc5a7');
   expect(mocks.options).toHaveBeenCalledTimes(1);
   expect(mocks.fit).toHaveBeenCalledTimes(fitCalls);
   expect(mocks.remove).not.toHaveBeenCalled();

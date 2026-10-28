@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { useMemo, useId } from 'react';
+import { useMemo, useId, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from './ui/chart';
-import { Mountain, Timer, Route as RouteIcon } from 'lucide-react';
+import { Info } from 'lucide-react';
 import type { PlannedRoute } from '../domain/types';
 import { elevationSamples } from '../domain/stats';
 import i18n, { formatNumber } from '../i18n';
@@ -22,6 +23,24 @@ export function Statistics({
   emptyHint?: string;
 }) {
   const { t } = useTranslation();
+  const [elevationTarget, setElevationTarget] = useState<HTMLElement | null>(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia?.('(min-width: 1025px)');
+    if (!media) return;
+    const mobile = window.matchMedia('(max-width: 700px)');
+    const updateTarget = () => {
+      setElevationTarget(media.matches ? document.getElementById('map-elevation-root') : null);
+      setCompact(mobile.matches);
+    };
+    updateTarget();
+    media.addEventListener('change', updateTarget);
+    mobile.addEventListener('change', updateTarget);
+    return () => {
+      media.removeEventListener('change', updateTarget);
+      mobile.removeEventListener('change', updateTarget);
+    };
+  }, []);
   const samples = useMemo(() => (route ? elevationSamples(route.segments) : []), [route]);
   const minimum = samples.length
     ? samples.reduce((min, s) => Math.min(min, s.elevation), Infinity)
@@ -35,53 +54,117 @@ export function Statistics({
   const chartSamples = samples.filter(
     (_, i) => i % Math.max(1, Math.ceil(samples.length / 400)) === 0 || i === samples.length - 1,
   );
+  const elevationProfile = (
+    <details className="elevation-box" open={samples.length > 1 && !compact}>
+      <summary className="section-heading">
+        <span>{t('Elevation profile')}</span>
+        <span className="small muted">
+          {samples.length > 1 ? t('metres') : t('No elevation data')}
+        </span>
+      </summary>
+      {samples.length > 1 ? (
+        <>
+          <ChartContainer
+            config={{ elevation: { label: t('Elevation'), color: 'var(--primary)' } }}
+            className="elevation-chart"
+            role="img"
+            aria-label={t('Elevation from {{minimum}} to {{maximum}} metres', {
+              minimum: formatNumber(Math.round(minimum)),
+              maximum: formatNumber(Math.round(maximum)),
+            })}
+          >
+            <AreaChart data={chartSamples} margin={{ top: 12, right: 4, bottom: 0, left: 0 }}>
+              <defs>
+                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--color-elevation)" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="var(--color-elevation)" stopOpacity={0.03} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="var(--border)" />
+              <XAxis
+                dataKey="distance"
+                type="number"
+                domain={[0, total]}
+                ticks={[0, total / 3, (total * 2) / 3, total]}
+                tickFormatter={(distance: number) =>
+                  distance === total
+                    ? formatDistance(distance)
+                    : formatNumber(distance / 1000, { maximumFractionDigits: 1 })
+                }
+                tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                axisLine={false}
+                tickLine={false}
+                height={20}
+              />
+              <YAxis
+                dataKey="elevation"
+                domain={['dataMin - 5', 'dataMax + 5']}
+                tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                axisLine={false}
+                tickLine={false}
+                width={32}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={(_, payload) =>
+                      formatDistance(Number(payload[0]?.payload.distance ?? 0))
+                    }
+                    formatter={(value) => `${formatNumber(Math.round(Number(value)))} ${t('m')}`}
+                  />
+                }
+              />
+              <Area
+                dataKey="elevation"
+                type="linear"
+                fill={`url(#${gradientId})`}
+                stroke="var(--color-elevation)"
+                strokeWidth={2}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ChartContainer>
+          <div className="chart-labels sr-only">
+            <span>
+              {formatNumber(Math.round(minimum))}–{formatNumber(Math.round(maximum))} {t('m')}
+            </span>
+            <span>{formatDistance(total)}</span>
+          </div>
+          <p className="fine-print">
+            {route?.source !== 'gpx'
+              ? t('Elevation: provider terrain model, not a survey.')
+              : t('Elevation: GPX file, when available.')}
+          </p>
+        </>
+      ) : (
+        <p className="chart-empty">
+          {route
+            ? t('This route has no complete elevation data.')
+            : t('Your route’s ups and downs will appear here.')}
+        </p>
+      )}
+    </details>
+  );
   if (!route)
     return (
       <section className="statistics statistics-empty" aria-label={t('Route statistics')}>
-        <RouteIcon size={19} aria-hidden="true" />
-        <div>
-          <h2>{t('Your route at a glance')}</h2>
-          <p className="muted">
-            {emptyHint || t('Add two stops to see distance, time and elevation.')}
-          </p>
-        </div>
+        <Info size={18} aria-hidden="true" />
+        <p>{emptyHint || t('Add two stops to see distance, time and elevation.')}</p>
       </section>
     );
   return (
     <section className="statistics" aria-label={t('Route statistics')}>
-      <div className="section-heading">
-        <h2>
-          <RouteIcon size={15} aria-hidden="true" />
-          {t('Route overview')}
-        </h2>
-        <span className="small muted">
-          {route
-            ? route.source === 'gpx'
-              ? t('Imported GPX')
-              : 'Mapbox'
-            : t('Ready when you are')}
-        </span>
-      </div>
       <dl className="stat-grid">
         <div className="stat-card">
-          <dt>
-            <RouteIcon size={15} aria-hidden="true" />
-            {t('Distance')}
-          </dt>
+          <dt>{t('Distance')}</dt>
           <dd>{formatDistance(route.stats.distance)}</dd>
         </div>
         <div className="stat-card">
-          <dt>
-            <Timer size={15} aria-hidden="true" />
-            {t('Est. moving time')}
-          </dt>
+          <dt>{t('Est. moving time')}</dt>
           <dd>{formatDuration(route.stats.duration)}</dd>
         </div>
         <div className="stat-card">
-          <dt>
-            <Mountain size={15} aria-hidden="true" />
-            {t('Elevation gain')}
-          </dt>
+          <dt>{t('Elevation gain')}</dt>
           <dd>
             {route.stats.ascent !== undefined
               ? `${formatNumber(Math.round(route.stats.ascent))} ${t('m')}`
@@ -89,10 +172,7 @@ export function Statistics({
           </dd>
         </div>
         <div className="stat-card">
-          <dt>
-            <Mountain size={15} aria-hidden="true" />
-            {t('Elevation loss')}
-          </dt>
+          <dt>{t('Elevation loss')}</dt>
           <dd>
             {route.stats.descent !== undefined
               ? `${formatNumber(Math.round(route.stats.descent))} ${t('m')}`
@@ -100,78 +180,11 @@ export function Statistics({
           </dd>
         </div>
       </dl>
-      <details className="elevation-box" open={samples.length > 1}>
-        <summary className="section-heading">
-          <span>{t('Elevation profile')}</span>
-          <span className="small muted">
-            {samples.length > 1 ? t('metres') : t('No elevation data')}
-          </span>
-        </summary>
-        {samples.length > 1 ? (
-          <>
-            <ChartContainer
-              config={{ elevation: { label: t('Elevation'), color: 'var(--primary)' } }}
-              className="elevation-chart"
-              role="img"
-              aria-label={t('Elevation from {{minimum}} to {{maximum}} metres', {
-                minimum: formatNumber(Math.round(minimum)),
-                maximum: formatNumber(Math.round(maximum)),
-              })}
-            >
-              <AreaChart data={chartSamples} margin={{ top: 12, right: 4, bottom: 0, left: 0 }}>
-                <defs>
-                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-elevation)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--color-elevation)" stopOpacity={0.03} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} stroke="var(--border)" />
-                <XAxis dataKey="distance" type="number" domain={[0, total]} hide />
-                <YAxis dataKey="elevation" domain={['dataMin - 5', 'dataMax + 5']} hide />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={(_, payload) =>
-                        formatDistance(Number(payload[0]?.payload.distance ?? 0))
-                      }
-                      formatter={(value) => `${formatNumber(Math.round(Number(value)))} ${t('m')}`}
-                    />
-                  }
-                />
-                <Area
-                  dataKey="elevation"
-                  type="linear"
-                  fill={`url(#${gradientId})`}
-                  stroke="var(--color-elevation)"
-                  strokeWidth={2}
-                  isAnimationActive={false}
-                />
-              </AreaChart>
-            </ChartContainer>
-            <div className="chart-labels">
-              <span>
-                {formatNumber(Math.round(minimum))}–{formatNumber(Math.round(maximum))} {t('m')}
-              </span>
-              <span>{formatDistance(total)}</span>
-            </div>
-          </>
-        ) : (
-          <p className="chart-empty">
-            {route
-              ? t('This route has no complete elevation data.')
-              : t('Your route’s ups and downs will appear here.')}
-          </p>
-        )}
-      </details>
-      {route && (
-        <p className="fine-print">
-          {route.activity === 'cycling' ? t('General cycling') : t('Hiking')}{' '}
-          {t('· Time is an estimate, excluding stops. Surface information unavailable.')}{' '}
-          {route.source !== 'gpx'
-            ? t('Elevation: provider terrain model, not a survey.')
-            : t('Elevation: GPX file, when available.')}
-        </p>
-      )}
+      <p className="fine-print">
+        {t('Time is an estimate, excluding stops.')}
+        <span className="sr-only">{route.source === 'gpx' ? t('Imported GPX') : 'Mapbox'}</span>
+      </p>
+      {elevationTarget ? createPortal(elevationProfile, elevationTarget) : elevationProfile}
     </section>
   );
 }

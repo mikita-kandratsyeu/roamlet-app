@@ -50,7 +50,7 @@ test('production shell keeps saved routes and GPX export available offline, with
   await context.setOffline(true);
   await page.reload();
   await expect(
-    page.getByRole('heading', { name: 'Plan a route' }),
+    page.getByRole('heading', { name: 'New route', exact: true }),
     JSON.stringify(errors),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();

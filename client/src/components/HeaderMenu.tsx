@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Menu, Globe, Info, Library, Monitor, Moon, Plus, Sun } from 'lucide-react';
 import { Button } from './ui/button';
@@ -24,6 +24,15 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia?.('(max-width: 700px)');
+    if (!media) return;
+    const update = () => setCompact(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const initialFocus = useRef<'first' | 'last'>('first');
@@ -158,6 +167,15 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
             }
           }}
         >
+          {compact && (
+            <DropdownMenuItem
+              className="header-menu-item mobile-new-route"
+              onSelect={() => activate(onNewRoute)}
+            >
+              <Plus size={18} aria-hidden="true" />
+              <span>{t('New route')}</span>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem className="header-menu-item" onSelect={() => activate(onLibrary)}>
             <Library size={19} aria-hidden="true" />
             <span>{t('My routes')}</span>

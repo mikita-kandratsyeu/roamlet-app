@@ -39,7 +39,7 @@
   "Your route": "Ваш маршрут",
   "Plan your next adventure": "Спланировать маршрут",
   "MAKE TIME FOR OUTSIDE": "ПЛАНИРОВЩИК МАРШРУТОВ",
-  "Where shall we go?": "Спланируйте маршрут",
+  "Where shall we go?": "Куда отправимся?",
   "Find your own way, one stop at a time.": "Добавьте точки для велосипедного или пешего маршрута.",
   "Edit route name": "Изменить название маршрута",
   "Activity profile": "Вид активности",
@@ -271,5 +271,12 @@
   "Theme": "Тема",
   "Light": "Светлая",
   "Dark": "Тёмная",
-  "System": "Системная"
+  "System": "Системная",
+  "Start with two points on the map": "Начните с двух точек на карте",
+  "Find a place or enter coordinates": "Найдите место или введите координаты",
+  "Find": "Найти",
+  "Search with the button or Enter · latitude, longitude": "Поиск по кнопке или Enter · широта, долгота",
+  "Click the map or search for a place to add a start and finish.": "Нажмите на карту или найдите место, чтобы добавить старт и финиш.",
+  "Time is an estimate, excluding stops.": "Время приблизительное, без остановок",
+  "Import GPX on map": "Импорт GPX на карте"
 }

@@ -1,4 +1,5 @@
 import { Button } from './ui/button';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
@@ -7,12 +8,13 @@ import { initialMapView, saveMapView } from '../domain/mapView';
 import { mapTiles, MAPBOX_TOKEN_REQUIRED_MESSAGE, DEFAULT_MAPBOX_STYLE } from '../domain/mapTiles';
 import {
   LocateFixed,
-  Maximize,
-  MapPin,
+  Scan,
+  MousePointer2,
+  Trees,
   Plus,
   Minus,
   X,
-  Map as MapIcon,
+  Layers,
   LoaderCircle,
 } from 'lucide-react';
 import { waypointKind } from './waypointStyle';
@@ -36,7 +38,11 @@ function mapFitPadding(container: HTMLElement | null) {
   )
     return 65;
   const left = Math.min(planner.right - viewport.left + 24, viewport.width - 140);
-  return { top: 65, bottom: 65, left: Math.max(65, left), right: 65 };
+  const elevation = document.getElementById('map-elevation-root')?.getBoundingClientRect();
+  const bottom = elevation?.height
+    ? Math.min(viewport.bottom - elevation.top + 24, viewport.height / 2)
+    : 65;
+  return { top: 65, bottom: Math.max(65, bottom), left: Math.max(65, left), right: 65 };
 }
 
 interface Props {
@@ -61,6 +67,14 @@ export function RouteMap(props: Props) {
   const [style, setStyle] = useState(configuredStyle);
   const [locating, setLocating] = useState(false);
   const skipStyleFit = useRef(false);
+  function changeStyle(next: string) {
+    if (!next || next === style) return;
+    skipStyleFit.current = true;
+    setStyle(next);
+    setReady(false);
+    setMapError('');
+    map.current?.setStyle(next);
+  }
   const styles = [
     { value: DEFAULT_MAPBOX_STYLE, label: t('Outdoors') },
     { value: 'mapbox://styles/mapbox/streets-v12', label: t('Streets') },
@@ -143,14 +157,14 @@ export function RouteMap(props: Props) {
           id: 'route-casing',
           type: 'line',
           source: 'route',
-          paint: { 'line-color': '#faf7f2', 'line-width': 8, 'line-opacity': 0.95 },
+          paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.95 },
           layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
         instance.addLayer({
           id: 'route-line',
           type: 'line',
           source: 'route',
-          paint: { 'line-color': '#173b30', 'line-width': 4 },
+          paint: { 'line-color': '#286046', 'line-width': 4 },
           layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
       }
@@ -180,8 +194,8 @@ export function RouteMap(props: Props) {
   useEffect(() => {
     if (!ready || !map.current) return;
     const dark = resolvedTheme === 'dark';
-    map.current.setPaintProperty('route-casing', 'line-color', dark ? '#15291f' : '#faf7f2');
-    map.current.setPaintProperty('route-line', 'line-color', dark ? '#bdd3a5' : '#173b30');
+    map.current.setPaintProperty('route-casing', 'line-color', dark ? '#151b18' : '#ffffff');
+    map.current.setPaintProperty('route-line', 'line-color', dark ? '#9bc5a7' : '#286046');
   }, [ready, resolvedTheme]);
   useEffect(() => {
     if (!ready || !map.current) return;
@@ -302,20 +316,13 @@ export function RouteMap(props: Props) {
         </div>
       )}
       <Badge variant="secondary" className="map-top-label">
-        <MapIcon size={16} aria-hidden="true" />
+        <Layers size={18} aria-hidden="true" />
         <select
           className="map-style-select"
           aria-label={t('Map style')}
           value={style}
           disabled={!map.current}
-          onChange={(event) => {
-            const next = event.target.value;
-            skipStyleFit.current = true;
-            setStyle(next);
-            setReady(false);
-            setMapError('');
-            map.current?.setStyle(next);
-          }}
+          onChange={(event) => changeStyle(event.target.value)}
         >
           {styles.map((item) => (
             <option key={item.value} value={item.value}>
@@ -324,6 +331,21 @@ export function RouteMap(props: Props) {
           ))}
         </select>
       </Badge>
+      <ToggleGroup
+        type="single"
+        className="map-style-tabs"
+        aria-label={t('Map style')}
+        value={style}
+        onValueChange={changeStyle}
+        disabled={!map.current}
+      >
+        {styles.map((item) => (
+          <ToggleGroupItem key={item.value} value={item.value}>
+            {item.value === DEFAULT_MAPBOX_STYLE && <Trees size={18} aria-hidden="true" />}
+            {item.label}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
       <div className="map-extra-controls" role="group" aria-label={t('Map controls')}>
         <Button
           variant="outline"
@@ -377,12 +399,12 @@ export function RouteMap(props: Props) {
           }}
           disabled={!ready || (!props.waypoints.length && !props.segments.length)}
         >
-          <Maximize size={18} />
+          <Scan size={18} />
         </Button>
       </div>
       {ready && props.editable && (
-        <div className="map-hint" style={{ marginBottom: 12 }}>
-          <MapPin size={16} />
+        <div className="map-hint">
+          <MousePointer2 size={16} />
           <span>{t('Click the map to add a stop. Drag pins to refine.')}</span>
         </div>
       )}

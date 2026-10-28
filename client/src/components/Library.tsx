@@ -21,12 +21,12 @@ import {
   Trash2,
   Pencil,
   FolderHeart,
-  ArrowUpDown,
+  ArrowDownWideNarrow,
   ChevronDown,
-  ChevronRight,
+  ArrowUpRight,
   LoaderCircle,
   Save,
-  HardDrive,
+  Info,
 } from 'lucide-react';
 
 import type { PlannedRoute } from '../domain/types';
@@ -154,12 +154,14 @@ export function Library({
   return (
     <Dialog
       title={t('Your route library')}
+      mobileTitle={t('My routes')}
       description={t('Good routes are worth keeping. Saved on this device, no account needed.')}
       onClose={onClose}
       initialFocusRef={searchInput}
       wide
     >
       <div className="route-library">
+        <h3 className="library-mobile-heading">{t('Your route library')}</h3>
         <div className="library-toolbar">
           <Label className="library-search">
             <Search size={18} aria-hidden="true" />
@@ -180,7 +182,7 @@ export function Library({
                   disabled={loading || !routes.length || busy}
                   aria-label={t('Sort routes: {{sort}}', { sort: t(sortLabels[sort]) })}
                 >
-                  <ArrowUpDown size={16} aria-hidden="true" />
+                  <ArrowDownWideNarrow size={18} aria-hidden="true" />
                   {t(sortLabels[sort])}
                   <ChevronDown size={14} aria-hidden="true" />
                 </Button>
@@ -204,7 +206,12 @@ export function Library({
           <div className="library-summary" role="status">
             <span className="library-collection-label">
               <FolderHeart size={16} aria-hidden="true" />
-              {t('Saved routes')} <strong>{routes.length}</strong>
+              <span className="library-count-label">{t('Your route library')}</span>{' '}
+              <strong>{routes.length}</strong>
+              <span className="library-mobile-description">
+                {' · '}
+                {t('Good routes are worth keeping. Saved on this device, no account needed.')}
+              </span>
             </span>
             {query.trim() && (
               <span>{t('{{count}} matching routes', { count: filtered.length })}</span>
@@ -260,12 +267,16 @@ export function Library({
         ) : (
           <ul className="library-list" aria-label={t('Saved routes')} aria-busy={busy}>
             {filtered.map((route) => (
-              <li className="library-route" key={route.id}>
+              <li
+                className="library-route"
+                key={route.id}
+                data-selected={editing?.id === route.id || deleting?.id === route.id || undefined}
+              >
                 <span className="library-activity-icon">
                   {route.activity === 'cycling' ? (
-                    <Bike size={22} aria-hidden="true" />
+                    <Bike size={18} aria-hidden="true" />
                   ) : (
-                    <Footprints size={22} aria-hidden="true" />
+                    <Footprints size={18} aria-hidden="true" />
                   )}
                 </span>
                 <Button
@@ -281,14 +292,22 @@ export function Library({
                     </span>
                     <span aria-hidden="true"> · </span>
                     <span className="library-distance">{formatDistance(route.stats.distance)}</span>
-                  </span>
-                  <span className="library-updated">
-                    {t('· Updated')} {new Date(route.updatedAt).toLocaleDateString(locale())}
+                    <span className="library-updated">
+                      {t('· Updated')} {new Date(route.updatedAt).toLocaleDateString(locale())}
+                    </span>
                   </span>
                   {route.description && (
                     <span className="route-description">{route.description}</span>
                   )}
-                  <ChevronRight size={16} className="library-open-chevron" aria-hidden="true" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="library-open-action"
+                  disabled={busy}
+                  onClick={() => onOpen(route)}
+                >
+                  <ArrowUpRight size={18} aria-hidden="true" />
+                  {t('Open', { defaultValue: locale() === 'ru-RU' ? 'Открыть' : 'Open' })}
                 </Button>
                 <div className="library-actions">
                   <Button
@@ -305,7 +324,8 @@ export function Library({
                       setDescription(route.description);
                     }}
                   >
-                    <Pencil size={16} aria-hidden="true" />
+                    <Pencil size={18} aria-hidden="true" />
+                    <span className="library-action-label">{t('Edit route details')}</span>
                   </Button>
                   <Button
                     variant="ghost"
@@ -320,8 +340,11 @@ export function Library({
                     {pendingAction === `duplicate:${route.id}` ? (
                       <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
                     ) : (
-                      <Copy size={16} aria-hidden="true" />
+                      <Copy size={18} aria-hidden="true" />
                     )}
+                    <span className="library-action-label">
+                      {t('Duplicate {{name}}', { name: '' }).trim()}
+                    </span>
                   </Button>
                   <Button
                     variant="ghost"
@@ -337,7 +360,8 @@ export function Library({
                       setEditing(null);
                     }}
                   >
-                    <Trash2 size={16} aria-hidden="true" />
+                    <Trash2 size={18} aria-hidden="true" />
+                    <span className="library-action-label">{t('Delete')}</span>
                   </Button>
                 </div>
               </li>
@@ -452,7 +476,7 @@ export function Library({
           </section>
         )}
         <p className="fine-print library-storage-note">
-          <HardDrive size={15} aria-hidden="true" />
+          <Info size={18} aria-hidden="true" />
           <span>
             {t(
               'Your browser stores these routes in IndexedDB. Export important routes as GPX before clearing browser data.',

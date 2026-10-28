@@ -11,9 +11,11 @@ import {
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 import '../i18n';
+import './Dialog.css';
 
 export function Dialog({
   title,
+  mobileTitle,
   description,
   children,
   onClose,
@@ -21,6 +23,7 @@ export function Dialog({
   initialFocusRef,
 }: {
   title: string;
+  mobileTitle?: string;
   description?: string;
   children: ReactNode;
   onClose: () => void;
@@ -38,7 +41,7 @@ export function Dialog({
       }}
     >
       <DialogContent
-        className={cn('dialog block', wide && 'wide')}
+        className={cn('dialog roamlet-dialog block', wide && 'wide')}
         showCloseButton={false}
         {...(!description && { 'aria-describedby': undefined })}
         onOpenAutoFocus={(event) => {
@@ -67,7 +70,16 @@ export function Dialog({
       >
         <div className="dialog-header">
           <div className="dialog-heading">
-            <DialogTitle>{title}</DialogTitle>
+            <DialogTitle aria-label={mobileTitle ? title : undefined}>
+              {mobileTitle ? (
+                <>
+                  <span className="dialog-desktop-title">{title}</span>
+                  <span className="dialog-mobile-title">{mobileTitle}</span>
+                </>
+              ) : (
+                title
+              )}
+            </DialogTitle>
             {description && (
               <DialogDescription className="dialog-description">{description}</DialogDescription>
             )}
@@ -78,7 +90,7 @@ export function Dialog({
             </Button>
           </DialogClose>
         </div>
-        {children}
+        <div className="dialog-body">{children}</div>
       </DialogContent>
     </DialogRoot>
   );

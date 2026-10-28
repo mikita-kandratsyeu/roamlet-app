@@ -7,13 +7,11 @@ import { ToggleGroup, ToggleGroupItem } from './components/ui/toggle-group';
 import { Badge } from './components/ui/badge';
 import { Alert } from './components/ui/alert';
 import { Card } from './components/ui/card';
-import { useTheme } from './theme';
 import { waypointKind } from './components/waypointStyle';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Bike,
-  Footprints,
+  MapPinPlus,
   Search,
   Plus,
   ArrowDownUp,
@@ -21,7 +19,8 @@ import {
   ArrowDown,
   X,
   Download,
-  Upload,
+  FileUp,
+  Trash2,
   Bookmark,
   ChevronDown,
   ChevronUp,
@@ -30,13 +29,9 @@ import {
   Pencil,
   LoaderCircle,
   Info,
-  Moon,
-  Sun,
   PanelLeftOpen,
   PanelLeftClose,
-  MapPin,
   Route as RouteIcon,
-  Navigation,
   GripVertical,
   Library as LibraryIcon,
 } from 'lucide-react';
@@ -73,7 +68,6 @@ interface Confirmation {
 
 export default function App() {
   const { t } = useTranslation();
-  const { resolvedTheme, setTheme } = useTheme();
   const [panelHidden, setPanelHidden] = useState(false);
   const hidePlannerButton = useRef<HTMLButtonElement>(null);
   const showPlannerButton = useRef<HTMLButtonElement>(null);
@@ -536,18 +530,6 @@ export default function App() {
             <LibraryIcon size={18} aria-hidden="true" />
             <span>{t('My routes')}</span>
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="theme-toggle"
-            aria-label={t(
-              resolvedTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
-            )}
-            title={t(resolvedTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme')}
-            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-          >
-            {resolvedTheme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}
-          </Button>
           <HeaderMenu
             onNewRoute={() => guard(newRoute)}
             onLibrary={() => setLibraryOpen(true)}
@@ -581,20 +563,26 @@ export default function App() {
             onClick={() => setCollapsed(!collapsed)}
             aria-expanded={!collapsed}
           >
-            <span>
-              {result
-                ? formatDistance(result.stats.distance) + ' · ' + (name || t('Your route'))
-                : t('Plan your next adventure')}
+            <span className="sheet-identity">
+              <strong>{name || t('New route')}</strong>
+              <small>
+                {result
+                  ? formatDistance(result.stats.distance) +
+                    ' · ' +
+                    formatDuration(result.stats.duration)
+                  : t('Start with two points on the map')}
+              </small>
             </span>
             {collapsed ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
           </Button>
           <div className="planner-scroll">
             <div className="planner-heading">
               <div>
-                <h1>{name || t('Where shall we go?')}</h1>
+                <h1>{name || t('New route')}</h1>
                 <div className="planner-kicker">
-                  <p className="muted">{t('Choose an activity, then add your stops.')}</p>
-                  {dirty && <Badge variant="secondary">{t('Unsaved changes')}</Badge>}
+                  <p className="muted">
+                    {dirty ? t('Unsaved changes') : t('Start with two points on the map')}
+                  </p>
                 </div>
               </div>
               <div className="planner-heading-actions">
@@ -635,11 +623,9 @@ export default function App() {
               aria-label={t('Activity profile')}
             >
               <ToggleGroupItem value="cycling" className={activity === 'cycling' ? 'selected' : ''}>
-                <Bike size={19} />
                 {t('Cycling')}
               </ToggleGroupItem>
               <ToggleGroupItem value="hiking" className={activity === 'hiking' ? 'selected' : ''}>
-                <Footprints size={19} />
                 {t('Hiking')}
               </ToggleGroupItem>
             </ToggleGroup>
@@ -672,18 +658,20 @@ export default function App() {
                     value="point"
                     className={planningMode === 'point' ? 'active' : ''}
                   >
-                    <RouteIcon size={15} />
                     {t('Point to point')}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="loop" className={planningMode === 'loop' ? 'active' : ''}>
-                    <ArrowDownUp size={14} />
                     {t('Round trip')}
                   </ToggleGroupItem>
                 </ToggleGroup>
+                <Label className="search-label" htmlFor="place-search-input">
+                  {t('Find a place or enter coordinates')}
+                </Label>
                 <form className="place-search" onSubmit={(event) => void search(event)}>
-                  <Search size={18} />
+                  <Search size={16} aria-hidden="true" />
                   <Input
                     ref={searchInput}
+                    id="place-search-input"
                     aria-label={t('Search places or coordinates')}
                     value={query}
                     onChange={(event) => {
@@ -708,13 +696,15 @@ export default function App() {
                     {searching ? (
                       <LoaderCircle size={18} className="spin" />
                     ) : (
-                      <Navigation size={16} />
+                      <>
+                        <span className="search-submit-label">{t('Find')}</span>
+                        <Search className="search-submit-icon" size={18} />
+                      </>
                     )}
                   </Button>
                 </form>
                 <p className="search-help">
-                  <MapPin size={13} aria-hidden="true" />
-                  <span>{t('Search a place, enter latitude, longitude, or click the map.')}</span>
+                  <span>{t('Search with the button or Enter · latitude, longitude')}</span>
                 </p>
                 {searchTarget && (
                   <Button
@@ -740,54 +730,12 @@ export default function App() {
                     ))}
                   </ul>
                 )}
-                <div className="waypoints-heading">
-                  <h2>
-                    <MapPin size={15} aria-hidden="true" />
-                    {planningMode === 'loop' ? t('Starting point') : t('Your stops')}
-                  </h2>
-                  <div className="waypoint-heading-actions">
-                    {planningMode === 'point' && waypoints.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        className="icon-button"
-                        aria-label={t('Reverse')}
-                        title={t('Reverse')}
-                        onClick={() => changeWaypoints([...waypoints].reverse())}
-                      >
-                        <ArrowDownUp size={14} />
-                      </Button>
-                    )}
-                    {!!waypoints.length && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          className="text-button"
-                          onClick={() =>
-                            setConfirmation({
-                              title: 'Clear all stops?',
-                              text: 'This removes all stops and the calculated route. Saved routes are not affected.',
-                              label: 'Clear stops',
-                              action: () => changeWaypoints([]),
-                            })
-                          }
-                        >
-                          {t('Clear stops')}
-                        </Button>
-                        <Badge variant="secondary" className="stop-count">
-                          {formatNumber(waypoints.length)}
-                        </Badge>
-                      </>
-                    )}
-                  </div>
-                </div>
                 {!waypoints.length ? (
                   <Card className="stops-empty">
-                    <Badge className="stop-badge start" aria-hidden="true">
-                      1
-                    </Badge>
+                    <MapPinPlus size={26} aria-hidden="true" />
                     <div>
-                      <strong>{t('A good route starts somewhere')}</strong>
-                      <p>{t('Choose your first stop on the map or search above.')}</p>
+                      <strong>{t('Where shall we go?')}</strong>
+                      <p>{t('Click the map or search for a place to add a start and finish.')}</p>
                     </div>
                   </Card>
                 ) : (
@@ -838,15 +786,14 @@ export default function App() {
                               searchInput.current?.focus();
                             }}
                           >
-                            {point.name}
                             <small>
                               {index === 0
                                 ? t('Start')
                                 : index === waypoints.length - 1
                                   ? t('Finish')
-                                  : t('Via')}{' '}
-                              {t('· click to replace')}
+                                  : t('Via')}
                             </small>
+                            {point.name}
                           </Button>
                           <div className="stop-controls">
                             {planningMode === 'point' && (
@@ -901,20 +848,50 @@ export default function App() {
                     ))}
                   </ol>
                 )}
-                {planningMode === 'point' && waypoints.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    className="add-stop"
-                    onClick={() => {
-                      setSearchTarget(null);
-                      searchInput.current?.focus();
-                    }}
-                  >
-                    <Plus size={16} />
-                    {t('Add a stop')}
-                    <span>{t('or click the map')}</span>
-                  </Button>
-                )}
+                <div className="waypoint-tools">
+                  {planningMode === 'point' && waypoints.length < 25 && (
+                    <Button
+                      variant={waypoints.length ? 'ghost' : 'outline'}
+                      className={`add-stop ${!waypoints.length ? 'add-stop-empty' : ''}`}
+                      onClick={() => {
+                        setSearchTarget(null);
+                        searchInput.current?.focus();
+                      }}
+                    >
+                      <Plus size={18} />
+                      {t('Add a stop')}
+                    </Button>
+                  )}
+                  {planningMode === 'point' && waypoints.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      className="reverse-stops"
+                      aria-label={t('Reverse')}
+                      onClick={() => changeWaypoints([...waypoints].reverse())}
+                    >
+                      <ArrowDownUp size={18} />
+                      <span>{t('Reverse')}</span>
+                    </Button>
+                  )}
+                  {!!waypoints.length && (
+                    <Button
+                      variant="ghost"
+                      className="icon-button clear-stops"
+                      aria-label={t('Clear stops')}
+                      title={t('Clear stops')}
+                      onClick={() =>
+                        setConfirmation({
+                          title: 'Clear all stops?',
+                          text: 'This removes all stops and the calculated route. Saved routes are not affected.',
+                          label: 'Clear stops',
+                          action: () => changeWaypoints([]),
+                        })
+                      }
+                    >
+                      <Trash2 size={18} />
+                    </Button>
+                  )}
+                </div>
                 {planningMode === 'point' && (
                   <div className="calculate-action">
                     <Button
@@ -1058,7 +1035,7 @@ export default function App() {
               }
             />
           </div>
-          <footer className="planner-footer">
+          <footer className={`planner-footer ${canUseRoute ? 'route-ready' : ''}`}>
             <div className="route-actions">
               <Button
                 className="primary"
@@ -1086,12 +1063,22 @@ export default function App() {
               className="import-action"
               onClick={() => fileInput.current?.click()}
             >
-              <Upload size={15} />
+              <FileUp size={18} />
               {t('Import GPX')}
               <span>{t('or drop a file anywhere')}</span>
             </Button>
           </footer>
         </aside>
+        <div id="map-elevation-root" />
+        <Button
+          variant="outline"
+          className="map-import"
+          aria-label={t('Import GPX on map')}
+          onClick={() => fileInput.current?.click()}
+        >
+          <FileUp size={18} />
+          {t('Import GPX')}
+        </Button>
         <RouteMap
           segments={result?.segments || emptySegments}
           waypoints={mapWaypoints}
