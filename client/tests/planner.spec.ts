@@ -398,11 +398,11 @@ test('persists light and dark themes across reloads and themes dialogs and map c
   await page.getByRole('menuitemradio', { name: 'Light', exact: true }).click();
   await expect(page.getByRole('menu')).not.toBeVisible();
   await expect(page.locator('html')).not.toHaveClass(/dark/);
-  expect(
-    await page
-      .locator('.app-header')
-      .evaluate((element) => getComputedStyle(element).backgroundColor),
-  ).not.toBe(darkSurface);
+  await expect
+    .poll(() =>
+      page.locator('.app-header').evaluate((element) => getComputedStyle(element).backgroundColor),
+    )
+    .not.toBe(darkSurface);
   await menu.click();
   await page.getByRole('menuitemradio', { name: 'System', exact: true }).click();
   await expect(page.getByRole('menu')).not.toBeVisible();
