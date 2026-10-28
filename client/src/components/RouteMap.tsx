@@ -5,7 +5,12 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView, saveMapView } from '../domain/mapView';
-import { mapTiles, MAP_STYLE_CONFIGURATION_MESSAGE, DEFAULT_MAP_STYLE, BRIGHT_MAP_STYLE } from '../domain/mapTiles';
+import {
+  mapTiles,
+  MAP_STYLE_CONFIGURATION_MESSAGE,
+  DEFAULT_MAP_STYLE,
+  BRIGHT_MAP_STYLE,
+} from '../domain/mapTiles';
 import {
   LocateFixed,
   Scan,
@@ -481,9 +486,7 @@ export function RouteMap(props: Props) {
             {styles.map((item) => (
               <ToggleGroupItem key={item.value} value={item.value}>
                 {item.value === DEFAULT_MAP_STYLE && <MapIcon size={18} aria-hidden="true" />}
-                {item.value === BRIGHT_MAP_STYLE && (
-                  <MapIcon size={18} aria-hidden="true" />
-                )}
+                {item.value === BRIGHT_MAP_STYLE && <MapIcon size={18} aria-hidden="true" />}
                 {item.label}
               </ToggleGroupItem>
             ))}

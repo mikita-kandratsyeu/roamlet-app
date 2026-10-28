@@ -37,7 +37,10 @@ test('uses timezone region first, restores last local view, and fits an imported
   await page.goto('/');
   await expect(page.locator('.mapboxgl-ctrl-logo')).toHaveCount(0);
   await expect(page.locator('.maplibregl-ctrl-attrib')).toBeVisible();
-  await expect(page.locator('.map-issue')).toHaveAttribute('href', 'https://www.openstreetmap.org/');
+  await expect(page.locator('.map-issue')).toHaveAttribute(
+    'href',
+    'https://www.openstreetmap.org/',
+  );
   const logo = await page.locator('.maplibregl-ctrl-attrib').boundingBox();
   const feedback = await page.locator('.map-issue').boundingBox();
   expect(

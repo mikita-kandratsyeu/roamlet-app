@@ -16,15 +16,19 @@ describe('MapLibre map configuration', () => {
     'supports local style %s without a Mapbox token',
     (style) => expect(mapTiles({ VITE_MAP_STYLE: style })).toEqual({ style }),
   );
-  it.each(['mapbox://styles/mapbox/outdoors-v12', 'javascript:alert(1)', '//example.com/style.json', 'style.json', 'https://user:secret@example.com/style.json', '/\\\\example.com/style.json'])(
-    'rejects unsupported style URLs without exposing configuration: %s',
-    (style) => {
-      expect(() => mapTiles({ VITE_MAP_STYLE: style })).toThrow('VITE_MAP_STYLE');
-      try {
-        mapTiles({ VITE_MAP_STYLE: style });
-      } catch (error) {
-        expect(String(error)).not.toContain(style);
-      }
-    },
-  );
+  it.each([
+    'mapbox://styles/mapbox/outdoors-v12',
+    'javascript:alert(1)',
+    '//example.com/style.json',
+    'style.json',
+    'https://user:secret@example.com/style.json',
+    '/\\\\example.com/style.json',
+  ])('rejects unsupported style URLs without exposing configuration: %s', (style) => {
+    expect(() => mapTiles({ VITE_MAP_STYLE: style })).toThrow('VITE_MAP_STYLE');
+    try {
+      mapTiles({ VITE_MAP_STYLE: style });
+    } catch (error) {
+      expect(String(error)).not.toContain(style);
+    }
+  });
 });

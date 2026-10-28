@@ -19,7 +19,8 @@ export function mapTiles(environment: MapEnvironment) {
     !(/^https?:\/\//i.test(style) || (style.startsWith('/') && !style.startsWith('//'))) ||
     !['http:', 'https:'].includes(url.protocol) ||
     style.includes('\\') ||
-    url.username || url.password
+    url.username ||
+    url.password
   ) {
     throw new Error(MAP_STYLE_CONFIGURATION_MESSAGE);
   }

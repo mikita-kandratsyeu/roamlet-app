@@ -227,15 +227,18 @@ it('shows persistent configuration UI for an unsupported map style', () => {
   expect(screen.queryByRole('button', { name: 'Dismiss map notice' })).not.toBeInTheDocument();
 });
 
-it.each(['', 'sk.test-only-not-a-real-token'])('initializes the map independently of routing token %s', (token) => {
-  vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', token);
-  render(<RouteMap {...props} />);
-  expect(mocks.options).toHaveBeenCalledTimes(1);
-  expect(mocks.options.mock.calls[0][0]).not.toHaveProperty('accessToken');
-  act(() => mocks.handlers.get('load')?.());
-  expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
-});
+it.each(['', 'sk.test-only-not-a-real-token'])(
+  'initializes the map independently of routing token %s',
+  (token) => {
+    vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', token);
+    render(<RouteMap {...props} />);
+    expect(mocks.options).toHaveBeenCalledTimes(1);
+    expect(mocks.options.mock.calls[0][0]).not.toHaveProperty('accessToken');
+    act(() => mocks.handlers.get('load')?.());
+    expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  },
+);
 
 it('preserves pointer editing, marker cleanup and read-only view mode', () => {
   const waypoints = [{ id: 'stop', name: 'Stop', coordinate: [11, 47] as [number, number] }];
@@ -399,7 +402,9 @@ it('updates a single location dot, preserves closer zoom and removes the dot on 
   let success: PositionCallback = () => {};
   vi.stubGlobal('navigator', {
     geolocation: {
-      getCurrentPosition: (callback: PositionCallback) => { success = callback; },
+      getCurrentPosition: (callback: PositionCallback) => {
+        success = callback;
+      },
     },
   });
   mocks.zoom = 16;
@@ -413,7 +418,9 @@ it('updates a single location dot, preserves closer zoom and removes the dot on 
   act(() => success({ coords: { longitude: 14, latitude: 50 } } as GeolocationPosition));
   expect(mocks.markerOptions).toHaveBeenCalledOnce();
   expect(mocks.markerPosition).toHaveBeenLastCalledWith([14, 50]);
-  expect(mocks.fly).toHaveBeenLastCalledWith(expect.objectContaining({ center: [14, 50], zoom: 16 }));
+  expect(mocks.fly).toHaveBeenLastCalledWith(
+    expect.objectContaining({ center: [14, 50], zoom: 16 }),
+  );
   expect(props.onAdd).not.toHaveBeenCalled();
   expect(props.onMove).not.toHaveBeenCalled();
   unmount();
@@ -424,7 +431,9 @@ it('ignores a location response after the map is unmounted', () => {
   let success: PositionCallback = () => {};
   vi.stubGlobal('navigator', {
     geolocation: {
-      getCurrentPosition: (callback: PositionCallback) => { success = callback; },
+      getCurrentPosition: (callback: PositionCallback) => {
+        success = callback;
+      },
     },
   });
   const { unmount } = render(<RouteMap {...props} />);

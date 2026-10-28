@@ -10,7 +10,9 @@ test.beforeEach(async ({ page }) => {
       json: {
         version: 8,
         sources: {},
-        layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } }],
+        layers: [
+          { id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } },
+        ],
       },
     }),
   );
@@ -88,12 +90,16 @@ test('production shell keeps saved routes and GPX export available offline, with
   expect(cached.every((url) => url.startsWith('http://127.0.0.1:4175/'))).toBe(true);
   await context.setOffline(false);
 });
-test('missing routing token keeps the map usable but never substitutes a fake route', async ({ page }) => {
+test('missing routing token keeps the map usable but never substitutes a fake route', async ({
+  page,
+}) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
   await expect(page.locator('.maplibregl-canvas')).toHaveCount(1);
-  await expect(page.getByRole('region', { name: 'Interactive route map' }).getByRole('status')).toHaveCount(0);
+  await expect(
+    page.getByRole('region', { name: 'Interactive route map' }).getByRole('status'),
+  ).toHaveCount(0);
   for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
     await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
