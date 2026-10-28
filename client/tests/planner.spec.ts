@@ -537,3 +537,89 @@ test('matches Figma planner geometry while preserving branding and responsive el
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+for (const hidden of [false, true]) {
+  test(`map overlays do not intersect when resizing with planner hidden: ${hidden}`, async ({
+    page,
+  }, testInfo) => {
+    const sizes =
+      testInfo.project.name === 'mobile'
+        ? [
+            [500, 740],
+            [390, 844],
+            [320, 740],
+          ]
+        : [
+            [1440, 1000],
+            [1100, 740],
+            [1025, 740],
+            [768, 900],
+          ];
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    if (hidden) {
+      await page.getByRole('button', { name: 'Hide planner' }).click();
+      await page.getByRole('button', { name: 'Menu', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: 'Русский' }).click();
+    }
+    const selectors = [
+      '.planner',
+      '.planner-reopen',
+      '.map-top-label',
+      '.map-hint',
+      '.map-style-tabs',
+      '.map-import',
+      '.map-issue',
+      '.map-extra-controls',
+      '#map-elevation-root',
+      '.mapboxgl-ctrl-logo',
+      '.mapboxgl-ctrl-attrib',
+    ];
+    for (const withRoute of [false, true]) {
+      if (withRoute) {
+        await page.locator('input[type="file"]').setInputFiles({
+          name: 'overlays.gpx',
+          mimeType: 'application/gpx+xml',
+          buffer: Buffer.from(gpx),
+        });
+      }
+      for (const [width, height] of sizes) {
+        await page.setViewportSize({ width, height });
+        await expect
+          .poll(
+            async () => {
+              const rectangles: {
+                selector: string;
+                x: number;
+                y: number;
+                width: number;
+                height: number;
+              }[] = [];
+              for (const selector of selectors) {
+                const element = page.locator(selector);
+                if (await element.isVisible()) {
+                  const bounds = await element.boundingBox();
+                  if (bounds) rectangles.push({ selector, ...bounds });
+                }
+              }
+              const collisions: string[] = [];
+              for (let i = 0; i < rectangles.length; i++) {
+                const a = rectangles[i];
+                for (const b of rectangles.slice(i + 1)) {
+                  const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+                  const overlapY = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+                  if (overlapX > 1 && overlapY > 1)
+                    collisions.push(`${a.selector} / ${b.selector}`);
+                }
+              }
+              return collisions;
+            },
+            { message: `Overlays at ${width}×${height}, route: ${withRoute}` },
+          )
+          .toEqual([]);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+          true,
+        );
+      }
+    }
+  });
+}

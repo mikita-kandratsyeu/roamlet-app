@@ -351,6 +351,13 @@ it('updates route colors without touching the vector basemap or recreating or re
   expect(mocks.remove).not.toHaveBeenCalled();
 });
 
+it('keeps GPX import accessible from the shared map toolbar', () => {
+  const onImport = vi.fn();
+  render(<RouteMap {...props} onImport={onImport} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Import GPX on map' }));
+  expect(onImport).toHaveBeenCalledOnce();
+});
+
 it('uses accessible shadcn buttons for zooming after the map loads', () => {
   render(<RouteMap {...props} />);
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();

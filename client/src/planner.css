@@ -106,7 +106,9 @@
 }
 .planner {
   bottom: auto;
-  max-height: calc(100% - var(--space) * 2);
+  max-height: calc(
+    100% - var(--space) - max(var(--space), calc(var(--map-attribution-height, 24px) + 16px))
+  );
 }
 .planner-scroll {
   flex: 0 1 auto;
@@ -384,7 +386,7 @@
 }
 #map-elevation-root {
   position: absolute;
-  bottom: 110px;
+  bottom: var(--map-bottom-reserved, 110px);
   left: calc(var(--panel-width) + var(--space) * 2 + 10px);
   width: min(714px, calc(100% - var(--panel-width) - var(--space) * 3 - 74px));
   z-index: 2;
@@ -496,6 +498,63 @@
   font-size: 12px;
   z-index: 2;
 }
+.mapboxgl-ctrl-bottom-right {
+  max-width: calc(100% - 108px);
+}
+.mapboxgl-ctrl-attrib {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.map-bottom-toolbar {
+  position: absolute;
+  left: calc(var(--panel-width) + var(--space) * 2 + 10px);
+  right: var(--space);
+  bottom: calc(var(--map-attribution-height, 24px) + 16px);
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+.desktop-panel-hidden .map-bottom-toolbar {
+  left: var(--space);
+}
+.desktop-panel-hidden .map-warning,
+.desktop-panel-hidden .map-loading {
+  top: calc(var(--space) + 56px);
+}
+.map-bottom-leading {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.map-bottom-trailing {
+  display: flex;
+  flex-shrink: 0;
+  max-width: 200px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+.map-bottom-leading .map-hint,
+.map-bottom-leading .map-style-tabs,
+.map-bottom-trailing .map-import,
+.map-bottom-trailing .map-issue {
+  position: static;
+  max-width: 100%;
+  margin: 0;
+}
+.map-bottom-leading .map-style-tabs {
+  flex-wrap: wrap;
+}
+.map-bottom-leading .map-style-tabs button {
+  flex-shrink: 0;
+}
+.map-bottom-trailing .map-issue {
+  overflow-wrap: anywhere;
+}
 .waypoint-marker {
   border: 2px solid var(--primary);
   background: var(--surface);
@@ -518,7 +577,9 @@
   }
   .planner {
     top: 126px;
-    max-height: calc(100% - 142px);
+    max-height: calc(
+      100% - 126px - max(var(--space), calc(var(--map-attribution-height, 24px) + 16px))
+    );
   }
   .map-top-label {
     display: inline-flex;
@@ -540,6 +601,22 @@
     border-width: 0 0 1px;
     border-radius: 0;
     padding: 7px 0;
+  }
+}
+@media (max-width: 1024px) {
+  .map-bottom-toolbar {
+    left: var(--space);
+  }
+  .map-bottom-leading {
+    display: none;
+  }
+  .desktop-panel-hidden .map-top-label {
+    left: var(--space);
+    top: var(--map-style-top, calc(var(--space) + 52px));
+  }
+  .desktop-panel-hidden .map-warning,
+  .desktop-panel-hidden .map-loading {
+    top: var(--map-message-top, calc(var(--space) + 100px));
   }
 }
 @media (max-width: 700px) {
@@ -699,7 +776,7 @@
   }
   .map-extra-controls {
     top: auto;
-    bottom: 32px;
+    bottom: var(--map-mobile-controls-bottom, 64px);
     flex-direction: row;
     gap: 6px;
   }

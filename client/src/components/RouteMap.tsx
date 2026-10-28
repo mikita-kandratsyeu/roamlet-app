@@ -16,6 +16,7 @@ import {
   X,
   Layers,
   LoaderCircle,
+  FileUp,
 } from 'lucide-react';
 import { waypointKind } from './waypointStyle';
 import { useTheme } from '../theme';
@@ -53,6 +54,8 @@ interface Props {
   onAdd: (coordinate: Coordinate) => void;
   onMove: (id: string, coordinate: Coordinate) => void;
   onError: (message: string) => void;
+  onImport?: () => void;
+  plannerHidden?: boolean;
 }
 export function RouteMap(props: Props) {
   const { t } = useTranslation();
@@ -67,6 +70,62 @@ export function RouteMap(props: Props) {
   const [style, setStyle] = useState(configuredStyle);
   const [locating, setLocating] = useState(false);
   const skipStyleFit = useRef(false);
+  useEffect(() => {
+    const region = container.current?.parentElement;
+    const workspace = region?.closest<HTMLElement>('.workspace');
+    const toolbar = region?.querySelector<HTMLElement>('.map-bottom-toolbar');
+    if (!region || !workspace || !toolbar) return;
+    const attribution = [
+      ...region.querySelectorAll<HTMLElement>(
+        '.mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right',
+      ),
+    ];
+    const stylePicker = region.querySelector<HTMLElement>('.map-top-label');
+    const reopen = workspace.querySelector<HTMLElement>('.planner-reopen');
+    const measure = () => {
+      const attributionHeight = Math.max(
+        24,
+        ...attribution.map((element) => element.getBoundingClientRect().height),
+      );
+      const toolbarHeight = toolbar.getBoundingClientRect().height;
+      const spacing = Number.parseFloat(getComputedStyle(region).getPropertyValue('--space')) || 12;
+      const pickerTop =
+        reopen && window.innerWidth <= 1024
+          ? reopen.getBoundingClientRect().bottom - region.getBoundingClientRect().top + 8
+          : spacing;
+      workspace.style.setProperty('--map-attribution-height', `${attributionHeight}px`);
+      workspace.style.setProperty(
+        '--map-bottom-reserved',
+        `${attributionHeight + toolbarHeight + 32}px`,
+      );
+      workspace.style.setProperty(
+        '--map-mobile-controls-bottom',
+        `${attributionHeight + toolbarHeight + 24}px`,
+      );
+      workspace.style.setProperty('--map-style-top', `${pickerTop}px`);
+      workspace.style.setProperty(
+        '--map-message-top',
+        `${pickerTop + (stylePicker?.getBoundingClientRect().height || 40) + 8}px`,
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    for (const element of [region, toolbar, ...attribution, stylePicker, reopen]) {
+      if (element) observer.observe(element);
+    }
+    measure();
+    return () => {
+      observer.disconnect();
+      for (const property of [
+        '--map-attribution-height',
+        '--map-bottom-reserved',
+        '--map-mobile-controls-bottom',
+        '--map-style-top',
+        '--map-message-top',
+      ]) {
+        workspace.style.removeProperty(property);
+      }
+    };
+  }, [ready, props.plannerHidden, t]);
   function changeStyle(next: string) {
     if (!next || next === style) return;
     skipStyleFit.current = true;
@@ -331,21 +390,7 @@ export function RouteMap(props: Props) {
           ))}
         </select>
       </Badge>
-      <ToggleGroup
-        type="single"
-        className="map-style-tabs"
-        aria-label={t('Map style')}
-        value={style}
-        onValueChange={changeStyle}
-        disabled={!map.current}
-      >
-        {styles.map((item) => (
-          <ToggleGroupItem key={item.value} value={item.value}>
-            {item.value === DEFAULT_MAPBOX_STYLE && <Trees size={18} aria-hidden="true" />}
-            {item.label}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+
       <div className="map-extra-controls" role="group" aria-label={t('Map controls')}>
         <Button
           variant="outline"
@@ -402,23 +447,55 @@ export function RouteMap(props: Props) {
           <Scan size={18} />
         </Button>
       </div>
-      {ready && props.editable && (
-        <div className="map-hint">
-          <MousePointer2 size={16} />
-          <span>{t('Click the map to add a stop. Drag pins to refine.')}</span>
+      <div className="map-bottom-toolbar">
+        <div className="map-bottom-leading">
+          {ready && props.editable && (
+            <div className="map-hint">
+              <MousePointer2 size={16} />
+              <span>{t('Click the map to add a stop. Drag pins to refine.')}</span>
+            </div>
+          )}
+          <ToggleGroup
+            type="single"
+            className="map-style-tabs"
+            aria-label={t('Map style')}
+            value={style}
+            onValueChange={changeStyle}
+            disabled={!map.current}
+          >
+            {styles.map((item) => (
+              <ToggleGroupItem key={item.value} value={item.value}>
+                {item.value === DEFAULT_MAPBOX_STYLE && <Trees size={18} aria-hidden="true" />}
+                {item.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         </div>
-      )}
-      {ready && (
-        <a
-          className="map-issue"
-          style={{ marginBottom: 26 }}
-          href="https://apps.mapbox.com/feedback/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          {t('Report a map issue ↗')}
-        </a>
-      )}
+        <div className="map-bottom-trailing">
+          {props.onImport && (
+            <Button
+              variant="outline"
+              className="map-import"
+              aria-label={t('Import GPX on map')}
+              onClick={props.onImport}
+            >
+              <FileUp size={18} />
+              {t('Import GPX')}
+            </Button>
+          )}
+
+          {ready && (
+            <a
+              className="map-issue"
+              href="https://apps.mapbox.com/feedback/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {t('Report a map issue ↗')}
+            </a>
+          )}
+        </div>
+      </div>
     </section>
   );
 }

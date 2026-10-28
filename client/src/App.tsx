@@ -1070,16 +1070,9 @@ export default function App() {
           </footer>
         </aside>
         <div id="map-elevation-root" />
-        <Button
-          variant="outline"
-          className="map-import"
-          aria-label={t('Import GPX on map')}
-          onClick={() => fileInput.current?.click()}
-        >
-          <FileUp size={18} />
-          {t('Import GPX')}
-        </Button>
         <RouteMap
+          plannerHidden={panelHidden}
+          onImport={() => fileInput.current?.click()}
           segments={result?.segments || emptySegments}
           waypoints={mapWaypoints}
           editable={mode === 'manual' && !busy && (planningMode === 'point' || !result)}
