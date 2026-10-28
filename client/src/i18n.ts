@@ -242,7 +242,7 @@ export const russian: Record<string, string> = {
 void i18n.use(initReactI18next).init({
   resources: { en: { translation: Object.fromEntries(Object.keys(russian).map(key => [key, key])) }, ru: { translation: russian } },
   lng: detectLanguage(), fallbackLng: 'en', supportedLngs: ['en', 'ru'],
-  keySeparator: false, nsSeparator: false, interpolation: { escapeValue: false }, initImmediate: false,
+  keySeparator: false, nsSeparator: false, interpolation: { escapeValue: false }, initImmediate: false, showSupportNotice: false,
 });
 function synchronizeLanguage(language: string) {
   const normalized = language.startsWith('ru') ? 'ru' : 'en';

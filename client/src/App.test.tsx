@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import App from './App';
 import { routeDb } from './domain/storage';
@@ -15,6 +15,7 @@ beforeEach(async () => {
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
   provider.calculateRoute.mockResolvedValue({ segments: [geometry], stats: { distance: 1342, duration: 480, ascent: 30, descent: 15 } });
 });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 function addCoordinate(text: string) {
   fireEvent.change(screen.getByRole('textbox', { name: 'Search places or coordinates' }), { target: { value: text } });
   fireEvent.click(screen.getByRole('button', { name: 'Search' }));
@@ -22,6 +23,11 @@ function addCoordinate(text: string) {
 async function plan() { addCoordinate('47.26, 11.4'); addCoordinate('47.27, 11.41'); await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled()); }
 describe('route planner interactions', () => {
   it('switches to Russian persistently without recalculating routes or changing user names', async () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+    });
     render(<App />); await plan();
     fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), { target: { value: 'River escape' } });
