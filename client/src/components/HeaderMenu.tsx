@@ -41,7 +41,9 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
   }
 
   function navigate(event: KeyboardEvent<HTMLDivElement>) {
-    const items = Array.from(panel.current?.querySelectorAll<HTMLButtonElement>('[role^="menuitem"]') || []);
+    const items = Array.from(
+      panel.current?.querySelectorAll<HTMLButtonElement>('[role^="menuitem"]') || [],
+    );
     const current = items.indexOf(document.activeElement as HTMLButtonElement);
     let next: number | undefined;
     if (event.key === 'Escape') {
@@ -58,12 +60,24 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
     if (event.key === 'ArrowUp') next = (current - 1 + items.length) % items.length;
     if (event.key === 'Home') next = 0;
     if (event.key === 'End') next = items.length - 1;
-    if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey && event.key !== ' ') {
+    if (
+      event.key.length === 1 &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.metaKey &&
+      event.key !== ' '
+    ) {
       const now = Date.now();
       const text = now - typed.current.time > 500 ? event.key : typed.current.text + event.key;
       typed.current = { text: text.toLocaleLowerCase(), time: now };
-      const match = items.findIndex((item, index) => index > current && item.textContent?.trim().toLocaleLowerCase().startsWith(typed.current.text));
-      const wrapped = items.findIndex(item => item.textContent?.trim().toLocaleLowerCase().startsWith(typed.current.text));
+      const match = items.findIndex(
+        (item, index) =>
+          index > current &&
+          item.textContent?.trim().toLocaleLowerCase().startsWith(typed.current.text),
+      );
+      const wrapped = items.findIndex((item) =>
+        item.textContent?.trim().toLocaleLowerCase().startsWith(typed.current.text),
+      );
       next = match >= 0 ? match : wrapped >= 0 ? wrapped : undefined;
     }
     if (next !== undefined) {
@@ -78,7 +92,7 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
         type="button"
         className="header-menu-action"
         aria-label={t('New route')}
-        onClick={event => {
+        onClick={(event) => {
           close();
           event.currentTarget.focus();
           onNewRoute();
@@ -86,7 +100,9 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
       >
         <Plus size={19} aria-hidden="true" />
         <span className="header-action-label-full">{t('New route')}</span>
-        <span className="header-action-label-short" aria-hidden="true">{t('Route')}</span>
+        <span className="header-action-label-short" aria-hidden="true">
+          {t('Route')}
+        </span>
       </button>
       <button
         ref={trigger}
@@ -98,9 +114,9 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
         aria-controls={open ? id : undefined}
         onClick={() => {
           initialFocus.current = 'first';
-          setOpen(value => !value);
+          setOpen((value) => !value);
         }}
-        onKeyDown={event => {
+        onKeyDown={(event) => {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault();
             initialFocus.current = event.key === 'ArrowUp' ? 'last' : 'first';
@@ -111,22 +127,64 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
         <ChevronDown size={19} aria-hidden="true" />
       </button>
       {open && (
-        <div id={id} ref={panel} className="header-menu-panel" role="menu" aria-label={t('Main navigation')} onKeyDown={navigate}>
-          <button type="button" role="menuitem" tabIndex={-1} className="header-menu-item" onClick={() => activate(onLibrary)}>
-            <Library size={19} aria-hidden="true" /><span>{t('My routes')}</span>
+        <div
+          id={id}
+          ref={panel}
+          className="header-menu-panel"
+          role="menu"
+          aria-label={t('Main navigation')}
+          onKeyDown={navigate}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            className="header-menu-item"
+            onClick={() => activate(onLibrary)}
+          >
+            <Library size={19} aria-hidden="true" />
+            <span>{t('My routes')}</span>
           </button>
           <div role="separator" className="header-menu-separator" />
           <div role="group" aria-label={t('Language')}>
-            <div className="header-menu-label"><Globe size={15} aria-hidden="true" />{t('Language')}</div>
-            {([['en', 'English'], ['ru', 'Русский']] as const).map(([language, label]) => (
-              <button key={language} type="button" role="menuitemradio" aria-checked={i18n.resolvedLanguage === language} tabIndex={-1} className="header-menu-item header-menu-language" onClick={() => activate(() => { void i18n.changeLanguage(language); })}>
-                <span>{label}</span>{i18n.resolvedLanguage === language && <Check size={17} aria-hidden="true" />}
+            <div className="header-menu-label">
+              <Globe size={15} aria-hidden="true" />
+              {t('Language')}
+            </div>
+            {(
+              [
+                ['en', 'English'],
+                ['ru', 'Русский'],
+              ] as const
+            ).map(([language, label]) => (
+              <button
+                key={language}
+                type="button"
+                role="menuitemradio"
+                aria-checked={i18n.resolvedLanguage === language}
+                tabIndex={-1}
+                className="header-menu-item header-menu-language"
+                onClick={() =>
+                  activate(() => {
+                    void i18n.changeLanguage(language);
+                  })
+                }
+              >
+                <span>{label}</span>
+                {i18n.resolvedLanguage === language && <Check size={17} aria-hidden="true" />}
               </button>
             ))}
           </div>
           <div role="separator" className="header-menu-separator" />
-          <button type="button" role="menuitem" tabIndex={-1} className="header-menu-item" onClick={() => activate(onHelp)}>
-            <Info size={19} aria-hidden="true" /><span>{t('Help and data sources')}</span>
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            className="header-menu-item"
+            onClick={() => activate(onHelp)}
+          >
+            <Info size={19} aria-hidden="true" />
+            <span>{t('Help and data sources')}</span>
           </button>
         </div>
       )}

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, cleanup, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import App from './App';
 import { routeDb } from './domain/storage';
 import { checkRoutingConfiguration } from './services/routing';
-import { detectLanguage, LANGUAGE_KEY } from './i18n';
+import i18n, { detectLanguage, LANGUAGE_KEY } from './i18n';
 const provider = vi.hoisted(() => ({ calculateRoute: vi.fn(), calculateAlternatives: vi.fn() }));
 vi.mock('./services/routing', () => ({
   checkRoutingConfiguration: vi.fn().mockResolvedValue(true),
@@ -42,6 +42,13 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
+function openMenu() {
+  fireEvent.click(screen.getByRole('button', { name: /^(Menu|Меню)$/ }));
+}
+function selectLanguage(label: string) {
+  openMenu();
+  fireEvent.click(screen.getByRole('menuitemradio', { name: label }));
+}
 function addCoordinate(text: string) {
   fireEvent.change(screen.getByRole('textbox', { name: 'Search places or coordinates' }), {
     target: { value: text },
@@ -71,9 +78,9 @@ describe('route planner interactions', () => {
     fireEvent.change(screen.getByRole('textbox', { name: /Description/ }), {
       target: { value: 'My own note' },
     });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), {
-      target: { value: 'ru' },
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    selectLanguage('Русский');
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить маршрут' }));
     expect(document.documentElement.lang).toBe('ru');
     expect(localStorage.getItem(LANGUAGE_KEY)).toBe('ru');
     expect(detectLanguage()).toBe('ru');
@@ -86,7 +93,11 @@ describe('route planner interactions', () => {
     expect(provider.calculateRoute).toHaveBeenCalledTimes(1);
     cleanup();
     render(<App />);
-    expect(screen.getByRole('combobox', { name: 'Язык' })).toHaveValue('ru');
+    openMenu();
+    expect(screen.getByRole('menuitemradio', { name: 'Русский' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
     fireEvent.click(screen.getByRole('menuitem', { name: 'Мои маршруты' }));
     expect(
       await screen.findByRole('button', { name: /River escape Велосипед/ }),
@@ -99,15 +110,13 @@ describe('route planner interactions', () => {
     render(<App />);
     addCoordinate('999, 20');
     expect(screen.getByRole('alert')).toHaveTextContent('latitude');
-    fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), {
-      target: { value: 'ru' },
-    });
+    selectLanguage('Русский');
     expect(screen.getByRole('alert')).toHaveTextContent('широту');
-    fireEvent.change(screen.getByRole('combobox', { name: 'Язык' }), { target: { value: 'en' } });
+    selectLanguage('English');
     await plan();
     fireEvent.click(screen.getByRole('button', { name: 'New route' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), {
-      target: { value: 'ru' },
+    await act(async () => {
+      await i18n.changeLanguage('ru');
     });
     expect(screen.getByRole('dialog', { name: 'Покинуть этот маршрут?' })).toHaveTextContent(
       'Несохранённые изменения',

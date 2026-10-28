@@ -231,7 +231,9 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
-  box-shadow: 0 12px 36px #173b3026, 0 2px 8px #173b3012;
+  box-shadow:
+    0 12px 36px #173b3026,
+    0 2px 8px #173b3012;
 }
 .header-menu-item {
   display: flex;
@@ -257,10 +259,6 @@ textarea {
 }
 .header-menu-item:focus-visible {
   outline-offset: -2px;
-}
-.header-menu-primary {
-  background: var(--sage-light);
-  font-weight: 700;
 }
 .header-menu-separator {
   height: 1px;

@@ -21,7 +21,10 @@ it('groups the direct route action and menu trigger, and focuses the first menu 
   expect(trigger).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByRole('menu')).toHaveAttribute('id', trigger.getAttribute('aria-controls'));
   expect(screen.getByRole('menuitem', { name: 'My routes' })).toHaveFocus();
-  expect(screen.getByRole('menuitemradio', { name: 'English' })).toHaveAttribute('aria-checked', 'true');
+  expect(screen.getByRole('menuitemradio', { name: 'English' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
 });
 
 it('supports arrows, wrapping, Home/End, type-ahead and Escape with focus restoration', () => {
@@ -72,6 +75,18 @@ it.each([
   expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 });
 
+it('keeps new route a direct action and closes an open menu without invoking another action', () => {
+  const { trigger, actions } = setup();
+  fireEvent.click(trigger);
+  const primary = screen.getByRole('button', { name: 'New route' });
+  fireEvent.click(primary);
+  expect(primary).toHaveFocus();
+  expect(actions.onNewRoute).toHaveBeenCalledTimes(1);
+  expect(actions.onLibrary).not.toHaveBeenCalled();
+  expect(actions.onHelp).not.toHaveBeenCalled();
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+});
+
 it('switches language and shows the selected language after reopening', () => {
   const { trigger } = setup();
   fireEvent.click(trigger);
@@ -80,6 +95,9 @@ it('switches language and shows the selected language after reopening', () => {
   expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   expect(trigger).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: 'Меню' }));
-  expect(screen.getByRole('menuitemradio', { name: 'Русский' })).toHaveAttribute('aria-checked', 'true');
+  expect(screen.getByRole('menuitemradio', { name: 'Русский' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
   expect(screen.getByRole('menuitem', { name: 'Мои маршруты' })).toBeInTheDocument();
 });
