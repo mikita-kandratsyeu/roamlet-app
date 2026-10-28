@@ -27,7 +27,8 @@ test('browser uses real private-key proxy for search/routing without receiving t
   await page.getByRole('button', { name: 'Save to library' }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'My routes' }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'My routes' }).click();
   await page.getByRole('button', { name: /Proxy river route Cycling/ }).click();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export GPX' }).click();

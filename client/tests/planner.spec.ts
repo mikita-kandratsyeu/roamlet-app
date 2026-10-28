@@ -59,7 +59,8 @@ test('creates, recalculates, saves, reloads, reopens and exports actual returned
   await page.getByRole('button', { name: 'Save to library' }).click();
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: 'My routes' }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'My routes' }).click();
   await page.getByRole('button', { name: /Weekend escape Cycling/ }).click();
   await expect(page.getByRole('heading', { name: 'Weekend escape' })).toBeVisible();
   const downloaded = page.waitForEvent('download');
@@ -105,7 +106,8 @@ test('edits names, duplicates, filters and confirms deletion', async ({ page }) 
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('textbox', { name: 'Route name' }).fill('First route');
   await page.getByRole('button', { name: 'Save to library' }).click();
-  await page.getByRole('button', { name: 'My routes' }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'My routes' }).click();
   await page.getByRole('button', { name: 'Edit First route', exact: true }).click();
   await page.getByRole('textbox', { name: 'Route name' }).fill('River route');
   await page.getByRole('button', { name: 'Save changes' }).click();

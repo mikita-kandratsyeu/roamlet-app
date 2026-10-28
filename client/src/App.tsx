@@ -12,7 +12,6 @@ import {
   Download,
   Upload,
   Bookmark,
-  Library as LibraryIcon,
   ChevronDown,
   ChevronUp,
   Sparkles,
@@ -35,6 +34,7 @@ import { RouteMap } from './components/RouteMap';
 import { Statistics, formatDistance, formatDuration } from './components/Statistics';
 import { Dialog } from './components/Dialog';
 import { Library } from './components/Library';
+import { HeaderMenu } from './components/HeaderMenu';
 import i18n, { formatNumber, translateMessage } from './i18n';
 
 const emptySegments: Coordinate[][] = [];
@@ -481,40 +481,11 @@ export default function App() {
         </a>
         <span className="brand-tagline">{t('A little planning. A lot of possibility.')}</span>
         <nav aria-label={t('Main navigation')}>
-          <select
-            className="language-selector"
-            aria-label={t('Language')}
-            value={i18n.resolvedLanguage || 'en'}
-            onChange={(event) => {
-              void i18n.changeLanguage(event.target.value);
-            }}
-          >
-            <option value="en">EN</option>
-            <option value="ru">Русский</option>
-          </select>
-          <button
-            className="nav-library"
-            aria-label={t('My routes')}
-            onClick={() => setLibraryOpen(true)}
-          >
-            <LibraryIcon size={18} />
-            <span>{t('My routes')}</span>
-          </button>
-          <button
-            className="icon-button"
-            aria-label={t('Help and data sources')}
-            onClick={() => setHelpOpen(true)}
-          >
-            <Info size={20} />
-          </button>
-          <button
-            className="header-new"
-            aria-label={t('New route')}
-            onClick={() => guard(newRoute)}
-          >
-            <Plus size={18} />
-            <span>{t('New route')}</span>
-          </button>
+          <HeaderMenu
+            onNewRoute={() => guard(newRoute)}
+            onLibrary={() => setLibraryOpen(true)}
+            onHelp={() => setHelpOpen(true)}
+          />
         </nav>
       </header>
       <main className={`workspace ${collapsed ? 'panel-collapsed' : ''}`}>

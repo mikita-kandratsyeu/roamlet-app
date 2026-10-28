@@ -1,4 +1,6 @@
 {
+  "Menu": "Меню",
+  "Route": "Маршрут",
   "Language": "Язык",
   "Set VITE_TILE_ATTRIBUTION to the tile provider’s required credits.": "Задайте VITE_TILE_ATTRIBUTION с указанием авторства, требуемым провайдером тайлов.",
   "Roamlet home": "Главная Roamlet",

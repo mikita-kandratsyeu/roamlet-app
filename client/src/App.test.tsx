@@ -87,7 +87,7 @@ describe('route planner interactions', () => {
     cleanup();
     render(<App />);
     expect(screen.getByRole('combobox', { name: 'Язык' })).toHaveValue('ru');
-    fireEvent.click(screen.getByRole('button', { name: 'Мои маршруты' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Мои маршруты' }));
     expect(
       await screen.findByRole('button', { name: /River escape Велосипед/ }),
     ).toBeInTheDocument();
@@ -132,7 +132,8 @@ describe('route planner interactions', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     cleanup();
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'My routes' }));
+    openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
     const open = await screen.findByRole('button', { name: /River escape Cycling/ });
     fireEvent.click(open);
     expect(screen.getByRole('heading', { name: 'River escape' })).toBeInTheDocument();
@@ -185,7 +186,8 @@ describe('route planner interactions', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save to library' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'My routes' }));
+    openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Edit Sunday' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
       target: { value: 'Monday' },

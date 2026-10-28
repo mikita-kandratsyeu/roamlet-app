@@ -1,4 +1,6 @@
 {
+  "Menu": "Menu",
+  "Route": "Route",
   "Language": "Language",
   "Set VITE_TILE_ATTRIBUTION to the tile provider’s required credits.": "Set VITE_TILE_ATTRIBUTION to the tile provider’s required credits.",
   "Roamlet home": "Roamlet home",
