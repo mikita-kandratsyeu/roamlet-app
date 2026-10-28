@@ -2,6 +2,7 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MAP_VIEW_KEY } from '../domain/mapView';
 import { RouteMap } from './RouteMap';
+import i18n from '../i18n';
 const mocks = vi.hoisted(() => ({ options: vi.fn(), handlers: new Map<string, () => void>(), fit: vi.fn(), remove: vi.fn() }));
 vi.mock('maplibre-gl', () => ({ default: {
   Map: class {
@@ -48,6 +49,24 @@ it('fits an opened route instead of leaving the saved area onscreen', () => {
   render(<RouteMap {...routeProps} />);
   act(() => mocks.handlers.get('load')!());
   expect(mocks.fit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ maxZoom: 15 }));
+});
+it('switches map controls and existing warnings without recreating or refitting the map', async () => {
+  const routeProps = { ...props, segments: [[[11, 47], [12, 48]]] as [number, number][][] };
+  render(<RouteMap {...routeProps} />);
+  act(() => mocks.handlers.get('load')!());
+  act(() => mocks.handlers.get('error')!());
+  const canvas = document.querySelector('.map-canvas')!;
+  const zoom = document.createElement('button');
+  zoom.className = 'maplibregl-ctrl-zoom-in'; canvas.append(zoom);
+  const fitCalls = mocks.fit.mock.calls.length;
+  await act(async () => { await i18n.changeLanguage('ru'); });
+  expect(screen.getByRole('button', { name: 'Моё местоположение' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Показать весь маршрут' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Приблизить' })).toHaveAttribute('title', 'Приблизить');
+  expect(screen.getByRole('status')).toHaveTextContent('Некоторые тайлы карты не загрузились');
+  expect(mocks.options).toHaveBeenCalledTimes(1);
+  expect(mocks.remove).not.toHaveBeenCalled();
+  expect(mocks.fit).toHaveBeenCalledTimes(fitCalls);
 });
 it('keeps working and shows a nonfatal notice when local storage is blocked', () => {
   vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new DOMException('Blocked'); });

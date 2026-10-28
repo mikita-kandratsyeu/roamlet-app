@@ -13,7 +13,9 @@ Verified against the installed direct packages on 28 October 2026. `yarn.lock` p
 | fast-xml-parser | 5.11.2 | [MIT](https://github.com/NaturalIntelligence/fast-xml-parser/blob/master/LICENSE) |
 | Lucide React icons | 0.468.0 | [ISC, with included derived-icon notices](https://github.com/lucide-icons/lucide/blob/main/LICENSE) |
 
-The wordmark and mountain app icon are original simple shapes. Typography uses the system font stack; no externally hosted fonts or proprietary imagery are included.
+The wordmark and winding-path app icon follow the user-supplied Roamlet brand reference. Typography uses self-hosted Manrope Variable 5.3.0 via Fontsource, licensed under [SIL Open Font License 1.1](https://openfontlicense.org/); its license is retained in `client/public/manrope-license.txt` and shipped with the production build. The image does not name its exact typeface, so Manrope is a visually similar choice with Latin and Cyrillic support. No externally hosted fonts are requested.
+
+Internationalization uses i18next 25.10.10 and react-i18next 16.6.6, both MIT-licensed; retain their bundled license notices.
 
 ## Development libraries
 
@@ -28,6 +30,8 @@ The wordmark and mountain app icon are original simple shapes. Typography uses t
 - typescript-eslint 8.72.1: [MIT](https://github.com/typescript-eslint/typescript-eslint/blob/main/LICENSE).
 - eslint-plugin-react-hooks 5.2.0: [MIT](https://github.com/facebook/react/blob/main/LICENSE).
 - globals 16.5.0: [MIT](https://github.com/sindresorhus/globals/blob/main/license).
+- Prettier 3.9.10 and eslint-config-prettier 10.1.8: MIT (retain bundled licenses).
+- Yarn 4.18.1: BSD-2-Clause, bundled project launcher; see [Yarn license](https://github.com/yarnpkg/berry/blob/master/LICENSE.md).
 - React type definitions: [DefinitelyTyped MIT](https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/LICENSE).
 
 ## Map data and tiles

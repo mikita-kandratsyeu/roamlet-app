@@ -1,1 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="44" fill="#24654f"/><path d="m35 131 39-69 25 43 18-29 40 55" fill="none" stroke="#fff" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/><circle cx="131" cy="53" r="9" fill="#e8ca8a"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs><clipPath id="tile"><rect width="192" height="192" rx="48"/></clipPath></defs>
+  <g clip-path="url(#tile)">
+    <rect width="192" height="192" fill="#173b30"/>
+    <path d="M38 56C70 58 126 68 126 92C126 115 73 116 73 128C73 144 136 140 169 188L178 206H105C102 177 33 163 33 134C33 108 98 104 98 89C98 75 29 57 38 56Z" fill="#faf7f2"/>
+    <circle cx="125" cy="49" r="17" fill="#bdd3a5"/>
+  </g>
+</svg>
+

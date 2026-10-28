@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, cleanup, within } from '@testing-li
 import App from './App';
 import { routeDb } from './domain/storage';
 import { checkRoutingConfiguration } from './services/routing';
+import { detectLanguage, LANGUAGE_KEY } from './i18n';
 const provider = vi.hoisted(() => ({ calculateRoute: vi.fn(), calculateAlternatives: vi.fn() }));
 vi.mock('./services/routing', () => ({ checkRoutingConfiguration: vi.fn().mockResolvedValue(true), routingProvider: provider, searchPlaces: vi.fn().mockResolvedValue([]) }));
 vi.mock('./components/RouteMap', () => ({ RouteMap: ({ segments }: { segments: unknown[] }) => <div data-testid="map" data-segments={segments.length}>Map</div> }));
@@ -20,6 +21,42 @@ function addCoordinate(text: string) {
 }
 async function plan() { addCoordinate('47.26, 11.4'); addCoordinate('47.27, 11.41'); await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled()); }
 describe('route planner interactions', () => {
+  it('switches to Russian persistently without recalculating routes or changing user names', async () => {
+    render(<App />); await plan();
+    fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), { target: { value: 'River escape' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /Description/ }), { target: { value: 'My own note' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), { target: { value: 'ru' } });
+    expect(document.documentElement.lang).toBe('ru');
+    expect(localStorage.getItem(LANGUAGE_KEY)).toBe('ru');
+    expect(detectLanguage()).toBe('ru');
+    expect(screen.getByRole('textbox', { name: 'Название маршрута' })).toHaveValue('River escape');
+    expect(screen.getByRole('textbox', { name: /Описание/ })).toHaveValue('My own note');
+    expect(screen.getAllByText('1,3 км').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить в библиотеку' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('status')).toHaveTextContent('Маршрут сохранён');
+    expect(provider.calculateRoute).toHaveBeenCalledTimes(1);
+    cleanup(); render(<App />);
+    expect(screen.getByRole('combobox', { name: 'Язык' })).toHaveValue('ru');
+    fireEvent.click(screen.getByRole('button', { name: 'Мои маршруты' }));
+    expect(await screen.findByRole('button', { name: /River escape Велосипед/ })).toBeInTheDocument();
+    const saved = await routeDb.routes.toArray();
+    expect(saved[0].name).toBe('River escape');
+    expect(saved[0].description).toBe('My own note');
+  });
+  it('updates an already displayed error and confirmation when the language changes', async () => {
+    render(<App />); addCoordinate('999, 20');
+    expect(screen.getByRole('alert')).toHaveTextContent('latitude');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), { target: { value: 'ru' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('широту');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Язык' }), { target: { value: 'en' } });
+    await plan();
+    fireEvent.click(screen.getByRole('button', { name: 'New route' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), { target: { value: 'ru' } });
+    expect(screen.getByRole('dialog', { name: 'Покинуть этот маршрут?' })).toHaveTextContent('Несохранённые изменения');
+    expect(screen.getByRole('button', { name: 'Отбросить изменения' })).toBeInTheDocument();
+  });
   it('starts with honest empty statistics and disabled save/export', () => {
     render(<App />); expect(screen.getByRole('button', { name: 'Save route' })).toBeDisabled(); expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
     expect(screen.getByText('A good route starts somewhere')).toBeInTheDocument();

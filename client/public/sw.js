@@ -1,4 +1,4 @@
-const CACHE = 'roamlet-shell-v2';
+const CACHE = 'roamlet-shell-v3';
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
@@ -8,6 +8,19 @@ self.addEventListener('install', event => {
     const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"<>]+)"/g)].map(match => match[1]);
     await cache.put('/', response);
     await cache.addAll([...new Set(['/icon.svg', ...assets])]);
+    // Fonts referenced by the stylesheet must also survive the first offline visit.
+    const fonts = [];
+    for (const asset of assets.filter(path => path.endsWith('.css'))) {
+      const stylesheet = await cache.match(asset);
+      const css = await stylesheet.text();
+      for (const match of css.matchAll(/url\(["']?([^\s)"']+\.woff2)["']?\)/g)) {
+        const font = new URL(match[1], new URL(asset, self.location.origin));
+        if (font.origin === self.location.origin && font.pathname.startsWith('/assets/')) {
+          fonts.push(font.pathname);
+        }
+      }
+    }
+    await cache.addAll([...new Set(fonts)]);
   })());
 });
 self.addEventListener('activate', event => {

@@ -1,9 +1,11 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView, saveMapView } from '../domain/mapView';
 import { LocateFixed, Maximize, MapPin } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import i18n, { translateMessage } from '../i18n';
 
 interface Props {
   segments: Coordinate[][]; waypoints: Waypoint[]; editable: boolean; fitToken: number;
@@ -11,6 +13,7 @@ interface Props {
   onError: (message: string) => void;
 }
 export function RouteMap(props: Props) {
+  const { t } = useTranslation();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const latest = useRef(props);
@@ -24,6 +27,7 @@ export function RouteMap(props: Props) {
       instance = new maplibregl.Map({
         container: container.current, ...initialMapView(),
         attributionControl: false,
+        locale: { 'NavigationControl.ZoomIn': i18n.t('Zoom in'), 'NavigationControl.ZoomOut': i18n.t('Zoom out'), 'AttributionControl.ToggleAttribution': i18n.t('Toggle attribution'), 'Map.Title': i18n.t('Map') },
         style: { version: 8, sources: { osm: { type: 'raster', tiles: [import.meta.env.VITE_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: Number(import.meta.env.VITE_TILE_MAX_ZOOM) || 19, attribution: import.meta.env.VITE_TILE_ATTRIBUTION || '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' } }, layers: [{ id: 'base', type: 'raster', source: 'osm' }] },
       });
     } catch { setMapError('This browser cannot render the interactive map. Enable WebGL or try another browser. GPX and saved routes remain available.'); return; }
@@ -67,7 +71,8 @@ export function RouteMap(props: Props) {
       element.className = `waypoint-marker ${index === 0 ? 'start' : index === props.waypoints.length - 1 ? 'finish' : ''}`;
       element.type = 'button';
       element.textContent = index === 0 ? 'A' : index === props.waypoints.length - 1 ? 'B' : String(index);
-      element.title = `${point.name}${props.editable ? ' — drag to reposition' : ''}`;
+      const label = point.id.endsWith('-display-start') ? t('Track start') : point.id.endsWith('-display-finish') ? t('Track finish') : point.name;
+      element.title = `${label}${props.editable ? t(' — drag to reposition') : ''}`;
       element.setAttribute('aria-label', element.title);
       element.addEventListener('click', event => event.stopPropagation());
       const marker = new maplibregl.Marker({ element, draggable: props.editable }).setLngLat([point.coordinate[0], point.coordinate[1]]).addTo(map.current!);
@@ -75,7 +80,20 @@ export function RouteMap(props: Props) {
       return marker;
     });
     return () => markers.forEach(marker => marker.remove());
-  }, [ready, props.waypoints, props.editable]);
+  }, [ready, props.waypoints, props.editable, t]);
+  useEffect(() => {
+    const labels = [
+      ['.maplibregl-ctrl-zoom-in', t('Zoom in')],
+      ['.maplibregl-ctrl-zoom-out', t('Zoom out')],
+      ['.maplibregl-ctrl-attrib-button', t('Toggle attribution')],
+      ['.maplibregl-canvas', t('Map')],
+    ];
+    for (const [selector, label] of labels) {
+      const element = container.current?.querySelector(selector);
+      element?.setAttribute('aria-label', label);
+      element?.setAttribute('title', label);
+    }
+  }, [t, ready]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const coordinates = props.segments.flat().length ? props.segments.flat() : props.waypoints.map(w => w.coordinate);
@@ -92,21 +110,21 @@ export function RouteMap(props: Props) {
       if (props.editable) props.onAdd(coordinate);
     }, () => props.onError('Location permission was denied or your position is unavailable. Search for a place or click the map instead.'), { timeout: 10000 });
   }
-  return <section className="map-region" aria-label="Interactive route map">
+  return <section className="map-region" aria-label={t("Interactive route map")}>
     <div ref={container} className="map-canvas" />
-    {mapError && <div className="map-warning" role="status">{mapError}<button onClick={() => setMapError('')} aria-label="Dismiss map notice">×</button></div>}
-    {!ready && !mapError && <div className="map-loading">Loading your map…</div>}
-    <div className="map-top-label"><span className="live-dot" /> YOUR NEXT WAY OUT</div>
+    {mapError && <div className="map-warning" role="status">{translateMessage(mapError)}<button onClick={() => setMapError('')} aria-label={t("Dismiss map notice")}>×</button></div>}
+    {!ready && !mapError && <div className="map-loading">{t("Loading your map…")}</div>}
+    <div className="map-top-label"><span className="live-dot" /> {t("YOUR NEXT WAY OUT")}</div>
     <div className="map-extra-controls">
-      <button className="map-control" title="Use my location" aria-label="Use my location" onClick={locate}><LocateFixed size={20} /></button>
-      <button className="map-control" title="Fit route" aria-label="Fit route" onClick={() => {
+      <button className="map-control" title={t("Use my location")} aria-label={t("Use my location")} onClick={locate}><LocateFixed size={20} /></button>
+      <button className="map-control" title={t("Fit route")} aria-label={t("Fit route")} onClick={() => {
         const coordinates = props.segments.flat().length ? props.segments.flat() : props.waypoints.map(w => w.coordinate);
         if (!coordinates.length) return;
         const bounds = new maplibregl.LngLatBounds(); coordinates.forEach(c => bounds.extend([c[0], c[1]]));
         map.current?.fitBounds(bounds, { padding: 65, maxZoom: 15 });
       }} disabled={!props.waypoints.length && !props.segments.length}><Maximize size={18} /></button>
     </div>
-    {props.editable && <div className="map-hint"><MapPin size={16} /><span>Click the map to add a stop. Drag pins to refine.</span></div>}
-    <a className="map-issue" href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">Report a map issue ↗</a>
+    {props.editable && <div className="map-hint"><MapPin size={16} /><span>{t("Click the map to add a stop. Drag pins to refine.")}</span></div>}
+    <a className="map-issue" href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noreferrer">{t("Report a map issue ↗")}</a>
   </section>;
 }

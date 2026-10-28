@@ -1,3 +1,4 @@
+import i18n from '../i18n';
 import Dexie, { type Table } from 'dexie';
 import { calculateStats } from './stats';
 import type { PlannedRoute } from './types';
@@ -69,7 +70,7 @@ export async function duplicateRoute(route: PlannedRoute): Promise<PlannedRoute>
     const duplicate = structuredClone(route);
     const now = new Date().toISOString();
     duplicate.id = crypto.randomUUID();
-    duplicate.name = `${route.name} (copy)`;
+    duplicate.name = `${route.name} ${i18n.t('(copy)')}`;
     duplicate.createdAt = now;
     duplicate.updatedAt = now;
     duplicate.waypoints.forEach(waypoint => { waypoint.id = crypto.randomUUID(); });

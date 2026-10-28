@@ -13,10 +13,10 @@ All four implementation steps are implemented. See verification results and serv
 
 ## Development
 
-Use Yarn Classic and the standard npm registry (`.yarnrc` configures it):
+Use Yarn 4.18.1 (the latest stable release verified on 28 October 2026), pinned in `packageManager` and bundled in `.yarn/releases`. `.yarnrc.yml` selects the standard npm registry and the familiar `node_modules` linker. Corepack uses the pin; existing Yarn Classic installations forward to the bundled release via `.yarnrc`. Without either launcher, use `node .yarn/releases/yarn-4.18.1.cjs` instead of `yarn`:
 
 ```sh
-yarn install --registry https://registry.npmjs.org
+yarn install --immutable
 cp proxy/.env.example proxy/.env
 # Set ORS_API_KEY in proxy/.env (never in the client)
 # Optional PUBLIC tile settings:
@@ -24,7 +24,7 @@ cp client/.env.example client/.env.local
 yarn dev
 ```
 
-Requires Node.js 22+ and Yarn Classic. Obtain an OpenRouteService API key through [HeiGIT Account](https://account.heigit.org/signup), currently linked from [openrouteservice.org](https://openrouteservice.org). Check your account's quotas and terms. Store `ORS_API_KEY` only in `proxy/.env` or the hosting platform's server secret settings. The browser receives route/search results, **never the provider key**. Restart the proxy after editing its environment. Without a key, the map, local library, and GPX still work; online routing/search show a server configuration error.
+Requires Node.js 22+ and the pinned Yarn release. Yarn’s default install-script restrictions remain in place; only esbuild’s required build script is explicitly allowed via `dependenciesMeta`. Obtain an OpenRouteService API key through [HeiGIT Account](https://account.heigit.org/signup), currently linked from [openrouteservice.org](https://openrouteservice.org). Check your account's quotas and terms. Store `ORS_API_KEY` only in `proxy/.env` or the hosting platform's server secret settings. The browser receives route/search results, **never the provider key**. Restart the proxy after editing its environment. Without a key, the map, local library, and GPX still work; online routing/search show a server configuration error.
 
 `yarn dev` starts two workspace processes: Vite at `http://127.0.0.1:5173` and the proxy at `http://127.0.0.1:3001`. Vite forwards `/api` to the proxy; the client always uses same-origin relative URLs. Client public settings live in `client/.env.local`; old root `.env.local` and `VITE_ORS_API_KEY` are no longer used. Do not copy old keys into the client workspace. `.env` files in both workspaces are gitignored.
 
@@ -40,6 +40,10 @@ The proxy serves `client/dist` and `/api` at `http://127.0.0.1:3001`. Configure 
 ```sh
 yarn typecheck
 yarn lint
+yarn format:check
+# Apply automatic lint fixes and readable formatting:
+yarn lint:fix
+yarn format
 yarn test
 yarn build
 yarn preview
@@ -49,6 +53,14 @@ yarn test:e2e
 yarn test:offline
 yarn test:integration
 ```
+
+## Branding and languages
+
+The interface and app icon follow the supplied `Roamlet.png`: forest green, sage accents, warm ivory, and a winding-path symbol. The image does not identify a font; self-hosted Manrope (SIL Open Font License, Latin and Cyrillic) provides a similar geometric sans-serif appearance without external font requests. Brand colors are CSS custom properties.
+
+English and Russian translations use i18next and react-i18next. Select the language in the header; the choice is stored locally and updates the document language, interface, accessibility labels, and locale-aware statistics. First visits use the browser language with English fallback. User-entered route names/descriptions and geographic place names are not translated. Changing language does not recalculate routes or reset the map. Translations and font assets remain available in the offline app shell.
+
+ESLint checks code quality; Prettier handles consistent formatting. `eslint-config-prettier` prevents conflicting formatting rules. Use `yarn lint:fix` and `yarn format` before submitting changes; use `yarn lint` and `yarn format:check` for validation.
 
 ## Implemented workflows
 
@@ -72,7 +84,7 @@ yarn test:integration
 | `ORS_URL` | **Proxy only**: trusted ORS-compatible upstream URL, default `https://api.openrouteservice.org` |
 | `PROXY_PORT` / `PROXY_HOST` | Proxy listening address, defaults `3001` / `127.0.0.1` |
 | `VITE_TILE_URL` | Raster tile template; default OSM public tiles are only a low-traffic development choice |
-| `VITE_TILE_ATTRIBUTION` | Tile provider's required attribution HTML, from trusted deployment configuration |
+| `VITE_TILE_ATTRIBUTION` | Provider-required legal credits, not marketing copy. Default: linked `© OpenStreetMap contributors`. Custom tile URLs require explicit provider attribution HTML from trusted deployment configuration |
 | `VITE_TILE_MAX_ZOOM` | Native raster tile maximum zoom, default 19 |
 
 The client calls only `POST /api/directions/cycling-regular/geojson`, `POST /api/directions/foot-hiking/geojson`, `GET /api/geocode/search` and `GET /api/health`. The proxy adds the private key and forwards to the fixed configured upstream (`/v2/directions/...`, `/geocode/search`); it is not a generic URL-forwarding endpoint. Health returns only whether routing is configured. A directions-only self-hosted instance still needs compatible geocoding; failures are shown honestly. Upstream browser CORS is no longer required because provider requests originate on the server.

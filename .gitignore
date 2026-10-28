@@ -7,3 +7,6 @@
 **/playwright-report/
 *.tsbuildinfo
 .codemie
+.yarn/*
+!.yarn/releases/
+!.yarn/releases/**

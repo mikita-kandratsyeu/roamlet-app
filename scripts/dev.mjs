@@ -1,10 +1,10 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
-const yarn = process.platform === 'win32' ? 'yarn.cmd' : 'yarn';
+const yarn = fileURLToPath(new URL('../.yarn/releases/yarn-4.18.1.cjs', import.meta.url));
 const children = [
-  spawn(yarn, ['workspace', '@roamlet/proxy', 'dev'], { cwd: root, stdio: 'inherit' }),
-  spawn(yarn, ['workspace', '@roamlet/client', 'dev', ...process.argv.slice(2)], { cwd: root, stdio: 'inherit' }),
+  spawn(process.execPath, [yarn, 'workspace', '@roamlet/proxy', 'dev'], { cwd: root, stdio: 'inherit' }),
+  spawn(process.execPath, [yarn, 'workspace', '@roamlet/client', 'dev', ...process.argv.slice(2)], { cwd: root, stdio: 'inherit' }),
 ];
 let stopping = false;
 function stop(code = 0) {

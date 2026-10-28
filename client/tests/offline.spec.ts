@@ -25,6 +25,8 @@ test('production shell keeps saved routes and GPX export available offline, with
     return urls;
   });
   expect(cached.some(url => url.includes('/assets/'))).toBe(true);
+  expect(cached.some(url => url.endsWith('.woff2'))).toBe(true);
+  expect(errors).toEqual([]);
   expect(cached.every(url => url.startsWith('http://127.0.0.1:4175/'))).toBe(true);
   await context.setOffline(false);
 });

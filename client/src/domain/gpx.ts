@@ -1,5 +1,6 @@
 import { XMLBuilder, XMLParser, XMLValidator } from 'fast-xml-parser';
 import { calculateStats } from './stats';
+import i18n from '../i18n';
 import type { Coordinate, PlannedRoute, Waypoint } from './types';
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -110,13 +111,13 @@ export function importGpx(input: string): PlannedRoute {
       description ??= text(route, 'desc');
       segments.push(named(route, 'rtept').map(node => point(node, 'rtept')));
     } else if (Object.hasOwn(node, 'wpt')) {
-      waypoints.push({ id: crypto.randomUUID(), name: text(children(node, 'wpt'), 'name') ?? 'Waypoint', coordinate: point(node, 'wpt') });
+      waypoints.push({ id: crypto.randomUUID(), name: text(children(node, 'wpt'), 'name') ?? i18n.t('Waypoint'), coordinate: point(node, 'wpt') });
     }
   }
   if (!count) throw new Error('GPX contains no track, route, or waypoint points.');
   const metadata = children(named(root, 'metadata')[0] ?? {}, 'metadata');
   const now = new Date().toISOString();
-  return { id: crypto.randomUUID(), name: text(metadata, 'name') ?? text(root, 'name') ?? routeName ?? 'Imported route',
+  return { id: crypto.randomUUID(), name: text(metadata, 'name') ?? text(root, 'name') ?? routeName ?? i18n.t('Imported route'),
     description: text(metadata, 'desc') ?? text(root, 'desc') ?? description ?? '', activity: 'hiking',
     segments, waypoints, stats: calculateStats(segments, 'hiking'), createdAt: now, updatedAt: now, source: 'gpx' };
 }
