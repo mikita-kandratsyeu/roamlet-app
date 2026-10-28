@@ -116,7 +116,7 @@ export default function App() {
     } catch (error) { fail(errorMessage(error)); }
   }
   async function search(event: React.FormEvent) {
-    event.preventDefault(); searchRequest.current?.abort(); setNotice(null); setPlaces([]);
+    event.preventDefault(); searchRequest.current?.abort(); setSearching(false); setNotice(null); setPlaces([]);
     const coordinateMatch = query.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
     if (coordinateMatch) {
       const latitude = Number(coordinateMatch[1]), longitude = Number(coordinateMatch[2]);
@@ -168,7 +168,7 @@ export default function App() {
   const canUseRoute = Boolean(result) && !busy;
 
   return <div className="app" onDragOver={event => { if (event.dataTransfer.types.includes('Files')) event.preventDefault(); }} onDrop={event => { event.preventDefault(); void handleFile(event.dataTransfer.files[0]); }}>
-    <header className="app-header"><a className="brand" href="#" onClick={event => { event.preventDefault(); guard(newRoute); }} aria-label="Roamlet home"><span className="brand-symbol"><Mountain size={25} /></span><strong>roamlet<span>.</span></strong></a><span className="brand-tagline">A little planning. A lot of possibility.</span><nav aria-label="Main navigation"><button className="nav-library" onClick={() => setLibraryOpen(true)}><LibraryIcon size={18} /><span>My routes</span></button><button className="icon-button" aria-label="Help and data sources" onClick={() => setHelpOpen(true)}><Info size={20} /></button><button className="header-new" onClick={() => guard(newRoute)}><Plus size={18} /><span>New route</span></button></nav></header>
+    <header className="app-header"><a className="brand" href="#" onClick={event => { event.preventDefault(); guard(newRoute); }} aria-label="Roamlet home"><span className="brand-symbol"><Mountain size={25} /></span><strong>roamlet<span>.</span></strong></a><span className="brand-tagline">A little planning. A lot of possibility.</span><nav aria-label="Main navigation"><button className="nav-library" aria-label="My routes" onClick={() => setLibraryOpen(true)}><LibraryIcon size={18} /><span>My routes</span></button><button className="icon-button" aria-label="Help and data sources" onClick={() => setHelpOpen(true)}><Info size={20} /></button><button className="header-new" aria-label="New route" onClick={() => guard(newRoute)}><Plus size={18} /><span>New route</span></button></nav></header>
     <main className={`workspace ${collapsed ? 'panel-collapsed' : ''}`}>
       <aside className="planner" aria-label="Route planner">
         <button className="mobile-sheet-toggle" onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}><span>{result ? formatDistance(result.stats.distance) + ' · ' + (name || 'Your route') : 'Plan your next adventure'}</span>{collapsed ? <ChevronUp size={20} /> : <ChevronDown size={20} />}</button>

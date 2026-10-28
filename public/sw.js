@@ -1,5 +1,15 @@
-const CACHE = 'roamlet-shell-v1';
-self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(['/', '/icon.svg']))); });
+const CACHE = 'roamlet-shell-v2';
+self.addEventListener('install', event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    const response = await fetch('/');
+    if (!response.ok) throw new Error('App shell could not be cached');
+    const html = await response.clone().text();
+    const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"<>]+)"/g)].map(match => match[1]);
+    await cache.put('/', response);
+    await cache.addAll([...new Set(['/icon.svg', ...assets])]);
+  })());
+});
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('roamlet-shell-') && key !== CACHE).map(key => caches.delete(key))))); });
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
