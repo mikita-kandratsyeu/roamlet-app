@@ -13,6 +13,9 @@ import { Skeleton } from './ui/skeleton';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import i18n, { translateMessage } from '../i18n';
 
+const mapMotionDuration = () =>
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 450;
+
 interface Props {
   segments: Coordinate[][];
   waypoints: Waypoint[];
@@ -219,7 +222,7 @@ export function RouteMap(props: Props) {
     if (!coordinates.length) return;
     const bounds = new maplibregl.LngLatBounds();
     coordinates.forEach((c) => bounds.extend([c[0], c[1]]));
-    map.current.fitBounds(bounds, { padding: 65, maxZoom: 15, duration: 500 });
+    map.current.fitBounds(bounds, { padding: 65, maxZoom: 15, duration: mapMotionDuration() });
   }, [ready, props.fitToken, props.segments, props.waypoints]);
   function locate() {
     if (!navigator.geolocation) {
@@ -231,7 +234,7 @@ export function RouteMap(props: Props) {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const coordinate: Coordinate = [position.coords.longitude, position.coords.latitude];
-        map.current?.flyTo({ center: coordinate, zoom: 14 });
+        map.current?.flyTo({ center: coordinate, zoom: 14, duration: mapMotionDuration() });
         if (props.editable) props.onAdd(coordinate);
       },
       () =>
@@ -273,7 +276,7 @@ export function RouteMap(props: Props) {
           title={t('Zoom in')}
           aria-label={t('Zoom in')}
           disabled={!ready}
-          onClick={() => map.current?.zoomIn()}
+          onClick={() => map.current?.zoomIn({ duration: mapMotionDuration() })}
         >
           <Plus size={20} />
         </Button>
@@ -284,7 +287,7 @@ export function RouteMap(props: Props) {
           title={t('Zoom out')}
           aria-label={t('Zoom out')}
           disabled={!ready}
-          onClick={() => map.current?.zoomOut()}
+          onClick={() => map.current?.zoomOut({ duration: mapMotionDuration() })}
         >
           <Minus size={20} />
         </Button>
@@ -309,7 +312,11 @@ export function RouteMap(props: Props) {
             if (!coordinates.length) return;
             const bounds = new maplibregl.LngLatBounds();
             coordinates.forEach((c) => bounds.extend([c[0], c[1]]));
-            map.current?.fitBounds(bounds, { padding: 65, maxZoom: 15 });
+            map.current?.fitBounds(bounds, {
+              padding: 65,
+              maxZoom: 15,
+              duration: mapMotionDuration(),
+            });
           }}
           disabled={!props.waypoints.length && !props.segments.length}
         >

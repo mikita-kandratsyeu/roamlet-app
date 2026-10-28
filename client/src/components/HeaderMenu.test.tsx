@@ -61,13 +61,8 @@ it('supports arrows, wrapping, Home/End, type-ahead and Escape with focus restor
   expect(trigger).toHaveFocus();
 });
 
-it('closes on Tab or an outside pointer and allows toggling the trigger', async () => {
+it('closes on an outside pointer and allows toggling the trigger', async () => {
   const { user, trigger } = setup();
-  trigger.focus();
-  await user.keyboard('{ArrowDown}');
-  await user.keyboard('{Tab}');
-  expect(trigger).toHaveFocus();
-  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   await user.click(trigger);
   fireEvent.pointerDown(document.body);
   await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
@@ -75,6 +70,42 @@ it('closes on Tab or an outside pointer and allows toggling the trigger', async 
   await user.click(trigger);
   expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 });
+
+it.each([false, true])(
+  'Tab exits to the next page control or the direct route action (shift: %s)',
+  async (backward) => {
+    render(
+      <ThemeProvider>
+        <button>Previous page control</button>
+        <HeaderMenu onNewRoute={vi.fn()} onLibrary={vi.fn()} onHelp={vi.fn()} />
+        <button disabled>Disabled control</button>
+        <button hidden>Hidden control</button>
+        <div style={{ display: 'none' }}>
+          <button>Invisible control</button>
+        </div>
+        <button tabIndex={-1}>Non-tabbable control</button>
+        <input aria-label="Next page control" />
+      </ThemeProvider>,
+    );
+    const user = userEvent.setup();
+    const trigger = screen.getByRole('button', { name: 'Menu' });
+    const destination = backward
+      ? screen.getByRole('button', { name: 'New route' })
+      : screen.getByRole('textbox', { name: 'Next page control' });
+    await user.click(trigger);
+    expect(screen.getByRole('menuitem', { name: 'My routes' })).toHaveFocus();
+    await user.tab({ shift: backward });
+    expect(destination).toHaveFocus();
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+    expect(destination).toHaveFocus();
+
+    await user.click(trigger);
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  },
+);
 
 it.each([
   ['My routes', 'onLibrary'],

@@ -1,4 +1,5 @@
 @import './components/ui/shadcn.css';
+@import './motion.css';
 
 :root {
   font-family:

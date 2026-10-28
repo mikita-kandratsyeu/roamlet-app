@@ -184,3 +184,30 @@ it('uses accessible shadcn buttons for zooming after the map loads', () => {
   expect(mocks.zoomIn).toHaveBeenCalledOnce();
   expect(mocks.zoomOut).toHaveBeenCalledOnce();
 });
+
+it('disables map camera animation when reduced motion is requested', () => {
+  vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+  render(
+    <RouteMap
+      {...props}
+      segments={[
+        [
+          [11, 47],
+          [12, 48],
+        ],
+      ]}
+    />,
+  );
+  act(() => mocks.handlers.get('load')!());
+  expect(mocks.fit).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ duration: 0 }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+  expect(mocks.zoomIn).toHaveBeenCalledWith({ duration: 0 });
+  fireEvent.click(screen.getByRole('button', { name: 'Fit route' }));
+  expect(mocks.fit).toHaveBeenLastCalledWith(
+    expect.anything(),
+    expect.objectContaining({ duration: 0 }),
+  );
+});

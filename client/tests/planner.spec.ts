@@ -420,3 +420,20 @@ test('persists light and dark themes across reloads and themes dialogs and map c
   expect(bounds?.width).toBeGreaterThanOrEqual(44);
   expect(bounds?.height).toBeGreaterThanOrEqual(44);
 });
+
+test('uses subtle surface motion and respects reduced-motion preferences', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.reload();
+  await expect(page.locator('.planner-heading')).toHaveCSS('animation-name', 'soft-rise');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await expect(page.getByRole('menu')).toHaveCSS('animation-name', 'surface-open');
+  await page.getByRole('menuitem', { name: 'Help and data sources' }).click();
+  await expect(page.getByRole('dialog')).toHaveCSS('animation-name', 'surface-open');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(page.getByRole('dialog')).toHaveCSS('animation-name', 'none');
+  await expect(page.locator('.planner-heading')).toHaveCSS('animation-name', 'none');
+  await expect(page.locator('.planner')).toHaveCSS('transition-duration', '0s');
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+});

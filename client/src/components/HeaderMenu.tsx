@@ -27,6 +27,7 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const initialFocus = useRef<'first' | 'last'>('first');
+  const closedWithTab = useRef(false);
   const focusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const attachPanel = useCallback((node: HTMLDivElement | null) => {
     panel.current = node;
@@ -44,6 +45,45 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
     setOpen(false);
     trigger.current?.focus({ preventScroll: true });
     action();
+  }
+
+  function exitWithTab(backward: boolean) {
+    closedWithTab.current = true;
+    clearTimeout(focusTimer.current);
+    setOpen(false);
+    const tabbable = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        'button, input, select, textarea, a[href], area[href], iframe, object, embed, [tabindex], [contenteditable="true"]',
+      ),
+    )
+      .filter((element) => {
+        if (
+          element.tabIndex < 0 ||
+          element.matches(':disabled') ||
+          element.closest('[hidden], [inert], [aria-hidden="true"]') ||
+          panel.current?.contains(element)
+        )
+          return false;
+        for (
+          let ancestor: HTMLElement | null = element;
+          ancestor;
+          ancestor = ancestor.parentElement
+        ) {
+          const style = getComputedStyle(ancestor);
+          if (
+            style.display === 'none' ||
+            style.visibility === 'hidden' ||
+            style.visibility === 'collapse'
+          )
+            return false;
+        }
+        return true;
+      })
+      .sort((left, right) => (left.tabIndex || Infinity) - (right.tabIndex || Infinity));
+    const index = tabbable.indexOf(trigger.current!);
+    const next = tabbable[index + (backward ? -1 : 1)];
+    if (next) next.focus({ preventScroll: true });
+    else trigger.current?.blur();
   }
 
   return (
@@ -64,7 +104,14 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
           {t('Route')}
         </span>
       </Button>
-      <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
+      <DropdownMenu
+        open={open}
+        onOpenChange={(value) => {
+          if (value) closedWithTab.current = false;
+          setOpen(value);
+        }}
+        modal={false}
+      >
         <DropdownMenuTrigger asChild>
           <Button
             ref={trigger}
@@ -78,6 +125,7 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
               if (event.key === 'ArrowUp') {
                 event.preventDefault();
                 initialFocus.current = 'last';
+                closedWithTab.current = false;
                 setOpen(true);
               } else initialFocus.current = 'first';
             }}
@@ -95,6 +143,7 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
           aria-label={t('Main navigation')}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
+            if (closedWithTab.current) return;
             if (
               document.activeElement === document.body ||
               panel.current?.contains(document.activeElement)
@@ -105,7 +154,7 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
           onKeyDown={(event) => {
             if (event.key === 'Tab') {
               event.preventDefault();
-              activate(() => {});
+              exitWithTab(event.shiftKey);
             }
           }}
         >
