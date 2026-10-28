@@ -140,9 +140,9 @@ it('changes supported styles and restores actual geometry without resetting the 
   act(() => mocks.handlers.get('load')?.());
   const fitCalls = mocks.fit.mock.calls.length;
   fireEvent.change(screen.getByRole('combobox', { name: 'Map style' }), {
-    target: { value: 'mapbox://styles/mapbox/satellite-streets-v12' },
+    target: { value: 'mapbox://styles/mapbox/streets-v12' },
   });
-  expect(mocks.setStyle).toHaveBeenCalledWith('mapbox://styles/mapbox/satellite-streets-v12');
+  expect(mocks.setStyle).toHaveBeenCalledWith('mapbox://styles/mapbox/streets-v12');
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
   act(() => mocks.handlers.get('style.load')?.());
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
@@ -155,6 +155,21 @@ it('changes supported styles and restores actual geometry without resetting the 
   );
   expect(mocks.fit).toHaveBeenCalledTimes(fitCalls);
   expect(mocks.options).toHaveBeenCalledTimes(1);
+});
+
+it('offers only Outdoors and Streets with matching decorative icons', () => {
+  render(<RouteMap {...props} />);
+  expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+    'Outdoors',
+    'Streets',
+  ]);
+  expect(screen.queryByRole('radio', { name: 'Satellite' })).not.toBeInTheDocument();
+  for (const label of ['Outdoors', 'Streets']) {
+    const icon = screen.getByRole('radio', { name: label }).querySelector('svg');
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(icon).toHaveAttribute('width', '18');
+    expect(icon).toHaveAttribute('height', '18');
+  }
 });
 
 it('uses the configured Mapbox style, official logo and source attribution control', () => {

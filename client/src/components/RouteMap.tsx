@@ -11,6 +11,7 @@ import {
   Scan,
   MousePointer2,
   Trees,
+  Map as MapIcon,
   Plus,
   Minus,
   X,
@@ -136,7 +137,6 @@ export function RouteMap(props: Props) {
   const styles = [
     { value: DEFAULT_MAPBOX_STYLE, label: t('Outdoors') },
     { value: 'mapbox://styles/mapbox/streets-v12', label: t('Streets') },
-    { value: 'mapbox://styles/mapbox/satellite-streets-v12', label: t('Satellite') },
   ];
   if (!styles.some((item) => item.value === configuredStyle))
     styles.unshift({ value: configuredStyle, label: t('Configured map') });
@@ -461,6 +461,9 @@ export function RouteMap(props: Props) {
             {styles.map((item) => (
               <ToggleGroupItem key={item.value} value={item.value}>
                 {item.value === DEFAULT_MAPBOX_STYLE && <Trees size={18} aria-hidden="true" />}
+                {item.value === 'mapbox://styles/mapbox/streets-v12' && (
+                  <MapIcon size={18} aria-hidden="true" />
+                )}
                 {item.label}
               </ToggleGroupItem>
             ))}
