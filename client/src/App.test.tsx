@@ -182,7 +182,7 @@ describe('route planner interactions', () => {
       'Enter coordinates as latitude, longitude.',
     );
     expect(provider.calculateRoute).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: 'Search', exact: true })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Search$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Search results' })).not.toBeInTheDocument();
   });
   it('starts with an actionable empty overview instead of unavailable metrics', () => {

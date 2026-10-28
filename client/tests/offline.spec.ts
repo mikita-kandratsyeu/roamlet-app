@@ -87,8 +87,8 @@ test('missing public token shows configuration failure, with no fake route', asy
   await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeDisabled();
   await expect(page.locator('.mapboxgl-canvas')).toHaveCount(0);
   for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
-    await page.getByRole('textbox', { name: 'Search places or coordinates' }).fill(value);
-    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+    await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
   await expect(page.getByRole('alert')).toContainText('VITE_MAPBOX_ACCESS_TOKEN');
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeDisabled();

@@ -541,15 +541,15 @@ test('matches Figma planner geometry while preserving branding and responsive el
   await createRoute(page);
   await expect(page.locator('.elevation-box')).toHaveCount(0);
   await expect(page.getByText('Elevation gain', { exact: true })).toHaveCount(0);
-  await page
-    .getByLabel('Import GPX file')
-    .setInputFiles({
-      name: 'heights.gpx',
-      mimeType: 'application/gpx+xml',
-      buffer: Buffer.from(gpx),
-    });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'heights.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
   await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Mountain morning' })).toBeVisible();
+  if (mobile)
+    await expect(page.getByRole('button', { name: /Mountain morning 0.3 km/ })).toBeVisible();
+  else await expect(page.getByRole('heading', { name: 'Mountain morning' })).toBeVisible();
   await expect(page.locator('.planner')).toHaveCSS('width', mobile ? '390px' : '420px');
   if (mobile) {
     await expect(page.locator('.elevation-box')).not.toHaveAttribute('open');
