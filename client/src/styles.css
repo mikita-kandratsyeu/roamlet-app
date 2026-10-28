@@ -24,6 +24,7 @@
 }
 * {
   box-sizing: border-box;
+  border-color: var(--border);
 }
 body {
   margin: 0;
@@ -1930,8 +1931,13 @@ textarea::placeholder {
   color: var(--foreground);
 }
 .waypoint-marker.start,
+.stop-badge,
 .brand-symbol {
   color: var(--primary-foreground);
+}
+.map-control:focus-visible {
+  outline-offset: -2px;
+  box-shadow: none;
 }
 .dialog {
   display: block;
