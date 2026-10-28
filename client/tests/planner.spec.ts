@@ -114,7 +114,7 @@ test('edits names, duplicates, filters and confirms deletion', async ({ page }) 
   await page.getByRole('button', { name: 'Duplicate River route', exact: true }).click();
   await expect(page.locator('.library-route')).toHaveCount(2);
   await page.getByRole('textbox', { name: 'Search saved routes' }).fill('not found');
-  await expect(page.getByText('No routes match your search.')).toBeVisible();
+  await expect(page.getByText('No matching routes. Try another name or clear the search.')).toBeVisible();
   await page.getByRole('textbox', { name: 'Search saved routes' }).clear();
   await page.getByRole('button', { name: 'Delete River route', exact: true }).click();
   await expect(page.getByText(/This cannot be undone/)).toBeVisible();
@@ -157,7 +157,7 @@ test('round trips use real provider round-trip requests; responsive controls sta
       },
     });
   });
-  await page.getByRole('button', { name: 'Discover round trips' }).click();
+  await page.getByRole('button', { name: 'Find round trips' }).click();
   await expect(page.getByRole('button', { name: /Option 1/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
   if (testInfo.project.name === 'mobile') {
@@ -202,7 +202,7 @@ test('split header keeps route creation direct and supports an accessible respon
     true,
   );
   await trigger.click();
-  await page.getByRole('heading', { name: 'Where shall we go?' }).click();
+  await page.getByRole('heading', { name: 'Plan a route' }).click();
   await expect(page.getByRole('menu')).not.toBeVisible();
   await trigger.click();
   await page.getByRole('menuitem', { name: 'Help and data sources' }).click();

@@ -153,7 +153,7 @@ describe('route planner interactions', () => {
     await act(async () => {
       await i18n.changeLanguage('ru');
     });
-    expect(screen.getByRole('dialog', { name: 'Покинуть этот маршрут?' })).toHaveTextContent(
+    expect(screen.getByRole('dialog', { name: 'Закрыть этот маршрут?' })).toHaveTextContent(
       'Несохранённые изменения',
     );
     expect(screen.getByRole('button', { name: 'Отбросить изменения' })).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe('route planner interactions', () => {
     render(<App />);
     expect(screen.getByRole('button', { name: 'Save route' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
-    expect(screen.getByText('A good route starts somewhere')).toBeInTheDocument();
+    expect(screen.getByText('Add a starting point')).toBeInTheDocument();
   });
   it('plans, saves, opens its library and reopens a persistent route', async () => {
     render(<App />);
@@ -214,7 +214,7 @@ describe('route planner interactions', () => {
     render(<App />);
     await plan();
     fireEvent.click(screen.getByRole('button', { name: 'New route' }));
-    expect(screen.getByRole('dialog')).toHaveTextContent('unsaved changes');
+    expect(screen.getByRole('dialog')).toHaveTextContent('Unsaved changes');
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled();

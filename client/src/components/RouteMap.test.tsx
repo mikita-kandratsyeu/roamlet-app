@@ -142,7 +142,7 @@ it('switches map controls and existing warnings without recreating or refitting 
   expect(screen.getByRole('button', { name: 'Моё местоположение' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Показать весь маршрут' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Приблизить' })).toHaveAttribute('title', 'Приблизить');
-  expect(screen.getByRole('status')).toHaveTextContent('Некоторые тайлы карты не загрузились');
+  expect(screen.getByRole('status')).toHaveTextContent('Часть карты не загрузилась');
   expect(mocks.options).toHaveBeenCalledTimes(1);
   expect(mocks.remove).not.toHaveBeenCalled();
   expect(mocks.fit).toHaveBeenCalledTimes(fitCalls);
@@ -153,5 +153,5 @@ it('keeps working and shows a nonfatal notice when local storage is blocked', ()
   });
   render(<RouteMap {...props} />);
   act(() => mocks.handlers.get('moveend')!());
-  expect(screen.getByRole('status')).toHaveTextContent('cannot save the last map view');
+  expect(screen.getByRole('status')).toHaveTextContent('The map view could not be saved');
 });
