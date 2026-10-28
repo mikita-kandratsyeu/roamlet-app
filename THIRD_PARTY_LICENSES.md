@@ -42,7 +42,7 @@ Map data © OpenStreetMap contributors, licensed under the [Open Database Licens
 
 Maps use Mapbox GL JS with `mapbox://styles/mapbox/outdoors-v12` by default, configurable through `VITE_MAPBOX_STYLE`. Keep Mapbox's required logo and linked attribution and the data credits supplied by the style. The public map token is restricted by permitted URLs and minimal scopes. Mapbox maps/styles/fonts/tiles are third-party network requests; no map regions are downloaded or intercepted by the app's service worker for offline use. Map loads are billed according to the account's terms; the software and OSM licenses do not grant unrestricted Mapbox-hosted data redistribution rights. No Google or Apple map content is used.
 
-Nominatim was evaluated but intentionally **not used**. Place search uses Mapbox Geocoding v6 on explicit submission with `permanent=true` and `autocomplete=false`. [Geocoding documentation](https://docs.mapbox.com/api/search/geocoding/) distinguishes non-cacheable temporary results from permanently storable results. Permanent geocoding requires appropriate account access and terms; card-free trial access may be insufficient. Search Box temporary POI results are not silently substituted and saved.
+Place search uses Mapbox Geocoding v6 on explicit submission with `permanent=true` and `autocomplete=false`. [Geocoding documentation](https://docs.mapbox.com/api/search/geocoding/) distinguishes non-cacheable temporary results from permanently storable results. Permanent geocoding requires appropriate account access and terms; card-free trial access may be insufficient. Search Box temporary POI results are not silently substituted and saved.
 
 ## Routing, geocoding, and elevation
 
