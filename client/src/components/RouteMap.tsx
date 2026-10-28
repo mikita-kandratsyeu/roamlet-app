@@ -23,7 +23,7 @@ import { waypointKind } from './waypointStyle';
 import { useTheme } from '../theme';
 import { Alert } from './ui/alert';
 import { Badge } from './ui/badge';
-import { Skeleton } from './ui/skeleton';
+import { MapLoader } from './MapLoader';
 import i18n, { formatNumber, translateMessage } from '../i18n';
 
 const mapMotionDuration = () =>
@@ -65,6 +65,7 @@ export function RouteMap(props: Props) {
   const map = useRef<mapboxgl.Map | null>(null);
   const latest = useRef(props);
   const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [mapError, setMapError] = useState('');
   const [configurationError, setConfigurationError] = useState(false);
   const configuredStyle = import.meta.env.VITE_MAPBOX_STYLE?.trim() || DEFAULT_MAPBOX_STYLE;
@@ -229,19 +230,30 @@ export function RouteMap(props: Props) {
       setReady(true);
       setMapError('');
     };
-    instance.on('load', installRouteLayers);
+    const timeout = window.setTimeout(() => {
+      setLoading(false);
+      setMapError('The map took too long to load. Check your connection and reload the page.');
+    }, 30000);
+    instance.on('load', () => {
+      installRouteLayers();
+      window.clearTimeout(timeout);
+      setLoading(false);
+    });
     instance.on('style.load', installRouteLayers);
-    instance.on('error', () =>
+    instance.on('error', () => {
+      window.clearTimeout(timeout);
+      setLoading(false);
       setMapError(
         'Some map tiles could not load. Check your connection or configured tile provider. No offline map is stored.',
-      ),
-    );
+      );
+    });
     instance.on('click', (event) => {
       if (latest.current.editable) latest.current.onAdd([event.lngLat.lng, event.lngLat.lat]);
     });
     const observer = new ResizeObserver(() => instance.resize());
     observer.observe(container.current);
     return () => {
+      window.clearTimeout(timeout);
       window.removeEventListener('pagehide', persistOnHide);
       observer.disconnect();
       if (moved) persistView();
@@ -363,12 +375,7 @@ export function RouteMap(props: Props) {
           )}
         </Alert>
       )}
-      {!ready && !mapError && (
-        <div className="map-loading" role="status">
-          <Skeleton className="h-4 w-4 rounded-full" />
-          {t('Loading your map…')}
-        </div>
-      )}
+      {loading && !mapError && <MapLoader />}
       <Badge variant="secondary" className="map-top-label">
         <Layers size={18} aria-hidden="true" />
         <select

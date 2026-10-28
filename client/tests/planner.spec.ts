@@ -62,6 +62,45 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/directions/v5/mapbox/**', (route) => route.fulfill({ json: fixture }));
   await page.goto('/');
 });
+test('global map loader covers the viewport and releases controls after loading', async ({
+  page,
+}) => {
+  let release: () => void = () => {};
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/__fixtures__/map-style.json', async (route) => {
+    await waiting;
+    await route.fulfill({
+      json: {
+        version: 8,
+        sources: {},
+        layers: [
+          { id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } },
+        ],
+      },
+    });
+  });
+  try {
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const loader = page.getByTestId('global-map-loader');
+    await expect(loader).toBeVisible();
+    await expect(loader).toHaveCSS('position', 'fixed');
+    const size = await loader.boundingBox();
+    const viewport = page.viewportSize()!;
+    expect(size).toMatchObject({ x: 0, y: 0, width: viewport.width, height: viewport.height });
+    await expect(page.locator('#root')).toHaveAttribute('inert');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect(page.locator('.global-map-loader__orbit')).toHaveCSS('animation-name', 'none');
+    release();
+    await expect(loader).toHaveCount(0);
+    await expect(page.locator('#root')).not.toHaveAttribute('inert');
+    await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  } finally {
+    release();
+  }
+});
+
 test('creates, recalculates, saves, reloads, reopens and exports actual returned points', async ({
   page,
 }) => {

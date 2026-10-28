@@ -1,4 +1,6 @@
 {
+  "Preparing the map for your next route.": "Preparing the map for your next route.",
+  "The map took too long to load. Check your connection and reload the page.": "The map took too long to load. Check your connection and reload the page.",
   "Set VITE_MAPBOX_ACCESS_TOKEN to a public Mapbox token to display the map. Saved routes and GPX import/export remain available. Offline basemaps are not supported.": "Set VITE_MAPBOX_ACCESS_TOKEN to a public Mapbox token to display the map. Saved routes and GPX import/export remain available. Offline basemaps are not supported.",
   "VITE_MAPBOX_ACCESS_TOKEN must be a public Mapbox token (pk.), not a secret token.": "VITE_MAPBOX_ACCESS_TOKEN must be a public Mapbox token (pk.), not a secret token.",
   "Choose an activity, then add your stops.": "Choose an activity, then add your stops.",

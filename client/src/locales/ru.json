@@ -1,4 +1,6 @@
 {
+  "Preparing the map for your next route.": "Готовим карту для вашего следующего маршрута.",
+  "The map took too long to load. Check your connection and reload the page.": "Карта загружается слишком долго. Проверьте соединение и обновите страницу.",
   "Set VITE_MAPBOX_ACCESS_TOKEN to a public Mapbox token to display the map. Saved routes and GPX import/export remain available. Offline basemaps are not supported.": "Для отображения карты задайте публичный токен Mapbox в VITE_MAPBOX_ACCESS_TOKEN. Сохранённые маршруты, импорт и экспорт GPX доступны. Офлайн-карта не поддерживается.",
   "VITE_MAPBOX_ACCESS_TOKEN must be a public Mapbox token (pk.), not a secret token.": "VITE_MAPBOX_ACCESS_TOKEN должен содержать публичный токен Mapbox (pk.), а не секретный токен.",
   "Choose an activity, then add your stops.": "Выберите занятие и добавьте точки.",

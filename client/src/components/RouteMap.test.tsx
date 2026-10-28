@@ -125,9 +125,37 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+});
+it('shows a global loader until the map loads, not just until its style loads', () => {
+  const { container } = render(<RouteMap {...props} />);
+  expect(screen.getByTestId('global-map-loader').parentElement).toBe(document.body);
+  expect(screen.getByText('Loading map…')).toBeInTheDocument();
+  expect(container.inert).toBe(true);
+  act(() => mocks.handlers.get('style.load')?.());
+  expect(screen.getByTestId('global-map-loader')).toBeInTheDocument();
+  act(() => mocks.handlers.get('load')?.());
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+  expect(container.inert).toBeFalsy();
+});
+it('unblocks the application on errors and never leaves an endless loader', () => {
+  render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('error')?.());
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss map notice' }));
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+});
+it('releases the global loader after a map loading timeout', () => {
+  vi.useFakeTimers();
+  render(<RouteMap {...props} />);
+  act(() => vi.advanceTimersByTime(30000));
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+  expect(
+    screen.getByText('The map took too long to load. Check your connection and reload the page.'),
+  ).toBeInTheDocument();
 });
 it('changes supported styles and restores actual geometry without resetting the camera', () => {
   const segments: [number, number][][] = [
