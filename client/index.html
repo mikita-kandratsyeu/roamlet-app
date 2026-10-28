@@ -4,6 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#173b30" />
+    <script>
+      (() => {
+        let theme = 'system';
+        try {
+          const stored = localStorage.getItem('roamlet-theme');
+          if (stored === 'light' || stored === 'dark' || stored === 'system') theme = stored;
+        } catch {}
+        let dark = theme === 'dark';
+        if (theme === 'system') {
+          try {
+            dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          } catch {}
+        }
+        document.documentElement.classList.toggle('dark', dark);
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      })();
+    </script>
     <meta
       name="description"
       content="Plan cycling and hiking routes. Save them on your device. Import and export GPX."

@@ -1,3 +1,5 @@
+@import './components/ui/shadcn.css';
+
 :root {
   font-family:
     'Onest Variable',
@@ -7,19 +9,18 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  color: #173b30;
-  background: #faf7f2;
+  color: var(--foreground);
+  background: var(--background);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --green: #173b30;
-  --sage: #bdd3a5;
-  --sage-light: #edf2e7;
-  --muted: #5f7065;
-  --line: #dce2d6;
-  --cream: #faf7f2;
-  --surface: #fffdf9;
-  --focus-ring: var(--green);
+  --green: var(--primary);
+  --sage: var(--secondary);
+  --sage-light: var(--accent);
+  --line: var(--border);
+  --cream: var(--background);
+  --surface: var(--card);
+  --focus-ring: var(--ring);
 }
 * {
   box-sizing: border-box;
@@ -92,7 +93,7 @@ textarea {
   min-height: 90px;
 }
 .muted {
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 13px;
 }
 .small {
@@ -100,7 +101,7 @@ textarea {
 }
 .fine-print {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   line-height: 1.6;
 }
 .app {
@@ -210,9 +211,7 @@ textarea {
   }
 }
 .header-menu-panel {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
+  position: relative;
   width: 276px;
   max-width: calc(100vw - 32px);
   max-height: calc(100dvh - 90px);
@@ -257,7 +256,7 @@ textarea {
   align-items: center;
   gap: 8px;
   padding: 4px 12px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   font-size: 11px;
   font-weight: 600;
 }
@@ -627,10 +626,12 @@ textarea {
   font-size: 11px;
   font-weight: 550;
 }
-.elevation-box svg {
+.elevation-chart {
   width: 100%;
-  height: 80px;
-  margin-top: 13px;
+  height: 120px;
+  min-height: 120px;
+  margin-top: 8px;
+  aspect-ratio: auto;
 }
 .chart-empty {
   font-size: 11px;
@@ -1293,7 +1294,7 @@ textarea,
 .library-empty,
 .library-empty h3,
 .help-content p {
-  color: var(--muted);
+  color: var(--muted-foreground);
 }
 .eyebrow,
 .secondary,
@@ -1372,11 +1373,8 @@ textarea,
 .live-dot {
   background: var(--green);
 }
-.elevation-box svg path:first-child {
-  fill: var(--sage-light);
-}
-.elevation-box svg path:last-child {
-  stroke: var(--green);
+.elevation-chart .recharts-cartesian-grid-horizontal line {
+  stroke: var(--border);
 }
 @media (min-width: 1600px) {
   .planner {
@@ -1657,4 +1655,339 @@ textarea,
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Shared surfaces follow the shadcn theme; map tiles are styled separately. */
+.app-header {
+  height: 68px;
+  background: var(--surface);
+  gap: 24px;
+}
+.brand-tagline {
+  color: var(--muted-foreground);
+}
+.planner {
+  width: 410px;
+  background: var(--background);
+}
+.planner-scroll {
+  padding: 26px 24px 18px;
+  scrollbar-color: var(--border) transparent;
+}
+.planner-kicker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.planner-kicker .eyebrow {
+  margin: 0;
+}
+.planner-kicker [data-slot='badge'] {
+  font-size: 10px;
+  padding: 2px 7px;
+  font-weight: 500;
+}
+.activity-selector,
+.planning-tabs {
+  width: 100%;
+  gap: 4px;
+  border-radius: 12px;
+}
+.activity-selector button,
+.planning-tabs button {
+  height: 44px;
+  flex: 1;
+  border-radius: 8px;
+  white-space: normal;
+}
+.planning-tabs {
+  margin-top: 16px;
+  padding: 4px;
+  background: var(--accent);
+  border: 1px solid var(--border);
+}
+.planning-tabs button {
+  padding: 8px;
+  border: 0;
+  color: var(--muted-foreground);
+}
+.planning-tabs button.active {
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: 0 1px 3px #0000000d;
+}
+.activity-selector button.selected {
+  color: var(--foreground);
+}
+.place-search {
+  margin-top: 18px;
+  min-height: 46px;
+  border-radius: 12px;
+}
+.place-search input,
+.library-search input {
+  box-shadow: none;
+  font-size: 13px;
+  color: var(--foreground);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+.place-search button {
+  width: 36px;
+  height: 36px;
+}
+.search-results button {
+  height: auto;
+  min-height: 44px;
+  white-space: normal;
+  justify-content: space-between;
+}
+.icon-button {
+  width: 36px;
+  height: 36px;
+}
+.stop-controls .icon-button {
+  width: 32px;
+  height: 40px;
+  color: var(--muted-foreground);
+}
+.stop-name {
+  display: block;
+  height: auto;
+  min-height: 44px;
+  white-space: normal;
+  color: var(--foreground);
+}
+.text-button {
+  height: auto;
+  min-height: 32px;
+  border-radius: 6px;
+}
+.add-stop {
+  min-height: 44px;
+  justify-content: flex-start;
+}
+.statistics {
+  margin-top: 22px;
+  padding-top: 20px;
+}
+.stat-grid {
+  gap: 8px;
+  margin: 16px 0 12px;
+}
+.stat-grid > .stat-card {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 6px;
+  padding: 13px 10px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: none;
+}
+.stat-card strong {
+  color: var(--foreground);
+}
+.elevation-box {
+  display: block;
+  box-shadow: none;
+  border-radius: 12px;
+}
+.planner-footer {
+  padding: 16px 24px 12px;
+  background: var(--surface);
+  box-shadow: 0 -4px 20px #00000005;
+}
+.primary,
+.header-menu-action,
+.header-menu-trigger {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.primary:hover:not(:disabled),
+.header-menu-action:hover,
+.header-menu-trigger:hover,
+.header-menu-trigger[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--primary) 88%, var(--foreground));
+  color: var(--primary-foreground);
+}
+.primary,
+.secondary,
+.danger {
+  min-height: 44px;
+  height: auto;
+  border-radius: 10px;
+}
+.import-action {
+  height: auto;
+  min-height: 36px;
+  white-space: normal;
+  padding-top: 10px;
+}
+.distance-slider {
+  margin: 20px 0 16px;
+}
+.alternatives button {
+  height: auto;
+  min-height: 44px;
+  white-space: normal;
+}
+.snapshot-notice,
+.configuration-note,
+.loop-planner,
+.library-edit,
+.delete-confirm {
+  color: var(--foreground);
+  background: var(--accent);
+  border-color: var(--border);
+}
+.configuration-note {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.notice,
+.map-warning {
+  display: flex;
+  gap: 10px;
+}
+.notice > span,
+.map-warning > span {
+  flex: 1;
+  min-width: 0;
+}
+.notice button,
+.map-warning button {
+  flex-shrink: 0;
+  height: 32px;
+  width: 32px;
+  padding: 6px;
+  margin: -4px;
+}
+.map-warning {
+  padding: 12px;
+  background: var(--surface);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+.map-warning button {
+  position: static;
+}
+.notice.error,
+.error-inline {
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--destructive) 30%, var(--border));
+}
+.notice.success {
+  color: var(--foreground);
+  background: var(--accent);
+  border-color: var(--border);
+}
+.map-top-label,
+.map-hint,
+.map-loading,
+.map-issue {
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  color: var(--foreground);
+  border-color: var(--border);
+  backdrop-filter: blur(8px);
+}
+.map-top-label {
+  font-size: 10px;
+  border-radius: 10px;
+}
+.map-extra-controls {
+  top: 20px;
+  right: 16px;
+  gap: 6px;
+}
+.map-control {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: 0 2px 8px #00000012;
+}
+.map-control:hover:not(:disabled) {
+  background: var(--accent);
+}
+.map-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.maplibregl-ctrl-attrib {
+  background: var(--surface) !important;
+  color: var(--foreground);
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--foreground);
+}
+.waypoint-marker.start,
+.brand-symbol {
+  color: var(--primary-foreground);
+}
+.dialog {
+  display: block;
+  color: var(--foreground);
+  background: var(--surface);
+}
+.dialog-header {
+  align-items: flex-start;
+}
+.dialog-header h2 {
+  line-height: 1.3;
+  font-weight: 650;
+}
+.dialog input,
+.dialog textarea {
+  color: var(--foreground);
+}
+.library-route {
+  flex-direction: row;
+  box-shadow: none;
+}
+.library-open {
+  align-items: flex-start;
+  justify-content: center;
+  height: auto;
+  min-height: 44px;
+  white-space: normal;
+  color: var(--foreground);
+}
+.library-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.library-search {
+  min-height: 44px;
+}
+@media (max-width: 1024px) {
+  .planner { width: 370px; }
+  .planner-scroll { padding: 22px 18px 14px; }
+  .planner-footer { padding: 14px 18px 10px; }
+}
+@media (max-width: 700px) {
+  .app-header { height: 60px; padding: 0 14px; gap: 10px; }
+  .planner { width: 100%; }
+  .planner-scroll { padding: 12px 16px 16px; }
+  .planner-footer { padding: 12px 16px 8px; }
+  .mobile-sheet-toggle { height: auto; min-height: 48px; white-space: normal; }
+  .map-extra-controls { top: 14px; right: 12px; }
+  .map-top-label { top: 16px; left: 12px; max-width: calc(100% - 80px); padding: 10px; }
+  .map-warning { top: 66px; left: 12px; right: 66px; }
+  .map-hint { display: none; }
+  .library-actions .icon-button { width: 36px; height: 36px; }
+  .dialog { padding: 20px; }
+}
+@media (max-width: 700px) {
+  .planner { border-color: var(--border); }
+  .planner-footer { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
 }

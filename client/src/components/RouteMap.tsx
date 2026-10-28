@@ -1,10 +1,15 @@
+import { Button } from './ui/button';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView, saveMapView } from '../domain/mapView';
 import { mapTiles, OSM_TILE_URL } from '../domain/mapTiles';
-import { LocateFixed, Maximize, MapPin } from 'lucide-react';
+import { LocateFixed, Maximize, MapPin, Plus, Minus, X } from 'lucide-react';
+import { useTheme } from '../theme';
+import { Alert } from './ui/alert';
+import { Badge } from './ui/badge';
+import { Skeleton } from './ui/skeleton';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import i18n, { translateMessage } from '../i18n';
 
@@ -19,6 +24,7 @@ interface Props {
 }
 export function RouteMap(props: Props) {
   const { t } = useTranslation();
+  const { resolvedTheme } = useTheme();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const latest = useRef(props);
@@ -102,7 +108,6 @@ export function RouteMap(props: Props) {
       if (moved) persistView();
     };
     window.addEventListener('pagehide', persistOnHide);
-    instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     instance.addControl(new maplibregl.AttributionControl({ compact: false }), 'bottom-right');
     instance.on('load', () => {
       instance.addSource('route', {
@@ -144,6 +149,14 @@ export function RouteMap(props: Props) {
       map.current = null;
     };
   }, []);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const dark = resolvedTheme === 'dark';
+    map.current.setPaintProperty('base', 'raster-brightness-max', dark ? 0.55 : 1);
+    map.current.setPaintProperty('base', 'raster-saturation', dark ? -0.7 : 0);
+    map.current.setPaintProperty('route-casing', 'line-color', dark ? '#15291f' : '#faf7f2');
+    map.current.setPaintProperty('route-line', 'line-color', dark ? '#bdd3a5' : '#173b30');
+  }, [ready, resolvedTheme]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const source = map.current.getSource('route') as maplibregl.GeoJSONSource;
@@ -232,27 +245,54 @@ export function RouteMap(props: Props) {
     <section className="map-region" aria-label={t('Interactive route map')}>
       <div ref={container} className="map-canvas" />
       {mapError && (
-        <div className="map-warning" role="status">
-          {translateMessage(mapError)}
-          <button onClick={() => setMapError('')} aria-label={t('Dismiss map notice')}>
-            ×
-          </button>
+        <Alert className="map-warning" role="status">
+          <span>{translateMessage(mapError)}</span>
+          <Button variant="ghost" onClick={() => setMapError('')} aria-label={t('Dismiss map notice')}>
+            <X size={16} />
+          </Button>
+        </Alert>
+      )}
+      {!ready && !mapError && (
+        <div className="map-loading" role="status">
+          <Skeleton className="h-4 w-4 rounded-full" />
+          {t('Loading your map…')}
         </div>
       )}
-      {!ready && !mapError && <div className="map-loading">{t('Loading your map…')}</div>}
-      <div className="map-top-label">
+      <Badge variant="secondary" className="map-top-label">
         <span className="live-dot" /> {t('YOUR NEXT WAY OUT')}
-      </div>
-      <div className="map-extra-controls">
-        <button
+      </Badge>
+      <div className="map-extra-controls" role="group" aria-label={t('Map controls')}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="map-control"
+          title={t('Zoom in')}
+          aria-label={t('Zoom in')}
+          disabled={!ready}
+          onClick={() => map.current?.zoomIn()}
+        >
+          <Plus size={20} />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="map-control"
+          title={t('Zoom out')}
+          aria-label={t('Zoom out')}
+          disabled={!ready}
+          onClick={() => map.current?.zoomOut()}
+        >
+          <Minus size={20} />
+        </Button>
+        <Button variant="ghost"
           className="map-control"
           title={t('Use my location')}
           aria-label={t('Use my location')}
           onClick={locate}
         >
           <LocateFixed size={20} />
-        </button>
-        <button
+        </Button>
+        <Button variant="ghost"
           className="map-control"
           title={t('Fit route')}
           aria-label={t('Fit route')}
@@ -268,7 +308,7 @@ export function RouteMap(props: Props) {
           disabled={!props.waypoints.length && !props.segments.length}
         >
           <Maximize size={18} />
-        </button>
+        </Button>
       </div>
       {props.editable && (
         <div className="map-hint">

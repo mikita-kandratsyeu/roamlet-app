@@ -1,3 +1,11 @@
+import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
+import { Textarea } from './components/ui/textarea';
+import { Label } from './components/ui/label';
+import { Slider } from './components/ui/slider';
+import { ToggleGroup, ToggleGroupItem } from './components/ui/toggle-group';
+import { Badge } from './components/ui/badge';
+import { Alert } from './components/ui/alert';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -492,7 +500,7 @@ export default function App() {
       </header>
       <main className={`workspace ${collapsed ? 'panel-collapsed' : ''}`}>
         <aside className="planner" aria-label={t('Route planner')}>
-          <button
+          <Button variant="ghost"
             className="mobile-sheet-toggle"
             onClick={() => setCollapsed(!collapsed)}
             aria-expanded={!collapsed}
@@ -503,75 +511,71 @@ export default function App() {
                 : t('Plan your next adventure')}
             </span>
             {collapsed ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-          </button>
+          </Button>
           <div className="planner-scroll">
             <div className="planner-heading">
               <div>
-                <p className="eyebrow">{t('MAKE TIME FOR OUTSIDE')}</p>
+                <div className="planner-kicker">
+                  <p className="eyebrow">{t('MAKE TIME FOR OUTSIDE')}</p>
+                  {dirty && <Badge variant="secondary">{t('Unsaved changes')}</Badge>}
+                </div>
                 <h1>{name || t('Where shall we go?')}</h1>
                 <p className="muted">{t('Find your own way, one stop at a time.')}</p>
               </div>
               {canUseRoute && (
-                <button
+                <Button variant="ghost"
                   className="icon-button"
                   aria-label={t('Edit route name')}
                   onClick={() => setSaveOpen(true)}
                 >
                   <Pencil size={16} />
-                </button>
+                </Button>
               )}
             </div>
-            <div className="activity-selector" role="group" aria-label={t('Activity profile')}>
-              <button
-                className={activity === 'cycling' ? 'selected' : ''}
-                aria-pressed={activity === 'cycling'}
-                onClick={() => changeActivity('cycling')}
-              >
+            <ToggleGroup
+              type="single"
+              value={activity}
+              onValueChange={(value) => {
+                if (value === 'cycling' || value === 'hiking') changeActivity(value);
+              }}
+              className="activity-selector"
+              aria-label={t('Activity profile')}
+            >
+              <ToggleGroupItem value="cycling" className={activity === 'cycling' ? 'selected' : ''}>
                 <Bike size={19} />
                 {t('Cycling')}
-              </button>
-              <button
-                className={activity === 'hiking' ? 'selected' : ''}
-                aria-pressed={activity === 'hiking'}
-                onClick={() => changeActivity('hiking')}
-              >
+              </ToggleGroupItem>
+              <ToggleGroupItem value="hiking" className={activity === 'hiking' ? 'selected' : ''}>
                 <Footprints size={19} />
                 {t('Hiking')}
-              </button>
-            </div>
+              </ToggleGroupItem>
+            </ToggleGroup>
             {mode === 'manual' ? (
               <>
-                <div className="planning-tabs" role="group" aria-label={t('Route style')}>
-                  <button
-                    className={planningMode === 'point' ? 'active' : ''}
-                    aria-pressed={planningMode === 'point'}
-                    onClick={() => {
-                      if (planningMode !== 'point') {
-                        invalidate();
-                        setPlanningMode('point');
-                      }
-                    }}
-                  >
+                <ToggleGroup
+                  type="single"
+                  value={planningMode}
+                  className="planning-tabs"
+                  aria-label={t('Route style')}
+                  onValueChange={(value) => {
+                    if ((value === 'point' || value === 'loop') && value !== planningMode) {
+                      invalidate();
+                      setPlanningMode(value);
+                      if (value === 'loop') setWaypoints(waypoints.slice(0, 1));
+                    }
+                  }}
+                >
+                  <ToggleGroupItem value="point" className={planningMode === 'point' ? 'active' : ''}>
                     {t('Point to point')}
-                  </button>
-                  <button
-                    className={planningMode === 'loop' ? 'active' : ''}
-                    aria-pressed={planningMode === 'loop'}
-                    onClick={() => {
-                      if (planningMode !== 'loop') {
-                        invalidate();
-                        setPlanningMode('loop');
-                        setWaypoints(waypoints.slice(0, 1));
-                      }
-                    }}
-                  >
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="loop" className={planningMode === 'loop' ? 'active' : ''}>
                     <ArrowDownUp size={14} />
                     {t('Round trip')}
-                  </button>
-                </div>
+                  </ToggleGroupItem>
+                </ToggleGroup>
                 <form className="place-search" onSubmit={(event) => void search(event)}>
                   <Search size={18} />
-                  <input
+                  <Input
                     ref={searchInput}
                     aria-label={t('Search places or coordinates')}
                     value={query}
@@ -586,30 +590,30 @@ export default function App() {
                     }
                     maxLength={200}
                   />
-                  <button aria-label={t('Search')} disabled={searching || !query.trim()}>
+                  <Button type="submit" variant="ghost" aria-label={t('Search')} disabled={searching || !query.trim()}>
                     {searching ? (
                       <LoaderCircle size={18} className="spin" />
                     ) : (
                       <ArrowUp size={18} className="search-arrow" />
                     )}
-                  </button>
+                  </Button>
                 </form>
                 <p className="search-help">
                   {t('Search a place, enter latitude, longitude, or click the map.')}
                 </p>
                 {searchTarget && (
-                  <button className="text-button" onClick={() => setSearchTarget(null)}>
+                  <Button variant="ghost" className="text-button" onClick={() => setSearchTarget(null)}>
                     {t('Cancel replacing stop')}
-                  </button>
+                  </Button>
                 )}
                 {places.length > 0 && (
                   <ul className="search-results">
                     {places.map((place, index) => (
                       <li key={index}>
-                        <button onClick={() => addLocation(place.coordinate, place.name)}>
+                        <Button variant="ghost" onClick={() => addLocation(place.coordinate, place.name)}>
                           {place.name}
                           <Plus size={16} />
-                        </button>
+                        </Button>
                       </li>
                     ))}
                   </ul>
@@ -617,14 +621,14 @@ export default function App() {
                 <div className="waypoints-heading">
                   <h2>{planningMode === 'loop' ? t('Starting point') : t('Your stops')}</h2>
                   {planningMode === 'point' && (
-                    <button
+                    <Button variant="ghost"
                       className="text-button"
                       disabled={waypoints.length < 2}
                       onClick={() => changeWaypoints([...waypoints].reverse())}
                     >
                       <ArrowDownUp size={14} />
                       {t('Reverse')}
-                    </button>
+                    </Button>
                   )}
                 </div>
                 {!waypoints.length ? (
@@ -644,7 +648,7 @@ export default function App() {
                         >
                           {index === 0 ? 'A' : index === waypoints.length - 1 ? 'B' : index}
                         </span>
-                        <button
+                        <Button variant="ghost"
                           className="stop-name"
                           onClick={() => {
                             setSearchTarget(point.id);
@@ -660,11 +664,11 @@ export default function App() {
                                 : t('Via')}{' '}
                             {t('· click to replace')}
                           </small>
-                        </button>
+                        </Button>
                         <div className="stop-controls">
                           {planningMode === 'point' && (
                             <>
-                              <button
+                              <Button variant="ghost"
                                 className="icon-button"
                                 aria-label={t('Move stop {{number}} up', {
                                   number: formatNumber(index + 1),
@@ -677,8 +681,8 @@ export default function App() {
                                 }}
                               >
                                 <ArrowUp size={13} />
-                              </button>
-                              <button
+                              </Button>
+                              <Button variant="ghost"
                                 className="icon-button"
                                 aria-label={t('Move stop {{number}} down', {
                                   number: formatNumber(index + 1),
@@ -691,10 +695,10 @@ export default function App() {
                                 }}
                               >
                                 <ArrowDown size={13} />
-                              </button>
+                              </Button>
                             </>
                           )}
-                          <button
+                          <Button variant="ghost"
                             className="icon-button"
                             aria-label={t('Remove stop {{number}}', {
                               number: formatNumber(index + 1),
@@ -704,14 +708,14 @@ export default function App() {
                             }
                           >
                             <X size={15} />
-                          </button>
+                          </Button>
                         </div>
                       </li>
                     ))}
                   </ol>
                 )}
                 {planningMode === 'point' && (
-                  <button
+                  <Button variant="ghost"
                     className="add-stop"
                     onClick={() => {
                       setSearchTarget(null);
@@ -721,45 +725,46 @@ export default function App() {
                     <Plus size={16} />
                     {t('Add a stop')}
                     <span>{t('or click the map')}</span>
-                  </button>
+                  </Button>
                 )}
                 {planningMode === 'loop' && (
                   <div className="loop-planner">
-                    <label htmlFor="distance">
+                    <Label htmlFor="distance">
                       {t('Target distance')}{' '}
                       <strong>
                         {formatNumber(targetKm)} {t('km')}
                       </strong>
-                    </label>
-                    <input
+                    </Label>
+                    <Slider
                       id="distance"
                       aria-label={t('Target loop distance')}
-                      type="range"
                       min={2}
                       max={100}
-                      value={formatNumber(targetKm)}
-                      onChange={(event) => {
+                      step={1}
+                      value={[targetKm]}
+                      onValueChange={([distance]) => {
                         invalidate();
-                        setTargetKm(Number(event.target.value));
+                        setTargetKm(distance);
                       }}
+                      className="distance-slider"
                     />
                     <p className="fine-print">
                       {t(
                         'Two calculated possibilities. Actual distances vary with the path network.',
                       )}
                     </p>
-                    <button
+                    <Button
                       className="primary full-width"
                       disabled={busy || !waypoints.length}
                       onClick={() => void generateLoops()}
                     >
                       <Sparkles size={17} />
                       {busy ? t('Finding your way…') : t('Discover round trips')}
-                    </button>
+                    </Button>
                     {alternatives.length > 0 && (
                       <div className="alternatives">
                         {alternatives.map((alternative, index) => (
-                          <button
+                          <Button variant="ghost"
                             className={selectedAlternative === index ? 'chosen' : ''}
                             key={index}
                             onClick={() => selectAlternative(alternative, index)}
@@ -772,7 +777,7 @@ export default function App() {
                               {formatDuration(alternative.stats.duration)}
                               {selectedAlternative === index && <Check size={16} />}
                             </span>
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     )}
@@ -789,10 +794,10 @@ export default function App() {
                       : t('Saved route, ready to explore')}
                   </strong>
                   <p>{t('Save and export without changing any points.')}</p>
-                  <button className="text-button" onClick={editSnapshot}>
+                  <Button variant="ghost" className="text-button" onClick={editSnapshot}>
                     <Pencil size={14} />
                     {t('Edit waypoints')}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -804,15 +809,16 @@ export default function App() {
               </p>
             )}
             {notice && (
-              <div
+              <Alert
+                variant={notice.error ? 'destructive' : 'default'}
                 className={`notice ${notice.error ? 'error' : 'success'}`}
                 role={notice.error ? 'alert' : 'status'}
               >
                 <span>{translateMessage(notice.text)}</span>
-                <button aria-label={t('Dismiss notification')} onClick={() => setNotice(null)}>
+                <Button variant="ghost" aria-label={t('Dismiss notification')} onClick={() => setNotice(null)}>
                   <X size={16} />
-                </button>
-              </div>
+                </Button>
+              </Alert>
             )}
             {(routingConfigured === false || configurationUnavailable) && !notice?.error && (
               <div className="configuration-note">
@@ -824,9 +830,9 @@ export default function App() {
                         'Online routing is not configured on the server. Map, GPX, and saved routes still work.',
                       )}
                 </span>
-                <button className="text-button" onClick={() => setHelpOpen(true)}>
+                <Button variant="ghost" className="text-button" onClick={() => setHelpOpen(true)}>
                   {t('Setup')}
-                </button>
+                </Button>
               </div>
             )}
             <Statistics route={result} />
@@ -843,7 +849,7 @@ export default function App() {
           </div>
           <footer className="planner-footer">
             <div className="route-actions">
-              <button
+              <Button
                 className="primary"
                 disabled={!canUseRoute}
                 onClick={() => {
@@ -853,17 +859,17 @@ export default function App() {
               >
                 <Bookmark size={17} />
                 {t('Save route')}
-              </button>
-              <button className="secondary" disabled={!canUseRoute} onClick={download}>
+              </Button>
+              <Button variant="outline" className="secondary" disabled={!canUseRoute} onClick={download}>
                 <Download size={17} />
                 {t('Export GPX')}
-              </button>
+              </Button>
             </div>
-            <button className="import-action" onClick={() => fileInput.current?.click()}>
+            <Button variant="ghost" className="import-action" onClick={() => fileInput.current?.click()}>
               <Upload size={15} />
               {t('Import GPX')}
               <span>{t('or drop a file anywhere')}</span>
-            </button>
+            </Button>
           </footer>
         </aside>
         <RouteMap
@@ -888,7 +894,7 @@ export default function App() {
           onError={fail}
         />
       </main>
-      <input
+      <Input
         ref={fileInput}
         hidden
         type="file"
@@ -923,9 +929,9 @@ export default function App() {
               void doSave();
             }}
           >
-            <label>
+            <Label>
               {t('Route name')}
-              <input
+              <Input
                 ref={routeNameInput}
                 required
                 maxLength={120}
@@ -936,10 +942,10 @@ export default function App() {
                   setDirty(true);
                 }}
               />
-            </label>
-            <label>
+            </Label>
+            <Label>
               {t('Description')} <span className="muted">{t('(optional)')}</span>
-              <textarea
+              <Textarea
                 maxLength={2000}
                 value={description}
                 placeholder={t('A note for your future self…')}
@@ -948,24 +954,24 @@ export default function App() {
                   setDirty(true);
                 }}
               />
-            </label>
+            </Label>
             {notice?.error && (
               <p role="alert" className="error-inline">
                 {translateMessage(notice.text)}
               </p>
             )}
             <div className="button-row">
-              <button
+              <Button variant="outline"
                 className="secondary"
                 type="button"
                 disabled={saving}
                 onClick={() => setSaveOpen(false)}
               >
                 {t('Cancel')}
-              </button>
-              <button className="primary" disabled={saving || !name.trim()}>
+              </Button>
+              <Button type="submit" className="primary" disabled={saving || !name.trim()}>
                 {saving ? t('Saving…') : t('Save to library')}
-              </button>
+              </Button>
             </div>
           </form>
         </Dialog>
@@ -978,14 +984,14 @@ export default function App() {
         >
           <p>{t(confirmation.text)}</p>
           <div className="button-row">
-            <button
+            <Button variant="ghost"
               ref={confirmationCancel}
               className="secondary"
               onClick={() => setConfirmation(null)}
             >
               {t('Cancel')}
-            </button>
-            <button
+            </Button>
+            <Button
               className="primary"
               onClick={() => {
                 const action = confirmation.action;
@@ -994,7 +1000,7 @@ export default function App() {
               }}
             >
               {t(confirmation.label)}
-            </button>
+            </Button>
           </div>
         </Dialog>
       )}

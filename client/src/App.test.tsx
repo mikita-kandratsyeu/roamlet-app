@@ -43,7 +43,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 function openMenu() {
-  fireEvent.click(screen.getByRole('button', { name: /^(Menu|Меню)$/ }));
+  fireEvent.keyDown(screen.getByRole('button', { name: /^(Menu|Меню)$/ }), { key: 'ArrowDown' });
 }
 function selectLanguage(label: string) {
   openMenu();
@@ -69,7 +69,7 @@ describe('route planner interactions', () => {
     fireEvent.click(save);
     expect(screen.getByRole('textbox', { name: 'Route name' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(save).toHaveFocus();
+    await waitFor(() => expect(save).toHaveFocus());
     fireEvent.click(save);
     fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
       target: { value: 'Focus trip' },
@@ -189,7 +189,7 @@ describe('route planner interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reverse' }));
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
     expect(provider.calculateRoute.mock.calls[1][0][0].coordinate).toEqual([11.41, 47.27]);
-    fireEvent.click(screen.getByRole('button', { name: 'Hiking' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Hiking' }));
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(3));
     expect(provider.calculateRoute.mock.calls[2][1]).toBe('hiking');
     fireEvent.click(screen.getByRole('button', { name: 'Remove stop 2' }));

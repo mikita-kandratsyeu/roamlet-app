@@ -1,6 +1,18 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, ChevronDown, Globe, Info, Library, Plus } from 'lucide-react';
+import { ChevronDown, Globe, Info, Library, Monitor, Moon, Plus, Sun } from 'lucide-react';
+import { Button } from './ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+import { isTheme, useTheme } from '../theme';
 
 interface Props {
   onNewRoute: () => void;
@@ -10,90 +22,38 @@ interface Props {
 
 export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
   const { t, i18n } = useTranslation();
+  const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
-  const id = useId();
-  const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const initialFocus = useRef<'first' | 'last'>('first');
-  const typed = useRef({ text: '', time: 0 });
-
-  function close(restoreFocus = false) {
-    setOpen(false);
-    if (restoreFocus) trigger.current?.focus();
-  }
-
-  useEffect(() => {
-    if (!open) return;
-    const items = panel.current?.querySelectorAll<HTMLButtonElement>('[role^="menuitem"]');
-    items?.[initialFocus.current === 'last' ? items.length - 1 : 0]?.focus();
-    typed.current = { text: '', time: 0 };
-    const dismiss = (event: PointerEvent) => {
-      if (event.target instanceof Node && !root.current?.contains(event.target)) setOpen(false);
-    };
-    document.addEventListener('pointerdown', dismiss);
-    return () => document.removeEventListener('pointerdown', dismiss);
-  }, [open]);
+  const focusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const attachPanel = useCallback((node: HTMLDivElement | null) => {
+    panel.current = node;
+    clearTimeout(focusTimer.current);
+    if (node) {
+      // Radix first runs its own focus scope; preserve pointer-open and ArrowUp entry afterward.
+      focusTimer.current = setTimeout(() => {
+        const items = node.querySelectorAll<HTMLElement>('[role^="menuitem"]');
+        items[initialFocus.current === 'last' ? items.length - 1 : 0]?.focus();
+      }, 0);
+    }
+  }, []);
 
   function activate(action: () => void) {
-    close(true);
+    setOpen(false);
+    trigger.current?.focus({ preventScroll: true });
     action();
   }
 
-  function navigate(event: KeyboardEvent<HTMLDivElement>) {
-    const items = Array.from(
-      panel.current?.querySelectorAll<HTMLButtonElement>('[role^="menuitem"]') || [],
-    );
-    const current = items.indexOf(document.activeElement as HTMLButtonElement);
-    let next: number | undefined;
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      close(true);
-      return;
-    }
-    if (event.key === 'Tab') {
-      close(true);
-      return;
-    }
-    if (event.key === 'ArrowDown') next = (current + 1) % items.length;
-    if (event.key === 'ArrowUp') next = (current - 1 + items.length) % items.length;
-    if (event.key === 'Home') next = 0;
-    if (event.key === 'End') next = items.length - 1;
-    if (
-      event.key.length === 1 &&
-      !event.ctrlKey &&
-      !event.altKey &&
-      !event.metaKey &&
-      event.key !== ' '
-    ) {
-      const now = Date.now();
-      const text = now - typed.current.time > 500 ? event.key : typed.current.text + event.key;
-      typed.current = { text: text.toLocaleLowerCase(), time: now };
-      const match = items.findIndex(
-        (item, index) =>
-          index > current &&
-          item.textContent?.trim().toLocaleLowerCase().startsWith(typed.current.text),
-      );
-      const wrapped = items.findIndex((item) =>
-        item.textContent?.trim().toLocaleLowerCase().startsWith(typed.current.text),
-      );
-      next = match >= 0 ? match : wrapped >= 0 ? wrapped : undefined;
-    }
-    if (next !== undefined) {
-      event.preventDefault();
-      items[next]?.focus();
-    }
-  }
-
   return (
-    <div className="header-menu" ref={root}>
-      <button
-        type="button"
+    <div className="header-menu">
+      <Button
+        variant="ghost"
         className="header-menu-action"
         aria-label={t('New route')}
         onClick={(event) => {
-          close();
+          setOpen(false);
           event.currentTarget.focus();
           onNewRoute();
         }}
@@ -103,91 +63,109 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
         <span className="header-action-label-short" aria-hidden="true">
           {t('Route')}
         </span>
-      </button>
-      <button
-        ref={trigger}
-        type="button"
-        className="header-menu-trigger"
-        aria-label={t('Menu')}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={open ? id : undefined}
-        onClick={() => {
-          initialFocus.current = 'first';
-          setOpen((value) => !value);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault();
-            initialFocus.current = event.key === 'ArrowUp' ? 'last' : 'first';
-            setOpen(true);
-          }
-        }}
-      >
-        <ChevronDown size={19} aria-hidden="true" />
-      </button>
-      {open && (
-        <div
-          id={id}
-          ref={panel}
-          className="header-menu-panel"
-          role="menu"
-          aria-label={t('Main navigation')}
-          onKeyDown={navigate}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            className="header-menu-item"
-            onClick={() => activate(onLibrary)}
+      </Button>
+      <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            ref={trigger}
+            variant="ghost"
+            className="header-menu-trigger"
+            aria-label={t('Menu')}
+            onPointerDown={() => {
+              initialFocus.current = 'first';
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                initialFocus.current = 'last';
+                setOpen(true);
+              } else initialFocus.current = 'first';
+            }}
           >
+            <ChevronDown size={19} aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          ref={attachPanel}
+          align="end"
+          sideOffset={10}
+          loop
+          className="header-menu-panel"
+          style={{ position: 'relative', top: 'auto', right: 'auto' }}
+          aria-label={t('Main navigation')}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (
+              document.activeElement === document.body ||
+              panel.current?.contains(document.activeElement)
+            ) {
+              trigger.current?.focus({ preventScroll: true });
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Tab') {
+              event.preventDefault();
+              activate(() => {});
+            }
+          }}
+        >
+          <DropdownMenuItem className="header-menu-item" onSelect={() => activate(onLibrary)}>
             <Library size={19} aria-hidden="true" />
             <span>{t('My routes')}</span>
-          </button>
-          <div role="separator" className="header-menu-separator" />
-          <div role="group" aria-label={t('Language')}>
-            <div className="header-menu-label">
-              <Globe size={15} aria-hidden="true" />
-              {t('Language')}
-            </div>
-            {(
-              [
-                ['en', 'English'],
-                ['ru', 'Русский'],
-              ] as const
-            ).map(([language, label]) => (
-              <button
-                key={language}
-                type="button"
-                role="menuitemradio"
-                aria-checked={i18n.resolvedLanguage === language}
-                tabIndex={-1}
-                className="header-menu-item header-menu-language"
-                onClick={() =>
-                  activate(() => {
-                    void i18n.changeLanguage(language);
-                  })
-                }
-              >
-                <span>{label}</span>
-                {i18n.resolvedLanguage === language && <Check size={17} aria-hidden="true" />}
-              </button>
-            ))}
-          </div>
-          <div role="separator" className="header-menu-separator" />
-          <button
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            className="header-menu-item"
-            onClick={() => activate(onHelp)}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator className="header-menu-separator" />
+          <DropdownMenuLabel className="header-menu-label">
+            <Globe size={15} aria-hidden="true" />
+            {t('Language')}
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            aria-label={t('Language')}
+            value={i18n.resolvedLanguage}
+            onValueChange={(language) =>
+              activate(() => {
+                void i18n.changeLanguage(language);
+              })
+            }
           >
+            <DropdownMenuRadioItem className="header-menu-item header-menu-language" value="en">
+              English
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem className="header-menu-item header-menu-language" value="ru">
+              Русский
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator className="header-menu-separator" />
+          <DropdownMenuLabel className="header-menu-label">
+            <Monitor size={15} aria-hidden="true" />
+            {t('Theme')}
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            aria-label={t('Theme')}
+            value={theme}
+            onValueChange={(value) => {
+              if (isTheme(value)) activate(() => setTheme(value));
+            }}
+          >
+            <DropdownMenuRadioItem className="header-menu-item" value="light">
+              <Sun aria-hidden="true" />
+              {t('Light')}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem className="header-menu-item" value="dark">
+              <Moon aria-hidden="true" />
+              {t('Dark')}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem className="header-menu-item" value="system">
+              <Monitor aria-hidden="true" />
+              {t('System')}
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator className="header-menu-separator" />
+          <DropdownMenuItem className="header-menu-item" onSelect={() => activate(onHelp)}>
             <Info size={19} aria-hidden="true" />
             <span>{t('Help and data sources')}</span>
-          </button>
-        </div>
-      )}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

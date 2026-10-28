@@ -243,5 +243,14 @@
   "GPX exceeds the 100,000 point limit.": "The GPX file has more than 100,000 points. Split it into smaller files before importing.",
   "GPX contains no track, route, or waypoint points.": "No track, route, or waypoint points were found in this GPX. Choose a file containing points.",
   "Invalid text for GPX XML.": "Route text contains characters that GPX cannot use. Check the route name and notes.",
-  "Cannot export an empty GPX route.": "Add route points or import a GPX file before exporting."
+  "Cannot export an empty GPX route.": "Add route points or import a GPX file before exporting.",
+  "Unsaved changes": "Unsaved changes",
+  "Elevation": "Elevation",
+  "Map controls": "Map controls",
+  "Theme": "Theme",
+  "Light": "Light",
+  "Dark": "Dark",
+  "System": "System",
+  "Switch to dark theme": "Switch to dark theme",
+  "Switch to light theme": "Switch to light theme"
 }

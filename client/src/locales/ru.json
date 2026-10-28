@@ -243,5 +243,14 @@
   "GPX exceeds the 100,000 point limit.": "В GPX больше 100 000 точек. Разделите его на меньшие файлы перед импортом.",
   "GPX contains no track, route, or waypoint points.": "В GPX нет точек трека, маршрута или отдельных точек. Выберите файл с точками.",
   "Invalid text for GPX XML.": "В тексте маршрута есть символы, недопустимые для GPX. Проверьте название и заметки.",
-  "Cannot export an empty GPX route.": "Добавьте точки маршрута или импортируйте GPX перед экспортом."
+  "Cannot export an empty GPX route.": "Добавьте точки маршрута или импортируйте GPX перед экспортом.",
+  "Unsaved changes": "Несохранённые изменения",
+  "Elevation": "Высота",
+  "Map controls": "Управление картой",
+  "Theme": "Тема",
+  "Light": "Светлая",
+  "Dark": "Тёмная",
+  "System": "Системная",
+  "Switch to dark theme": "Включить тёмную тему",
+  "Switch to light theme": "Включить светлую тему"
 }

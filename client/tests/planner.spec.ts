@@ -130,7 +130,7 @@ test('search works on submit; hiking and service failures are honest', async ({ 
   await page.getByRole('textbox', { name: 'Search places or coordinates' }).fill('Innsbruck');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByRole('button', { name: 'Innsbruck, Austria' }).click();
-  await page.getByRole('button', { name: 'Hiking', exact: true }).click();
+  await page.getByRole('radio', { name: 'Hiking', exact: true }).click();
   const request = page.waitForRequest('**/api/directions/foot-hiking/geojson');
   await addPoint(page, '47.271, 11.411');
   await request;
@@ -145,7 +145,7 @@ test('search works on submit; hiking and service failures are honest', async ({ 
 test('round trips use real provider round-trip requests; responsive controls stay reachable', async ({
   page,
 }, testInfo) => {
-  await page.getByRole('button', { name: 'Round trip', exact: true }).click();
+  await page.getByRole('radio', { name: 'Round trip', exact: true }).click();
   await addPoint(page, '47.2692, 11.4041');
   await page.route('**/api/directions/**', async (route) => {
     const body = route.request().postDataJSON();
@@ -358,4 +358,42 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await expect(page.locator(':root')).toHaveCSS('--focus-ring', 'Highlight');
   await zoom.focus();
   await expect(zoom).toHaveCSS('outline-style', 'solid');
+});
+
+test('persists light and dark themes across reloads and themes dialogs and map controls', async ({ page }) => {
+  await page.route('**/api/health', (route) => route.fulfill({ json: { configured: false } }));
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  await expect(page.locator('html')).not.toHaveClass(/dark/);
+  const menu = page.getByRole('button', { name: 'Menu', exact: true });
+  await menu.click();
+  await page.getByRole('menuitemradio', { name: 'Dark', exact: true }).click();
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  const darkSurface = await page.locator('.app-header').evaluate((element) => getComputedStyle(element).backgroundColor);
+  await page.reload();
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  await menu.click();
+  await expect(page.getByRole('menuitemradio', { name: 'Dark', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('menuitem', { name: 'Help and data sources' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCSS('background-color', darkSurface);
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(menu).toBeFocused();
+  await menu.click();
+  await page.getByRole('menuitemradio', { name: 'Light', exact: true }).click();
+  await expect(page.locator('html')).not.toHaveClass(/dark/);
+  expect(await page.locator('.app-header').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(darkSurface);
+  await menu.click();
+  await page.getByRole('menuitemradio', { name: 'System', exact: true }).click();
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(page.locator('html')).not.toHaveClass(/dark/);
+  const viewport = page.viewportSize()!;
+  expect(await page.locator('body').evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+  const zoom = page.getByRole('button', { name: 'Zoom in', exact: true });
+  await expect(zoom).toHaveAttribute('data-slot', 'button');
+  const bounds = await zoom.boundingBox();
+  expect(bounds?.width).toBeGreaterThanOrEqual(44);
+  expect(bounds?.height).toBeGreaterThanOrEqual(44);
 });

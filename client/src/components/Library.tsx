@@ -1,3 +1,9 @@
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
+import { Card } from './ui/card';
+import { Skeleton } from './ui/skeleton';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import { Bike, Footprints, Search, Copy, Trash2, Pencil, FolderHeart } from 'lucide-react';
@@ -85,23 +91,25 @@ export function Library({
       <p className="muted">
         {t('Good routes are worth keeping. Saved on this device, no account needed.')}
       </p>
-      <label className="library-search">
+      <Label className="library-search">
         <Search size={18} />
-        <input
+        <Input
           ref={searchInput}
           aria-label={t('Search saved routes')}
           placeholder={t('Find a saved route…')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-      </label>
+      </Label>
       {error && (
         <p className="error-inline" role="alert">
           {translateMessage(error)}
         </p>
       )}
       {loading ? (
-        <p role="status">{t('Opening your library…')}</p>
+        <div role="status" aria-label={t('Opening your library…')} className="library-loading">
+          {[0, 1, 2].map((index) => <Skeleton key={index} className="h-20 w-full rounded-xl" />)}
+        </div>
       ) : !routes.length ? (
         <div className="library-empty">
           <FolderHeart size={34} />
@@ -113,11 +121,11 @@ export function Library({
       ) : (
         <div className="library-list">
           {filtered.map((route) => (
-            <article className="library-route" key={route.id}>
+            <Card className="library-route" key={route.id}>
               <span className="activity-icon">
                 {route.activity === 'cycling' ? <Bike size={22} /> : <Footprints size={22} />}
               </span>
-              <button className="library-open" disabled={busy} onClick={() => onOpen(route)}>
+              <Button variant="ghost" className="library-open" disabled={busy} onClick={() => onOpen(route)}>
                 <strong>{route.name}</strong>
                 <span>
                   {route.activity === 'cycling' ? t('Cycling') : t('Hiking')} ·{' '}
@@ -127,9 +135,9 @@ export function Library({
                 {route.description && (
                   <span className="route-description">{route.description}</span>
                 )}
-              </button>
+              </Button>
               <div className="library-actions">
-                <button
+                <Button variant="ghost"
                   className="icon-button"
                   disabled={busy}
                   aria-label={t('Edit {{name}}', { name: route.name })}
@@ -143,8 +151,8 @@ export function Library({
                   }}
                 >
                   <Pencil size={16} />
-                </button>
-                <button
+                </Button>
+                <Button variant="ghost"
                   className="icon-button"
                   disabled={busy}
                   aria-label={t('Duplicate {{name}}', { name: route.name })}
@@ -154,8 +162,8 @@ export function Library({
                   }}
                 >
                   <Copy size={16} />
-                </button>
-                <button
+                </Button>
+                <Button variant="ghost"
                   className="icon-button"
                   disabled={busy}
                   aria-label={t('Delete {{name}}', { name: route.name })}
@@ -167,9 +175,9 @@ export function Library({
                   }}
                 >
                   <Trash2 size={16} />
-                </button>
+                </Button>
               </div>
-            </article>
+            </Card>
           ))}
         </div>
       )}
@@ -190,31 +198,31 @@ export function Library({
           }}
         >
           <h3>{t('Edit route details')}</h3>
-          <label>
+          <Label>
             {t('Route name')}
-            <input
+            <Input
               ref={editInput}
               required
               maxLength={120}
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
-          </label>
-          <label>
+          </Label>
+          <Label>
             {t('Description')}
-            <textarea
+            <Textarea
               maxLength={2000}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
-          </label>
+          </Label>
           <div className="button-row">
-            <button type="button" className="secondary" disabled={busy} onClick={closeDetails}>
+            <Button variant="ghost" type="button" className="secondary" disabled={busy} onClick={closeDetails}>
               {t('Cancel')}
-            </button>
-            <button className="primary" disabled={busy || !name.trim()}>
+            </Button>
+            <Button type="submit" className="primary" disabled={busy || !name.trim()}>
               {t('Save changes')}
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -225,16 +233,16 @@ export function Library({
             {t('from this device? This cannot be undone.')}
           </p>
           <div className="button-row">
-            <button ref={keepButton} className="secondary" disabled={busy} onClick={closeDetails}>
+            <Button variant="ghost" ref={keepButton} className="secondary" disabled={busy} onClick={closeDetails}>
               {t('Keep route')}
-            </button>
-            <button
+            </Button>
+            <Button variant="destructive"
               className="danger"
               disabled={busy}
               onClick={() => void mutate(() => deleteRoute(deleting.id))}
             >
               {t('Delete route')}
-            </button>
+            </Button>
           </div>
         </section>
       )}
