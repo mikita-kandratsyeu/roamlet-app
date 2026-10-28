@@ -250,7 +250,5 @@
   "Theme": "Theme",
   "Light": "Light",
   "Dark": "Dark",
-  "System": "System",
-  "Switch to dark theme": "Switch to dark theme",
-  "Switch to light theme": "Switch to light theme"
+  "System": "System"
 }

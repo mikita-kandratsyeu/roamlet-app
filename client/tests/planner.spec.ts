@@ -190,6 +190,7 @@ test('Onest loads Latin and Cyrillic faces and keeps Russian controls within a 3
   await page.setViewportSize({ width: 320, height: 740 });
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'Русский' }).click();
+  await expect(page.getByRole('menu')).not.toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   await page.getByRole('button', { name: 'Меню', exact: true }).click();
   for (const element of [
@@ -218,12 +219,14 @@ test('split header keeps route creation direct and supports an accessible respon
   await page.keyboard.press('End');
   await expect(page.getByRole('menuitem', { name: 'Help and data sources' })).toBeFocused();
   await page.keyboard.press('Home');
+  await expect(page.getByRole('menuitem', { name: 'My routes' })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(page.getByRole('menuitemradio', { name: 'English' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused();
   await expect(page.getByRole('menu')).not.toBeVisible();
   await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'My routes' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('menu')).not.toBeVisible();
   expect(await page.evaluate(() => document.activeElement?.closest('.header-menu') === null)).toBe(
@@ -236,9 +239,11 @@ test('split header keeps route creation direct and supports an accessible respon
   await page.getByRole('menuitem', { name: 'Help and data sources' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
   await expect(trigger).toBeFocused();
   await trigger.click();
   await page.getByRole('menuitemradio', { name: 'Русский' }).click();
+  await expect(page.getByRole('menu')).not.toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 740 });
   await expect(page.getByRole('button', { name: 'Новый маршрут', exact: true })).toBeVisible();
@@ -255,6 +260,7 @@ test('split header keeps route creation direct and supports an accessible respon
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   await page.getByRole('button', { name: 'Меню', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'English' }).click();
+  await expect(page.getByRole('menu')).not.toBeVisible();
   await createRoute(page);
   await trigger.click();
   await page.getByRole('button', { name: 'New route', exact: true }).click();
@@ -370,6 +376,7 @@ test('persists light and dark themes across reloads and themes dialogs and map c
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
   await menu.click();
   await page.getByRole('menuitemradio', { name: 'Dark', exact: true }).click();
+  await expect(page.getByRole('menu')).not.toBeVisible();
   await expect(page.locator('html')).toHaveClass(/dark/);
   const darkSurface = await page
     .locator('.app-header')
@@ -385,9 +392,11 @@ test('persists light and dark themes across reloads and themes dialogs and map c
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCSS('background-color', darkSurface);
   await page.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
   await expect(menu).toBeFocused();
   await menu.click();
   await page.getByRole('menuitemradio', { name: 'Light', exact: true }).click();
+  await expect(page.getByRole('menu')).not.toBeVisible();
   await expect(page.locator('html')).not.toHaveClass(/dark/);
   expect(
     await page
@@ -396,6 +405,7 @@ test('persists light and dark themes across reloads and themes dialogs and map c
   ).not.toBe(darkSurface);
   await menu.click();
   await page.getByRole('menuitemradio', { name: 'System', exact: true }).click();
+  await expect(page.getByRole('menu')).not.toBeVisible();
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(page.locator('html')).toHaveClass(/dark/);
   await page.emulateMedia({ colorScheme: 'light' });
