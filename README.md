@@ -1,6 +1,6 @@
 # Roamlet
 
-An account-free, local-first cycling and hiking route planner. The initial project was empty (only an unrelated `.codemie` folder); no existing application was replaced.
+An account-free, local-first cycling and hiking route planner.
 
 ## Implementation plan
 
