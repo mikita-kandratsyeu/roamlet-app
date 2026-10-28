@@ -114,7 +114,9 @@ test('edits names, duplicates, filters and confirms deletion', async ({ page }) 
   await page.getByRole('button', { name: 'Duplicate River route', exact: true }).click();
   await expect(page.locator('.library-route')).toHaveCount(2);
   await page.getByRole('textbox', { name: 'Search saved routes' }).fill('not found');
-  await expect(page.getByText('No matching routes. Try another name or clear the search.')).toBeVisible();
+  await expect(
+    page.getByText('No matching routes. Try another name or clear the search.'),
+  ).toBeVisible();
   await page.getByRole('textbox', { name: 'Search saved routes' }).clear();
   await page.getByRole('button', { name: 'Delete River route', exact: true }).click();
   await expect(page.getByText(/This cannot be undone/)).toBeVisible();
@@ -173,6 +175,32 @@ test('round trips use real provider round-trip requests; responsive controls sta
   await expect(
     page.locator('.maplibregl-ctrl-attrib').getByRole('link', { name: 'OpenStreetMap' }),
   ).toBeVisible();
+});
+
+test('Onest loads Latin and Cyrillic faces and keeps Russian controls within a 320px viewport', async ({
+  page,
+}) => {
+  const statuses = await page.evaluate(async () =>
+    (await document.fonts.load('400 16px "Onest Variable"', 'Маршрут Route')).map(
+      (face) => face.status,
+    ),
+  );
+  expect(statuses.length).toBeGreaterThanOrEqual(2);
+  expect(statuses.every((status) => status === 'loaded')).toBe(true);
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Русский' }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
+  await page.getByRole('button', { name: 'Меню', exact: true }).click();
+  for (const element of [
+    page.locator('body'),
+    page.getByRole('textbox', { name: 'Поиск мест или координат' }),
+    page.getByRole('menuitem', { name: 'Мои маршруты' }),
+    page.locator('.maplibregl-map'),
+  ]) {
+    await expect(element).toHaveCSS('font-family', /Onest Variable/);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test('split header keeps route creation direct and supports an accessible responsive menu', async ({

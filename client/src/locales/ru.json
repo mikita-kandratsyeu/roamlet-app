@@ -2,6 +2,8 @@
   "Menu": "Меню",
   "Route": "Маршрут",
   "Language": "Язык",
+  "Roamlet — Route planner": "Roamlet — Планировщик маршрутов",
+  "Plan cycling and hiking routes. Save them on your device. Import and export GPX.": "Планируйте велосипедные и пешие маршруты. Сохраняйте их на своём устройстве. Импортируйте и экспортируйте GPX.",
   "Set VITE_TILE_ATTRIBUTION to the tile provider’s required credits.": "Задайте VITE_TILE_ATTRIBUTION с указанием авторства, требуемым провайдером тайлов.",
   "Roamlet home": "Главная Roamlet",
   "A little planning. A lot of possibility.": "Планируйте маршруты. Сохраняйте на этом устройстве.",

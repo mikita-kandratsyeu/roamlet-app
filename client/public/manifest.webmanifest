@@ -1,6 +1,7 @@
 {
   "name": "Roamlet Route Planner",
   "short_name": "Roamlet",
+  "description": "Plan cycling and hiking routes. Save them on your device. Import and export GPX.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#faf7f2",

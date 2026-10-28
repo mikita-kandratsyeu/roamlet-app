@@ -33,7 +33,16 @@ void i18n.use(initReactI18next).init({
 });
 function synchronizeLanguage(language: string) {
   const normalized = language.startsWith('ru') ? 'ru' : 'en';
-  if (typeof document !== 'undefined') document.documentElement.lang = normalized;
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = normalized;
+    document.title = i18n.t('Roamlet — Route planner');
+    document
+      .querySelector<HTMLMetaElement>('meta[name="description"]')
+      ?.setAttribute(
+        'content',
+        i18n.t('Plan cycling and hiking routes. Save them on your device. Import and export GPX.'),
+      );
+  }
   try {
     localStorage.setItem(LANGUAGE_KEY, normalized);
   } catch {

@@ -1,4 +1,4 @@
-const CACHE = 'roamlet-shell-v3';
+const CACHE = 'roamlet-shell-v4';
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
