@@ -1,6 +1,6 @@
 :root {
   font-family:
-    'Manrope Variable',
+    'Onest Variable',
     'Avenir Next',
     Avenir,
     -apple-system,
@@ -29,8 +29,12 @@ body {
 }
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
+}
+.maplibregl-map {
+  font-family: inherit;
 }
 button {
   cursor: pointer;

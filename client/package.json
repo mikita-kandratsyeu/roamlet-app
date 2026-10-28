@@ -19,7 +19,7 @@
     "test:integration": "playwright test --config playwright.proxy.config.ts"
   },
   "dependencies": {
-    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/onest": "^5.3.1",
     "@turf/distance": "^7.3.0",
     "dexie": "^4.2.0",
     "fast-xml-parser": "^5.3.0",
