@@ -4,8 +4,13 @@ const EARTH_RADIUS = 6_371_008.8;
 const RADIANS = Math.PI / 180;
 
 function validate(point: Coordinate): void {
-  if (!Array.isArray(point) || (point.length !== 2 && point.length !== 3)
-    || !point.every(Number.isFinite) || Math.abs(point[0]) > 180 || Math.abs(point[1]) > 90) {
+  if (
+    !Array.isArray(point) ||
+    (point.length !== 2 && point.length !== 3) ||
+    !point.every(Number.isFinite) ||
+    Math.abs(point[0]) > 180 ||
+    Math.abs(point[1]) > 90
+  ) {
     throw new Error('Invalid coordinate: expected [longitude, latitude, optional elevation].');
   }
 }
@@ -13,8 +18,9 @@ function validate(point: Coordinate): void {
 function distanceBetween(a: Coordinate, b: Coordinate): number {
   const lat = (b[1] - a[1]) * RADIANS;
   const lon = (b[0] - a[0]) * RADIANS;
-  const h = Math.sin(lat / 2) ** 2
-    + Math.cos(a[1] * RADIANS) * Math.cos(b[1] * RADIANS) * Math.sin(lon / 2) ** 2;
+  const h =
+    Math.sin(lat / 2) ** 2 +
+    Math.cos(a[1] * RADIANS) * Math.cos(b[1] * RADIANS) * Math.sin(lon / 2) ** 2;
   return 2 * EARTH_RADIUS * Math.asin(Math.sqrt(Math.min(1, Math.max(0, h))));
 }
 
@@ -42,13 +48,18 @@ export function calculateStats(segments: Coordinate[][], activity: Activity): Ro
       }
     }
   }
-  const result: RouteStats = { distance, duration: distance / ((activity === 'cycling' ? 18 : 5) / 3.6) };
+  const result: RouteStats = {
+    distance,
+    duration: distance / ((activity === 'cycling' ? 18 : 5) / 3.6),
+  };
   if (complete && count > 0) Object.assign(result, { ascent, descent });
   return result;
 }
 
 /** Cumulative metres within segments; an incomplete elevation profile returns no samples. */
-export function elevationSamples(segments: Coordinate[][]): { distance: number; elevation: number }[] {
+export function elevationSamples(
+  segments: Coordinate[][],
+): { distance: number; elevation: number }[] {
   const stats = calculateStats(segments, 'hiking');
   if (stats.ascent === undefined) return [];
   let distance = 0;

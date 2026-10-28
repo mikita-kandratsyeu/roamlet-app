@@ -4,14 +4,14 @@ Verified against the installed direct packages on 28 October 2026. `yarn.lock` p
 
 ## Runtime libraries
 
-| Dependency | Installed version | License and upstream notice |
-| --- | --- | --- |
-| React / React DOM | 19.3.1 | [MIT](https://github.com/facebook/react/blob/main/LICENSE) |
-| MapLibre GL JS | 5.24.0 | [BSD-3-Clause, including embedded upstream notices](https://github.com/maplibre/maplibre-gl-js/blob/main/LICENSE.txt) |
-| Dexie | 4.4.7 | [Apache-2.0](https://github.com/dexie/Dexie.js/blob/master/LICENSE) |
-| Turf distance | 7.4.0 | [MIT](https://github.com/Turfjs/turf/blob/master/LICENSE) |
-| fast-xml-parser | 5.11.2 | [MIT](https://github.com/NaturalIntelligence/fast-xml-parser/blob/master/LICENSE) |
-| Lucide React icons | 0.468.0 | [ISC, with included derived-icon notices](https://github.com/lucide-icons/lucide/blob/main/LICENSE) |
+| Dependency         | Installed version | License and upstream notice                                                                                           |
+| ------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| React / React DOM  | 19.3.1            | [MIT](https://github.com/facebook/react/blob/main/LICENSE)                                                            |
+| MapLibre GL JS     | 5.24.0            | [BSD-3-Clause, including embedded upstream notices](https://github.com/maplibre/maplibre-gl-js/blob/main/LICENSE.txt) |
+| Dexie              | 4.4.7             | [Apache-2.0](https://github.com/dexie/Dexie.js/blob/master/LICENSE)                                                   |
+| Turf distance      | 7.4.0             | [MIT](https://github.com/Turfjs/turf/blob/master/LICENSE)                                                             |
+| fast-xml-parser    | 5.11.2            | [MIT](https://github.com/NaturalIntelligence/fast-xml-parser/blob/master/LICENSE)                                     |
+| Lucide React icons | 0.468.0           | [ISC, with included derived-icon notices](https://github.com/lucide-icons/lucide/blob/main/LICENSE)                   |
 
 The wordmark and winding-path app icon follow the user-supplied Roamlet brand reference. Typography uses self-hosted Manrope Variable 5.3.0 via Fontsource, licensed under [SIL Open Font License 1.1](https://openfontlicense.org/); its license is retained in `client/public/manrope-license.txt` and shipped with the production build. The image does not name its exact typeface, so Manrope is a visually similar choice with Latin and Cyrillic support. No externally hosted fonts are requested.
 

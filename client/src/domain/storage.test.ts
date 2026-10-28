@@ -4,15 +4,33 @@ import { deleteRoute, duplicateRoute, listRoutes, routeDb, saveRoute } from './s
 import type { PlannedRoute } from './types';
 
 function fixture(): PlannedRoute {
-  return { id: 'original', name: 'Walk', description: 'Description', activity: 'hiking',
-    segments: [[[0, 0, 10], [0, 0.01, 20]], [[1, 1, 100]]],
+  return {
+    id: 'original',
+    name: 'Walk',
+    description: 'Description',
+    activity: 'hiking',
+    segments: [
+      [
+        [0, 0, 10],
+        [0, 0.01, 20],
+      ],
+      [[1, 1, 100]],
+    ],
     waypoints: [{ id: 'waypoint', name: 'Start', coordinate: [0, 0, 10] }],
     stats: { distance: 1112, duration: 800, ascent: 10, descent: 0 },
-    createdAt: '2020-01-01T00:00:00.000Z', updatedAt: '2020-01-01T00:00:00.000Z', source: 'gpx' };
+    createdAt: '2020-01-01T00:00:00.000Z',
+    updatedAt: '2020-01-01T00:00:00.000Z',
+    source: 'gpx',
+  };
 }
 
-beforeEach(async () => { vi.restoreAllMocks(); await routeDb.routes.clear(); });
-afterAll(async () => { await routeDb.delete(); });
+beforeEach(async () => {
+  vi.restoreAllMocks();
+  await routeDb.routes.clear();
+});
+afterAll(async () => {
+  await routeDb.delete();
+});
 
 describe('route persistence', () => {
   it('saves, updates, reloads after reopening and deletes idempotently', async () => {
@@ -54,7 +72,7 @@ describe('route persistence', () => {
     const old = fixture();
     const newer = { ...fixture(), id: 'newer', updatedAt: '2025-01-01T00:00:00.000Z' };
     await routeDb.routes.bulkPut([old, newer]);
-    expect((await listRoutes()).map(route => route.id)).toEqual(['newer', 'original']);
+    expect((await listRoutes()).map((route) => route.id)).toEqual(['newer', 'original']);
   });
   it('reports invalid data and persistence failures without partial writes', async () => {
     const invalid = { ...fixture(), id: '' };
@@ -63,7 +81,10 @@ describe('route persistence', () => {
     await expect(deleteRoute('')).rejects.toThrow(/Unable to delete/);
     expect(await listRoutes()).toEqual([]);
     const spy = vi.spyOn(routeDb.routes, 'put').mockRejectedValueOnce(new Error('quota'));
-    await expect(saveRoute(fixture())).rejects.toMatchObject({ message: 'Unable to save route data.', cause: { message: 'quota' } });
+    await expect(saveRoute(fixture())).rejects.toMatchObject({
+      message: 'Unable to save route data.',
+      cause: { message: 'quota' },
+    });
     spy.mockRestore();
     await routeDb.routes.put({ ...fixture(), stats: { distance: NaN, duration: 0 } });
     await expect(listRoutes()).rejects.toThrow(/Unable to load/);

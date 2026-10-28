@@ -1,16 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { approximateMapView, initialMapView, MAP_VIEW_KEY, saveMapView, validMapView, type MapView } from './mapView';
+import {
+  approximateMapView,
+  initialMapView,
+  MAP_VIEW_KEY,
+  saveMapView,
+  validMapView,
+  type MapView,
+} from './mapView';
 const stored: MapView = { center: [11.4041, 47.2692], zoom: 13.5, bearing: 15, pitch: 30 };
 const mockStorage = () => {
   const values = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => { values.set(key, value); },
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
     clear: () => values.clear(),
   });
 };
 beforeEach(() => mockStorage());
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 describe('approximate initial region', () => {
   it('prefers a recognized timezone over unrelated browser language', () => {
     expect(approximateMapView('Europe/Minsk', ['en-US']).center).toEqual([28, 53.5]);
@@ -38,13 +50,22 @@ describe('last local view', () => {
     expect(saveMapView(stored)).toBe(true);
     expect(initialMapView()).toEqual(stored);
   });
-  it.each(['broken json', '{"center":[999,0],"zoom":3,"bearing":0,"pitch":0}', '{"center":[0,0],"zoom":99,"bearing":0,"pitch":0}', 'null'])('ignores corrupt stored view %s', data => {
+  it.each([
+    'broken json',
+    '{"center":[999,0],"zoom":3,"bearing":0,"pitch":0}',
+    '{"center":[0,0],"zoom":99,"bearing":0,"pitch":0}',
+    'null',
+  ])('ignores corrupt stored view %s', (data) => {
     localStorage.setItem(MAP_VIEW_KEY, data);
     expect(validMapView(initialMapView())).toBe(true);
   });
   it('survives blocked storage reading and writing', () => {
-    vi.spyOn(localStorage, 'getItem').mockImplementation(() => { throw new DOMException('Blocked'); });
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new DOMException('Quota exceeded'); });
+    vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
+      throw new DOMException('Blocked');
+    });
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new DOMException('Quota exceeded');
+    });
     expect(validMapView(initialMapView())).toBe(true);
     expect(saveMapView(stored)).toBe(false);
   });

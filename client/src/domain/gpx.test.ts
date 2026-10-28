@@ -13,13 +13,25 @@ const fixture = `<?xml version="1.0"?>
 describe('GPX', () => {
   it('roundtrips every track/route point, empty segment, elevation and standalone waypoint', () => {
     const route = importGpx(fixture);
-    expect(route.segments).toEqual([[[10, 50, 100], [10.002, 50.001, 125]], [], [[11, 51, 900], [11.002, 51.001, 880]], [[12, 52, 150]]]);
+    expect(route.segments).toEqual([
+      [
+        [10, 50, 100],
+        [10.002, 50.001, 125],
+      ],
+      [],
+      [
+        [11, 51, 900],
+        [11.002, 51.001, 880],
+      ],
+      [[12, 52, 150]],
+    ]);
     expect(route.stats.ascent).toBe(25);
     expect(route.stats.descent).toBe(20);
     const imported = importGpx(exportGpx(route));
     expect(imported.segments).toEqual(route.segments);
-    expect(imported.waypoints.map(({ name, coordinate }) => ({ name, coordinate })))
-      .toEqual([{ name: 'Cafe & rest', coordinate: [10.003, 50.002, 130] }]);
+    expect(imported.waypoints.map(({ name, coordinate }) => ({ name, coordinate }))).toEqual([
+      { name: 'Cafe & rest', coordinate: [10.003, 50.002, 130] },
+    ]);
     expect(imported.name).toBe('Hill & lake');
     expect(imported.description).toBe('Walk <outside>');
     expect(imported.id).not.toBe(route.id);
@@ -37,7 +49,9 @@ describe('GPX', () => {
   });
 
   it('decodes XML references once, preserves whitespace and leaves CDATA literal', () => {
-    const route = importGpx('<gpx><metadata><name> &#x1F600; &amp;amp; </name><desc><![CDATA[&unknown; <literal>]]></desc></metadata><wpt lat="&#49;" lon="0"/></gpx>');
+    const route = importGpx(
+      '<gpx><metadata><name> &#x1F600; &amp;amp; </name><desc><![CDATA[&unknown; <literal>]]></desc></metadata><wpt lat="&#49;" lon="0"/></gpx>',
+    );
     expect(route.name).toBe(' 😀 &amp; ');
     expect(route.description).toBe('&unknown; <literal>');
     expect(route.waypoints[0].coordinate).toEqual([0, 1]);
@@ -45,7 +59,9 @@ describe('GPX', () => {
   });
 
   it('supports prefixes, missing elevations and waypoint-only GPX', () => {
-    const route = importGpx('<g:gpx xmlns:g="http://www.topografix.com/GPX/1/1"><g:trk><g:name>Track</g:name><g:desc>Details</g:desc><g:trkseg><g:trkpt lat="-90" lon="180"/></g:trkseg></g:trk></g:gpx>');
+    const route = importGpx(
+      '<g:gpx xmlns:g="http://www.topografix.com/GPX/1/1"><g:trk><g:name>Track</g:name><g:desc>Details</g:desc><g:trkseg><g:trkpt lat="-90" lon="180"/></g:trkseg></g:trk></g:gpx>',
+    );
     expect(route.name).toBe('Track');
     expect(route.description).toBe('Details');
     expect(route.segments).toEqual([[[180, -90]]]);
@@ -55,8 +71,12 @@ describe('GPX', () => {
   });
 
   it.each([
-    ['', /empty/], ['<gpx>', /Malformed/], ['<other/>', /root/], ['<gpx/><gpx/>', /Malformed|root/],
-    ['<gpx/>', /no .*points/], ['<gpx><trk><trkseg/></trk></gpx>', /no .*points/],
+    ['', /empty/],
+    ['<gpx>', /Malformed/],
+    ['<other/>', /root/],
+    ['<gpx/><gpx/>', /Malformed|root/],
+    ['<gpx/>', /no .*points/],
+    ['<gpx><trk><trkseg/></trk></gpx>', /no .*points/],
     ['<gpx><name>&unknown;</name></gpx>', /entity/],
     ['<gpx><name>&#0;</name></gpx>', /character reference/],
     ['<gpx><name>&#x110000;</name></gpx>', /character reference/],
@@ -68,12 +88,18 @@ describe('GPX', () => {
     ['<gpx><wpt lat="NaN" lon="0"/></gpx>', /latitude/],
     ['<gpx><wpt lat="" lon="0"/></gpx>', /latitude/],
     ['<gpx><wpt lat="0" lon="0"><ele>Infinity</ele></wpt></gpx>', /elevation/],
-  ])('rejects invalid GPX: %s', (xml, error) => { expect(() => importGpx(xml)).toThrow(error); });
+  ])('rejects invalid GPX: %s', (xml, error) => {
+    expect(() => importGpx(xml)).toThrow(error);
+  });
 
   it('bounds file size, nesting and point count', () => {
     expect(() => importGpx(' '.repeat(10 * 1024 * 1024) + '<gpx/>')).toThrow(/10 MiB/);
-    expect(() => importGpx('<gpx>' + '<x>'.repeat(65) + '</x>'.repeat(65) + '</gpx>')).toThrow(/nesting/);
-    expect(() => importGpx('<gpx><rte>' + '<rtept lat="0" lon="0"/>'.repeat(100_001) + '</rte></gpx>')).toThrow(/point limit/);
+    expect(() => importGpx('<gpx>' + '<x>'.repeat(65) + '</x>'.repeat(65) + '</gpx>')).toThrow(
+      /nesting/,
+    );
+    expect(() =>
+      importGpx('<gpx><rte>' + '<rtept lat="0" lon="0"/>'.repeat(100_001) + '</rte></gpx>'),
+    ).toThrow(/point limit/);
     const route = importGpx(fixture);
     route.name = 'bad\u0000text';
     expect(() => exportGpx(route)).toThrow(/Invalid text/);

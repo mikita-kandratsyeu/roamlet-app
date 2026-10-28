@@ -78,14 +78,14 @@ ESLint checks code quality; Prettier handles consistent formatting. `eslint-conf
 
 ## Configuration and providers
 
-| Variable | Meaning |
-| --- | --- |
-| `ORS_API_KEY` | **Proxy only**: private ORS key for online directions/geocoding |
-| `ORS_URL` | **Proxy only**: trusted ORS-compatible upstream URL, default `https://api.openrouteservice.org` |
-| `PROXY_PORT` / `PROXY_HOST` | Proxy listening address, defaults `3001` / `127.0.0.1` |
-| `VITE_TILE_URL` | Raster tile template; default OSM public tiles are only a low-traffic development choice |
-| `VITE_TILE_ATTRIBUTION` | Provider-required legal credits, not marketing copy. Default: linked `© OpenStreetMap contributors`. Custom tile URLs require explicit provider attribution HTML from trusted deployment configuration |
-| `VITE_TILE_MAX_ZOOM` | Native raster tile maximum zoom, default 19 |
+| Variable                    | Meaning                                                                                                                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ORS_API_KEY`               | **Proxy only**: private ORS key for online directions/geocoding                                                                                                                                        |
+| `ORS_URL`                   | **Proxy only**: trusted ORS-compatible upstream URL, default `https://api.openrouteservice.org`                                                                                                        |
+| `PROXY_PORT` / `PROXY_HOST` | Proxy listening address, defaults `3001` / `127.0.0.1`                                                                                                                                                 |
+| `VITE_TILE_URL`             | Raster tile template; default OSM public tiles are only a low-traffic development choice                                                                                                               |
+| `VITE_TILE_ATTRIBUTION`     | Provider-required legal credits, not marketing copy. Default: linked `© OpenStreetMap contributors`. Custom tile URLs require explicit provider attribution HTML from trusted deployment configuration |
+| `VITE_TILE_MAX_ZOOM`        | Native raster tile maximum zoom, default 19                                                                                                                                                            |
 
 The client calls only `POST /api/directions/cycling-regular/geojson`, `POST /api/directions/foot-hiking/geojson`, `GET /api/geocode/search` and `GET /api/health`. The proxy adds the private key and forwards to the fixed configured upstream (`/v2/directions/...`, `/geocode/search`); it is not a generic URL-forwarding endpoint. Health returns only whether routing is configured. A directions-only self-hosted instance still needs compatible geocoding; failures are shown honestly. Upstream browser CORS is no longer required because provider requests originate on the server.
 
