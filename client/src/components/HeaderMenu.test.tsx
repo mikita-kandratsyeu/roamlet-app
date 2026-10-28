@@ -33,10 +33,36 @@ it('groups the direct route action and menu trigger, and focuses the first menu 
   expect(trigger).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByRole('menu')).toHaveAttribute('id', trigger.getAttribute('aria-controls'));
   expect(screen.getByRole('menuitem', { name: 'My routes' })).toHaveFocus();
+  expect(screen.getByRole('menu')).toHaveAttribute('data-keyboard-navigation', 'false');
   expect(screen.getByRole('menuitemradio', { name: 'English' })).toHaveAttribute(
     'aria-checked',
     'true',
   );
+});
+
+it('shows Figma preference order, selected checks and explanatory notes', async () => {
+  const { user, trigger } = setup();
+  await user.click(trigger);
+  const choices = screen.getAllByRole('menuitemradio');
+  expect(choices.map((choice) => choice.textContent)).toEqual([
+    'Русский',
+    'English',
+    'Light',
+    'Dark',
+    'System',
+  ]);
+  for (const choice of choices) {
+    expect(choice.querySelector('.preference-check') !== null).toBe(
+      choice.getAttribute('aria-checked') === 'true',
+    );
+  }
+  expect(screen.getByText('LANGUAGE / ЯЗЫК')).toBeInTheDocument();
+  expect(
+    screen.getByText('System theme follows OS settings. Language and theme are saved locally.'),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText('Theme and language do not change the route, calculation or map position.'),
+  ).toBeInTheDocument();
 });
 
 it('supports arrows, wrapping, Home/End, type-ahead and Escape with focus restoration', async () => {
@@ -46,6 +72,7 @@ it('supports arrows, wrapping, Home/End, type-ahead and Escape with focus restor
   const first = screen.getByRole('menuitem', { name: 'My routes' });
   const last = screen.getByRole('menuitem', { name: 'Help and data sources' });
   await waitFor(() => expect(last).toHaveFocus());
+  expect(screen.getByRole('menu')).toHaveAttribute('data-keyboard-navigation', 'true');
   await user.keyboard('{ArrowDown}');
   await waitFor(() => expect(first).toHaveFocus());
   await user.keyboard('{ArrowUp}');

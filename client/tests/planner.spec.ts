@@ -262,6 +262,20 @@ test('header supports desktop creation and an accessible compact menu', async ({
   }
   await trigger.click();
   await expect(firstItem).toBeFocused();
+  const preferences = page.getByRole('menu');
+  await expect(preferences).toHaveCSS('width', '338px');
+  await expect(firstItem).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  const selectedLanguage = page.getByRole('menuitemradio', { name: 'English' });
+  await expect(selectedLanguage.locator('.preference-check')).toBeVisible();
+  await expect(selectedLanguage.locator(':scope > span').first()).toHaveCSS('display', 'none');
+  const row = await selectedLanguage.boundingBox();
+  const check = await selectedLanguage.locator('.preference-check').boundingBox();
+  expect(Math.abs(row!.x + row!.width - check!.x - check!.width - 12)).toBeLessThan(1);
+  await expect(preferences.locator('.header-menu-note')).toHaveCount(2);
+  await expect(preferences.locator('.header-menu-action-item').first()).toHaveCSS(
+    'justify-content',
+    'center',
+  );
   await page.keyboard.press('End');
   await expect(page.getByRole('menuitem', { name: 'Help and data sources' })).toBeFocused();
   await page.keyboard.press('Home');
@@ -270,6 +284,8 @@ test('header supports desktop creation and an accessible compact menu', async ({
     await page.keyboard.press('ArrowDown');
     await expect(page.getByRole('menuitem', { name: 'My routes' })).toBeFocused();
   }
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitemradio', { name: 'Русский' })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(page.getByRole('menuitemradio', { name: 'English' })).toBeFocused();
   await page.keyboard.press('Escape');

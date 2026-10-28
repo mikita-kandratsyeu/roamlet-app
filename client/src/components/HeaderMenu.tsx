@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Menu, Globe, Info, Library, Monitor, Moon, Plus, Sun } from 'lucide-react';
+import { Menu, Check, CircleHelp, Library, Monitor, Moon, Plus, Sun } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
+  const [keyboardNavigation, setKeyboardNavigation] = useState(false);
   const [compact, setCompact] = useState(false);
   useEffect(() => {
     const media = window.matchMedia?.('(max-width: 700px)');
@@ -128,9 +129,11 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
             className="header-menu-trigger"
             aria-label={t('Menu')}
             onPointerDown={() => {
+              setKeyboardNavigation(false);
               initialFocus.current = 'first';
             }}
             onKeyDown={(event) => {
+              setKeyboardNavigation(true);
               if (event.key === 'ArrowUp') {
                 event.preventDefault();
                 initialFocus.current = 'last';
@@ -145,9 +148,10 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
         <DropdownMenuContent
           ref={attachPanel}
           align="end"
-          sideOffset={10}
+          sideOffset={22}
           loop
           className="header-menu-panel"
+          data-keyboard-navigation={keyboardNavigation}
           style={{ position: 'relative', top: 'auto', right: 'auto' }}
           aria-label={t('Main navigation')}
           onCloseAutoFocus={(event) => {
@@ -161,6 +165,7 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
             }
           }}
           onKeyDown={(event) => {
+            setKeyboardNavigation(true);
             if (event.key === 'Tab') {
               event.preventDefault();
               exitWithTab(event.shiftKey);
@@ -176,14 +181,16 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
               <span>{t('New route')}</span>
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem className="header-menu-item" onSelect={() => activate(onLibrary)}>
-            <Library size={19} aria-hidden="true" />
+          <DropdownMenuItem
+            className="header-menu-item header-menu-action-item"
+            onSelect={() => activate(onLibrary)}
+          >
+            <Library size={18} aria-hidden="true" />
             <span>{t('My routes')}</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator className="header-menu-separator" />
           <DropdownMenuLabel className="header-menu-label">
-            <Globe size={15} aria-hidden="true" />
-            {t('Language')}
+            {t('Language / LANGUAGE')}
           </DropdownMenuLabel>
           <DropdownMenuRadioGroup
             aria-label={t('Language')}
@@ -194,18 +201,21 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
               })
             }
           >
-            <DropdownMenuRadioItem className="header-menu-item header-menu-language" value="en">
-              English
-            </DropdownMenuRadioItem>
             <DropdownMenuRadioItem className="header-menu-item header-menu-language" value="ru">
-              Русский
+              <span>Русский</span>
+              {i18n.resolvedLanguage === 'ru' && (
+                <Check className="preference-check" size={18} aria-hidden="true" />
+              )}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem className="header-menu-item header-menu-language" value="en">
+              <span>English</span>
+              {i18n.resolvedLanguage === 'en' && (
+                <Check className="preference-check" size={18} aria-hidden="true" />
+              )}
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator className="header-menu-separator" />
-          <DropdownMenuLabel className="header-menu-label">
-            <Monitor size={15} aria-hidden="true" />
-            {t('Theme')}
-          </DropdownMenuLabel>
+          <DropdownMenuLabel className="header-menu-label">{t('Theme')}</DropdownMenuLabel>
           <DropdownMenuRadioGroup
             aria-label={t('Theme')}
             value={theme}
@@ -214,23 +224,41 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
             }}
           >
             <DropdownMenuRadioItem className="header-menu-item" value="light">
-              <Sun aria-hidden="true" />
-              {t('Light')}
+              <Sun size={18} aria-hidden="true" />
+              <span>{t('Light')}</span>
+              {theme === 'light' && (
+                <Check className="preference-check" size={18} aria-hidden="true" />
+              )}
             </DropdownMenuRadioItem>
             <DropdownMenuRadioItem className="header-menu-item" value="dark">
-              <Moon aria-hidden="true" />
-              {t('Dark')}
+              <Moon size={18} aria-hidden="true" />
+              <span>{t('Dark')}</span>
+              {theme === 'dark' && (
+                <Check className="preference-check" size={18} aria-hidden="true" />
+              )}
             </DropdownMenuRadioItem>
             <DropdownMenuRadioItem className="header-menu-item" value="system">
-              <Monitor aria-hidden="true" />
-              {t('System')}
+              <Monitor size={18} aria-hidden="true" />
+              <span>{t('System')}</span>
+              {theme === 'system' && (
+                <Check className="preference-check" size={18} aria-hidden="true" />
+              )}
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
+          <p className="header-menu-note">
+            {t('System theme follows OS settings. Language and theme are saved locally.')}
+          </p>
           <DropdownMenuSeparator className="header-menu-separator" />
-          <DropdownMenuItem className="header-menu-item" onSelect={() => activate(onHelp)}>
-            <Info size={19} aria-hidden="true" />
+          <DropdownMenuItem
+            className="header-menu-item header-menu-action-item"
+            onSelect={() => activate(onHelp)}
+          >
+            <CircleHelp size={18} aria-hidden="true" />
             <span>{t('Help and data sources')}</span>
           </DropdownMenuItem>
+          <p className="header-menu-note">
+            {t('Theme and language do not change the route, calculation or map position.')}
+          </p>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
