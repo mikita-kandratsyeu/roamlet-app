@@ -15,6 +15,8 @@ Copy `.env.example` to `.env` and set **server-only** `ORS_API_KEY`. Never put t
 - `GET /api/geocode/search?text=Innsbruck&size=5`
 - `GET /api/health` → `{ "configured": true }` (or `false`).
 
+Upstream directions requests use `Accept: application/geo+json` to match the `/geojson` endpoint; geocoding uses `Accept: application/json`.
+
 Directions require JSON, capped at 64 KiB: `coordinates` (1–50 longitude/latitude pairs, bounded finite numbers), optional boolean `elevation`/`instructions`, and optional `options`. Only `avoid_features: ["steps"]` (or an empty array) and `round_trip: { length, points?, seed? }` are accepted. Loop length is 2,000–100,000 metres, points 2–10, seed 0–2,147,483,647. All other fields are rejected. Search text is trimmed, 3–200 characters; size is 1–5, default 5. Unknown parameters, profiles and API paths are rejected.
 
 Errors have `{ "error": { "code": "...", "message": "..." } }`. Missing key returns 503 `NOT_CONFIGURED`; local quota returns 429 `RATE_LIMITED` with `Retry-After`; upstream quota returns 429 `UPSTREAM_RATE_LIMITED`; timeout returns 504 `UPSTREAM_TIMEOUT`; upstream failures return safe 502 errors. Upstream responses must be JSON objects and are capped at 10 MiB. Caller credentials and upstream headers/errors are never forwarded. Upstream requests time out after 25 seconds and abort on client disconnect. Redirects are not followed.

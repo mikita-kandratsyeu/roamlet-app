@@ -344,7 +344,7 @@ export function createProxyServer({
           method: body === undefined ? 'GET' : 'POST',
           headers: {
             Authorization: key,
-            Accept: 'application/json',
+            Accept: body === undefined ? 'application/json' : 'application/geo+json',
             ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
           },
           ...(body === undefined ? {} : { body: JSON.stringify(body) }),

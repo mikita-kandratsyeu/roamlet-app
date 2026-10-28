@@ -85,11 +85,13 @@ test('injects only private auth into fixed upstream paths and strips upstream he
   for (const name of ['authorization', 'set-cookie', 'access-control-allow-origin'])
     assert.equal(response.headers.get(name), null);
   assert.equal(seen[0].url, '/openrouteservice/v2/directions/cycling-regular/geojson');
+  assert.equal(seen[0].headers.accept, 'application/geo+json');
   assert.equal(seen[0].headers.authorization, 'private-test-key');
   assert.equal(seen[0].headers.cookie, undefined);
   assert.deepEqual(JSON.parse(seen[0].body), payload);
   assert.equal((await fetch(url + search + '&size=2')).status, 200);
   assert.equal(seen[1].url, '/pelias/v1/search?text=Innsbruck&size=2');
+  assert.equal(seen[1].headers.accept, 'application/json');
 });
 
 test('uses the HeiGIT directions endpoint for both supported profiles by default', async (t) => {
@@ -113,6 +115,7 @@ test('uses the HeiGIT directions endpoint for both supported profiles by default
       `https://api.heigit.org/openrouteservice/v2/directions/${profile}/geojson`,
     );
     assert.equal(request.options.method, 'POST');
+    assert.equal(request.options.headers.Accept, 'application/geo+json');
     assert.equal(request.options.headers.Authorization, 'private-test-key');
     assert.deepEqual(JSON.parse(request.options.body), payload);
   }
