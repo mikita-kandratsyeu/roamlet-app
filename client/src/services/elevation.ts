@@ -19,11 +19,16 @@ export function terrainRgbHeight(red: number, green: number, blue: number): numb
 /** Fractional pixels are sampled at the containing pixel, including tile boundaries. */
 export function terrainTilePosition(longitude: number, latitude: number) {
   const count = 2 ** ZOOM;
-  const wrapped = ((longitude % 360) + 540) % 360 - 180;
-  const lat = Math.max(-MAX_LATITUDE, Math.min(MAX_LATITUDE, latitude)) * Math.PI / 180;
+  const wrapped = (((longitude % 360) + 540) % 360) - 180;
+  const lat = (Math.max(-MAX_LATITUDE, Math.min(MAX_LATITUDE, latitude)) * Math.PI) / 180;
   const x = ((wrapped + 180) / 360) * count;
-  const y = Math.max(0, Math.min(count - Number.EPSILON * count,
-    (1 - Math.asinh(Math.tan(lat)) / Math.PI) / 2 * count));
+  const y = Math.max(
+    0,
+    Math.min(
+      count - Number.EPSILON * count,
+      ((1 - Math.asinh(Math.tan(lat)) / Math.PI) / 2) * count,
+    ),
+  );
   return { x: Math.floor(x), y: Math.floor(y), u: x - Math.floor(x), v: y - Math.floor(y) };
 }
 
@@ -39,7 +44,10 @@ async function decodePng(blob: Blob, signal: AbortSignal): Promise<Tile> {
   let image: ImageBitmap | HTMLImageElement;
   let release: () => void;
   if (typeof createImageBitmap === 'function') {
-    image = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+    image = await createImageBitmap(blob, {
+      colorSpaceConversion: 'none',
+      premultiplyAlpha: 'none',
+    });
     const bitmap = image;
     release = () => bitmap.close();
   } else {
@@ -56,9 +64,18 @@ async function decodePng(blob: Blob, signal: AbortSignal): Promise<Tile> {
           element.onerror = null;
           signal.removeEventListener('abort', onAbort);
         };
-        const onAbort = () => { cleanup(); reject(abortError()); };
-        element.onload = () => { cleanup(); resolve(); };
-        element.onerror = () => { cleanup(); reject(new Error('Invalid terrain PNG.')); };
+        const onAbort = () => {
+          cleanup();
+          reject(abortError());
+        };
+        element.onload = () => {
+          cleanup();
+          resolve();
+        };
+        element.onerror = () => {
+          cleanup();
+          reject(new Error('Invalid terrain PNG.'));
+        };
         signal.addEventListener('abort', onAbort, { once: true });
         if (signal.aborted) onAbort();
         else element.src = url;
@@ -73,7 +90,8 @@ async function decodePng(blob: Blob, signal: AbortSignal): Promise<Tile> {
     checkAbort(signal);
     const width = image instanceof HTMLImageElement ? image.naturalWidth : image.width;
     const height = image instanceof HTMLImageElement ? image.naturalHeight : image.height;
-    if (![256, 512].includes(width) || height !== width) throw new Error('Invalid terrain tile size.');
+    if (![256, 512].includes(width) || height !== width)
+      throw new Error('Invalid terrain tile size.');
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -100,7 +118,9 @@ async function fetchTile(key: string, signal?: AbortSignal): Promise<Tile> {
   const onAbort = () => controller.abort();
   signal?.addEventListener('abort', onAbort, { once: true });
   let rejectDeadline: (error: DOMException) => void = () => {};
-  const deadline = new Promise<never>((_, reject) => { rejectDeadline = reject; });
+  const deadline = new Promise<never>((_, reject) => {
+    rejectDeadline = reject;
+  });
   const onDeadline = () => rejectDeadline(abortError());
   controller.signal.addEventListener('abort', onDeadline, { once: true });
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -108,7 +128,8 @@ async function fetchTile(key: string, signal?: AbortSignal): Promise<Tile> {
     const tile = await Promise.race([
       (async () => {
         const response = await fetch(`/api/terrain/${key}.pngraw`, {
-          credentials: 'same-origin', signal: controller.signal,
+          credentials: 'same-origin',
+          signal: controller.signal,
         });
         if (!response.ok) throw new Error('Terrain tile unavailable.');
         const blob = await response.blob();
@@ -136,14 +157,16 @@ async function fetchTile(key: string, signal?: AbortSignal): Promise<Tile> {
  * Complete finite input heights are retained; incomplete input heights are never mixed with terrain.
  */
 export async function addTerrainElevation(
-  coordinates: Coordinate[], signal?: AbortSignal,
+  coordinates: Coordinate[],
+  signal?: AbortSignal,
 ): Promise<Coordinate[]> {
   checkAbort(signal);
   const geometry: Coordinate[] = coordinates.map(([lon, lat]) => [lon, lat]);
   if (!coordinates.length) return geometry;
-  if (coordinates.some(([lon, lat]) => !Number.isFinite(lon) || !Number.isFinite(lat))) return geometry;
-  if (coordinates.every(point => point.length === 3 && Number.isFinite(point[2]))) {
-    return coordinates.map(point => [...point] as Coordinate);
+  if (coordinates.some(([lon, lat]) => !Number.isFinite(lon) || !Number.isFinite(lat)))
+    return geometry;
+  if (coordinates.every((point) => point.length === 3 && Number.isFinite(point[2]))) {
+    return coordinates.map((point) => [...point] as Coordinate);
   }
   const positions = coordinates.map(([lon, lat]) => terrainTilePosition(lon, lat));
   const keys = positions.map(({ x, y }) => `${ZOOM}/${x}/${y}`);
@@ -152,18 +175,20 @@ export async function addTerrainElevation(
   const tiles = new Map<string, Tile>();
   let next = 0;
   let failed = false;
-  await Promise.all(Array.from({ length: Math.min(4, unique.length) }, async () => {
-    while (!failed && next < unique.length) {
-      checkAbort(signal);
-      const key = unique[next++];
-      try {
-        tiles.set(key, await fetchTile(key, signal));
-      } catch {
+  await Promise.all(
+    Array.from({ length: Math.min(4, unique.length) }, async () => {
+      while (!failed && next < unique.length) {
         checkAbort(signal);
-        failed = true;
+        const key = unique[next++];
+        try {
+          tiles.set(key, await fetchTile(key, signal));
+        } catch {
+          checkAbort(signal);
+          failed = true;
+        }
       }
-    }
-  }));
+    }),
+  );
   checkAbort(signal);
   if (failed) return geometry;
   const elevated: Coordinate[] = [];
@@ -172,9 +197,11 @@ export async function addTerrainElevation(
     const { u, v } = positions[index];
     const offset = (Math.floor(v * tile.height) * tile.width + Math.floor(u * tile.width)) * 4;
     if (tile.pixels[offset + 3] !== 255) return geometry;
-    elevated.push([coordinates[index][0], coordinates[index][1], terrainRgbHeight(
-      tile.pixels[offset], tile.pixels[offset + 1], tile.pixels[offset + 2],
-    )]);
+    elevated.push([
+      coordinates[index][0],
+      coordinates[index][1],
+      terrainRgbHeight(tile.pixels[offset], tile.pixels[offset + 1], tile.pixels[offset + 2]),
+    ]);
   }
   return elevated;
 }

@@ -9,8 +9,10 @@ let bitmap: ReturnType<typeof vi.fn>;
 let fetcher: MockInstance<typeof fetch>;
 
 function coordinateAt(x: number, y = 2048, u = 0, v = 0): [number, number] {
-  return [((x + u) / 4096) * 360 - 180,
-    Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + v) / 4096))) * 180 / Math.PI];
+  return [
+    ((x + u) / 4096) * 360 - 180,
+    (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + v)) / 4096))) * 180) / Math.PI,
+  ];
 }
 
 beforeEach(async () => {
@@ -27,10 +29,12 @@ beforeEach(async () => {
     drawImage: vi.fn(),
     getImageData: vi.fn(() => ({ data: pixels })),
   } as unknown as CanvasRenderingContext2D);
-  fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
-    new Response(new Blob(['png'], { type: 'image/png' }), {
-      headers: { 'Content-Type': 'image/png' },
-    }));
+  fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(
+    async () =>
+      new Response(new Blob(['png'], { type: 'image/png' }), {
+        headers: { 'Content-Type': 'image/png' },
+      }),
+  );
 });
 
 afterEach(() => {
@@ -72,52 +76,83 @@ describe('addTerrainElevation', () => {
     const original: Coordinate[] = [[0, 0], middle, [360, 0], [180, -90]];
     const snapshot = structuredClone(original);
     expect(await addTerrainElevation(original)).toEqual([
-      [0, 0, 100], [...middle, 0], [360, 0, 100], [180, -90, 100],
+      [0, 0, 100],
+      [...middle, 0],
+      [360, 0, 100],
+      [180, -90, 100],
     ]);
     expect(original).toEqual(snapshot);
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
-      '/api/terrain/12/2048/2048.pngraw', '/api/terrain/12/0/4095.pngraw',
+      '/api/terrain/12/2048/2048.pngraw',
+      '/api/terrain/12/0/4095.pngraw',
     ]);
     expect(fetcher.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin' });
     expect(bitmap).toHaveBeenCalledWith(expect.any(Blob), {
-      colorSpaceConversion: 'none', premultiplyAlpha: 'none',
+      colorSpaceConversion: 'none',
+      premultiplyAlpha: 'none',
     });
     expect(close).toHaveBeenCalledTimes(2);
   });
   it('returns fresh coordinates on cache hits without mutating the cached tile', async () => {
-    const original: Coordinate[] = [[0, 0], [0, 0]];
+    const original: Coordinate[] = [
+      [0, 0],
+      [0, 0],
+    ];
     const first = await addTerrainElevation(original);
     first[0][0] = 99;
     first[0][2] = 500;
-    expect(await addTerrainElevation(original)).toEqual([[0, 0, 100], [0, 0, 100]]);
+    expect(await addTerrainElevation(original)).toEqual([
+      [0, 0, 100],
+      [0, 0, 100],
+    ]);
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(bitmap).toHaveBeenCalledTimes(1);
-    expect(original).toEqual([[0, 0], [0, 0]]);
+    expect(original).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
   });
   it('retains only complete finite 3D input, cloning it without network requests', async () => {
-    const complete: Coordinate[] = [[0, 0, 42], [1, 1, -2]];
+    const complete: Coordinate[] = [
+      [0, 0, 42],
+      [1, 1, -2],
+    ];
     const result = await addTerrainElevation(complete);
     expect(result).toEqual(complete);
     expect(result[0]).not.toBe(complete[0]);
     expect(fetcher).not.toHaveBeenCalled();
-    expect(await addTerrainElevation([[0, 0, 42], [0, 0, NaN]])).toEqual([
-      [0, 0, 100], [0, 0, 100],
+    expect(
+      await addTerrainElevation([
+        [0, 0, 42],
+        [0, 0, NaN],
+      ]),
+    ).toEqual([
+      [0, 0, 100],
+      [0, 0, 100],
     ]);
   });
-  it.each([404, 429, 500])('drops all partial input heights on tile failure %s', async status => {
+  it.each([404, 429, 500])('drops all partial input heights on tile failure %s', async (status) => {
     fetcher.mockResolvedValueOnce(new Response('{}', { status }));
-    const input: Coordinate[] = [[0, 0, 600], [0, 0]];
-    expect(await addTerrainElevation(input)).toEqual([[0, 0], [0, 0]]);
+    const input: Coordinate[] = [
+      [0, 0, 600],
+      [0, 0],
+    ];
+    expect(await addTerrainElevation(input)).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
     expect(input[0]).toEqual([0, 0, 600]);
     expect(bitmap).not.toHaveBeenCalled();
     expect(await addTerrainElevation([[0, 0]])).toEqual([[0, 0, 100]]);
     expect(fetcher).toHaveBeenCalledTimes(2); // Failures are not cached.
   });
   it('never returns a partially elevated route when one of several tiles is missing (water)', async () => {
-    fetcher.mockImplementation(async url => String(url).includes('/2049/')
-      ? new Response('{"error":{"code":"TERRAIN_NOT_FOUND"}}', { status: 404 })
-      : new Response(new Blob(['png'])));
+    fetcher.mockImplementation(async (url) =>
+      String(url).includes('/2049/')
+        ? new Response('{"error":{"code":"TERRAIN_NOT_FOUND"}}', { status: 404 })
+        : new Response(new Blob(['png'])),
+    );
     const input: Coordinate[] = [[0, 0, 400], coordinateAt(2049)];
     expect(await addTerrainElevation(input)).toEqual(input.map(([lon, lat]) => [lon, lat]));
   });
@@ -129,7 +164,15 @@ describe('addTerrainElevation', () => {
   });
   it('returns 2D for fetch and decode failures and closes invalid bitmaps', async () => {
     fetcher.mockRejectedValueOnce(new TypeError('Offline'));
-    expect(await addTerrainElevation([[0, 0, 1], [0, 0]])).toEqual([[0, 0], [0, 0]]);
+    expect(
+      await addTerrainElevation([
+        [0, 0, 1],
+        [0, 0],
+      ]),
+    ).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
     bitmap.mockRejectedValueOnce(new Error('Corrupt PNG'));
     expect(await addTerrainElevation([[0, 0]])).toEqual([[0, 0]]);
     bitmap.mockResolvedValueOnce({ width: 1024, height: 1024, close });
@@ -159,12 +202,12 @@ describe('addTerrainElevation', () => {
     fetcher.mockImplementation(async () => {
       active++;
       maximum = Math.max(maximum, active);
-      await new Promise(resolve => setTimeout(resolve, 1));
+      await new Promise((resolve) => setTimeout(resolve, 1));
       active--;
       return new Response(new Blob(['png']));
     });
     const route = Array.from({ length: 64 }, (_, i) => coordinateAt(2048 + i));
-    expect((await addTerrainElevation(route)).every(point => point[2] === 100)).toBe(true);
+    expect((await addTerrainElevation(route)).every((point) => point[2] === 100)).toBe(true);
     expect(fetcher).toHaveBeenCalledTimes(64);
     expect(maximum).toBe(4);
   });
@@ -180,8 +223,12 @@ describe('addTerrainElevation', () => {
   it('propagates AbortError for already aborted signals, even with complete 3D input', async () => {
     const controller = new AbortController();
     controller.abort('custom reason');
-    await expect(addTerrainElevation([[0, 0, 1]], controller.signal)).rejects.toBeInstanceOf(DOMException);
-    await expect(addTerrainElevation([], controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(addTerrainElevation([[0, 0, 1]], controller.signal)).rejects.toBeInstanceOf(
+      DOMException,
+    );
+    await expect(addTerrainElevation([], controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    });
     expect(fetcher).not.toHaveBeenCalled();
   });
   it('propagates in-flight abort even if the fetch implementation ignores cancellation', async () => {
@@ -196,13 +243,24 @@ describe('addTerrainElevation', () => {
   it('times out at 10 seconds, returns 2D and never caches a late decoded tile', async () => {
     vi.useFakeTimers();
     let resolveBitmap!: (image: unknown) => void;
-    bitmap.mockImplementationOnce(() => new Promise(resolve => { resolveBitmap = resolve; }));
-    const route: Coordinate[] = [[0, 0, 3], [0, 0]];
+    bitmap.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveBitmap = resolve;
+        }),
+    );
+    const route: Coordinate[] = [
+      [0, 0, 3],
+      [0, 0],
+    ];
     const result = addTerrainElevation(route);
     await vi.advanceTimersByTimeAsync(9999);
     expect(close).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
-    expect(await result).toEqual([[0, 0], [0, 0]]);
+    expect(await result).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
     resolveBitmap({ width: 256, height: 256, close });
     await vi.advanceTimersByTimeAsync(0);
     expect(close).toHaveBeenCalledOnce();
@@ -213,7 +271,12 @@ describe('addTerrainElevation', () => {
   it('propagates cancellation during bitmap decoding and releases late bitmaps', async () => {
     vi.useFakeTimers();
     let resolveBitmap!: (image: unknown) => void;
-    bitmap.mockImplementationOnce(() => new Promise(resolve => { resolveBitmap = resolve; }));
+    bitmap.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveBitmap = resolve;
+        }),
+    );
     const controller = new AbortController();
     const result = addTerrainElevation([[0, 0]], controller.signal);
     const rejection = expect(result).rejects.toMatchObject({ name: 'AbortError' });
@@ -245,15 +308,21 @@ describe('addTerrainElevation', () => {
     expect(await result).toEqual([[0, 0]]);
     expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true);
   });
-  it.each(['error', 'abort'])('revokes fallback blob URLs after %s', async outcome => {
+  it.each(['error', 'abort'])('revokes fallback blob URLs after %s', async (outcome) => {
     vi.useFakeTimers();
     vi.stubGlobal('createImageBitmap', undefined);
     const revoke = vi.fn();
-    vi.stubGlobal('URL', class extends URL {
-      static createObjectURL = vi.fn(() => 'blob:terrain-test');
-      static revokeObjectURL = revoke;
-    });
-    vi.spyOn(HTMLImageElement.prototype, 'src', 'set').mockImplementation(function (this: HTMLImageElement, value) {
+    vi.stubGlobal(
+      'URL',
+      class extends URL {
+        static createObjectURL = vi.fn(() => 'blob:terrain-test');
+        static revokeObjectURL = revoke;
+      },
+    );
+    vi.spyOn(HTMLImageElement.prototype, 'src', 'set').mockImplementation(function (
+      this: HTMLImageElement,
+      value,
+    ) {
       if (value && outcome === 'error') queueMicrotask(() => this.onerror?.(new Event('error')));
     });
     const controller = new AbortController();
@@ -273,13 +342,19 @@ describe('addTerrainElevation', () => {
   it('decodes with an Image fallback and revokes its blob URL', async () => {
     vi.stubGlobal('createImageBitmap', undefined);
     const revoke = vi.fn();
-    vi.stubGlobal('URL', class extends URL {
-      static createObjectURL = vi.fn(() => 'blob:terrain-test');
-      static revokeObjectURL = revoke;
-    });
+    vi.stubGlobal(
+      'URL',
+      class extends URL {
+        static createObjectURL = vi.fn(() => 'blob:terrain-test');
+        static revokeObjectURL = revoke;
+      },
+    );
     vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(256);
     vi.spyOn(HTMLImageElement.prototype, 'naturalHeight', 'get').mockReturnValue(256);
-    vi.spyOn(HTMLImageElement.prototype, 'src', 'set').mockImplementation(function (this: HTMLImageElement, value) {
+    vi.spyOn(HTMLImageElement.prototype, 'src', 'set').mockImplementation(function (
+      this: HTMLImageElement,
+      value,
+    ) {
       if (value) queueMicrotask(() => this.onload?.(new Event('load')));
     });
     expect(await addTerrainElevation([[0, 0]])).toEqual([[0, 0, 100]]);
