@@ -158,6 +158,21 @@ describe('route planner interactions', () => {
     );
     expect(screen.getByRole('button', { name: 'Отбросить изменения' })).toBeInTheDocument();
   });
+  it('translates an open clear-stops confirmation and its destructive action', async () => {
+    render(<App />);
+    await plan();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear stops' }));
+    expect(screen.getByRole('dialog', { name: 'Clear all stops?' })).toBeInTheDocument();
+    await act(async () => {
+      await i18n.changeLanguage('ru');
+    });
+    const dialog = screen.getByRole('dialog', { name: 'Удалить все точки?' });
+    expect(dialog).toHaveTextContent(
+      'Все точки и рассчитанный маршрут будут удалены. Сохранённые маршруты не затрагиваются.',
+    );
+    expect(within(dialog).getByRole('button', { name: 'Удалить все точки' })).toBeInTheDocument();
+  });
+
   it('starts with an actionable empty overview instead of unavailable metrics', () => {
     render(<App />);
     expect(screen.getByRole('button', { name: 'Save route' })).toBeDisabled();
