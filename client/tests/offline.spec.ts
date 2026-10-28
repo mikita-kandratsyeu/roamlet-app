@@ -107,6 +107,32 @@ test('missing routing token keeps the map usable but never substitutes a fake ro
   await expect(page.getByRole('alert')).toContainText('VITE_MAPBOX_ACCESS_TOKEN');
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
 });
+test('manual drawing calculates and exports offline without a routing token', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+  await context.setOffline(true);
+  try {
+    await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+    for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
+      await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+      await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
+    }
+    await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeEnabled();
+    await expect(page.locator('.configuration-note')).toHaveCount(0);
+    const downloaded = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export GPX', exact: true }).click();
+    const xml = await readFile((await (await downloaded).path())!, 'utf8');
+    expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
+    expect(xml).not.toContain('Routing by Mapbox');
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
 test('waypoint-only GPX remains usable and cannot crash route conversion', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('Import GPX file').setInputFiles({

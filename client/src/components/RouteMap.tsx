@@ -71,6 +71,7 @@ interface Props {
 export function RouteMap(props: Props) {
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
+  const { manualDrawing, editable, onUndo } = props;
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const locationMarker = useRef<maplibregl.Marker | null>(null);
@@ -348,12 +349,18 @@ export function RouteMap(props: Props) {
   useEffect(() => {
     if (!ready || !map.current) return;
     const canvas = map.current.getCanvas();
-    canvas.style.cursor = props.manualDrawing && props.editable ? 'crosshair' : '';
+    canvas.style.cursor = manualDrawing && editable ? 'crosshair' : '';
     const undo = (event: KeyboardEvent) => {
-      if (props.manualDrawing && props.editable && props.onUndo &&
-          (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+      if (
+        manualDrawing &&
+        editable &&
+        onUndo &&
+        (event.ctrlKey || event.metaKey) &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === 'z'
+      ) {
         event.preventDefault();
-        props.onUndo();
+        onUndo();
       }
     };
     canvas.addEventListener('keydown', undo);
@@ -361,7 +368,7 @@ export function RouteMap(props: Props) {
       canvas.style.cursor = '';
       canvas.removeEventListener('keydown', undo);
     };
-  }, [ready, props.manualDrawing, props.editable, props.onUndo]);
+  }, [ready, manualDrawing, editable, onUndo]);
   function locate() {
     if (!navigator.geolocation) {
       props.onError(
@@ -496,11 +503,24 @@ export function RouteMap(props: Props) {
           aria-label={t('Manual drawing')}
           title={t('Manual drawing')}
           aria-pressed={Boolean(props.manualDrawing)}
-          disabled={!ready || !props.onToggleManualDrawing}
+          disabled={!props.onToggleManualDrawing}
           onClick={props.onToggleManualDrawing}
         >
           <Ruler size={20} aria-hidden="true" />
         </Button>
+        {props.manualDrawing && props.editable && (
+          <Button
+            className="map-control map-undo-tool"
+            variant="outline"
+            size="icon"
+            aria-label={t('Undo last point')}
+            title={t('Undo last point')}
+            disabled={!props.onUndo}
+            onClick={props.onUndo}
+          >
+            <Undo2 size={18} aria-hidden="true" />
+          </Button>
+        )}
       </div>
       <div className="map-bottom-toolbar">
         <div className="map-bottom-leading">
@@ -508,20 +528,12 @@ export function RouteMap(props: Props) {
             <div className="map-drawing-tools">
               <div className="map-hint">
                 <MousePointer2 size={16} aria-hidden="true" />
-                <span>{props.manualDrawing ? t('Click to draw straight lines. Drag points to adjust.') : t('Click the map to add a stop. Drag pins to refine.')}</span>
+                <span>
+                  {props.manualDrawing
+                    ? t('Click to draw straight lines. Drag points to adjust.')
+                    : t('Click the map to add a stop. Drag pins to refine.')}
+                </span>
               </div>
-          {props.manualDrawing && props.editable && (
-            <Button
-              variant="outline" size="icon"
-              aria-label={t('Undo last point')}
-              title={t('Undo last point')}
-              disabled={!ready || !props.onUndo}
-              onClick={props.onUndo}
-            >
-              <Undo2 size={18} aria-hidden="true" />
-            </Button>
-          )}
-
             </div>
           )}
           <ToggleGroup

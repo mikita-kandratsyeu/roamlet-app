@@ -14,7 +14,13 @@ describe('GPX', () => {
   it('exports manual segments exactly without claiming Mapbox routing attribution', () => {
     const route = importGpx(fixture);
     route.source = 'manual';
-    route.segments = [[[11.4, 47.26], [11.41, 47.27], [11.43, 47.28]]];
+    route.segments = [
+      [
+        [11.4, 47.26],
+        [11.41, 47.27],
+        [11.43, 47.28],
+      ],
+    ];
     const xml = exportGpx(route);
     expect(xml).not.toContain('Routing by Mapbox');
     expect(xml).not.toContain('Mapbox / OpenStreetMap');

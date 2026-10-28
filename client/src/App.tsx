@@ -139,9 +139,14 @@ export default function App() {
     if (planningMode === 'manual') {
       setBusy(false);
       setResult({
-        ...routeIdentity.current, name: i18n.t('Untitled adventure'), description: '',
-        activity, waypoints, ...manualRoute(waypoints, activity),
-        updatedAt: new Date().toISOString(), source: 'manual',
+        ...routeIdentity.current,
+        name: i18n.t('Untitled adventure'),
+        description: '',
+        activity,
+        waypoints,
+        ...manualRoute(waypoints, activity),
+        updatedAt: new Date().toISOString(),
+        source: 'manual',
       });
       return;
     }
@@ -236,15 +241,18 @@ export default function App() {
       setConfirmation({
         title: 'Switch to a round trip?',
         text: 'Only your starting point will be kept. Save or export the current route first to keep it.',
-        label: 'Switch to round trip', action: change,
+        label: 'Switch to round trip',
+        action: change,
       });
     } else if (waypoints.length > 1 && (next === 'manual' || planningMode === 'manual')) {
       setConfirmation({
         title: next === 'manual' ? 'Switch to manual drawing?' : 'Switch to automatic routing?',
-        text: next === 'manual'
-          ? 'Stops are kept, but the current geometry will be replaced by straight lines. Save or export the original first.'
-          : 'Stops are kept, but Directions will replace the straight lines with a road/path route. Save or export the original first.',
-        label: 'Switch mode', action: change,
+        text:
+          next === 'manual'
+            ? 'Stops are kept, but the current geometry will be replaced by straight lines. Save or export the original first.'
+            : 'Stops are kept, but Directions will replace the straight lines with a road/path route. Save or export the original first.',
+        label: 'Switch mode',
+        action: change,
       });
     } else change();
   }
@@ -260,7 +268,11 @@ export default function App() {
     else if (planningMode === 'loop') changeWaypoints([point]);
     else if (waypoints.length < stopLimit) changeWaypoints([...waypoints, point]);
     else {
-      fail(planningMode === 'manual' ? 'A manual route supports up to 1,000 points. Remove a point before adding another.' : 'A route supports up to 25 stops. Remove a stop before adding another.');
+      fail(
+        planningMode === 'manual'
+          ? 'A manual route supports up to 1,000 points. Remove a point before adding another.'
+          : 'A route supports up to 25 stops. Remove a stop before adding another.',
+      );
       return;
     }
     setQuery('');
@@ -685,25 +697,28 @@ export default function App() {
             {mode === 'manual' ? (
               <>
                 {planningMode !== 'manual' && (
-                <ToggleGroup
-                  type="single"
-                  value={planningMode}
-                  className="planning-tabs"
-                  aria-label={t('Route style')}
-                  onValueChange={(value) => {
-                    if (value === 'point' || value === 'loop') changePlanningMode(value);
-                  }}
-                >
-                  <ToggleGroupItem
-                    value="point"
-                    className={planningMode === 'point' ? 'active' : ''}
+                  <ToggleGroup
+                    type="single"
+                    value={planningMode}
+                    className="planning-tabs"
+                    aria-label={t('Route style')}
+                    onValueChange={(value) => {
+                      if (value === 'point' || value === 'loop') changePlanningMode(value);
+                    }}
                   >
-                    {t('Point to point')}
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="loop" className={planningMode === 'loop' ? 'active' : ''}>
-                    {t('Round trip')}
-                  </ToggleGroupItem>
-                </ToggleGroup>
+                    <ToggleGroupItem
+                      value="point"
+                      className={planningMode === 'point' ? 'active' : ''}
+                    >
+                      {t('Point to point')}
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="loop"
+                      className={planningMode === 'loop' ? 'active' : ''}
+                    >
+                      {t('Round trip')}
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 )}
                 {planningMode === 'manual' && (
                   <p className="fine-print manual-mode-note">
@@ -1085,23 +1100,25 @@ export default function App() {
                 </Button>
               </Alert>
             )}
-            {planningMode !== 'manual' && (routingConfigured === false || configurationUnavailable) && !notice?.error && (
-              <div className="configuration-note">
-                <Info size={16} />
-                <span>
-                  {configurationUnavailable
-                    ? t(
-                        'Mapbox configuration could not be checked. GPX and saved routes still work.',
-                      )
-                    : t(
-                        'Configure a public Mapbox token in VITE_MAPBOX_ACCESS_TOKEN. GPX and saved routes remain available.',
-                      )}
-                </span>
-                <Button variant="ghost" className="text-button" onClick={() => setHelpOpen(true)}>
-                  {t('Setup')}
-                </Button>
-              </div>
-            )}
+            {planningMode !== 'manual' &&
+              (routingConfigured === false || configurationUnavailable) &&
+              !notice?.error && (
+                <div className="configuration-note">
+                  <Info size={16} />
+                  <span>
+                    {configurationUnavailable
+                      ? t(
+                          'Mapbox configuration could not be checked. GPX and saved routes still work.',
+                        )
+                      : t(
+                          'Configure a public Mapbox token in VITE_MAPBOX_ACCESS_TOKEN. GPX and saved routes remain available.',
+                        )}
+                  </span>
+                  <Button variant="ghost" className="text-button" onClick={() => setHelpOpen(true)}>
+                    {t('Setup')}
+                  </Button>
+                </div>
+              )}
             <Statistics
               route={result}
               emptyHint={
@@ -1152,9 +1169,19 @@ export default function App() {
           segments={result?.segments || emptySegments}
           waypoints={mapWaypoints}
           editable={mode === 'manual' && !busy && (planningMode !== 'loop' || !result)}
-          manualDrawing={planningMode === 'manual'}
-          onToggleManualDrawing={mode === 'manual' ? () => changePlanningMode(planningMode === 'manual' ? 'point' : 'manual') : result?.source === 'manual' ? editSnapshot : undefined}
-          onUndo={mode === 'manual' && planningMode === 'manual' && waypoints.length ? () => changeWaypoints(waypoints.slice(0, -1)) : undefined}
+          manualDrawing={mode === 'manual' && planningMode === 'manual'}
+          onToggleManualDrawing={
+            mode === 'manual'
+              ? () => changePlanningMode(planningMode === 'manual' ? 'point' : 'manual')
+              : result?.source === 'manual'
+                ? editSnapshot
+                : undefined
+          }
+          onUndo={
+            mode === 'manual' && planningMode === 'manual' && waypoints.length
+              ? () => changeWaypoints(waypoints.slice(0, -1))
+              : undefined
+          }
           fitToken={fitToken}
           onAdd={(coordinate) => addLocation(coordinate)}
           onMove={(id, coordinate) =>
@@ -1317,7 +1344,11 @@ export default function App() {
                 'Cycling and hiking use Mapbox cycling and walking profiles. Check access and trail conditions. Moving time is an estimate. Loops use intermediate points and may differ from the target distance. Elevation is shown only from imported GPX files with complete height data.',
               )}
             </p>
-            <p>{t('Manual routes connect your points directly without Directions. Time is estimated at 18 km/h cycling or 5 km/h hiking; roads, access and terrain are not checked.')}</p>
+            <p>
+              {t(
+                'Manual routes connect your points directly without Directions. Time is estimated at 18 km/h cycling or 5 km/h hiking; roads, access and terrain are not checked.',
+              )}
+            </p>
             <h3>{t('Data & attribution')}</h3>
             <p>
               {t('Map data ©')}{' '}

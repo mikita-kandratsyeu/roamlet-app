@@ -176,9 +176,17 @@ export function Statistics({
       </dl>
       <p className="fine-print">
         {route.source === 'manual'
-          ? t('Moving time estimated at {{speed}} km/h, excluding stops.', { speed: route.activity === 'cycling' ? 18 : 5 })
+          ? t('Moving time estimated at {{speed}} km/h, excluding stops.', {
+              speed: route.activity === 'cycling' ? 18 : 5,
+            })
           : t('Time is an estimate, excluding stops.')}
-        <span className="sr-only">{route.source === 'gpx' ? t('Imported GPX') : route.source === 'manual' ? t('Manual route') : 'Mapbox'}</span>
+        <span className="sr-only">
+          {route.source === 'gpx'
+            ? t('Imported GPX')
+            : route.source === 'manual'
+              ? t('Manual route')
+              : 'Mapbox'}
+        </span>
       </p>
       {elevationTarget ? createPortal(elevationProfile, elevationTarget) : elevationProfile}
     </section>

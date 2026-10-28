@@ -37,7 +37,9 @@ vi.mock('maplibre-gl', () => ({
       }
       addControl = mocks.control;
       canvas = document.createElement('canvas');
-      getCanvas() { return this.canvas; }
+      getCanvas() {
+        return this.canvas;
+      }
       addSource() {}
       addLayer() {}
       resize() {}
@@ -191,6 +193,35 @@ it('changes supported styles and restores actual geometry without resetting the 
   );
   expect(mocks.fit).toHaveBeenCalledTimes(fitCalls);
   expect(mocks.options).toHaveBeenCalledTimes(1);
+});
+
+it('orders navigation before drawing and offers a single ruler tool with contextual undo', () => {
+  const toggle = vi.fn(),
+    undo = vi.fn();
+  render(<RouteMap {...props} manualDrawing onToggleManualDrawing={toggle} onUndo={undo} />);
+  act(() => mocks.handlers.get('load')?.());
+  const controls = screen.getByRole('group', { name: 'Map controls' });
+  expect(
+    [...controls.querySelectorAll('button')].map((button) => button.getAttribute('aria-label')),
+  ).toEqual([
+    'Zoom in',
+    'Zoom out',
+    'Use my location',
+    'Fit route',
+    'Manual drawing',
+    'Undo last point',
+  ]);
+  expect(screen.getAllByRole('button', { name: 'Manual drawing' })).toHaveLength(1);
+  const tool = screen.getByRole('button', { name: 'Manual drawing' });
+  expect(tool).toHaveAttribute('aria-pressed', 'true');
+  expect(tool.querySelector('svg')).toHaveClass('lucide-ruler');
+  fireEvent.click(tool);
+  expect(toggle).toHaveBeenCalledTimes(1);
+  expect(mocks.canvas?.style.cursor).toBe('crosshair');
+  fireEvent.keyDown(mocks.canvas!, { key: 'z', ctrlKey: true });
+  expect(undo).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Undo last point' }));
+  expect(undo).toHaveBeenCalledTimes(2);
 });
 
 it('orders Standard before Light and uses distinct map and sun icons', () => {

@@ -10,7 +10,12 @@ const points: Waypoint[] = [
 describe('manual routes', () => {
   it('connects only user points, without interpolating geometry or inventing elevation', () => {
     const route = manualRoute(points, 'cycling');
-    expect(route.segments).toEqual([[[11.4, 47.26], [11.41, 47.27]]]);
+    expect(route.segments).toEqual([
+      [
+        [11.4, 47.26],
+        [11.41, 47.27],
+      ],
+    ]);
     expect(route.stats.distance).toBeGreaterThan(1000);
     expect(route.stats.ascent).toBeUndefined();
     route.segments[0][0][0] = 0;
@@ -27,7 +32,11 @@ describe('manual routes', () => {
     const many = Array.from({ length: 26 }, (_, i) => ({ ...points[0], id: String(i) }));
     expect(manualRoute(many, 'cycling').segments[0]).toHaveLength(26);
     expect(() => manualRoute([], 'cycling')).toThrow('2 and 1,000');
-    expect(() => manualRoute(Array(MANUAL_STOP_LIMIT + 1).fill(points[0]), 'cycling')).toThrow('2 and 1,000');
-    expect(() => manualRoute([{ ...points[0], coordinate: [999, 47] }, points[1]], 'cycling')).toThrow();
+    expect(() => manualRoute(Array(MANUAL_STOP_LIMIT + 1).fill(points[0]), 'cycling')).toThrow(
+      '2 and 1,000',
+    );
+    expect(() =>
+      manualRoute([{ ...points[0], coordinate: [999, 47] }, points[1]], 'cycling'),
+    ).toThrow();
   });
 });

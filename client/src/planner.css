@@ -184,9 +184,6 @@
   gap: 8px;
   max-width: 100%;
 }
-.map-manual-tool {
-  margin-top: 6px;
-}
 .search-label {
   display: block;
   margin: 0 0 5px;
@@ -598,6 +595,15 @@
 .map-control:nth-child(n + 3) {
   margin-top: 8px;
 }
+.map-extra-controls .map-manual-tool {
+  margin-top: 16px;
+}
+.map-manual-tool[aria-pressed='true'],
+.map-manual-tool[aria-pressed='true']:hover:not(:disabled) {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
 .map-import {
   position: absolute;
   bottom: 44px;
@@ -900,6 +906,9 @@
   }
   .map-control:nth-child(n + 3) {
     margin: 0;
+  }
+  .map-extra-controls .map-manual-tool {
+    margin: 0 0 0 8px;
   }
   .map-top-label {
     display: inline-flex;

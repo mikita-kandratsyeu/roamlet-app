@@ -64,6 +64,68 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
+test('manual drawing uses one ruler tool, direct map points and local undo without Directions', async ({
+  page,
+}) => {
+  const directions: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/directions/v5/')) directions.push(request.url());
+  });
+  const tool = page.getByRole('button', { name: 'Manual drawing', exact: true });
+  await expect(tool).toHaveCount(1);
+  await expect(page.getByRole('group', { name: 'Map controls' }).locator('button')).toHaveCount(5);
+  await expect(page.getByRole('radio', { name: 'Manual', exact: true })).toHaveCount(0);
+  await tool.click();
+  await expect(tool).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('group', { name: 'Route style' })).toHaveCount(0);
+  const canvas = page.locator('.maplibregl-canvas');
+  await expect(canvas).toHaveCSS('cursor', 'crosshair');
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.click(box.x + box.width * 0.65, box.y + box.height * 0.15);
+  await page.mouse.click(box.x + box.width * 0.75, box.y + box.height * 0.2);
+  await expect(page.locator('.waypoint-marker')).toHaveCount(2);
+  await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeEnabled();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export GPX', exact: true }).click();
+  const xml = await readFile((await (await download).path())!, 'utf8');
+  expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
+  expect(xml).not.toContain('Routing by Mapbox');
+  await canvas.focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('.waypoint-marker')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Undo last point', exact: true }).click();
+  await expect(page.locator('.waypoint-marker')).toHaveCount(0);
+  expect(directions).toEqual([]);
+});
+
+test('manual routes retain exact points when saved, reopened and edited', async ({ page }) => {
+  const directions: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/directions/v5/')) directions.push(request.url());
+  });
+  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await addPoint(page, '47.2692, 11.4041');
+  await addPoint(page, '47.271, 11.411');
+  await page.getByRole('button', { name: 'Save route', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Route name' }).fill('Manual afternoon');
+  await page.getByRole('button', { name: 'Save to library', exact: true }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
+  await page.getByRole('button', { name: /Manual afternoon Cycling/ }).click();
+  await page.getByRole('button', { name: 'Edit waypoints', exact: true }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await addPoint(page, '47.273, 11.413');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export GPX', exact: true }).click();
+  const xml = await readFile((await (await download).path())!, 'utf8');
+  expect(xml.match(/<trkpt\s/g)).toHaveLength(3);
+  expect(xml).toContain('lat="47.273" lon="11.413"');
+  expect(directions).toEqual([]);
+});
+
 test('global map loader covers the viewport and releases controls after loading', async ({
   page,
 }) => {
