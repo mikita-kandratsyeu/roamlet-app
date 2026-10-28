@@ -31,9 +31,43 @@ export function Dialog({
       event.preventDefault();
       closeRef.current();
     };
+    const containFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const items = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button, a[href], input, textarea, select, [tabindex]',
+        ),
+      ).filter(
+        (element) =>
+          element.tabIndex >= 0 &&
+          !element.matches(':disabled') &&
+          !element.closest('[hidden], [inert]') &&
+          element.getClientRects().length > 0,
+      );
+      const first = items[0];
+      const last = items.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        dialog.focus();
+      } else if (
+        event.shiftKey &&
+        (document.activeElement === first || !items.includes(document.activeElement as HTMLElement))
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last || !items.includes(document.activeElement as HTMLElement))
+      ) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
     dialog.addEventListener('cancel', cancel);
+    dialog.addEventListener('keydown', containFocus);
     return () => {
       dialog.removeEventListener('cancel', cancel);
+      dialog.removeEventListener('keydown', containFocus);
       dialog.close();
       if (
         previous instanceof HTMLElement &&

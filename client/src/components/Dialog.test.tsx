@@ -86,6 +86,19 @@ it('keeps Escape cancellation bound to the latest callback without resetting foc
   expect(latest).toHaveBeenCalledTimes(1);
 });
 
+it('wraps Tab and Shift+Tab inside the dialog rather than losing focus to browser chrome', () => {
+  vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([
+    new DOMRect(0, 0, 10, 10),
+  ] as unknown as DOMRectList);
+  render(<FormDialog />);
+  const input = screen.getByRole('textbox', { name: 'Name' });
+  const close = screen.getByRole('button', { name: 'Close dialog' });
+  fireEvent.keyDown(input, { key: 'Tab' });
+  expect(close).toHaveFocus();
+  fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+  expect(input).toHaveFocus();
+});
+
 it('gives each dialog its own accessible title association', () => {
   render(
     <>

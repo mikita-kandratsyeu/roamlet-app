@@ -236,3 +236,98 @@ test('split header keeps route creation direct and supports an accessible respon
   await expect(page.getByRole('button', { name: 'New route', exact: true })).toBeFocused();
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
 });
+
+test('focus indicators are single and keyboard focus follows fields, dialogs, library actions and map controls', async ({
+  page,
+}) => {
+  const search = page.getByRole('textbox', { name: 'Search places or coordinates' });
+  await search.fill('Innsbruck');
+  await expect(page.locator('.place-search')).toHaveCSS('outline-width', '2px');
+  await expect(search).toHaveCSS('outline-style', 'none');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Search', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Search', exact: true })).toHaveCSS(
+    'outline-width',
+    '2px',
+  );
+  await expect(page.locator('.place-search')).toHaveCSS('outline-style', 'none');
+  const menu = page.getByRole('button', { name: 'Menu', exact: true });
+  await menu.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'My routes' })).toHaveCSS(
+    'outline-offset',
+    '-2px',
+  );
+  await page.getByRole('menuitem', { name: 'My routes' }).press('Enter');
+  const librarySearch = page.getByRole('textbox', { name: 'Search saved routes' });
+  await expect(librarySearch).toBeFocused();
+  await expect(page.locator('.library-search')).toHaveCSS('outline-width', '2px');
+  await expect(librarySearch).toHaveCSS('outline-style', 'none');
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.getByRole('button', { name: 'Close dialog' })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(librarySearch).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+  await createRoute(page);
+  const newRoute = page.getByRole('button', { name: 'New route', exact: true });
+  await newRoute.press('Enter');
+  await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(newRoute).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+  const save = page.getByRole('button', { name: 'Save route', exact: true });
+  await save.press('Enter');
+  const name = page.getByRole('textbox', { name: 'Route name' });
+  await expect(name).toBeFocused();
+  await expect(name).toHaveCSS('outline-width', '2px');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('textbox', { name: /Description/ })).toBeFocused();
+  await expect(page.getByRole('textbox', { name: /Description/ })).toHaveCSS(
+    'outline-width',
+    '2px',
+  );
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(save).toBeFocused();
+  await save.press('Enter');
+  await name.fill('Focus trip');
+  await page.getByRole('button', { name: 'Save to library' }).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(save).toBeFocused();
+  await menu.press('ArrowDown');
+  await page.getByRole('menuitem', { name: 'My routes' }).press('Enter');
+  await expect(librarySearch).toBeFocused();
+  const edit = page.getByRole('button', { name: 'Edit Focus trip' });
+  await expect(edit).toBeVisible();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expect(edit).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(name).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('textbox', { name: 'Description', exact: true })).toBeFocused();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(edit).toBeFocused();
+  const remove = page.getByRole('button', { name: 'Delete Focus trip' });
+  await remove.press('Enter');
+  await expect(page.getByRole('button', { name: 'Keep route' })).toBeFocused();
+  await page.getByRole('button', { name: 'Keep route' }).click();
+  await expect(remove).toBeFocused();
+  await remove.press('Enter');
+  await page.getByRole('button', { name: 'Delete route', exact: true }).click();
+  await expect(remove).not.toBeVisible();
+  await expect(librarySearch).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+  const zoom = page.getByRole('button', { name: 'Zoom in', exact: true });
+  await zoom.focus();
+  await expect(zoom).toHaveCSS('outline-width', '2px');
+  await expect(zoom).toHaveCSS('outline-offset', '-2px');
+  await expect(zoom).toHaveCSS('box-shadow', 'none');
+  await page.locator('.maplibregl-canvas').focus();
+  await expect(page.locator('.maplibregl-canvas')).toHaveCSS('outline-width', '2px');
+  await expect(page.locator('.maplibregl-canvas')).toHaveCSS('outline-offset', '-3px');
+  await page.emulateMedia({ forcedColors: 'active' });
+  await expect(page.locator(':root')).toHaveCSS('--focus-ring', 'Highlight');
+  await zoom.focus();
+  await expect(zoom).toHaveCSS('outline-style', 'solid');
+});
