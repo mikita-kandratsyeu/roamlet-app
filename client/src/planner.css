@@ -274,6 +274,23 @@
   background: var(--surface);
   color: var(--primary);
 }
+.stop-grip {
+  width: 20px;
+  align-self: stretch;
+  touch-action: none;
+  user-select: none;
+}
+.stop-grip svg {
+  pointer-events: none;
+}
+.dragging .stop-grip {
+  cursor: grabbing;
+}
+.drop-target .waypoint-card {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  background: var(--accent);
+}
 .stop-name {
   font-weight: 400;
 }

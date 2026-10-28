@@ -54,8 +54,8 @@ export function Statistics({
   const chartSamples = samples.filter(
     (_, i) => i % Math.max(1, Math.ceil(samples.length / 400)) === 0 || i === samples.length - 1,
   );
-  const elevationProfile = (
-    <details className="elevation-box" open={samples.length > 1 && !compact}>
+  const elevationProfile = samples.length > 1 ? (
+    <details className="elevation-box" open={!compact}>
       <summary className="section-heading">
         <span>{t('Elevation profile')}</span>
         <span className="small muted">
@@ -144,7 +144,7 @@ export function Statistics({
         </p>
       )}
     </details>
-  );
+  ) : null;
   if (!route)
     return (
       <section className="statistics statistics-empty" aria-label={t('Route statistics')}>

@@ -538,6 +538,57 @@ test('matches Figma planner geometry while preserving branding and responsive el
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+test('dragging a stop handle reorders real stops and recalculates the route', async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name === 'mobile',
+    'Desktop drag handles; compact layouts use reorder buttons.',
+  );
+  await createRoute(page);
+  await addPoint(page, '47.28, 11.42');
+  await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
+  const stops = page.locator('.waypoint-list > li');
+  await expect(stops).toHaveCount(3);
+  const first = await stops.nth(0).locator('.stop-name').innerText();
+  const handle = await stops.nth(0).locator('.stop-grip svg').boundingBox();
+  const destination = await stops.nth(2).locator('.stop-name').boundingBox();
+  await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + handle!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    destination!.x + destination!.width / 2,
+    destination!.y + destination!.height / 2,
+    { steps: 10 },
+  );
+  await expect(stops.nth(2)).toHaveClass(/drop-target/);
+  await page.mouse.up();
+  await expect(stops.nth(2).locator('.stop-name')).toContainText(first.split('\n').at(-1)!);
+  await stops.nth(2).locator('.stop-grip').dragTo(stops.nth(0).locator('.stop-name'));
+  await expect(stops.nth(0).locator('.stop-name')).toContainText(first.split('\n').at(-1)!);
+  const beforeCancel = await stops.allTextContents();
+  const cancelHandle = await stops.nth(0).locator('.stop-grip').boundingBox();
+  await page.mouse.move(
+    cancelHandle!.x + cancelHandle!.width / 2,
+    cancelHandle!.y + cancelHandle!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(destination!.x + 10, destination!.y + 10, { steps: 10 });
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  expect(await stops.allTextContents()).toEqual(beforeCancel);
+  await expect(page.locator('.drop-target, .dragging')).toHaveCount(0);
+  await page.mouse.move(
+    cancelHandle!.x + cancelHandle!.width / 2,
+    cancelHandle!.y + cancelHandle!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(800, 200, { steps: 10 });
+  await page.mouse.up();
+  expect(await stops.allTextContents()).toEqual(beforeCancel);
+  await expect(page.locator('.drop-target, .dragging')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
+});
+
 for (const hidden of [false, true]) {
   test(`map overlays do not intersect when resizing with planner hidden: ${hidden}`, async ({
     page,

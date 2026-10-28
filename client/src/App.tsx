@@ -88,6 +88,31 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [routeRevision, setRouteRevision] = useState(0);
   const [draggedStop, setDraggedStop] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const stopDrag = useRef<{
+    id: string;
+    pointerId?: number;
+    startY: number;
+    target: string | null;
+    active: boolean;
+  } | null>(null);
+  useEffect(() => {
+    if (!draggedStop) return;
+    const cancel = () => {
+      stopDrag.current = null;
+      setDraggedStop(null);
+      setDropTarget(null);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') cancel();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('blur', cancel);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('blur', cancel);
+    };
+  }, [draggedStop]);
   const [routingConfigured, setRoutingConfigured] = useState<boolean | null>(null);
   const [configurationUnavailable, setConfigurationUnavailable] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -220,6 +245,13 @@ export default function App() {
     const next = [...waypoints];
     next.splice(to, 0, next.splice(from, 1)[0]);
     changeWaypoints(next);
+  }
+  function finishStopDrag(commit = false) {
+    const drag = stopDrag.current;
+    stopDrag.current = null;
+    setDraggedStop(null);
+    setDropTarget(null);
+    if (commit && drag?.active && drag.target) reorderStop(drag.id, drag.target);
   }
   function guard(action: () => void) {
     if (dirty)
@@ -501,6 +533,7 @@ export default function App() {
         if (event.dataTransfer.types.includes('Files')) event.preventDefault();
       }}
       onDrop={(event) => {
+        if (!event.dataTransfer.types.includes('Files')) return;
         event.preventDefault();
         void handleFile(event.dataTransfer.files[0]);
       }}
@@ -743,16 +776,22 @@ export default function App() {
                     {waypoints.map((point, index) => (
                       <li
                         key={point.id}
-                        className={draggedStop === point.id ? 'dragging' : ''}
+                        data-stop-id={point.id}
+                        className={`${draggedStop === point.id ? 'dragging' : ''} ${dropTarget === point.id ? 'drop-target' : ''}`}
                         onDragOver={(event) => {
-                          if (draggedStop && planningMode === 'point') event.preventDefault();
-                        }}
-                        onDrop={(event) => {
-                          if (!draggedStop) return;
+                          if (!stopDrag.current || planningMode !== 'point') return;
                           event.preventDefault();
                           event.stopPropagation();
-                          reorderStop(draggedStop, point.id);
-                          setDraggedStop(null);
+                          event.dataTransfer.dropEffect = 'move';
+                          stopDrag.current.target = point.id;
+                          setDropTarget(point.id);
+                        }}
+                        onDrop={(event) => {
+                          if (!stopDrag.current) return;
+                          event.preventDefault();
+                          event.stopPropagation();
+                          stopDrag.current.target = point.id;
+                          finishStopDrag(true);
                         }}
                       >
                         <Card className="waypoint-card">
@@ -762,12 +801,55 @@ export default function App() {
                               draggable
                               aria-hidden="true"
                               title={t('Drag to reorder stops')}
+                              onPointerDown={(event) => {
+                                if (event.button !== 0) return;
+                                event.preventDefault();
+                                event.currentTarget.setPointerCapture(event.pointerId);
+                                stopDrag.current = {
+                                  id: point.id,
+                                  pointerId: event.pointerId,
+                                  startY: event.clientY,
+                                  target: null,
+                                  active: false,
+                                };
+                              }}
+                              onPointerMove={(event) => {
+                                const drag = stopDrag.current;
+                                if (!drag || drag.pointerId !== event.pointerId) return;
+                                if (!drag.active && Math.abs(event.clientY - drag.startY) < 4)
+                                  return;
+                                drag.active = true;
+                                setDraggedStop(drag.id);
+                                const scroll =
+                                  event.currentTarget.closest<HTMLElement>('.planner-scroll');
+                                if (scroll) {
+                                  const bounds = scroll.getBoundingClientRect();
+                                  if (event.clientY < bounds.top + 32) scroll.scrollTop -= 16;
+                                  else if (event.clientY > bounds.bottom - 32)
+                                    scroll.scrollTop += 16;
+                                }
+                                const target = document
+                                  .elementFromPoint(event.clientX, event.clientY)
+                                  ?.closest<HTMLElement>('[data-stop-id]');
+                                drag.target = target?.dataset.stopId ?? null;
+                                setDropTarget(drag.target !== drag.id ? drag.target : null);
+                              }}
+                              onPointerUp={() => finishStopDrag(true)}
+                              onPointerCancel={() => finishStopDrag()}
+                              onLostPointerCapture={() => finishStopDrag()}
                               onDragStart={(event) => {
+                                event.stopPropagation();
                                 event.dataTransfer.setData('text/plain', point.id);
                                 event.dataTransfer.effectAllowed = 'move';
+                                stopDrag.current = {
+                                  id: point.id,
+                                  startY: 0,
+                                  target: null,
+                                  active: true,
+                                };
                                 setDraggedStop(point.id);
                               }}
-                              onDragEnd={() => setDraggedStop(null)}
+                              onDragEnd={() => finishStopDrag()}
                             >
                               <GripVertical size={14} />
                             </span>
