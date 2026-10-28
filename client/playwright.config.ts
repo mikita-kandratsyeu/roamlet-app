@@ -25,5 +25,9 @@ export default defineConfig({
     command: 'yarn dev --port 4174 --strictPort',
     url: 'http://127.0.0.1:4174',
     reuseExistingServer: false,
+    env: {
+      VITE_MAPBOX_ACCESS_TOKEN: 'pk.test-only-not-a-real-token',
+      VITE_MAPBOX_STYLE: '/__fixtures__/map-style.json',
+    },
   },
 });

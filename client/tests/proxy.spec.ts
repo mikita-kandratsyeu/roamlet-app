@@ -1,12 +1,30 @@
 import { test, expect } from '@playwright/test';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-test('browser uses real private-key proxy for search/routing without receiving the key', async ({
+test('browser uses private Mapbox proxy for search/routing/terrain without receiving the token', async ({
   page,
 }) => {
+  await page.route('**/api.mapbox.com/**', (route) => route.abort());
+  await page.route('**/events.mapbox.com/**', (route) => route.abort());
+  await page.route('**/__fixtures__/map-style.json', (route) =>
+    route.fulfill({
+      json: {
+        version: 8,
+        sources: {},
+        layers: [
+          { id: 'background', type: 'background', paint: { 'background-color': '#faf7f2' } },
+        ],
+      },
+    }),
+  );
   const errors: string[] = [],
     apiHeaders: Record<string, string>[] = [],
-    requestUrls: string[] = [];
+    requestUrls: string[] = [],
+    apiBodies: Promise<string>[] = [];
+  page.on('response', (response) => {
+    if (response.url().includes('/api/'))
+      apiBodies.push(response.body().then((body) => body.toString()));
+  });
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('request', (request) => {
     if (request.url().includes('/api/')) {
@@ -35,12 +53,15 @@ test('browser uses real private-key proxy for search/routing without receiving t
   const text = await readFile((await (await download).path())!, 'utf8');
   expect(text.match(/<trkpt\s/g)).toHaveLength(2);
   expect(text).toContain('lon="11.411"');
-  expect(requestUrls.some((url) => url.includes('/api/directions/cycling-regular/geojson'))).toBe(
-    true,
-  );
+  expect(text).toContain('<ele>600</ele>');
+  expect(requestUrls.some((url) => url.includes('/api/directions/cycling/geojson'))).toBe(true);
+  expect(requestUrls.some((url) => url.includes('/api/terrain/12/'))).toBe(true);
+  expect(requestUrls.every((url) => !url.includes('access_token'))).toBe(true);
   expect(requestUrls.every((url) => url.startsWith('http://127.0.0.1:4176/api/'))).toBe(true);
   expect(apiHeaders.every((headers) => !headers.authorization && !headers['x-api-key'])).toBe(true);
   expect(errors).toEqual([]);
+  for (const body of await Promise.all(apiBodies))
+    expect(body).not.toContain('test-only-server-sentinel-never-in-browser');
   const health = await (await page.request.get('/api/health')).json();
   expect(health).toEqual({ configured: true });
   const directory = fileURLToPath(new URL('../dist/assets/', import.meta.url));

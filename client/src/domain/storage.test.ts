@@ -33,6 +33,17 @@ afterAll(async () => {
 });
 
 describe('route persistence', () => {
+  it.each(['mapbox', 'openrouteservice', 'gpx'] as const)(
+    'preserves %s snapshots without changing their source',
+    async (source) => {
+      const route = { ...fixture(), source };
+      await saveRoute(route);
+      expect((await listRoutes())[0].source).toBe(source);
+      expect((await listRoutes())[0].segments).toEqual(route.segments);
+      const copy = await duplicateRoute(route);
+      expect(copy.source).toBe(source);
+    },
+  );
   it('saves, updates, reloads after reopening and deletes idempotently', async () => {
     const route = fixture();
     await saveRoute(route);

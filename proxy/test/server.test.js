@@ -5,7 +5,7 @@ import { mkdir, writeFile, symlink, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createProxyServer } from '../src/index.js';
 
-const routing = '/api/directions/cycling-regular/geojson';
+const routing = '/api/directions/cycling/geojson';
 const payload = {
   coordinates: [
     [11.4, 47.26],
@@ -13,11 +13,21 @@ const payload = {
   ],
   elevation: true,
   instructions: false,
-  options: { avoid_features: ['steps'] },
 };
 const search = '/api/geocode/search?text=Innsbruck';
-const successful = () =>
-  new Response('{"features":[]}', { headers: { 'content-type': 'application/json' } });
+const routeData = () => ({
+  code: 'Ok',
+  routes: [
+    {
+      geometry: { type: 'LineString', coordinates: payload.coordinates },
+      distance: 1200,
+      duration: 420,
+    },
+  ],
+});
+const geocodeData = () => ({ type: 'FeatureCollection', features: [] });
+const successful = (data = geocodeData()) =>
+  new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
 async function listen(t, server) {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   t.after(async () => {
@@ -29,7 +39,12 @@ async function listen(t, server) {
 async function proxy(t, options = {}) {
   return listen(
     t,
-    createProxyServer({ key: 'private-test-key', fetchImpl: async () => successful(), ...options }),
+    createProxyServer({
+      token: 'private-test-key',
+      fetchImpl: async (address) =>
+        successful(String(address).includes('/directions/') ? routeData() : geocodeData()),
+      ...options,
+    }),
   );
 }
 function post(url, body = payload, headers = {}) {
@@ -58,86 +73,135 @@ function raw(url, path, { method = 'GET', headers = {}, chunks = [] } = {}) {
   });
 }
 
-test('injects only private auth into fixed upstream paths and strips upstream headers', async (t) => {
+test('injects private query token into fixed Mapbox paths and strips all provider headers', async (t) => {
   const seen = [];
   const upstream = await listen(
     t,
     createServer(async (req, res) => {
-      const chunks = [];
-      for await (const chunk of req) chunks.push(chunk);
-      seen.push({ url: req.url, headers: req.headers, body: Buffer.concat(chunks).toString() });
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      seen.push({ method: req.method, url: req.url, headers: req.headers, body });
       res.writeHead(200, {
-        'content-type': 'application/geo+json',
+        'content-type': 'application/json',
         Authorization: 'private-test-key',
         'set-cookie': 'secret=value',
         'access-control-allow-origin': '*',
       });
-      res.end('{"features":[],"reflected":"private-test-key"}');
+      const data = req.url.startsWith('/directions/')
+        ? routeData()
+        : {
+            type: 'FeatureCollection',
+            features: [
+              {
+                geometry: { type: 'Point', coordinates: [11.4, 47.26] },
+                properties: {
+                  full_address: 'Innsbruck private-test-key',
+                  access_token: 'private-test-key',
+                },
+              },
+            ],
+          };
+      res.end(JSON.stringify({ ...data, reflected: 'private-test-key' }));
     }),
   );
   const url = await proxy(t, { base: upstream, fetchImpl: fetch });
   const response = await post(url, payload, {
     authorization: 'caller-secret',
     cookie: 'caller=cookie',
+    'x-api-key': 'caller-secret',
   });
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { features: [], reflected: '[redacted]' });
+  assert.deepEqual(await response.json(), {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: payload.coordinates },
+        properties: { summary: { distance: 1200, duration: 420 } },
+      },
+    ],
+  });
   for (const name of ['authorization', 'set-cookie', 'access-control-allow-origin'])
     assert.equal(response.headers.get(name), null);
-  assert.equal(seen[0].url, '/openrouteservice/v2/directions/cycling-regular/geojson');
-  assert.equal(seen[0].headers.accept, 'application/geo+json');
-  assert.equal(seen[0].headers.authorization, 'private-test-key');
-  assert.equal(seen[0].headers.cookie, undefined);
-  assert.deepEqual(JSON.parse(seen[0].body), payload);
-  assert.equal((await fetch(url + search + '&size=2')).status, 200);
-  assert.equal(seen[1].url, '/pelias/v1/search?text=Innsbruck&size=2');
-  assert.equal(seen[1].headers.accept, 'application/json');
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(
+    seen[0].url,
+    '/directions/v5/mapbox/cycling/11.4,47.26;11.41,47.27?geometries=geojson&overview=full&steps=false&access_token=private-test-key',
+  );
+  assert.equal(seen[0].method, 'GET');
+  assert.equal(seen[0].body, '');
+  assert.equal(seen[0].headers.accept, 'application/json');
+  for (const name of ['authorization', 'cookie', 'x-api-key', 'content-type'])
+    assert.equal(seen[0].headers[name], undefined);
+  const result = await fetch(url + search + '&size=2');
+  assert.equal(result.status, 200);
+  assert.equal(
+    seen[1].url,
+    '/search/geocode/v6/forward?q=Innsbruck&limit=2&permanent=true&autocomplete=false&access_token=private-test-key',
+  );
+  assert.deepEqual(await result.json(), {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [11.4, 47.26] },
+        properties: { label: 'Innsbruck [redacted]' },
+      },
+    ],
+  });
 });
 
-test('uses the HeiGIT directions endpoint for both supported profiles by default', async (t) => {
+test('uses default Mapbox Directions GET for both supported profiles', async (t) => {
   const seen = [];
   const url = await proxy(t, {
     fetchImpl: async (address, options) => {
       seen.push({ url: String(address), options });
-      return successful();
+      return successful(routeData());
     },
   });
-  for (const profile of ['cycling-regular', 'foot-hiking']) {
-    const response = await fetch(url + `/api/directions/${profile}/geojson`, {
+  for (const profile of ['cycling', 'walking']) {
+    const response = await fetch(url + '/api/directions/' + profile + '/geojson', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
     });
     assert.equal(response.status, 200);
-    const request = seen.at(-1);
+    const sent = seen.at(-1);
     assert.equal(
-      request.url,
-      `https://api.heigit.org/openrouteservice/v2/directions/${profile}/geojson`,
+      sent.url,
+      'https://api.mapbox.com/directions/v5/mapbox/' +
+        profile +
+        '/11.4,47.26;11.41,47.27?geometries=geojson&overview=full&steps=false&access_token=private-test-key',
     );
-    assert.equal(request.options.method, 'POST');
-    assert.equal(request.options.headers.Accept, 'application/geo+json');
-    assert.equal(request.options.headers.Authorization, 'private-test-key');
-    assert.deepEqual(JSON.parse(request.options.body), payload);
+    assert.equal(sent.options.method, 'GET');
+    assert.deepEqual(sent.options.headers, { Accept: 'application/json' });
+    assert.equal(sent.options.body, undefined);
+    assert.equal(sent.options.redirect, 'error');
   }
 });
 
-test('health contains only configured boolean; missing key has exact safe error', async (t) => {
+test('health contains only configured boolean; missing token has exact safe error', async (t) => {
   let called = false;
   const url = await proxy(t, {
-    key: '  ',
+    token: '  ',
     fetchImpl: () => {
       called = true;
       throw Error('should not fetch');
     },
   });
   assert.deepEqual(await (await fetch(url + '/api/health')).json(), { configured: false });
-  for (const response of [await post(url), await fetch(url + search)]) {
+  for (const response of [
+    await post(url),
+    await fetch(url + search),
+    await fetch(url + '/api/terrain/0/0/0.pngraw'),
+  ]) {
     assert.equal(response.status, 503);
     assert.deepEqual(await response.json(), {
       error: {
         code: 'NOT_CONFIGURED',
         message:
-          'Routing is not configured on the server. Ask the deployment administrator to set ORS_API_KEY.',
+          'Routing is not configured on the server. Ask the deployment administrator to set MAPBOX_ACCESS_TOKEN.',
       },
     });
   }
@@ -146,13 +210,13 @@ test('health contains only configured boolean; missing key has exact safe error'
   assert.deepEqual(await (await fetch(configured + '/api/health')).json(), { configured: true });
 });
 
-test('validates coordinates, booleans and exact nested whitelists; accepts existing loop payload', async (t) => {
+test('validates 2..25 coordinates, instructions:false, optional elevation and rejects ORS options', async (t) => {
   let count = 0;
   const url = await proxy(t, {
     rateLimit: 1000,
     fetchImpl: async () => {
       count++;
-      return successful();
+      return successful(routeData());
     },
   });
   const invalidBodies = [
@@ -162,53 +226,56 @@ test('validates coordinates, booleans and exact nested whitelists; accepts exist
     { ...payload, api_key: 'bad' },
     ...[
       [],
-      Array(51).fill([0, 0]),
-      [[181, 0]],
-      [[0, -91]],
-      [['1', 2]],
-      [[0, 0, 0]],
-      [[null, 0]],
+      [[0, 0]],
+      Array(26).fill([0, 0]),
+      [
+        [181, 0],
+        [0, 0],
+      ],
+      [
+        [0, -91],
+        [0, 0],
+      ],
+      [
+        ['1', 2],
+        [0, 0],
+      ],
+      [
+        [0, 0, 0],
+        [0, 0],
+      ],
+      [
+        [null, 0],
+        [0, 0],
+      ],
     ].map((coordinates) => ({ ...payload, coordinates })),
     { ...payload, elevation: 'true' },
     { ...payload, instructions: 0 },
+    { ...payload, instructions: true },
+    { coordinates: payload.coordinates },
     ...[
       null,
       [],
-      { avoid_polygons: {} },
-      { avoid_features: ['ferries'] },
-      { avoid_features: ['steps', 'steps'] },
-      { round_trip: { length: 20000, url: 'https://example.org' } },
-      { round_trip: {} },
-      { round_trip: { length: 1 } },
-      { round_trip: { length: 100001 } },
-      { round_trip: { length: 20000, points: 1 } },
-      { round_trip: { length: 20000, seed: -1 } },
-      { round_trip: { length: 20000, seed: 1.5 } },
+      {},
+      { avoid_features: ['steps'] },
+      { round_trip: { length: 20000, points: 3, seed: 11 } },
     ].map((options) => ({ ...payload, options })),
   ];
   for (const body of invalidBodies)
     assert.equal((await post(url, body)).status, 400, JSON.stringify(body));
   assert.equal(count, 0);
-  assert.equal(
-    (
-      await post(url, {
-        coordinates: [[-180, 90]],
-        options: { round_trip: { length: 20000, points: 3, seed: 11 }, avoid_features: ['steps'] },
-      })
-    ).status,
-    200,
-  );
-  assert.equal(
-    (
-      await fetch(url + '/api/directions/foot-hiking/geojson', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-    ).status,
-    200,
-  );
-  assert.equal((await post(url, { coordinates: Array(50).fill([0.1, -0.2]) })).status, 200);
+  for (const body of [
+    {
+      coordinates: [
+        [-180, 90],
+        [180, -90],
+      ],
+      instructions: false,
+    },
+    { ...payload, elevation: false },
+    { coordinates: Array(25).fill([0.1, -0.2]), instructions: false },
+  ])
+    assert.equal((await post(url, body)).status, 200);
 });
 
 test('rejects malformed JSON, content types, encoded bodies, and both declared and chunked body overflow', async (t) => {
@@ -269,7 +336,10 @@ test('geocoding validates length, size, duplicates and unknown parameters', asyn
   }
   assert.equal(seen.length, 0);
   assert.equal((await fetch(url + '/api/geocode/search?text=%20abc%20')).status, 200);
-  assert.equal(seen[0], 'https://api.heigit.org/pelias/v1/search?text=abc&size=5');
+  assert.equal(
+    seen[0],
+    'https://api.mapbox.com/search/geocode/v6/forward?q=abc&limit=5&permanent=true&autocomplete=false&access_token=private-test-key',
+  );
 });
 
 test('only exposes enumerated APIs and methods; rejects cross-origin and does not emit CORS', async (t) => {
@@ -301,7 +371,7 @@ test('only exposes enumerated APIs and methods; rejects cross-origin and does no
 });
 
 test('preserved Vite Host/Origin and optional public origin support configuration health', async (t) => {
-  const url = await proxy(t, { key: '', rateLimit: 1, publicOrigin: '' });
+  const url = await proxy(t, { token: '', rateLimit: 1, publicOrigin: '' });
   for (const port of [5173, 4174]) {
     const headers = { host: `localhost:${port}`, origin: `http://localhost:${port}` };
     const health = await raw(url, '/api/health', { headers });
@@ -462,7 +532,7 @@ test('client disconnect cancels the native upstream request', async (t) => {
   ]);
 });
 
-test('native fetch does not follow redirects carrying private authorization', async (t) => {
+test('native fetch does not follow redirects carrying a private URL token', async (t) => {
   let destinationCalled = false;
   const destination = await listen(
     t,
@@ -586,11 +656,244 @@ test('factory validates server-only base and bounds; missing dist stays safe', a
     { maxRateEntries: 0 },
   ])
     assert.throws(() => createProxyServer(options));
-  const server = createProxyServer({ key: '' });
+  const server = createProxyServer({ token: '' });
   assert.equal(server.listening, false);
   server.close();
   const url = await proxy(t, {
     distPath: fileURLToPath(new URL('./does-not-exist/', import.meta.url)),
   });
   assert.equal((await fetch(url, { headers: { accept: 'text/html' } })).status, 404);
+});
+
+test('Mapbox NoRoute application response yields safe 422 even with HTTP 200', async (t) => {
+  const url = await proxy(t, {
+    fetchImpl: async () =>
+      successful({ code: 'NoRoute', message: 'private-test-key provider URL' }),
+  });
+  const response = await post(url);
+  assert.equal(response.status, 422);
+  assert.deepEqual(await response.json(), {
+    error: { code: 'NO_ROUTE', message: 'No route was found between these points.' },
+  });
+});
+
+test('rejects malformed Mapbox directions and geocoding without reflecting metadata', async (t) => {
+  for (const data of [
+    {},
+    { code: 'Ok', routes: [] },
+    { code: 'InvalidInput', message: 'private-test-key' },
+    { code: 'Ok', routes: [null] },
+    ...[
+      { geometry: { type: 'Point', coordinates: [0, 0] } },
+      { geometry: { type: 'LineString', coordinates: [[0, 0]] } },
+      {
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [181, 0],
+            [0, 0],
+          ],
+        },
+      },
+      { distance: -1 },
+      { duration: '420' },
+      { duration: null },
+    ].map((fields) => ({ code: 'Ok', routes: [{ ...routeData().routes[0], ...fields }] })),
+  ]) {
+    const url = await proxy(t, { fetchImpl: async () => successful(data) });
+    const response = await post(url);
+    assert.equal(response.status, 502);
+    assert.equal((await response.json()).error.code, 'INVALID_UPSTREAM_RESPONSE');
+  }
+  for (const data of [
+    { features: [] },
+    { type: 'FeatureCollection', features: [null] },
+    {
+      type: 'FeatureCollection',
+      features: [{ geometry: { type: 'Point', coordinates: [0, 0] }, properties: {} }],
+    },
+    {
+      type: 'FeatureCollection',
+      features: [
+        {
+          geometry: { type: 'Point', coordinates: [0, 91] },
+          properties: { full_address: 'place' },
+        },
+      ],
+    },
+  ]) {
+    const url = await proxy(t, { fetchImpl: async () => successful(data) });
+    assert.equal((await fetch(url + search)).status, 502);
+  }
+});
+
+test('encodes upstream token and search text and redacts raw and URL-encoded reflections', async (t) => {
+  const token = 'secret"&/+?\\';
+  let seen;
+  const url = await proxy(t, {
+    token,
+    fetchImpl: async (address) => {
+      seen = new URL(address);
+      return successful({
+        type: 'FeatureCollection',
+        features: [
+          {
+            geometry: { type: 'Point', coordinates: [1, 2] },
+            properties: {
+              full_address: `${token} ${encodeURIComponent(token)}`,
+              unused: String(address),
+            },
+          },
+        ],
+      });
+    },
+  });
+  const response = await fetch(url + '/api/geocode/search?text=A%26B%20%2F%20C&size=3');
+  assert.equal(response.status, 200);
+  assert.equal(seen.searchParams.get('q'), 'A&B / C');
+  assert.equal(seen.searchParams.get('access_token'), token);
+  assert.equal(seen.searchParams.get('permanent'), 'true');
+  assert.equal(seen.searchParams.get('autocomplete'), 'false');
+  assert.equal(seen.searchParams.get('limit'), '3');
+  assert.equal([...seen.searchParams.keys()].length, 5);
+  assert.equal((await response.json()).features[0].properties.label, '[redacted] [redacted]');
+});
+
+const png = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==',
+  'base64',
+);
+const terrain = '/api/terrain/12/2177/1442.pngraw';
+test('terrain validates fixed coordinates, strips credentials/headers and forwards bounded PNG', async (t) => {
+  let seen;
+  const url = await proxy(t, {
+    rateLimit: 1000,
+    fetchImpl: async (address, options) => {
+      seen = { address: new URL(address), options };
+      return new Response(png, {
+        headers: {
+          'content-type': 'image/png',
+          'set-cookie': 'private-test-key',
+          authorization: 'private-test-key',
+        },
+      });
+    },
+  });
+  for (const path of [
+    '/api/terrain/15/0/0.pngraw',
+    '/api/terrain/0/1/0.pngraw',
+    '/api/terrain/0/0/1.pngraw',
+    '/api/terrain/-1/0/0.pngraw',
+    '/api/terrain/01/0/0.pngraw',
+    '/api/terrain/1/00/0.pngraw',
+    '/api/terrain/1/0/0.jpg',
+    '/api/terrain/1.5/0/0.pngraw',
+    '/api/terrain/14/16384/0.pngraw',
+    terrain + '?access_token=caller',
+    terrain + '?url=https://example.org',
+  ])
+    assert.equal((await fetch(url + path)).status, 400, path);
+  assert.equal(seen, undefined);
+  assert.equal((await fetch(url + terrain, { method: 'POST' })).status, 405);
+  const response = await fetch(url + terrain, {
+    headers: { authorization: 'caller', cookie: 'caller', 'x-api-key': 'caller' },
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), png);
+  assert.equal(response.headers.get('content-type'), 'image/png');
+  assert.equal(response.headers.get('content-length'), String(png.length));
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+  for (const name of ['authorization', 'set-cookie', 'access-control-allow-origin'])
+    assert.equal(response.headers.get(name), null);
+  assert.equal(
+    seen.address.href,
+    'https://api.mapbox.com/v4/mapbox.terrain-rgb/12/2177/1442.pngraw?access_token=private-test-key',
+  );
+  assert.deepEqual(seen.options.headers, { Accept: 'image/png' });
+  assert.equal(seen.options.method, 'GET');
+  assert.equal(seen.options.redirect, 'error');
+  for (const path of ['/api/terrain/0/0/0.pngraw', '/api/terrain/14/16383/16383.pngraw'])
+    assert.equal((await fetch(url + path)).status, 200);
+});
+
+test('terrain water no-data returns safe missing response and shares rate limit', async (t) => {
+  const url = await proxy(t, {
+    rateLimit: 1,
+    fetchImpl: async () => new Response('private-test-key upstream water error', { status: 404 }),
+  });
+  const response = await fetch(url + terrain);
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), {
+    error: { code: 'TERRAIN_NOT_FOUND', message: 'Elevation data is unavailable for this tile.' },
+  });
+  assert.equal((await fetch(url + search)).status, 429);
+  assert.equal((await fetch(url + '/api/health')).status, 200);
+});
+
+test('terrain rejects malformed, oversized, or credential-reflecting binary responses', async (t) => {
+  for (const response of [
+    new Response(png, { headers: { 'content-type': 'text/html' } }),
+    new Response('private-test-key', { headers: { 'content-type': 'image/png' } }),
+    new Response(png.subarray(0, 40), { headers: { 'content-type': 'image/png' } }),
+    new Response(Buffer.concat([png, Buffer.from('private-test-key')]), {
+      headers: { 'content-type': 'image/png' },
+    }),
+    new Response(png, {
+      headers: { 'content-type': 'image/png', 'content-length': 2 * 1024 * 1024 + 1 },
+    }),
+    new Response(new Uint8Array(2 * 1024 * 1024 + 1), { headers: { 'content-type': 'image/png' } }),
+  ]) {
+    const url = await proxy(t, { fetchImpl: async () => response });
+    const result = await fetch(url + terrain);
+    assert.equal(result.status, 502);
+    const body = await result.text();
+    assert.equal(JSON.parse(body).error.code, 'INVALID_UPSTREAM_RESPONSE');
+    assert.equal(body.includes('private-test-key'), false);
+  }
+});
+
+test('terrain stalled body times out and aborts with safe JSON rather than partial PNG', async (t) => {
+  let signal;
+  const url = await proxy(t, {
+    timeoutMs: 30,
+    fetchImpl: async (_, options) => {
+      signal = options.signal;
+      return new Response(new ReadableStream({}), { headers: { 'content-type': 'image/png' } });
+    },
+  });
+  const response = await fetch(url + terrain);
+  assert.equal(response.status, 504);
+  assert.equal((await response.json()).error.code, 'UPSTREAM_TIMEOUT');
+  assert.equal(signal.aborted, true);
+});
+
+test('directions rejects caller query credentials and accepts JSON charset and identity encoding', async (t) => {
+  let count = 0;
+  const url = await proxy(t, {
+    fetchImpl: async () => {
+      count++;
+      return successful(routeData());
+    },
+  });
+  for (const query of [
+    '?access_token=caller',
+    '?url=https://example.org',
+    '?steps=true',
+    '?geometries=polyline',
+  ]) {
+    const response = await fetch(url + routing + query, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    assert.equal(response.status, 400);
+  }
+  assert.equal(count, 0);
+  const response = await post(url, payload, {
+    'content-type': 'application/json; charset=utf-8',
+    'content-encoding': 'identity',
+  });
+  assert.equal(response.status, 200);
+  assert.equal(count, 1);
 });

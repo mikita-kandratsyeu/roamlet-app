@@ -33,7 +33,10 @@ export function Statistics({ route }: { route: PlannedRoute | null }) {
   return (
     <section className="statistics" aria-label={t('Route statistics')}>
       <div className="section-heading">
-        <h2><RouteIcon size={15} aria-hidden="true" />{t('Route overview')}</h2>
+        <h2>
+          <RouteIcon size={15} aria-hidden="true" />
+          {t('Route overview')}
+        </h2>
         <span className="small muted">
           {route
             ? route.source === 'gpx'
@@ -139,7 +142,7 @@ export function Statistics({ route }: { route: PlannedRoute | null }) {
         <p className="fine-print">
           {route.activity === 'cycling' ? t('General cycling') : t('Hiking')}{' '}
           {t('· Time is an estimate, excluding stops. Surface information unavailable.')}{' '}
-          {route.source === 'openrouteservice'
+          {route.source !== 'gpx'
             ? t('Elevation: provider terrain model, not a survey.')
             : t('Elevation: GPX file, when available.')}
         </p>

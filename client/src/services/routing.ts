@@ -6,11 +6,15 @@ import type {
   Waypoint,
 } from '../domain/types';
 import { calculateStats } from '../domain/stats';
+import { addTerrainElevation } from './elevation';
+import { coordinateDistance, loopWaypoints } from './loops';
 
 export const profiles: Record<Activity, string> = {
-  cycling: 'cycling-regular',
-  hiking: 'foot-hiking',
+  cycling: 'cycling',
+  hiking: 'walking',
 };
+
+class NoRouteError extends Error {}
 export async function checkRoutingConfiguration(signal?: AbortSignal): Promise<boolean> {
   const data = object(await requestJson('/api/health', { method: 'GET' }, signal));
   if (typeof data.configured !== 'boolean')
@@ -60,7 +64,7 @@ export async function requestJson(
           detail.code === 'NOT_CONFIGURED'
         ) {
           throw new Error(
-            'Routing is not configured on the server. Ask the deployment administrator to set ORS_API_KEY. GPX and your library still work.',
+            'Routing is not configured on the server. Ask the deployment administrator to set MAPBOX_ACCESS_TOKEN. GPX and your library still work.',
           );
         }
       }
@@ -76,7 +80,7 @@ export async function requestJson(
         throw new Error(
           'The routing service is unavailable. Try again later; your saved routes are safe.',
         );
-      throw new Error(
+      throw new NoRouteError(
         `No route or location found (service ${response.status}). Try points closer to accessible roads or trails, or a shorter route.`,
       );
     }
@@ -94,7 +98,7 @@ export async function requestJson(
   }
 }
 
-export class OpenRouteService implements RoutingProvider {
+export class MapboxRoutingService implements RoutingProvider {
   private cache = new Map<string, { time: number; result: RoutingResult }>();
   constructor(private base = '/api') {
     if (base !== '/api') throw new Error('Routing must use the same-origin /api proxy.');
@@ -102,18 +106,17 @@ export class OpenRouteService implements RoutingProvider {
   private async calculate(
     coordinates: Coordinate[],
     activity: Activity,
-    options: Record<string, unknown>,
     signal?: AbortSignal,
+    elevation = true,
   ): Promise<RoutingResult> {
     if (!coordinates.every(validCoordinate))
       throw new Error('Route locations must contain valid longitude and latitude.');
+    if (!(activity in profiles)) throw new Error('Invalid route activity.');
     const body = {
       coordinates: coordinates.map((c) => c.slice(0, 2)),
-      elevation: true,
       instructions: false,
-      options,
     };
-    const cacheKey = JSON.stringify([activity, body]);
+    const cacheKey = JSON.stringify([activity, body, elevation]);
     const cached = this.cache.get(cacheKey);
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
     if (cached && Date.now() - cached.time < 300_000) return structuredClone(cached.result);
@@ -125,7 +128,7 @@ export class OpenRouteService implements RoutingProvider {
       ),
     );
     if (!Array.isArray(data.features) || !data.features.length)
-      throw new Error('No route was returned. Try a different location.');
+      throw new NoRouteError('No route was returned. Try a different location.');
     const feature = object(data.features[0]);
     const geometry = object(feature.geometry);
     if (
@@ -135,16 +138,23 @@ export class OpenRouteService implements RoutingProvider {
       !geometry.coordinates.every(validCoordinate)
     )
       throw new Error('The service returned invalid route geometry.');
-    const segments: Coordinate[][] = [geometry.coordinates];
-    const stats = calculateStats(segments, activity);
     const properties = object(feature.properties);
     const summary = object(properties.summary);
     if (
       typeof summary.duration !== 'number' ||
       !Number.isFinite(summary.duration) ||
-      summary.duration < 0
+      summary.duration < 0 ||
+      typeof summary.distance !== 'number' ||
+      !Number.isFinite(summary.distance) ||
+      summary.distance < 0
     )
       throw new Error('The service returned invalid route statistics.');
+    const points = elevation
+      ? await addTerrainElevation(geometry.coordinates, signal)
+      : geometry.coordinates;
+    if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
+    const segments: Coordinate[][] = [points];
+    const stats = calculateStats(segments, activity);
     stats.duration = summary.duration;
     const result = { segments, stats };
     if (this.cache.size >= 20) this.cache.delete(this.cache.keys().next().value!);
@@ -152,12 +162,11 @@ export class OpenRouteService implements RoutingProvider {
     return result;
   }
   async calculateRoute(waypoints: Waypoint[], activity: Activity, signal?: AbortSignal) {
-    if (waypoints.length < 2 || waypoints.length > 50)
-      throw new Error('Choose between 2 and 50 route points.');
+    if (waypoints.length < 2 || waypoints.length > 25)
+      throw new Error('Choose between 2 and 25 route points.');
     return this.calculate(
       waypoints.map((w) => w.coordinate),
       activity,
-      activity === 'cycling' ? { avoid_features: ['steps'] } : {},
       signal,
     );
   }
@@ -169,31 +178,58 @@ export class OpenRouteService implements RoutingProvider {
   ) {
     if (!Number.isFinite(distance) || distance < 2000 || distance > 100000)
       throw new Error('Choose a loop distance between 2 and 100 km.');
+    if (!validCoordinate(start.coordinate))
+      throw new Error('Route locations must contain valid longitude and latitude.');
     const results: RoutingResult[] = [];
-    for (const seed of [11, 37]) {
-      const result = await this.calculate(
-        [start.coordinate],
-        activity,
-        {
-          round_trip: { length: distance, points: 3, seed },
-          ...(activity === 'cycling' ? { avoid_features: ['steps'] } : {}),
-        },
-        signal,
-      );
-      const points = result.segments[0];
-      const a = points[0],
-        b = points[points.length - 1];
-      if (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) > 0.002)
-        throw new Error(
-          'The service did not return a closed loop. Try a different start location.',
-        );
-      if (!results.some((r) => JSON.stringify(r.segments) === JSON.stringify(result.segments)))
-        results.push(result);
+    // Directions has no target-length loop API. Bound the search to six routed candidates.
+    for (const bearing of [30, 210]) {
+      let radius = distance / 3;
+      let best: RoutingResult | undefined;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
+        let candidate: RoutingResult;
+        try {
+          candidate = await this.calculate(
+            loopWaypoints(start.coordinate, radius, bearing + attempt * 10),
+            activity,
+            signal,
+            false,
+          );
+        } catch (error) {
+          if (!(error instanceof NoRouteError)) throw error;
+          radius *= 0.7;
+          continue;
+        }
+        const points = candidate.segments[0];
+        if (coordinateDistance(points[0], points[points.length - 1]) > 100) continue;
+        if (candidate.stats.distance <= 0) continue;
+        if (
+          !best ||
+          Math.abs(candidate.stats.distance - distance) < Math.abs(best.stats.distance - distance)
+        )
+          best = candidate;
+        const ratio = distance / candidate.stats.distance;
+        if (Math.abs(ratio - 1) < 0.15) break;
+        radius *= Math.max(0.5, Math.min(1.5, ratio));
+      }
+      if (
+        best &&
+        !results.some((r) => JSON.stringify(r.segments) === JSON.stringify(best.segments))
+      )
+        results.push(best);
     }
+    if (!results.length)
+      throw new Error('The service did not return a closed loop. Try a different start location.');
+    for (const result of results) {
+      result.segments = [await addTerrainElevation(result.segments[0], signal)];
+      const stats = calculateStats(result.segments, activity);
+      result.stats = { ...stats, duration: result.stats.duration };
+    }
+    if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
     return results;
   }
 }
-export const routingProvider = new OpenRouteService();
+export const routingProvider = new MapboxRoutingService();
 export interface Place {
   name: string;
   coordinate: Coordinate;
@@ -203,6 +239,7 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
   const text = query.trim();
   if (text.length < 3 || text.length > 200)
     throw new Error('Enter a place or address between 3 and 200 characters.');
+  if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
   if (searches.has(text)) return structuredClone(searches.get(text)!);
   const params = new URLSearchParams({ text, size: '5' });
   const data = object(

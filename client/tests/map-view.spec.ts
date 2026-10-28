@@ -15,8 +15,32 @@ test('uses timezone region first, restores last local view, and fits an imported
       },
     });
   });
+  await page.route('**/*.mapbox.com/**', (route) => route.abort());
+  await page.route('**/__fixtures__/map-style.json', (route) =>
+    route.fulfill({
+      json: {
+        version: 8,
+        sources: {},
+        layers: [
+          { id: 'background', type: 'background', paint: { 'background-color': '#faf7f2' } },
+        ],
+      },
+    }),
+  );
   await page.route('**/api/health', (route) => route.fulfill({ json: { configured: false } }));
   await page.goto('/');
+  await expect(page.locator('.mapboxgl-ctrl-logo')).toBeVisible();
+  await expect(page.locator('.map-issue')).toBeVisible();
+  const logo = await page.locator('.mapboxgl-ctrl-logo').boundingBox();
+  const feedback = await page.locator('.map-issue').boundingBox();
+  expect(
+    logo &&
+      feedback &&
+      (logo.y + logo.height <= feedback.y ||
+        feedback.y + feedback.height <= logo.y ||
+        logo.x + logo.width <= feedback.x ||
+        feedback.x + feedback.width <= logo.x),
+  ).toBe(true);
   await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
   await expect
     .poll(() =>

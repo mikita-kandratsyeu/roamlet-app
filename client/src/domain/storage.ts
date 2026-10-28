@@ -22,7 +22,7 @@ function validateRoute(route: PlannedRoute): void {
     !Array.isArray(route.segments) ||
     !route.segments.every(Array.isArray) ||
     !Array.isArray(route.waypoints) ||
-    (route.source !== 'gpx' && route.source !== 'openrouteservice') ||
+    !['gpx', 'openrouteservice', 'mapbox'].includes(route.source) ||
     typeof route.createdAt !== 'string' ||
     !Number.isFinite(Date.parse(route.createdAt)) ||
     typeof route.updatedAt !== 'string' ||

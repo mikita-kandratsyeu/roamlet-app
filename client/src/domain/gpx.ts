@@ -219,7 +219,23 @@ export function exportGpx(route: PlannedRoute): string {
                   },
                 ],
               }
-            : {}),
+            : route.source === 'mapbox'
+              ? {
+                  copyright: {
+                    '@_author': 'Mapbox / OpenStreetMap contributors',
+                  },
+                  link: [
+                    {
+                      '@_href': 'https://www.mapbox.com/about/maps/',
+                      text: 'Routing and terrain by Mapbox',
+                    },
+                    {
+                      '@_href': 'https://www.openstreetmap.org/copyright',
+                      text: 'OpenStreetMap contributors',
+                    },
+                  ],
+                }
+              : {}),
         },
         wpt: route.waypoints.map((waypoint) => ({
           ...xmlPoint(waypoint.coordinate),

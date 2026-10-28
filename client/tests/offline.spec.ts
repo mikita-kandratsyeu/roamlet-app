@@ -6,7 +6,17 @@ test('production shell keeps saved routes and GPX export available offline, with
   page,
   context,
 }) => {
+  const mapboxRequests: string[] = [];
+  await page.route('**/*.mapbox.com/**', (route) => route.abort());
+  page.on('request', (request) => {
+    if (new URL(request.url()).hostname.endsWith('mapbox.com'))
+      mapboxRequests.push('Mapbox request');
+  });
   await page.goto('/');
+  await expect(
+    page.getByRole('region', { name: 'Interactive route map' }).getByRole('status'),
+  ).toContainText('VITE_MAPBOX_ACCESS_TOKEN');
+  await expect(page.locator('.mapboxgl-canvas')).toHaveCount(0);
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
@@ -51,6 +61,10 @@ test('production shell keeps saved routes and GPX export available offline, with
   expect(cached.some((url) => url.includes('/assets/'))).toBe(true);
   expect(cached.some((url) => url.endsWith('.woff2'))).toBe(true);
   expect(errors).toEqual([]);
+  expect(mapboxRequests).toEqual([]);
+  await expect(
+    page.getByRole('region', { name: 'Interactive route map' }).getByRole('status'),
+  ).toContainText('Offline basemaps are not supported');
   expect(cached.every((url) => url.startsWith('http://127.0.0.1:4175/'))).toBe(true);
   await context.setOffline(false);
 });
@@ -60,7 +74,7 @@ test('missing credentials show a clear failure, with no fake route', async ({ pa
     await page.getByRole('textbox', { name: 'Search places or coordinates' }).fill(value);
     await page.getByRole('button', { name: 'Search', exact: true }).click();
   }
-  await expect(page.getByRole('alert')).toContainText('ORS_API_KEY');
+  await expect(page.getByRole('alert')).toContainText('MAPBOX_ACCESS_TOKEN');
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
 });
 test('waypoint-only GPX remains usable and cannot crash route conversion', async ({ page }) => {

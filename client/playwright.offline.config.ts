@@ -22,6 +22,12 @@ export default defineConfig({
     url: 'http://127.0.0.1:4175',
     timeout: 120_000,
     reuseExistingServer: false,
-    env: { ORS_API_KEY: '', PROXY_PORT: '4175' },
+    env: {
+      ORS_API_KEY: '',
+      MAPBOX_ACCESS_TOKEN: '',
+      VITE_MAPBOX_ACCESS_TOKEN: '',
+      VITE_MAPBOX_STYLE: '',
+      PROXY_PORT: '4175',
+    },
   },
 });

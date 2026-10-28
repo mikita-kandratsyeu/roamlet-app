@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 const BODY_LIMIT = 64 * 1024;
 const RESPONSE_LIMIT = 10 * 1024 * 1024;
+const TERRAIN_LIMIT = 2 * 1024 * 1024;
+const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const defaultDist = fileURLToPath(new URL('../../client/dist/', import.meta.url));
 const mime = {
   '.html': 'text/html; charset=utf-8',
@@ -54,50 +56,99 @@ const hasControlCharacters = (value) =>
 function fields(value, allowed) {
   if (!object(value) || Object.keys(value).some((name) => !allowed.includes(name))) throw invalid();
 }
+const coordinate = (value) =>
+  Array.isArray(value) &&
+  value.length === 2 &&
+  value.every(finite) &&
+  Math.abs(value[0]) <= 180 &&
+  Math.abs(value[1]) <= 90;
 function routePayload(value) {
-  fields(value, ['coordinates', 'elevation', 'instructions', 'options']);
+  fields(value, ['coordinates', 'elevation', 'instructions']);
   if (
     !Array.isArray(value.coordinates) ||
-    value.coordinates.length < 1 ||
-    value.coordinates.length > 50 ||
-    !value.coordinates.every(
-      (c) =>
-        Array.isArray(c) &&
-        c.length === 2 &&
-        c.every(finite) &&
-        Math.abs(c[0]) <= 180 &&
-        Math.abs(c[1]) <= 90,
-    )
+    value.coordinates.length < 2 ||
+    value.coordinates.length > 25 ||
+    !value.coordinates.every(coordinate) ||
+    value.instructions !== false ||
+    ('elevation' in value && typeof value.elevation !== 'boolean')
   )
     throw invalid();
-  for (const name of ['elevation', 'instructions']) {
-    if (name in value && typeof value[name] !== 'boolean') throw invalid();
-  }
-  if ('options' in value) {
-    fields(value.options, ['round_trip', 'avoid_features']);
-    if (
-      'avoid_features' in value.options &&
-      (!Array.isArray(value.options.avoid_features) ||
-        value.options.avoid_features.length > 1 ||
-        value.options.avoid_features.some((v) => v !== 'steps'))
-    )
-      throw invalid();
-    if ('round_trip' in value.options) {
-      const loop = value.options.round_trip;
-      fields(loop, ['length', 'points', 'seed']);
-      if (
-        !finite(loop.length) ||
-        loop.length < 2000 ||
-        loop.length > 100000 ||
-        ('points' in loop &&
-          (!Number.isInteger(loop.points) || loop.points < 2 || loop.points > 10)) ||
-        ('seed' in loop &&
-          (!Number.isInteger(loop.seed) || loop.seed < 0 || loop.seed > 2147483647))
-      )
-        throw invalid();
-    }
-  }
   return value;
+}
+function normalizeDirections(data) {
+  if (data.code === 'NoRoute')
+    throw new SafeError(422, 'NO_ROUTE', 'No route was found between these points.');
+  if (data.code !== 'Ok' || !Array.isArray(data.routes) || !data.routes.length)
+    throw upstreamInvalid();
+  const route = data.routes[0];
+  if (
+    !object(route) ||
+    !object(route.geometry) ||
+    route.geometry.type !== 'LineString' ||
+    !Array.isArray(route.geometry.coordinates) ||
+    route.geometry.coordinates.length < 2 ||
+    !route.geometry.coordinates.every(coordinate) ||
+    !finite(route.distance) ||
+    route.distance < 0 ||
+    !finite(route.duration) ||
+    route.duration < 0
+  )
+    throw upstreamInvalid();
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: route.geometry.coordinates },
+        properties: { summary: { distance: route.distance, duration: route.duration } },
+      },
+    ],
+  };
+}
+function normalizeGeocode(data) {
+  if (data.type !== 'FeatureCollection' || !Array.isArray(data.features)) throw upstreamInvalid();
+  return {
+    type: 'FeatureCollection',
+    features: data.features.map((feature) => {
+      if (
+        !object(feature) ||
+        !object(feature.geometry) ||
+        feature.geometry.type !== 'Point' ||
+        !coordinate(feature.geometry.coordinates) ||
+        !object(feature.properties) ||
+        typeof feature.properties.full_address !== 'string' ||
+        !feature.properties.full_address.trim() ||
+        feature.properties.full_address.length > 1000 ||
+        hasControlCharacters(feature.properties.full_address)
+      )
+        throw upstreamInvalid();
+      return {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: feature.geometry.coordinates },
+        properties: { label: feature.properties.full_address },
+      };
+    }),
+  };
+}
+function validPng(buffer) {
+  if (!buffer.subarray(0, 8).equals(PNG_SIGNATURE)) return false;
+  let offset = 8;
+  let imageData = false;
+  while (offset + 12 <= buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.toString('ascii', offset + 4, offset + 8);
+    if (offset + length + 12 > buffer.length) return false;
+    if (offset === 8) {
+      if (type !== 'IHDR' || length !== 13) return false;
+      const width = buffer.readUInt32BE(offset + 8);
+      const height = buffer.readUInt32BE(offset + 12);
+      if (!width || !height || width > 512 || height > 512) return false;
+    } else if (type === 'IHDR') return false;
+    if (type === 'IDAT') imageData = true;
+    offset += length + 12;
+    if (type === 'IEND') return length === 0 && imageData && offset === buffer.length;
+  }
+  return false;
 }
 function geocodeParams(params) {
   if (
@@ -250,8 +301,8 @@ async function serveStatic(req, res, pathname, distPath) {
 }
 
 export function createProxyServer({
-  key = process.env.ORS_API_KEY ?? '',
-  base = process.env.ORS_URL || 'https://api.heigit.org',
+  token = process.env.MAPBOX_ACCESS_TOKEN ?? '',
+  base = process.env.MAPBOX_URL || 'https://api.mapbox.com',
   fetchImpl = globalThis.fetch,
   distPath = defaultDist,
   rateLimit = process.env.PROXY_RATE_LIMIT,
@@ -266,8 +317,13 @@ export function createProxyServer({
       throw new Error('PUBLIC_ORIGIN must be an HTTP(S) origin without a path.');
     }
   }
-  key = String(key).trim();
-  const upstreamBase = new URL(base);
+  token = String(token).trim();
+  let upstreamBase;
+  try {
+    upstreamBase = new URL(base);
+  } catch {
+    throw new Error('MAPBOX_URL must be an HTTP(S) service origin.');
+  }
   if (
     !['http:', 'https:'].includes(upstreamBase.protocol) ||
     upstreamBase.username ||
@@ -276,7 +332,7 @@ export function createProxyServer({
     upstreamBase.hash ||
     !/^\/*$/.test(upstreamBase.pathname)
   )
-    throw new Error('ORS_URL must be an HTTP(S) service origin.');
+    throw new Error('MAPBOX_URL must be an HTTP(S) service origin.');
   const limit = positive(rateLimit, 60, 100000);
   const windowMs = positive(rateWindowMs, 60000, 3600000);
   maxRateEntries = positive(maxRateEntries, 10000, 100000);
@@ -310,13 +366,17 @@ export function createProxyServer({
       throw new SafeError(429, 'RATE_LIMITED', 'Too many requests. Please try again later.');
     }
   }
-  async function forward(req, res, path, body) {
-    if (!key)
+  async function forward(req, res, path, kind) {
+    if (!token)
       throw new SafeError(
         503,
         'NOT_CONFIGURED',
-        'Routing is not configured on the server. Ask the deployment administrator to set ORS_API_KEY.',
+        'Routing is not configured on the server. Ask the deployment administrator to set MAPBOX_ACCESS_TOKEN.',
       );
+    const address = new URL(path, upstreamBase);
+    address.searchParams.set('access_token', token);
+    const terrain = kind === 'terrain';
+    const responseLimit = terrain ? TERRAIN_LIMIT : RESPONSE_LIMIT;
     const controller = new AbortController();
     let timedOut = false;
     const disconnect = () => {
@@ -340,19 +400,20 @@ export function createProxyServer({
     const wait = (operation) => Promise.race([operation, aborted]);
     try {
       response = await wait(
-        fetchImpl(new URL(path, upstreamBase), {
-          method: body === undefined ? 'GET' : 'POST',
-          headers: {
-            Authorization: key,
-            Accept: body === undefined ? 'application/json' : 'application/geo+json',
-            ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-          },
-          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        fetchImpl(address, {
+          method: 'GET',
+          headers: { Accept: terrain ? 'image/png' : 'application/json' },
           signal: controller.signal,
           redirect: 'error',
         }),
       );
       if (!response.ok) {
+        if (terrain && response.status === 404)
+          throw new SafeError(
+            404,
+            'TERRAIN_NOT_FOUND',
+            'Elevation data is unavailable for this tile.',
+          );
         if (response.status === 429)
           throw new SafeError(
             429,
@@ -365,11 +426,12 @@ export function createProxyServer({
           'The routing service could not complete the request.',
         );
       }
+      const contentType = response.headers.get('content-type') ?? '';
       if (
-        !/^application\/(?:json|[a-z0-9.+-]+\+json)(?:\s*;|\s*$)/i.test(
-          response.headers.get('content-type') ?? '',
-        ) ||
-        Number(response.headers.get('content-length')) > RESPONSE_LIMIT ||
+        !(terrain
+          ? /^image\/png(?:\s*;|\s*$)/i.test(contentType)
+          : /^application\/(?:json|[a-z0-9.+-]+\+json)(?:\s*;|\s*$)/i.test(contentType)) ||
+        Number(response.headers.get('content-length')) > responseLimit ||
         !response.body
       )
         throw upstreamInvalid();
@@ -380,21 +442,43 @@ export function createProxyServer({
         const { done, value } = await wait(reader.read());
         if (done) break;
         size += value.byteLength;
-        if (size > RESPONSE_LIMIT) throw upstreamInvalid();
+        if (size > responseLimit) throw upstreamInvalid();
         chunks.push(Buffer.from(value));
+      }
+      const buffer = Buffer.concat(chunks);
+      if (terrain) {
+        if (
+          !validPng(buffer) ||
+          [token, encodeURIComponent(token)].some((secret) => buffer.includes(Buffer.from(secret)))
+        )
+          throw upstreamInvalid();
+        if (!res.destroyed && !res.writableEnded) {
+          res.writeHead(200, {
+            'Content-Type': 'image/png',
+            'Content-Length': buffer.length,
+            'Cache-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff',
+          });
+          res.end(buffer);
+        }
+        return;
       }
       let data;
       try {
-        data = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        data = JSON.parse(buffer.toString('utf8'));
       } catch {
         throw upstreamInvalid();
       }
       if (!object(data)) throw upstreamInvalid();
-      // Redact even an accidental key reflection in an otherwise successful JSON response.
-      const safe = JSON.parse(
-        JSON.stringify(data).split(JSON.stringify(key).slice(1, -1)).join('[redacted]'),
-      );
-      json(res, 200, safe);
+      const normalized = kind === 'directions' ? normalizeDirections(data) : normalizeGeocode(data);
+      // Normalization drops provider metadata; redact reflected credentials in retained labels too.
+      if (kind === 'geocode') {
+        for (const feature of normalized.features) {
+          for (const secret of [token, encodeURIComponent(token)])
+            feature.properties.label = feature.properties.label.split(secret).join('[redacted]');
+        }
+      }
+      json(res, 200, normalized);
     } catch (error) {
       if (timedOut)
         throw new SafeError(
@@ -435,8 +519,8 @@ export function createProxyServer({
         if (req.method !== 'GET')
           throw new SafeError(405, 'METHOD_NOT_ALLOWED', 'The method is not allowed.');
         if (url.search) throw invalid();
-        json(res, 200, { configured: Boolean(key) });
-      } else if (/^\/api\/directions\/(cycling-regular|foot-hiking)\/geojson$/.test(pathname)) {
+        json(res, 200, { configured: Boolean(token) });
+      } else if (/^\/api\/directions\/(cycling|walking)\/geojson$/.test(pathname)) {
         if (req.method !== 'POST')
           throw new SafeError(405, 'METHOD_NOT_ALLOWED', 'The method is not allowed.');
         quota(req, res);
@@ -446,17 +530,39 @@ export function createProxyServer({
           (req.headers['content-encoding'] && req.headers['content-encoding'] !== 'identity')
         )
           throw invalid();
+        const body = routePayload(await readBody(req));
+        const profile = pathname.split('/')[3];
+        const coordinates = body.coordinates.map((point) => point.join(',')).join(';');
         await forward(
           req,
           res,
-          `/openrouteservice/v2${pathname.slice(4)}`,
-          routePayload(await readBody(req)),
+          `/directions/v5/mapbox/${profile}/${coordinates}?geometries=geojson&overview=full&steps=false`,
+          'directions',
         );
       } else if (pathname === '/api/geocode/search') {
         if (req.method !== 'GET')
           throw new SafeError(405, 'METHOD_NOT_ALLOWED', 'The method is not allowed.');
         quota(req, res);
-        await forward(req, res, `/pelias/v1/search?${geocodeParams(url.searchParams)}`);
+        const params = geocodeParams(url.searchParams);
+        const query = new URLSearchParams({
+          q: params.get('text'),
+          limit: params.get('size'),
+          permanent: 'true',
+          autocomplete: 'false',
+        });
+        await forward(req, res, `/search/geocode/v6/forward?${query}`, 'geocode');
+      } else if (pathname.startsWith('/api/terrain/')) {
+        if (req.method !== 'GET')
+          throw new SafeError(405, 'METHOD_NOT_ALLOWED', 'The method is not allowed.');
+        quota(req, res);
+        const match =
+          /^\/api\/terrain\/(0|[1-9]\d?)\/(0|[1-9]\d{0,4})\/(0|[1-9]\d{0,4})\.pngraw$/.exec(
+            pathname,
+          );
+        if (!match || url.search) throw invalid();
+        const [z, x, y] = match.slice(1).map(Number);
+        if (z > 14 || x >= 2 ** z || y >= 2 ** z) throw invalid();
+        await forward(req, res, `/v4/mapbox.terrain-rgb/${z}/${x}/${y}.pngraw`, 'terrain');
       } else if (pathname === '/api' || pathname.startsWith('/api/')) {
         throw new SafeError(404, 'NOT_FOUND', 'The resource was not found.');
       } else await serveStatic(req, res, pathname, distPath);

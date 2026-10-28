@@ -28,6 +28,25 @@ async function createRoute(page: Page) {
   await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
 }
 test.beforeEach(async ({ page }) => {
+  await page.route('**/__fixtures__/map-style.json', (route) =>
+    route.fulfill({
+      json: {
+        version: 8,
+        sources: {
+          fixture: {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          },
+        },
+        layers: [
+          { id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } },
+          { id: 'fixture', type: 'circle', source: 'fixture' },
+        ],
+      },
+    }),
+  );
+  await page.route('https://*.mapbox.com/**', (route) => route.abort());
   // Fixtures are confined to browser tests. Production never substitutes geometry.
   await page.route('**/api/directions/**', (route) => route.fulfill({ json: fixture }));
   await page.route('**/geocode/search?**', (route) =>
@@ -131,7 +150,7 @@ test('search works on submit; hiking and service failures are honest', async ({ 
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByRole('button', { name: 'Innsbruck, Austria' }).click();
   await page.getByRole('radio', { name: 'Hiking', exact: true }).click();
-  const request = page.waitForRequest('**/api/directions/foot-hiking/geojson');
+  const request = page.waitForRequest('**/api/directions/walking/geojson');
   await addPoint(page, '47.271, 11.411');
   await request;
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
@@ -142,15 +161,16 @@ test('search works on submit; hiking and service failures are honest', async ({ 
   await expect(page.getByRole('alert')).toContainText('quota');
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
 });
-test('round trips use real provider round-trip requests; responsive controls stay reachable', async ({
+test('round trips route intermediate points with bounded search; responsive controls stay reachable', async ({
   page,
 }, testInfo) => {
   await page.getByRole('radio', { name: 'Round trip', exact: true }).click();
   await addPoint(page, '47.2692, 11.4041');
   await page.route('**/api/directions/**', async (route) => {
     const body = route.request().postDataJSON();
-    expect(body.options.round_trip.length).toBe(20000);
-    expect(body.coordinates).toHaveLength(1);
+    expect(body).not.toHaveProperty('options');
+    expect(body.coordinates).toHaveLength(4);
+    expect(body.coordinates[0]).toEqual(body.coordinates[3]);
     const loop = [coordinates[0], coordinates[1], coordinates[2], coordinates[0]];
     await route.fulfill({
       json: {
@@ -173,7 +193,7 @@ test('round trips use real provider round-trip requests; responsive controls sta
     true,
   );
   await expect(
-    page.locator('.maplibregl-ctrl-attrib').getByRole('link', { name: 'OpenStreetMap' }),
+    page.locator('.mapboxgl-ctrl-attrib').getByRole('link', { name: 'OpenStreetMap' }),
   ).toBeVisible();
 });
 
@@ -197,7 +217,7 @@ test('Onest loads Latin and Cyrillic faces and keeps Russian controls within a 3
     page.locator('body'),
     page.getByRole('textbox', { name: 'Поиск мест или координат' }),
     page.getByRole('menuitem', { name: 'Мои маршруты' }),
-    page.locator('.maplibregl-map'),
+    page.locator('.mapboxgl-map'),
   ]) {
     await expect(element).toHaveCSS('font-family', /Onest Variable/);
   }

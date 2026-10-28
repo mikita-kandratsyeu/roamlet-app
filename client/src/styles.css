@@ -36,7 +36,7 @@ textarea,
 select {
   font: inherit;
 }
-.maplibregl-map {
+.mapboxgl-map {
   font-family: inherit;
 }
 button {
@@ -813,12 +813,12 @@ textarea {
   text-decoration: none;
   border-radius: 3px;
 }
-.maplibregl-ctrl-attrib {
+.mapboxgl-ctrl-attrib {
   font-size: 10px !important;
   max-width: 100%;
   background: #ffffffed !important;
 }
-.maplibregl-ctrl-bottom-right {
+.mapboxgl-ctrl-bottom-right {
   max-width: 65%;
 }
 .waypoint-marker {
@@ -1238,16 +1238,16 @@ textarea:focus,
   box-shadow: none;
 }
 .header-menu-item:focus-visible,
-.maplibregl-ctrl-group button:focus-visible,
-.maplibregl-ctrl-attrib-button:focus-visible {
+.mapboxgl-ctrl-group button:focus-visible,
+.mapboxgl-ctrl-attrib-button:focus-visible {
   outline-offset: -2px;
 }
-.maplibregl-ctrl-group button:focus,
-.maplibregl-ctrl-group button:focus:focus-visible,
-.maplibregl-ctrl-attrib-button:focus {
+.mapboxgl-ctrl-group button:focus,
+.mapboxgl-ctrl-group button:focus:focus-visible,
+.mapboxgl-ctrl-attrib-button:focus {
   box-shadow: none;
 }
-.maplibregl-canvas:focus-visible {
+.mapboxgl-canvas:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -3px;
 }
@@ -1549,7 +1549,7 @@ textarea,
   .map-extra-controls {
     top: 94px;
   }
-  .maplibregl-ctrl-bottom-right {
+  .mapboxgl-ctrl-bottom-right {
     bottom: auto !important;
     top: 0 !important;
     max-width: 100%;
@@ -1557,7 +1557,7 @@ textarea,
     left: 0 !important;
     pointer-events: none;
   }
-  .maplibregl-ctrl-attrib {
+  .mapboxgl-ctrl-attrib {
     position: relative;
     top: 201px;
     right: 0;
@@ -1928,11 +1928,11 @@ textarea::placeholder {
   align-items: center;
   gap: 10px;
 }
-.maplibregl-ctrl-attrib {
+.mapboxgl-ctrl-attrib {
   background: var(--surface) !important;
   color: var(--foreground);
 }
-.maplibregl-ctrl-attrib a {
+.mapboxgl-ctrl-attrib a {
   color: var(--foreground);
 }
 .waypoint-marker.start,

@@ -1,17 +1,16 @@
 import { Button } from './ui/button';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import mapboxgl from 'mapbox-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView, saveMapView } from '../domain/mapView';
-import { mapTiles, OSM_TILE_URL } from '../domain/mapTiles';
+import { mapTiles, MAPBOX_TOKEN_REQUIRED_MESSAGE } from '../domain/mapTiles';
 import { LocateFixed, Maximize, MapPin, Plus, Minus, X, Map as MapIcon } from 'lucide-react';
 import { waypointKind } from './waypointStyle';
 import { useTheme } from '../theme';
 import { Alert } from './ui/alert';
 import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
-import 'maplibre-gl/dist/maplibre-gl.css';
 import i18n, { formatNumber, translateMessage } from '../i18n';
 
 const mapMotionDuration = () =>
@@ -30,10 +29,11 @@ export function RouteMap(props: Props) {
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const container = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
   const latest = useRef(props);
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState('');
+  const [configurationError, setConfigurationError] = useState(false);
   useEffect(() => {
     latest.current = props;
   });
@@ -42,23 +42,21 @@ export function RouteMap(props: Props) {
     let tiles: ReturnType<typeof mapTiles>;
     try {
       tiles = mapTiles({
-        VITE_TILE_URL: import.meta.env.VITE_TILE_URL,
-        VITE_TILE_ATTRIBUTION: import.meta.env.VITE_TILE_ATTRIBUTION,
-        VITE_TILE_MAX_ZOOM: import.meta.env.VITE_TILE_MAX_ZOOM,
+        VITE_MAPBOX_ACCESS_TOKEN: import.meta.env.VITE_MAPBOX_ACCESS_TOKEN,
+        VITE_MAPBOX_STYLE: import.meta.env.VITE_MAPBOX_STYLE,
       });
     } catch (error) {
-      setMapError(
-        error instanceof Error
-          ? error.message
-          : 'Set VITE_TILE_ATTRIBUTION to the tile provider’s required credits.',
-      );
+      setConfigurationError(true);
+      setMapError(error instanceof Error ? error.message : MAPBOX_TOKEN_REQUIRED_MESSAGE);
       return;
     }
-    let instance: maplibregl.Map;
+    let instance: mapboxgl.Map;
     try {
-      instance = new maplibregl.Map({
+      instance = new mapboxgl.Map({
         container: container.current,
         ...initialMapView(),
+        accessToken: tiles.accessToken,
+        logoPosition: 'bottom-left',
         attributionControl: false,
         locale: {
           'NavigationControl.ZoomIn': i18n.t('Zoom in'),
@@ -66,19 +64,7 @@ export function RouteMap(props: Props) {
           'AttributionControl.ToggleAttribution': i18n.t('Toggle attribution'),
           'Map.Title': i18n.t('Map'),
         },
-        style: {
-          version: 8,
-          sources: {
-            osm: {
-              type: 'raster',
-              tiles: [tiles.url],
-              tileSize: 256,
-              maxzoom: tiles.maxZoom,
-              attribution: tiles.attribution,
-            },
-          },
-          layers: [{ id: 'base', type: 'raster', source: 'osm' }],
-        },
+        style: tiles.style,
       });
     } catch {
       setMapError(
@@ -112,7 +98,7 @@ export function RouteMap(props: Props) {
       if (moved) persistView();
     };
     window.addEventListener('pagehide', persistOnHide);
-    instance.addControl(new maplibregl.AttributionControl({ compact: false }), 'bottom-right');
+    instance.addControl(new mapboxgl.AttributionControl({ compact: false }), 'bottom-right');
     instance.on('load', () => {
       instance.addSource('route', {
         type: 'geojson',
@@ -156,14 +142,12 @@ export function RouteMap(props: Props) {
   useEffect(() => {
     if (!ready || !map.current) return;
     const dark = resolvedTheme === 'dark';
-    map.current.setPaintProperty('base', 'raster-brightness-max', dark ? 0.55 : 1);
-    map.current.setPaintProperty('base', 'raster-saturation', dark ? -0.7 : 0);
     map.current.setPaintProperty('route-casing', 'line-color', dark ? '#15291f' : '#faf7f2');
     map.current.setPaintProperty('route-line', 'line-color', dark ? '#bdd3a5' : '#173b30');
   }, [ready, resolvedTheme]);
   useEffect(() => {
     if (!ready || !map.current) return;
-    const source = map.current.getSource('route') as maplibregl.GeoJSONSource;
+    const source = map.current.getSource('route') as mapboxgl.GeoJSONSource;
     source.setData({
       type: 'FeatureCollection',
       features: props.segments
@@ -190,7 +174,7 @@ export function RouteMap(props: Props) {
       element.title = `${label}${props.editable ? t(' — drag to reposition') : ''}`;
       element.setAttribute('aria-label', element.title);
       element.addEventListener('click', (event) => event.stopPropagation());
-      const marker = new maplibregl.Marker({ element, draggable: props.editable })
+      const marker = new mapboxgl.Marker({ element, draggable: props.editable })
         .setLngLat([point.coordinate[0], point.coordinate[1]])
         .addTo(map.current!);
       marker.on('dragend', () => {
@@ -203,10 +187,10 @@ export function RouteMap(props: Props) {
   }, [ready, props.waypoints, props.editable, t]);
   useEffect(() => {
     const labels = [
-      ['.maplibregl-ctrl-zoom-in', t('Zoom in')],
-      ['.maplibregl-ctrl-zoom-out', t('Zoom out')],
-      ['.maplibregl-ctrl-attrib-button', t('Toggle attribution')],
-      ['.maplibregl-canvas', t('Map')],
+      ['.mapboxgl-ctrl-zoom-in', t('Zoom in')],
+      ['.mapboxgl-ctrl-zoom-out', t('Zoom out')],
+      ['.mapboxgl-ctrl-attrib-button', t('Toggle attribution')],
+      ['.mapboxgl-canvas', t('Map')],
     ];
     for (const [selector, label] of labels) {
       const element = container.current?.querySelector(selector);
@@ -220,7 +204,7 @@ export function RouteMap(props: Props) {
       ? props.segments.flat()
       : props.waypoints.map((w) => w.coordinate);
     if (!coordinates.length) return;
-    const bounds = new maplibregl.LngLatBounds();
+    const bounds = new mapboxgl.LngLatBounds();
     coordinates.forEach((c) => bounds.extend([c[0], c[1]]));
     map.current.fitBounds(bounds, { padding: 65, maxZoom: 15, duration: mapMotionDuration() });
   }, [ready, props.fitToken, props.segments, props.waypoints]);
@@ -250,13 +234,15 @@ export function RouteMap(props: Props) {
       {mapError && (
         <Alert className="map-warning" role="status">
           <span>{translateMessage(mapError)}</span>
-          <Button
-            variant="ghost"
-            onClick={() => setMapError('')}
-            aria-label={t('Dismiss map notice')}
-          >
-            <X size={16} />
-          </Button>
+          {!configurationError && (
+            <Button
+              variant="ghost"
+              onClick={() => setMapError('')}
+              aria-label={t('Dismiss map notice')}
+            >
+              <X size={16} />
+            </Button>
+          )}
         </Alert>
       )}
       {!ready && !mapError && (
@@ -296,6 +282,7 @@ export function RouteMap(props: Props) {
           className="map-control"
           title={t('Use my location')}
           aria-label={t('Use my location')}
+          disabled={!ready}
           onClick={locate}
         >
           <LocateFixed size={20} />
@@ -310,7 +297,7 @@ export function RouteMap(props: Props) {
               ? props.segments.flat()
               : props.waypoints.map((w) => w.coordinate);
             if (!coordinates.length) return;
-            const bounds = new maplibregl.LngLatBounds();
+            const bounds = new mapboxgl.LngLatBounds();
             coordinates.forEach((c) => bounds.extend([c[0], c[1]]));
             map.current?.fitBounds(bounds, {
               padding: 65,
@@ -318,22 +305,22 @@ export function RouteMap(props: Props) {
               duration: mapMotionDuration(),
             });
           }}
-          disabled={!props.waypoints.length && !props.segments.length}
+          disabled={!ready || (!props.waypoints.length && !props.segments.length)}
         >
           <Maximize size={18} />
         </Button>
       </div>
-      {props.editable && (
-        <div className="map-hint">
+      {ready && props.editable && (
+        <div className="map-hint" style={{ marginBottom: 12 }}>
           <MapPin size={16} />
           <span>{t('Click the map to add a stop. Drag pins to refine.')}</span>
         </div>
       )}
-      {(!import.meta.env.VITE_TILE_URL?.trim() ||
-        import.meta.env.VITE_TILE_URL.trim() === OSM_TILE_URL) && (
+      {ready && (
         <a
           className="map-issue"
-          href="https://www.openstreetmap.org/fixthemap"
+          style={{ marginBottom: 26 }}
+          href="https://apps.mapbox.com/feedback/"
           target="_blank"
           rel="noreferrer"
         >

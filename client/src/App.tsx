@@ -136,7 +136,7 @@ export default function App() {
             waypoints,
             ...calculated,
             updatedAt: new Date().toISOString(),
-            source: 'openrouteservice',
+            source: 'mapbox',
           });
           setFitToken((token) => token + 1);
         })
@@ -204,9 +204,9 @@ export default function App() {
     if (searchTarget)
       changeWaypoints(waypoints.map((w) => (w.id === searchTarget ? { ...point, id: w.id } : w)));
     else if (planningMode === 'loop') changeWaypoints([point]);
-    else if (waypoints.length < 50) changeWaypoints([...waypoints, point]);
+    else if (waypoints.length < 25) changeWaypoints([...waypoints, point]);
     else {
-      fail('A route supports up to 50 stops. Remove a stop before adding another.');
+      fail('A route supports up to 25 stops. Remove a stop before adding another.');
       return;
     }
     setPlaces([]);
@@ -461,7 +461,7 @@ export default function App() {
       waypoints: stops,
       ...calculated,
       updatedAt: new Date().toISOString(),
-      source: 'openrouteservice',
+      source: 'mapbox',
     });
     setSelectedAlternative(index);
     setDirty(true);
@@ -518,7 +518,9 @@ export default function App() {
             variant="ghost"
             size="icon"
             className="theme-toggle"
-            aria-label={t(resolvedTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme')}
+            aria-label={t(
+              resolvedTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
+            )}
             title={t(resolvedTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme')}
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
           >
@@ -531,7 +533,9 @@ export default function App() {
           />
         </nav>
       </header>
-      <main className={`workspace ${collapsed ? 'panel-collapsed' : ''} ${panelHidden ? 'desktop-panel-hidden' : ''}`}>
+      <main
+        className={`workspace ${collapsed ? 'panel-collapsed' : ''} ${panelHidden ? 'desktop-panel-hidden' : ''}`}
+      >
         {panelHidden && (
           <Button
             ref={showPlannerButton}
@@ -704,7 +708,10 @@ export default function App() {
                   </ul>
                 )}
                 <div className="waypoints-heading">
-                  <h2><MapPin size={15} aria-hidden="true" />{planningMode === 'loop' ? t('Starting point') : t('Your stops')}</h2>
+                  <h2>
+                    <MapPin size={15} aria-hidden="true" />
+                    {planningMode === 'loop' ? t('Starting point') : t('Your stops')}
+                  </h2>
                   <div className="waypoint-heading-actions">
                     {planningMode === 'point' && waypoints.length > 1 && (
                       <Button
@@ -713,28 +720,38 @@ export default function App() {
                         aria-label={t('Reverse')}
                         title={t('Reverse')}
                         onClick={() => changeWaypoints([...waypoints].reverse())}
-                      ><ArrowDownUp size={14} /></Button>
+                      >
+                        <ArrowDownUp size={14} />
+                      </Button>
                     )}
                     {!!waypoints.length && (
                       <>
                         <Button
                           variant="ghost"
                           className="text-button"
-                          onClick={() => setConfirmation({
-                            title: 'Clear all stops?',
-                            text: 'This removes all stops and the calculated route. Saved routes are not affected.',
-                            label: 'Clear stops',
-                            action: () => changeWaypoints([]),
-                          })}
-                        >{t('Clear stops')}</Button>
-                        <Badge variant="secondary" className="stop-count">{formatNumber(waypoints.length)}</Badge>
+                          onClick={() =>
+                            setConfirmation({
+                              title: 'Clear all stops?',
+                              text: 'This removes all stops and the calculated route. Saved routes are not affected.',
+                              label: 'Clear stops',
+                              action: () => changeWaypoints([]),
+                            })
+                          }
+                        >
+                          {t('Clear stops')}
+                        </Button>
+                        <Badge variant="secondary" className="stop-count">
+                          {formatNumber(waypoints.length)}
+                        </Badge>
                       </>
                     )}
                   </div>
                 </div>
                 {!waypoints.length ? (
                   <Card className="stops-empty">
-                    <Badge className="stop-badge start" aria-hidden="true">1</Badge>
+                    <Badge className="stop-badge start" aria-hidden="true">
+                      1
+                    </Badge>
                     <div>
                       <strong>{t('A good route starts somewhere')}</strong>
                       <p>{t('Choose your first stop on the map or search above.')}</p>
@@ -745,76 +762,79 @@ export default function App() {
                     {waypoints.map((point, index) => (
                       <li key={point.id}>
                         <Card className="waypoint-card">
-                        <Badge className={`stop-badge ${waypointKind(index, waypoints.length)}`} aria-hidden="true">
-                          {formatNumber(index + 1)}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          className="stop-name"
-                          onClick={() => {
-                            setSearchTarget(point.id);
-                            searchInput.current?.focus();
-                          }}
-                        >
-                          {point.name}
-                          <small>
-                            {index === 0
-                              ? t('Start')
-                              : index === waypoints.length - 1
-                                ? t('Finish')
-                                : t('Via')}{' '}
-                            {t('· click to replace')}
-                          </small>
-                        </Button>
-                        <div className="stop-controls">
-                          {planningMode === 'point' && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                className="icon-button"
-                                aria-label={t('Move stop {{number}} up', {
-                                  number: formatNumber(index + 1),
-                                })}
-                                disabled={index === 0}
-                                onClick={() => {
-                                  const next = [...waypoints];
-                                  [next[index - 1], next[index]] = [next[index], next[index - 1]];
-                                  changeWaypoints(next);
-                                }}
-                              >
-                                <ArrowUp size={13} />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                className="icon-button"
-                                aria-label={t('Move stop {{number}} down', {
-                                  number: formatNumber(index + 1),
-                                })}
-                                disabled={index === waypoints.length - 1}
-                                onClick={() => {
-                                  const next = [...waypoints];
-                                  [next[index + 1], next[index]] = [next[index], next[index + 1]];
-                                  changeWaypoints(next);
-                                }}
-                              >
-                                <ArrowDown size={13} />
-                              </Button>
-                            </>
-                          )}
+                          <Badge
+                            className={`stop-badge ${waypointKind(index, waypoints.length)}`}
+                            aria-hidden="true"
+                          >
+                            {formatNumber(index + 1)}
+                          </Badge>
                           <Button
                             variant="ghost"
-                            className="icon-button"
-                            aria-label={t('Remove stop {{number}}', {
-                              number: formatNumber(index + 1),
-                            })}
-                            onClick={() =>
-                              changeWaypoints(waypoints.filter((w) => w.id !== point.id))
-                            }
+                            className="stop-name"
+                            onClick={() => {
+                              setSearchTarget(point.id);
+                              searchInput.current?.focus();
+                            }}
                           >
-                            <X size={15} />
+                            {point.name}
+                            <small>
+                              {index === 0
+                                ? t('Start')
+                                : index === waypoints.length - 1
+                                  ? t('Finish')
+                                  : t('Via')}{' '}
+                              {t('· click to replace')}
+                            </small>
                           </Button>
-                        </div>
-                      </Card>
+                          <div className="stop-controls">
+                            {planningMode === 'point' && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  className="icon-button"
+                                  aria-label={t('Move stop {{number}} up', {
+                                    number: formatNumber(index + 1),
+                                  })}
+                                  disabled={index === 0}
+                                  onClick={() => {
+                                    const next = [...waypoints];
+                                    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                                    changeWaypoints(next);
+                                  }}
+                                >
+                                  <ArrowUp size={13} />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  className="icon-button"
+                                  aria-label={t('Move stop {{number}} down', {
+                                    number: formatNumber(index + 1),
+                                  })}
+                                  disabled={index === waypoints.length - 1}
+                                  onClick={() => {
+                                    const next = [...waypoints];
+                                    [next[index + 1], next[index]] = [next[index], next[index + 1]];
+                                    changeWaypoints(next);
+                                  }}
+                                >
+                                  <ArrowDown size={13} />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              className="icon-button"
+                              aria-label={t('Remove stop {{number}}', {
+                                number: formatNumber(index + 1),
+                              })}
+                              onClick={() =>
+                                changeWaypoints(waypoints.filter((w) => w.id !== point.id))
+                              }
+                            >
+                              <X size={15} />
+                            </Button>
+                          </div>
+                        </Card>
                       </li>
                     ))}
                   </ol>
@@ -1122,10 +1142,10 @@ export default function App() {
             <h3>{t('Connect routing & search')}</h3>
             <p>
               {t('For deployment administrators: create a key at')}{' '}
-              <a href="https://account.heigit.org/signup" target="_blank" rel="noreferrer">
-                HeiGIT / OpenRouteService
+              <a href="https://account.mapbox.com/auth/signup/" target="_blank" rel="noreferrer">
+                Mapbox
               </a>
-              {t('. Set')} <code>ORS_API_KEY</code>{' '}
+              {t('. Set')} <code>MAPBOX_ACCESS_TOKEN</code>{' '}
               {t(
                 'in the proxy’s server environment and restart the proxy. The browser never receives this key; it submits routing requests through the same-origin API.',
               )}
@@ -1145,7 +1165,7 @@ export default function App() {
             <h3>{t('Real data, honest limits')}</h3>
             <p>
               {t(
-                'Cycling uses ORS general cycling, not a dedicated gravel profile. Hiking uses foot-hiking. Access and surface quality depend on mapped data; always check conditions. Time and terrain elevations are estimates. Loops use ORS round-trip requests and may differ from the target distance.',
+                'Cycling and hiking use Mapbox cycling and walking profiles. Access and surface quality depend on mapped data; always check conditions. Moving time and Terrain-RGB elevations are estimates. Loops are generated with intermediate points and may differ from the target distance.',
               )}
             </p>
             <h3>{t('Data & attribution')}</h3>
@@ -1155,10 +1175,10 @@ export default function App() {
                 {t('OpenStreetMap contributors')}
               </a>{' '}
               {t(
-                '(ODbL). Default OSM tiles are for low-traffic development; use a suitable hosted provider for production. No map tiles are downloaded for offline use. Routing & place search ©',
+                '(ODbL). Maps, routing, terrain and place search are provided by Mapbox. No map regions are downloaded for offline use. Provider ©',
               )}{' '}
-              <a href="https://openrouteservice.org" target="_blank" rel="noreferrer">
-                OpenRouteService / HeiGIT
+              <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noreferrer">
+                Mapbox
               </a>
               {t(', with OSM data.')}
             </p>

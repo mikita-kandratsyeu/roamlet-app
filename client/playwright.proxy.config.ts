@@ -19,6 +19,10 @@ export default defineConfig({
   },
   webServer: {
     command: 'yarn build && node tests/proxy-fixture.mjs',
+    env: {
+      VITE_MAPBOX_ACCESS_TOKEN: 'pk.test-only-not-a-real-token',
+      VITE_MAPBOX_STYLE: '/__fixtures__/map-style.json',
+    },
     url: 'http://127.0.0.1:4176',
     timeout: 120_000,
     reuseExistingServer: false,

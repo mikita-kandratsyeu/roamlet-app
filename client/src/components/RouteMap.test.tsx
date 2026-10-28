@@ -5,7 +5,13 @@ import { RouteMap } from './RouteMap';
 import i18n from '../i18n';
 const mocks = vi.hoisted(() => ({
   options: vi.fn(),
-  handlers: new Map<string, () => void>(),
+  handlers: new Map<string, (event?: { lngLat: { lng: number; lat: number } }) => void>(),
+  markerOptions: vi.fn(),
+  markerDrag: [] as (() => void)[],
+  markerRemove: vi.fn(),
+  data: vi.fn(),
+  control: vi.fn(),
+  attribution: vi.fn(),
   fit: vi.fn(),
   remove: vi.fn(),
   paint: vi.fn(),
@@ -14,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   theme: 'light',
 }));
 vi.mock('../theme', () => ({ useTheme: () => ({ resolvedTheme: mocks.theme }) }));
-vi.mock('maplibre-gl', () => ({
+vi.mock('mapbox-gl', () => ({
   default: {
     Map: class {
       constructor(options: unknown) {
@@ -23,12 +29,12 @@ vi.mock('maplibre-gl', () => ({
       on(event: string, handler: () => void) {
         mocks.handlers.set(event, handler);
       }
-      addControl() {}
+      addControl = mocks.control;
       addSource() {}
       addLayer() {}
       resize() {}
       getSource() {
-        return { setData: vi.fn() };
+        return { setData: mocks.data };
       }
       getCenter() {
         return { wrap: () => ({ lng: 12, lat: 48 }) };
@@ -48,8 +54,29 @@ vi.mock('maplibre-gl', () => ({
       zoomIn = mocks.zoomIn;
       zoomOut = mocks.zoomOut;
     },
-    NavigationControl: class {},
-    AttributionControl: class {},
+    Marker: class {
+      constructor(options: unknown) {
+        mocks.markerOptions(options);
+      }
+      setLngLat() {
+        return this;
+      }
+      addTo() {
+        return this;
+      }
+      on(event: string, handler: () => void) {
+        if (event === 'dragend') mocks.markerDrag.push(handler);
+      }
+      getLngLat() {
+        return { lng: 13, lat: 49 };
+      }
+      remove = mocks.markerRemove;
+    },
+    AttributionControl: class {
+      constructor(options: unknown) {
+        mocks.attribution(options);
+      }
+    },
     LngLatBounds: class {
       extend() {
         return this;
@@ -78,9 +105,12 @@ const mockStorage = () => {
 };
 beforeEach(() => {
   mockStorage();
+  vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'pk.test-only-not-a-real-token');
+  vi.stubEnv('VITE_MAPBOX_STYLE', '');
   vi.clearAllMocks();
   mocks.theme = 'light';
   mocks.handlers.clear();
+  mocks.markerDrag.length = 0;
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -93,7 +123,123 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
+it('uses the configured Mapbox style, official logo and source attribution control', () => {
+  vi.stubEnv('VITE_MAPBOX_STYLE', '/test-style.json');
+  render(<RouteMap {...props} />);
+  expect(mocks.options).toHaveBeenCalledWith(
+    expect.objectContaining({
+      accessToken: 'pk.test-only-not-a-real-token',
+      style: '/test-style.json',
+      logoPosition: 'bottom-left',
+      attributionControl: false,
+    }),
+  );
+  expect(mocks.attribution).toHaveBeenCalledWith({ compact: false });
+  expect(mocks.control).toHaveBeenCalledWith(expect.anything(), 'bottom-right');
+});
+
+it('shows persistent configuration UI without initializing a map when the public token is missing', () => {
+  vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', '');
+  render(<RouteMap {...props} />);
+  expect(mocks.options).not.toHaveBeenCalled();
+  expect(screen.getByRole('status')).toHaveTextContent('VITE_MAPBOX_ACCESS_TOKEN');
+  expect(screen.getByRole('status')).toHaveTextContent('Offline basemaps are not supported');
+  expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Use my location' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Dismiss map notice' })).not.toBeInTheDocument();
+});
+
+it('does not initialize Mapbox with a secret browser token', () => {
+  vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'sk.test-only-not-a-real-token');
+  render(<RouteMap {...props} />);
+  expect(mocks.options).not.toHaveBeenCalled();
+  expect(screen.getByRole('status')).toHaveTextContent('public Mapbox token');
+  expect(screen.getByRole('status')).not.toHaveTextContent('sk.test-only-not-a-real-token');
+});
+
+it('preserves pointer editing, marker cleanup and read-only view mode', () => {
+  const waypoints = [{ id: 'stop', name: 'Stop', coordinate: [11, 47] as [number, number] }];
+  const { rerender } = render(<RouteMap {...props} waypoints={waypoints} />);
+  act(() => mocks.handlers.get('load')!());
+  act(() => mocks.handlers.get('click')!({ lngLat: { lng: 12, lat: 48 } }));
+  expect(props.onAdd).toHaveBeenCalledWith([12, 48]);
+  expect(mocks.markerOptions).toHaveBeenLastCalledWith(
+    expect.objectContaining({ draggable: true }),
+  );
+  act(() => mocks.markerDrag[0]());
+  expect(props.onMove).toHaveBeenCalledWith('stop', [13, 49]);
+  const element = mocks.markerOptions.mock.calls[0][0].element as HTMLButtonElement;
+  expect(element).toHaveAttribute('aria-label', 'Stop — drag to reposition');
+  const bubble = vi.fn();
+  document.body.addEventListener('click', bubble);
+  document.body.append(element);
+  fireEvent.click(element);
+  expect(bubble).not.toHaveBeenCalled();
+  element.remove();
+  document.body.removeEventListener('click', bubble);
+  rerender(<RouteMap {...props} waypoints={waypoints} editable={false} />);
+  expect(mocks.markerRemove).toHaveBeenCalledOnce();
+  expect(mocks.markerOptions).toHaveBeenLastCalledWith(
+    expect.objectContaining({ draggable: false }),
+  );
+  props.onAdd.mockClear();
+  act(() => mocks.handlers.get('click')!({ lngLat: { lng: 12, lat: 48 } }));
+  expect(props.onAdd).not.toHaveBeenCalled();
+  expect(
+    screen.queryByText('Click the map to add a stop. Drag pins to refine.'),
+  ).not.toBeInTheDocument();
+  expect(mocks.options).toHaveBeenCalledOnce();
+});
+
+it('keeps separate route segments and ignores isolated points in the map line source', () => {
+  render(
+    <RouteMap
+      {...props}
+      segments={[
+        [
+          [11, 47],
+          [12, 48],
+        ],
+        [[13, 49]],
+        [
+          [14, 50],
+          [15, 51],
+        ],
+      ]}
+    />,
+  );
+  act(() => mocks.handlers.get('load')!());
+  expect(mocks.data).toHaveBeenLastCalledWith({
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [11, 47],
+            [12, 48],
+          ],
+        },
+      },
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [14, 50],
+            [15, 51],
+          ],
+        },
+      },
+    ],
+  });
+});
+
 it('starts from the saved view, persists completed map movement and restores it on remount', () => {
   const saved = { center: [25, 54], zoom: 7, bearing: 2, pitch: 0 };
   localStorage.setItem(MAP_VIEW_KEY, JSON.stringify(saved));
@@ -161,14 +307,14 @@ it('keeps working and shows a nonfatal notice when local storage is blocked', ()
   expect(screen.getByRole('status')).toHaveTextContent('The map view could not be saved');
 });
 
-it('updates raster and route colors without recreating or refitting the map', () => {
+it('updates route colors without touching the vector basemap or recreating or refitting the map', () => {
   const { rerender } = render(<RouteMap {...props} />);
   act(() => mocks.handlers.get('load')!());
-  expect(mocks.paint).toHaveBeenCalledWith('base', 'raster-brightness-max', 1);
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#173b30');
   const fitCalls = mocks.fit.mock.calls.length;
   mocks.theme = 'dark';
   rerender(<RouteMap {...props} />);
-  expect(mocks.paint).toHaveBeenCalledWith('base', 'raster-brightness-max', 0.55);
+  expect(mocks.paint.mock.calls.every(([layer]) => layer.startsWith('route-'))).toBe(true);
   expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#bdd3a5');
   expect(mocks.options).toHaveBeenCalledTimes(1);
   expect(mocks.fit).toHaveBeenCalledTimes(fitCalls);

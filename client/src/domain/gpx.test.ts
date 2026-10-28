@@ -11,6 +11,21 @@ const fixture = `<?xml version="1.0"?>
 </gpx>`;
 
 describe('GPX', () => {
+  it('attributes new Mapbox exports without relicensing provider data as ODbL', () => {
+    const route = importGpx(fixture);
+    route.source = 'mapbox';
+    const xml = exportGpx(route);
+    expect(xml).toContain('Routing and terrain by Mapbox');
+    expect(xml).toContain('https://www.mapbox.com/about/maps/');
+    expect(xml).not.toContain('OpenRouteService');
+    expect(xml).not.toContain('<license>');
+    expect(importGpx(xml).segments).toEqual(route.segments);
+  });
+  it('retains attribution for existing ORS snapshots', () => {
+    const route = importGpx(fixture);
+    route.source = 'openrouteservice';
+    expect(exportGpx(route)).toContain('Routing by OpenRouteService / HeiGIT');
+  });
   it('roundtrips every track/route point, empty segment, elevation and standalone waypoint', () => {
     const route = importGpx(fixture);
     expect(route.segments).toEqual([

@@ -4,6 +4,7 @@ import App from './App';
 import { ThemeProvider } from './theme';
 import './i18n';
 import '@fontsource-variable/onest';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import './styles.css';
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
