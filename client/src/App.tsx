@@ -971,10 +971,18 @@ export default function App() {
         </Dialog>
       )}
       {confirmation && (
-        <Dialog title={t(confirmation.title)} initialFocusRef={confirmationCancel} onClose={() => setConfirmation(null)}>
+        <Dialog
+          title={t(confirmation.title)}
+          initialFocusRef={confirmationCancel}
+          onClose={() => setConfirmation(null)}
+        >
           <p>{t(confirmation.text)}</p>
           <div className="button-row">
-            <button ref={confirmationCancel} className="secondary" onClick={() => setConfirmation(null)}>
+            <button
+              ref={confirmationCancel}
+              className="secondary"
+              onClick={() => setConfirmation(null)}
+            >
               {t('Cancel')}
             </button>
             <button

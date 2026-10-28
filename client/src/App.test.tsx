@@ -61,6 +61,41 @@ async function plan() {
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
 }
 describe('route planner interactions', () => {
+  it('focuses form fields and safe actions, and restores focus after editing or deleting a route', async () => {
+    render(<App />);
+    await plan();
+    const save = screen.getByRole('button', { name: 'Save route' });
+    save.focus();
+    fireEvent.click(save);
+    expect(screen.getByRole('textbox', { name: 'Route name' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(save).toHaveFocus();
+    fireEvent.click(save);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
+      target: { value: 'Focus trip' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save to library' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
+    expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
+    const edit = await screen.findByRole('button', { name: 'Edit Focus trip' });
+    fireEvent.click(edit);
+    expect(screen.getByRole('textbox', { name: 'Route name' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(edit).toHaveFocus();
+    const remove = screen.getByRole('button', { name: 'Delete Focus trip' });
+    fireEvent.click(remove);
+    expect(screen.getByRole('button', { name: 'Keep route' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep route' }));
+    expect(remove).toHaveFocus();
+    fireEvent.click(remove);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete route' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Delete Focus trip' })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
+  });
   it('switches to Russian persistently without recalculating routes or changing user names', async () => {
     const values = new Map<string, string>();
     vi.stubGlobal('localStorage', {
@@ -180,6 +215,7 @@ describe('route planner interactions', () => {
     await plan();
     fireEvent.click(screen.getByRole('button', { name: 'New route' }));
     expect(screen.getByRole('dialog')).toHaveTextContent('unsaved changes');
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'New route' }));

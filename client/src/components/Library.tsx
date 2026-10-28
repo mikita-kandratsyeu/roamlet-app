@@ -209,12 +209,7 @@ export function Library({
             />
           </label>
           <div className="button-row">
-            <button
-              type="button"
-              className="secondary"
-              disabled={busy}
-              onClick={closeDetails}
-            >
+            <button type="button" className="secondary" disabled={busy} onClick={closeDetails}>
               {t('Cancel')}
             </button>
             <button className="primary" disabled={busy || !name.trim()}>

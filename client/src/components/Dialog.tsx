@@ -35,11 +35,22 @@ export function Dialog({
     return () => {
       dialog.removeEventListener('cancel', cancel);
       dialog.close();
-      if (previous instanceof HTMLElement && previous.isConnected && !previous.matches(':disabled') && !previous.closest('dialog:not([open])')) {
+      if (
+        previous instanceof HTMLElement &&
+        previous.isConnected &&
+        !previous.matches(':disabled') &&
+        !previous.closest('dialog:not([open])')
+      ) {
         previous.focus({ preventScroll: true });
       }
-      if (document.activeElement === document.body || !document.activeElement?.isConnected || document.activeElement?.closest('dialog:not([open])')) {
-        document.querySelector<HTMLElement>('.header-menu-trigger, .brand')?.focus({ preventScroll: true });
+      if (
+        document.activeElement === document.body ||
+        !document.activeElement?.isConnected ||
+        document.activeElement?.closest('dialog:not([open])')
+      ) {
+        document
+          .querySelector<HTMLElement>('.header-menu-trigger, .brand')
+          ?.focus({ preventScroll: true });
       }
     };
   }, [initialFocusRef]);
