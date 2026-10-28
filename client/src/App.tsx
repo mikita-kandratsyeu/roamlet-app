@@ -161,7 +161,6 @@ export default function App() {
             updatedAt: new Date().toISOString(),
             source: 'mapbox',
           });
-          setFitToken((token) => token + 1);
         })
         .catch((error) => {
           if (!controller.signal.aborted) setNotice({ text: errorMessage(error), error: true });
@@ -505,7 +504,6 @@ export default function App() {
     });
     setSelectedAlternative(index);
     setDirty(true);
-    setFitToken((token) => token + 1);
   }
   const mapWaypoints = useMemo(() => {
     if (result?.source === 'gpx') {

@@ -550,6 +550,29 @@ test('matches Figma planner geometry while preserving branding and responsive el
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+test('point edits preserve the camera and location does not add stops', async ({ page, context }) => {
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  const mapView = () => page.evaluate(() => localStorage.getItem('roamlet:map-view:v1'));
+  await expect.poll(mapView).not.toBeNull();
+  const original = await mapView();
+  await createRoute(page);
+  expect(await mapView()).toBe(original);
+  await addPoint(page, '47.28, 11.42');
+  await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
+  expect(await mapView()).toBe(original);
+  await page.getByRole('button', { name: 'Move stop 2 up' }).click();
+  await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
+  expect(await mapView()).toBe(original);
+  await page.getByRole('button', { name: 'Remove stop 2' }).click();
+  await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
+  expect(await mapView()).toBe(original);
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ longitude: 13, latitude: 49 });
+  await page.getByRole('button', { name: 'Use my location' }).click();
+  await expect.poll(async () => JSON.parse((await mapView())!).center[0]).toBeCloseTo(13);
+  await expect(page.locator('.waypoint-list > li')).toHaveCount(2);
+});
+
 test('dragging a stop handle reorders real stops and recalculates the route', async ({
   page,
 }, testInfo) => {

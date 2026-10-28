@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   paint: vi.fn(),
   zoomIn: vi.fn(),
   zoomOut: vi.fn(),
+  fly: vi.fn(),
   setStyle: vi.fn(),
   theme: 'light',
 }));
@@ -50,6 +51,7 @@ vi.mock('mapbox-gl', () => ({
         return 30;
       }
       fitBounds = mocks.fit;
+      flyTo = mocks.fly;
       remove = mocks.remove;
       setPaintProperty = mocks.paint;
       zoomIn = mocks.zoomIn;
@@ -296,13 +298,43 @@ it('fits an opened route instead of leaving the saved area onscreen', () => {
       ],
     ] as [number, number][][],
   };
-  render(<RouteMap {...routeProps} />);
+  render(<RouteMap {...routeProps} fitToken={1} />);
   act(() => mocks.handlers.get('load')!());
   expect(mocks.fit).toHaveBeenCalledWith(
     expect.anything(),
     expect.objectContaining({ maxZoom: 15 }),
   );
 });
+it('keeps the camera unchanged during point edits and only fits an explicit request once', () => {
+  const point = { id: 'start', name: 'Start', coordinate: [11, 47] as [number, number] };
+  const { rerender } = render(<RouteMap {...props} waypoints={[point]} />);
+  act(() => mocks.handlers.get('load')!());
+  expect(mocks.fit).not.toHaveBeenCalled();
+  const next = { ...props, waypoints: [point, { ...point, id: 'finish', coordinate: [12, 48] as [number, number] }], segments: [[[11, 47], [12, 48]]] as [number, number][][] };
+  rerender(<RouteMap {...next} />);
+  expect(mocks.fit).not.toHaveBeenCalled();
+  rerender(<RouteMap {...next} fitToken={1} />);
+  expect(mocks.fit).toHaveBeenCalledOnce();
+  rerender(<RouteMap {...next} fitToken={1} waypoints={[point]} segments={[]} />);
+  act(() => mocks.handlers.get('style.load')!());
+  expect(mocks.fit).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole('button', { name: 'Fit route' }));
+  expect(mocks.fit).toHaveBeenCalledTimes(2);
+});
+
+it.each([true, false])('location recenters without adding a stop (editable: %s)', (editable) => {
+  vi.stubGlobal('navigator', {
+    geolocation: {
+      getCurrentPosition: (success: PositionCallback) => success({ coords: { longitude: 13, latitude: 49 } } as GeolocationPosition),
+    },
+  });
+  render(<RouteMap {...props} editable={editable} />);
+  act(() => mocks.handlers.get('load')!());
+  fireEvent.click(screen.getByRole('button', { name: 'Use my location' }));
+  expect(mocks.fly).toHaveBeenCalledWith(expect.objectContaining({ center: [13, 49], zoom: 14 }));
+  expect(props.onAdd).not.toHaveBeenCalled();
+});
+
 it('switches map controls and existing warnings without recreating or refitting the map', async () => {
   const routeProps = {
     ...props,
@@ -373,6 +405,7 @@ it('disables map camera animation when reduced motion is requested', () => {
   render(
     <RouteMap
       {...props}
+      fitToken={1}
       segments={[
         [
           [11, 47],

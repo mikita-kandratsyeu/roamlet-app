@@ -69,7 +69,7 @@ export function RouteMap(props: Props) {
   const configuredStyle = import.meta.env.VITE_MAPBOX_STYLE?.trim() || DEFAULT_MAPBOX_STYLE;
   const [style, setStyle] = useState(configuredStyle);
   const [locating, setLocating] = useState(false);
-  const skipStyleFit = useRef(false);
+  const lastFitToken = useRef(0);
   useEffect(() => {
     const region = container.current?.parentElement;
     const workspace = region?.closest<HTMLElement>('.workspace');
@@ -128,7 +128,6 @@ export function RouteMap(props: Props) {
   }, [ready, props.plannerHidden, t]);
   function changeStyle(next: string) {
     if (!next || next === style) return;
-    skipStyleFit.current = true;
     setStyle(next);
     setReady(false);
     setMapError('');
@@ -310,15 +309,12 @@ export function RouteMap(props: Props) {
     }
   }, [t, ready]);
   useEffect(() => {
-    if (!ready || !map.current) return;
-    if (skipStyleFit.current) {
-      skipStyleFit.current = false;
-      return;
-    }
+    if (!ready || !map.current || props.fitToken === lastFitToken.current) return;
     const coordinates = props.segments.flat().length
       ? props.segments.flat()
       : props.waypoints.map((w) => w.coordinate);
     if (!coordinates.length) return;
+    lastFitToken.current = props.fitToken;
     const bounds = new mapboxgl.LngLatBounds();
     coordinates.forEach((c) => bounds.extend([c[0], c[1]]));
     map.current.fitBounds(bounds, {
@@ -340,7 +336,6 @@ export function RouteMap(props: Props) {
         setLocating(false);
         const coordinate: Coordinate = [position.coords.longitude, position.coords.latitude];
         map.current?.flyTo({ center: coordinate, zoom: 14, duration: mapMotionDuration() });
-        if (props.editable) props.onAdd(coordinate);
       },
       () => {
         setLocating(false);
