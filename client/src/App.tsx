@@ -6,6 +6,9 @@ import { Slider } from './components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from './components/ui/toggle-group';
 import { Badge } from './components/ui/badge';
 import { Alert } from './components/ui/alert';
+import { Card } from './components/ui/card';
+import { useTheme } from './theme';
+import { waypointKind } from './components/waypointStyle';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -27,6 +30,13 @@ import {
   Pencil,
   LoaderCircle,
   Info,
+  Moon,
+  Sun,
+  PanelLeftOpen,
+  PanelLeftClose,
+  MapPin,
+  Route as RouteIcon,
+  Navigation,
 } from 'lucide-react';
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
 import { importGpx, exportGpx, gpxFilename } from './domain/gpx';
@@ -61,6 +71,16 @@ interface Confirmation {
 
 export default function App() {
   const { t } = useTranslation();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [panelHidden, setPanelHidden] = useState(false);
+  const hidePlannerButton = useRef<HTMLButtonElement>(null);
+  const showPlannerButton = useRef<HTMLButtonElement>(null);
+  const plannerFocusRequested = useRef(false);
+  useEffect(() => {
+    if (!plannerFocusRequested.current) return;
+    plannerFocusRequested.current = false;
+    (panelHidden ? showPlannerButton : hidePlannerButton).current?.focus({ preventScroll: true });
+  }, [panelHidden]);
   const [activity, setActivity] = useState<Activity>('cycling');
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [result, setResult] = useState<PlannedRoute | null>(null);
@@ -205,6 +225,8 @@ export default function App() {
   }
   function newRoute() {
     invalidate();
+    setPanelHidden(false);
+    setCollapsed(false);
     routeIdentity.current = identity();
     setWaypoints([]);
     setName('');
@@ -229,6 +251,7 @@ export default function App() {
     setDirty(false);
     setLibraryOpen(false);
     setCollapsed(false);
+    setPanelHidden(false);
     setFitToken((token) => token + 1);
     setSearchTarget(null);
     setPlaces([]);
@@ -491,6 +514,16 @@ export default function App() {
         </a>
         <span className="brand-tagline">{t('A little planning. A lot of possibility.')}</span>
         <nav aria-label={t('Main navigation')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="theme-toggle"
+            aria-label={t(resolvedTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme')}
+            title={t(resolvedTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme')}
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          >
+            {resolvedTheme === 'dark' ? <Moon size={19} /> : <Sun size={19} />}
+          </Button>
           <HeaderMenu
             onNewRoute={() => guard(newRoute)}
             onLibrary={() => setLibraryOpen(true)}
@@ -498,8 +531,24 @@ export default function App() {
           />
         </nav>
       </header>
-      <main className={`workspace ${collapsed ? 'panel-collapsed' : ''}`}>
-        <aside className="planner" aria-label={t('Route planner')}>
+      <main className={`workspace ${collapsed ? 'panel-collapsed' : ''} ${panelHidden ? 'desktop-panel-hidden' : ''}`}>
+        {panelHidden && (
+          <Button
+            ref={showPlannerButton}
+            variant="outline"
+            className="planner-reopen"
+            aria-label={t('Show planner')}
+            aria-controls="route-planner"
+            onClick={() => {
+              plannerFocusRequested.current = true;
+              setPanelHidden(false);
+            }}
+          >
+            <PanelLeftOpen size={18} />
+            {t('Route planner')}
+          </Button>
+        )}
+        <aside id="route-planner" className="planner" aria-label={t('Route planner')}>
           <Button
             variant="ghost"
             className="mobile-sheet-toggle"
@@ -523,16 +572,33 @@ export default function App() {
                 <h1>{name || t('Where shall we go?')}</h1>
                 <p className="muted">{t('Find your own way, one stop at a time.')}</p>
               </div>
-              {canUseRoute && (
+              <div className="planner-heading-actions">
+                {canUseRoute && (
+                  <Button
+                    variant="ghost"
+                    className="icon-button"
+                    aria-label={t('Edit route name')}
+                    title={t('Edit route name')}
+                    onClick={() => setSaveOpen(true)}
+                  >
+                    <Pencil size={16} />
+                  </Button>
+                )}
                 <Button
+                  ref={hidePlannerButton}
                   variant="ghost"
-                  className="icon-button"
-                  aria-label={t('Edit route name')}
-                  onClick={() => setSaveOpen(true)}
+                  className="icon-button desktop-planner-toggle"
+                  aria-label={t('Hide planner')}
+                  title={t('Hide planner')}
+                  aria-controls="route-planner"
+                  onClick={() => {
+                    plannerFocusRequested.current = true;
+                    setPanelHidden(true);
+                  }}
                 >
-                  <Pencil size={16} />
+                  <PanelLeftClose size={17} />
                 </Button>
-              )}
+              </div>
             </div>
             <ToggleGroup
               type="single"
@@ -571,6 +637,7 @@ export default function App() {
                     value="point"
                     className={planningMode === 'point' ? 'active' : ''}
                   >
+                    <RouteIcon size={15} />
                     {t('Point to point')}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="loop" className={planningMode === 'loop' ? 'active' : ''}>
@@ -604,12 +671,13 @@ export default function App() {
                     {searching ? (
                       <LoaderCircle size={18} className="spin" />
                     ) : (
-                      <ArrowUp size={18} className="search-arrow" />
+                      <Navigation size={16} />
                     )}
                   </Button>
                 </form>
                 <p className="search-help">
-                  {t('Search a place, enter latitude, longitude, or click the map.')}
+                  <MapPin size={13} aria-hidden="true" />
+                  <span>{t('Search a place, enter latitude, longitude, or click the map.')}</span>
                 </p>
                 {searchTarget && (
                   <Button
@@ -636,36 +704,50 @@ export default function App() {
                   </ul>
                 )}
                 <div className="waypoints-heading">
-                  <h2>{planningMode === 'loop' ? t('Starting point') : t('Your stops')}</h2>
-                  {planningMode === 'point' && (
-                    <Button
-                      variant="ghost"
-                      className="text-button"
-                      disabled={waypoints.length < 2}
-                      onClick={() => changeWaypoints([...waypoints].reverse())}
-                    >
-                      <ArrowDownUp size={14} />
-                      {t('Reverse')}
-                    </Button>
-                  )}
+                  <h2><MapPin size={15} aria-hidden="true" />{planningMode === 'loop' ? t('Starting point') : t('Your stops')}</h2>
+                  <div className="waypoint-heading-actions">
+                    {planningMode === 'point' && waypoints.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        className="icon-button"
+                        aria-label={t('Reverse')}
+                        title={t('Reverse')}
+                        onClick={() => changeWaypoints([...waypoints].reverse())}
+                      ><ArrowDownUp size={14} /></Button>
+                    )}
+                    {!!waypoints.length && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          className="text-button"
+                          onClick={() => setConfirmation({
+                            title: 'Clear all stops?',
+                            text: 'This removes all stops and the calculated route. Saved routes are not affected.',
+                            label: 'Clear stops',
+                            action: () => changeWaypoints([]),
+                          })}
+                        >{t('Clear stops')}</Button>
+                        <Badge variant="secondary" className="stop-count">{formatNumber(waypoints.length)}</Badge>
+                      </>
+                    )}
+                  </div>
                 </div>
                 {!waypoints.length ? (
-                  <div className="stops-empty">
-                    <span className="stop-badge">A</span>
+                  <Card className="stops-empty">
+                    <Badge className="stop-badge start" aria-hidden="true">1</Badge>
                     <div>
                       <strong>{t('A good route starts somewhere')}</strong>
                       <p>{t('Choose your first stop on the map or search above.')}</p>
                     </div>
-                  </div>
+                  </Card>
                 ) : (
                   <ol className="waypoint-list">
                     {waypoints.map((point, index) => (
                       <li key={point.id}>
-                        <span
-                          className={`stop-badge ${index === waypoints.length - 1 && index > 0 ? 'end' : ''}`}
-                        >
-                          {index === 0 ? 'A' : index === waypoints.length - 1 ? 'B' : index}
-                        </span>
+                        <Card className="waypoint-card">
+                        <Badge className={`stop-badge ${waypointKind(index, waypoints.length)}`} aria-hidden="true">
+                          {formatNumber(index + 1)}
+                        </Badge>
                         <Button
                           variant="ghost"
                           className="stop-name"
@@ -732,6 +814,7 @@ export default function App() {
                             <X size={15} />
                           </Button>
                         </div>
+                      </Card>
                       </li>
                     ))}
                   </ol>
@@ -864,16 +947,6 @@ export default function App() {
               </div>
             )}
             <Statistics route={result} />
-            {!waypoints.length && !result && (
-              <div className="outdoor-note">
-                <span>{t('LESS SCROLLING. MORE STROLLING.')}</span>
-                <p>
-                  {t('Start small. Take the scenic way.')}
-                  <br />
-                  {t('Make a route that feels like you.')}
-                </p>
-              </div>
-            )}
           </div>
           <footer className="planner-footer">
             <div className="route-actions">

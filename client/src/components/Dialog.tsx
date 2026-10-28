@@ -1,19 +1,27 @@
 import { useTranslation } from 'react-i18next';
 import { useRef, type ReactNode, type RefObject } from 'react';
 import { X } from 'lucide-react';
-import { Dialog as DialogRoot, DialogContent, DialogTitle, DialogClose } from './ui/dialog';
+import {
+  Dialog as DialogRoot,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from './ui/dialog';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
 import '../i18n';
 
 export function Dialog({
   title,
+  description,
   children,
   onClose,
   wide = false,
   initialFocusRef,
 }: {
   title: string;
+  description?: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
@@ -32,7 +40,7 @@ export function Dialog({
       <DialogContent
         className={cn('dialog block', wide && 'wide')}
         showCloseButton={false}
-        aria-describedby={undefined}
+        {...(!description && { 'aria-describedby': undefined })}
         onOpenAutoFocus={(event) => {
           previous.current =
             document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -58,7 +66,12 @@ export function Dialog({
         }}
       >
         <div className="dialog-header">
-          <DialogTitle>{title}</DialogTitle>
+          <div className="dialog-heading">
+            <DialogTitle>{title}</DialogTitle>
+            {description && (
+              <DialogDescription className="dialog-description">{description}</DialogDescription>
+            )}
+          </div>
           <DialogClose asChild>
             <Button variant="ghost" className="icon-button" aria-label={t('Close dialog')}>
               <X size={20} aria-hidden="true" />

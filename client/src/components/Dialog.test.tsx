@@ -85,6 +85,30 @@ it('wraps Tab and Shift+Tab inside the dialog rather than losing focus to browse
   expect(input).toHaveFocus();
 });
 
+it('associates an optional description with the dialog and omits the association when absent', () => {
+  const view = render(
+    <Dialog title="Details" description="Saved on this device." onClose={() => {}}>
+      Content
+    </Dialog>,
+  );
+  expect(screen.getByRole('dialog', { name: 'Details' })).toHaveAccessibleDescription(
+    'Saved on this device.',
+  );
+  view.rerender(
+    <Dialog title="Details" onClose={() => {}}>
+      Content
+    </Dialog>,
+  );
+  expect(screen.getByRole('dialog', { name: 'Details' })).not.toHaveAttribute('aria-describedby');
+});
+
+it('closes through the accessible close button', () => {
+  const onClose = vi.fn();
+  render(<FormDialog onClose={onClose} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
 it('gives each dialog its own accessible title association', () => {
   render(
     <Dialog title="First" onClose={() => {}}>

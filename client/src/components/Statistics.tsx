@@ -33,7 +33,7 @@ export function Statistics({ route }: { route: PlannedRoute | null }) {
   return (
     <section className="statistics" aria-label={t('Route statistics')}>
       <div className="section-heading">
-        <h2>{t('Route overview')}</h2>
+        <h2><RouteIcon size={15} aria-hidden="true" />{t('Route overview')}</h2>
         <span className="small muted">
           {route
             ? route.source === 'gpx'

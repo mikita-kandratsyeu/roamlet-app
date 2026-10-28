@@ -5,13 +5,14 @@ import maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView, saveMapView } from '../domain/mapView';
 import { mapTiles, OSM_TILE_URL } from '../domain/mapTiles';
-import { LocateFixed, Maximize, MapPin, Plus, Minus, X } from 'lucide-react';
+import { LocateFixed, Maximize, MapPin, Plus, Minus, X, Map as MapIcon } from 'lucide-react';
+import { waypointKind } from './waypointStyle';
 import { useTheme } from '../theme';
 import { Alert } from './ui/alert';
 import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import i18n, { translateMessage } from '../i18n';
+import i18n, { formatNumber, translateMessage } from '../i18n';
 
 const mapMotionDuration = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 450;
@@ -178,10 +179,9 @@ export function RouteMap(props: Props) {
     if (!ready || !map.current) return;
     const markers = props.waypoints.map((point, index) => {
       const element = document.createElement('button');
-      element.className = `waypoint-marker ${index === 0 ? 'start' : index === props.waypoints.length - 1 ? 'finish' : ''}`;
+      element.className = `waypoint-marker ${waypointKind(index, props.waypoints.length)}`;
       element.type = 'button';
-      element.textContent =
-        index === 0 ? 'A' : index === props.waypoints.length - 1 ? 'B' : String(index);
+      element.textContent = formatNumber(index + 1);
       const label = point.id.endsWith('-display-start')
         ? t('Track start')
         : point.id.endsWith('-display-finish')
@@ -266,7 +266,7 @@ export function RouteMap(props: Props) {
         </div>
       )}
       <Badge variant="secondary" className="map-top-label">
-        <span className="live-dot" /> {t('YOUR NEXT WAY OUT')}
+        <MapIcon size={16} aria-hidden="true" /> {t('Map')}
       </Badge>
       <div className="map-extra-controls" role="group" aria-label={t('Map controls')}>
         <Button
