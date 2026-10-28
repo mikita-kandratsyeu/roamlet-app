@@ -54,15 +54,13 @@ export function Statistics({
   const chartSamples = samples.filter(
     (_, i) => i % Math.max(1, Math.ceil(samples.length / 400)) === 0 || i === samples.length - 1,
   );
-  const elevationProfile = samples.length > 1 ? (
-    <details className="elevation-box" open={!compact}>
-      <summary className="section-heading">
-        <span>{t('Elevation profile')}</span>
-        <span className="small muted">
-          {samples.length > 1 ? t('metres') : t('No elevation data')}
-        </span>
-      </summary>
-      {samples.length > 1 ? (
+  const elevationProfile =
+    samples.length > 1 ? (
+      <details className="elevation-box" open={!compact}>
+        <summary className="section-heading">
+          <span>{t('Elevation profile')}</span>
+          <span className="small muted">{t('metres')}</span>
+        </summary>
         <>
           <ChartContainer
             config={{ elevation: { label: t('Elevation'), color: 'var(--primary)' } }}
@@ -136,15 +134,8 @@ export function Statistics({
               : t('Elevation: GPX file, when available.')}
           </p>
         </>
-      ) : (
-        <p className="chart-empty">
-          {route
-            ? t('This route has no complete elevation data.')
-            : t('Your route’s ups and downs will appear here.')}
-        </p>
-      )}
-    </details>
-  ) : null;
+      </details>
+    ) : null;
   if (!route)
     return (
       <section className="statistics statistics-empty" aria-label={t('Route statistics')}>
