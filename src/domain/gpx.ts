@@ -138,7 +138,12 @@ export function exportGpx(route: PlannedRoute): string {
   if (count > MAX_POINTS) throw new Error('GPX exceeds the 100,000 point limit.');
   const result = '<?xml version="1.0" encoding="UTF-8"?>\n' + new XMLBuilder({ ignoreAttributes: false, format: true }).build({
     gpx: { '@_xmlns': 'http://www.topografix.com/GPX/1/1', '@_version': '1.1', '@_creator': 'Roamlet',
-      metadata: { name: xmlText(route.name), desc: xmlText(route.description) },
+      metadata: { name: xmlText(route.name), desc: xmlText(route.description),
+        ...(route.source === 'openrouteservice' ? {
+          copyright: { '@_author': 'OpenStreetMap contributors / OpenRouteService (HeiGIT)', license: 'https://opendatacommons.org/licenses/odbl/1-0/' },
+          link: [{ '@_href': 'https://www.openstreetmap.org/copyright', text: 'OpenStreetMap data attribution' },
+            { '@_href': 'https://openrouteservice.org', text: 'Routing by OpenRouteService / HeiGIT' }],
+        } : {}) }, 
       wpt: route.waypoints.map(waypoint => ({ ...xmlPoint(waypoint.coordinate), name: xmlText(waypoint.name) })),
       trk: { name: xmlText(route.name), desc: xmlText(route.description),
         trkseg: route.segments.map(segment => ({ trkpt: segment.map(xmlPoint) })) } },

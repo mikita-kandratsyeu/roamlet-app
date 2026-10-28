@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bike, Footprints, Search, Plus, ArrowDownUp, ArrowUp, ArrowDown, X, Download, Upload, Bookmark, Library as LibraryIcon, Mountain, ChevronDown, ChevronUp, Sparkles, Check, Pencil, LoaderCircle, Info } from 'lucide-react';
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
 import { importGpx, exportGpx, gpxFilename } from './domain/gpx';
@@ -109,7 +109,7 @@ export default function App() {
   }
   async function handleFile(file?: File) {
     if (!file) return;
-    if (file.size > 20 * 1024 * 1024) { fail('Choose a GPX file smaller than 20 MB.'); return; }
+    if (file.size > 10 * 1024 * 1024) { fail('Choose a GPX file smaller than 10 MiB.'); return; }
     try {
       const route = importGpx(await file.text());
       guard(() => { openRoute(route); setDirty(true); setNotice({ text: 'GPX imported. Original points and track segments are preserved. Save it to keep it on this device.', error: false }); });
@@ -138,6 +138,10 @@ export default function App() {
   }
   function editSnapshot() {
     if (!result) return;
+    if (!result.segments.some(segment => segment.length >= 2)) {
+      fail('This GPX contains only isolated points. They are preserved for saving and export; start a new route to plan between locations.');
+      return;
+    }
     const source = result.source;
     const action = () => {
       let next = result.waypoints;
@@ -164,7 +168,19 @@ export default function App() {
     setResult({ ...routeIdentity.current, name: 'Untitled adventure', description: '', activity, waypoints: stops, ...calculated, updatedAt: new Date().toISOString(), source: 'openrouteservice' });
     setSelectedAlternative(index); setDirty(true); setFitToken(token => token + 1);
   }
-  const mapWaypoints = result && planningMode === 'loop' ? result.waypoints : waypoints;
+  const mapWaypoints = useMemo(() => {
+    if (result?.source === 'gpx') {
+      const points = result.segments.flat();
+      if (!points.length) return result.waypoints;
+      // Display-only endpoint markers must never alter imported/exported GPX waypoints.
+      const endpoints: Waypoint[] = [
+        { id: `${result.id}-display-start`, name: 'Track start', coordinate: points[0] },
+        { id: `${result.id}-display-finish`, name: 'Track finish', coordinate: points[points.length - 1] },
+      ];
+      return [endpoints[0], ...result.waypoints, endpoints[1]];
+    }
+    return result && planningMode === 'loop' ? result.waypoints : waypoints;
+  }, [result, planningMode, waypoints]);
   const canUseRoute = Boolean(result) && !busy;
 
   return <div className="app" onDragOver={event => { if (event.dataTransfer.types.includes('Files')) event.preventDefault(); }} onDrop={event => { event.preventDefault(); void handleFile(event.dataTransfer.files[0]); }}>

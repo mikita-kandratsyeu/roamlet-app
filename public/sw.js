@@ -10,7 +10,13 @@ self.addEventListener('install', event => {
     await cache.addAll([...new Set(['/icon.svg', ...assets])]);
   })());
 });
-self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('roamlet-shell-') && key !== CACHE).map(key => caches.delete(key))))); });
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key.startsWith('roamlet-shell-') && key !== CACHE).map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
@@ -20,7 +26,8 @@ self.addEventListener('fetch', event => {
       return response;
     }).catch(() => caches.match('/').then(response => response || Response.error())));
   } else if (url.pathname.startsWith('/assets/') || url.pathname === '/icon.svg') {
-    event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
+    // These same-origin, content-hashed files are identical regardless of Origin headers.
+    event.respondWith(caches.match(event.request, { ignoreVary: true }).then(cached => cached || fetch(event.request).then(response => {
       if (response.ok) { const copy = response.clone(); event.waitUntil(caches.open(CACHE).then(cache => cache.put(event.request, copy))); }
       return response;
     })));
