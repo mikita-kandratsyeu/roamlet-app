@@ -213,7 +213,14 @@ describe('route planner interactions', () => {
   });
 
   it('confirms loop conversion, keeps its stops and restores the previous automatic mode', async () => {
-    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
     provider.calculateAlternatives.mockResolvedValueOnce([
       {
         segments: [
@@ -231,7 +238,7 @@ describe('route planner interactions', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('radio', { name: 'Round trip' }));
     addCoordinate('47.26, 11.4');
-    fireEvent.click(screen.getByRole('button', { name: 'Discover round trips' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Find round trips' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
     expect(screen.getByRole('dialog')).toHaveTextContent('Switch to manual drawing?');
