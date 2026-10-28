@@ -8,6 +8,7 @@ import type {
 import { calculateStats } from '../domain/stats';
 import { addTerrainElevation } from './elevation';
 import { coordinateDistance, loopWaypoints } from './loops';
+import { mapboxUrl } from './mapbox';
 
 export const profiles: Record<Activity, string> = {
   cycling: 'cycling',
@@ -16,10 +17,8 @@ export const profiles: Record<Activity, string> = {
 
 class NoRouteError extends Error {}
 export async function checkRoutingConfiguration(signal?: AbortSignal): Promise<boolean> {
-  const data = object(await requestJson('/api/health', { method: 'GET' }, signal));
-  if (typeof data.configured !== 'boolean')
-    throw new Error('The routing proxy returned an invalid health response.');
-  return data.configured;
+  if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
+  return String(import.meta.env.VITE_MAPBOX_ACCESS_TOKEN ?? '').trim().startsWith('pk.');
 }
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -40,34 +39,20 @@ export async function requestJson(
   options: RequestInit,
   signal?: AbortSignal,
 ): Promise<unknown> {
-  if (!url.startsWith('/api/')) throw new Error('Routing requests must use the local API proxy.');
+  const target = mapboxUrl(url);
   const controller = new AbortController();
   const cancel = () => controller.abort();
   if (signal?.aborted) controller.abort();
   signal?.addEventListener('abort', cancel, { once: true });
   const timer = setTimeout(() => controller.abort(), 25_000);
   try {
-    const response = await fetch(url, {
+    const response = await fetch(target, {
       ...options,
-      credentials: 'same-origin',
-      headers: options.body ? { 'Content-Type': 'application/json' } : {},
+      credentials: 'omit',
+      headers: { Accept: 'application/json' },
       signal: controller.signal,
     });
     if (!response.ok) {
-      const failure: unknown = await response.json().catch(() => null);
-      if (failure && typeof failure === 'object' && 'error' in failure) {
-        const detail = failure.error;
-        if (
-          detail &&
-          typeof detail === 'object' &&
-          'code' in detail &&
-          detail.code === 'NOT_CONFIGURED'
-        ) {
-          throw new Error(
-            'Routing is not configured on the server. Ask the deployment administrator to set MAPBOX_ACCESS_TOKEN. GPX and your library still work.',
-          );
-        }
-      }
       if (response.status === 401 || response.status === 403)
         throw new Error(
           'The routing request was rejected. Check server configuration and provider account permissions.',
@@ -84,7 +69,13 @@ export async function requestJson(
         `No route or location found (service ${response.status}). Try points closer to accessible roads or trails, or a shorter route.`,
       );
     }
-    return (await response.json()) as unknown;
+    const data: unknown = await response.json();
+    if (data && typeof data === 'object' && 'code' in data && data.code !== 'Ok') {
+      if (data.code === 'NoRoute' || data.code === 'NoSegment')
+        throw new NoRouteError('No route was returned. Try a different location.');
+      throw new Error('The routing service is unavailable. Try again later; your saved routes are safe.');
+    }
+    return data;
   } catch (error) {
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
     if (controller.signal.aborted)
@@ -100,9 +91,6 @@ export async function requestJson(
 
 export class MapboxRoutingService implements RoutingProvider {
   private cache = new Map<string, { time: number; result: RoutingResult }>();
-  constructor(private base = '/api') {
-    if (base !== '/api') throw new Error('Routing must use the same-origin /api proxy.');
-  }
   private async calculate(
     coordinates: Coordinate[],
     activity: Activity,

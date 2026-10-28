@@ -17,6 +17,7 @@ function coordinateAt(x: number, y = 2048, u = 0, v = 0): [number, number] {
 
 beforeEach(async () => {
   vi.resetModules();
+  vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'pk.test-only-not-a-real-token');
   ({ addTerrainElevation } = await import('./elevation'));
   pixels = new Uint8ClampedArray(256 * 256 * 4);
   for (let index = 0; index < pixels.length; index += 4) {
@@ -41,6 +42,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('Terrain-RGB mapping', () => {
@@ -70,7 +72,7 @@ describe('Terrain-RGB mapping', () => {
 });
 
 describe('addTerrainElevation', () => {
-  it('samples containing pixels, keeps all geometry and only requests unique local tiles', async () => {
+  it('samples containing pixels, keeps all geometry and requests unique Mapbox tiles directly', async () => {
     pixels.set([1, 134, 160, 255], (128 * 256 + 128) * 4);
     const middle = coordinateAt(2048, 2048, 0.501, 0.501);
     const original: Coordinate[] = [[0, 0], middle, [360, 0], [180, -90]];
@@ -84,15 +86,45 @@ describe('addTerrainElevation', () => {
     expect(original).toEqual(snapshot);
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
-      '/api/terrain/12/2048/2048.pngraw',
-      '/api/terrain/12/0/4095.pngraw',
+      'https://api.mapbox.com/v4/mapbox.terrain-rgb/12/2048/2048.pngraw?access_token=pk.test-only-not-a-real-token',
+      'https://api.mapbox.com/v4/mapbox.terrain-rgb/12/0/4095.pngraw?access_token=pk.test-only-not-a-real-token',
     ]);
-    expect(fetcher.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin' });
+    expect(fetcher.mock.calls[0][1]).toMatchObject({ credentials: 'omit' });
     expect(bitmap).toHaveBeenCalledWith(expect.any(Blob), {
       colorSpaceConversion: 'none',
       premultiplyAlpha: 'none',
     });
     expect(close).toHaveBeenCalledTimes(2);
+  });
+  it('uses only the public browser token, trims it and encodes query characters', async () => {
+    vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', ' pk.test&other=value#fragment ');
+    vi.stubEnv('MAPBOX_ACCESS_TOKEN', 'sk.server-test-only-not-a-real-token');
+    expect(await addTerrainElevation([[0, 0]])).toEqual([[0, 0, 100]]);
+    const url = new URL(String(fetcher.mock.calls[0][0]));
+    expect(url.origin).toBe('https://api.mapbox.com');
+    expect(url.pathname).toBe('/v4/mapbox.terrain-rgb/12/2048/2048.pngraw');
+    expect([...url.searchParams]).toEqual([['access_token', 'pk.test&other=value#fragment']]);
+    expect(url.hash).toBe('');
+    expect(url.toString()).not.toContain('sk.server');
+    expect(fetcher.mock.calls[0][1]?.headers).toBeUndefined();
+  });
+  it.each([undefined, '', ' ', 'sk.secret-test-only', 'invalid']) (
+    'returns entirely 2D without network requests for invalid public token %s', async token => {
+      vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', token);
+      vi.stubEnv('MAPBOX_ACCESS_TOKEN', 'pk.server-test-only-not-a-real-token');
+      expect(await addTerrainElevation([[0, 0, 25], [0, 0]])).toEqual([[0, 0], [0, 0]]);
+      expect(fetcher).not.toHaveBeenCalled();
+      expect(bitmap).not.toHaveBeenCalled();
+    },
+  );
+  it('does not serve cached elevations when public configuration becomes unavailable', async () => {
+    await addTerrainElevation([[0, 0]]);
+    vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', '');
+    expect(await addTerrainElevation([[0, 0]])).toEqual([[0, 0]]);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const controller = new AbortController();
+    controller.abort();
+    await expect(addTerrainElevation([[0, 0]], controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
   });
   it('returns fresh coordinates on cache hits without mutating the cached tile', async () => {
     const original: Coordinate[] = [

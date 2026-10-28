@@ -18,16 +18,13 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: 'yarn build && yarn workspace @roamlet/proxy start',
+    command: 'yarn build && yarn preview --port 4175 --strictPort',
     url: 'http://127.0.0.1:4175',
     timeout: 120_000,
     reuseExistingServer: false,
     env: {
-      ORS_API_KEY: '',
-      MAPBOX_ACCESS_TOKEN: '',
       VITE_MAPBOX_ACCESS_TOKEN: '',
       VITE_MAPBOX_STYLE: '',
-      PROXY_PORT: '4175',
     },
   },
 });

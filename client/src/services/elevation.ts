@@ -1,4 +1,5 @@
 import type { Coordinate } from '../domain/types';
+import { mapboxUrl } from './mapbox';
 
 const ZOOM = 12;
 const TILE_LIMIT = 64;
@@ -108,6 +109,7 @@ async function decodePng(blob: Blob, signal: AbortSignal): Promise<Tile> {
 
 async function fetchTile(key: string, signal?: AbortSignal): Promise<Tile> {
   checkAbort(signal);
+  const url = mapboxUrl(`/v4/mapbox.terrain-rgb/${key}.pngraw`);
   const cached = cache.get(key);
   if (cached) {
     cache.delete(key);
@@ -127,9 +129,8 @@ async function fetchTile(key: string, signal?: AbortSignal): Promise<Tile> {
   try {
     const tile = await Promise.race([
       (async () => {
-        const response = await fetch(`/api/terrain/${key}.pngraw`, {
-          credentials: 'same-origin',
-          signal: controller.signal,
+        const response = await fetch(url.toString(), {
+          credentials: 'omit', signal: controller.signal,
         });
         if (!response.ok) throw new Error('Terrain tile unavailable.');
         const blob = await response.blob();
@@ -151,6 +152,8 @@ async function fetchTile(key: string, signal?: AbortSignal): Promise<Tile> {
 }
 
 /**
+ * Browser-direct Mapbox requests use only the configured VITE_MAPBOX_ACCESS_TOKEN public token.
+ * Missing/invalid public configuration leaves elevation unavailable (2D).
  * Estimated metres from zoom-12 Terrain-RGB pixels, not surveyed route heights.
  * No smoothing/interpolation: sparse geometry can undercount ascent, noisy pixels can overcount.
  * Any missing tile (including ocean 404), transparent sample or failure yields entirely 2D geometry.

@@ -2123,12 +2123,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@roamlet/proxy@workspace:proxy":
-  version: 0.0.0-use.local
-  resolution: "@roamlet/proxy@workspace:proxy"
-  languageName: unknown
-  linkType: soft
-
 "@rolldown/pluginutils@npm:1.0.0-rc.3":
   version: 1.0.0-rc.3
   resolution: "@rolldown/pluginutils@npm:1.0.0-rc.3"

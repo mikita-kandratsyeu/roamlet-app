@@ -8,22 +8,19 @@
     "node": ">=24"
   },
   "workspaces": [
-    "client",
-    "proxy"
+    "client"
   ],
   "scripts": {
-    "dev": "node scripts/dev.mjs",
+    "dev": "yarn workspace @roamlet/client dev",
     "build": "yarn workspace @roamlet/client build",
-    "start": "yarn workspace @roamlet/proxy start",
-    "preview": "yarn start",
+    "start": "yarn workspace @roamlet/client preview",
+    "preview": "yarn workspace @roamlet/client preview",
     "typecheck": "yarn workspace @roamlet/client typecheck",
     "lint": "eslint .",
-    "test": "yarn workspace @roamlet/client test && yarn workspace @roamlet/proxy test",
+    "test": "yarn workspace @roamlet/client test",
     "test:client": "yarn workspace @roamlet/client test",
-    "test:proxy": "yarn workspace @roamlet/proxy test",
     "test:e2e": "yarn workspace @roamlet/client test:e2e",
     "test:offline": "yarn workspace @roamlet/client test:offline",
-    "test:integration": "yarn workspace @roamlet/client test:integration",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check"
