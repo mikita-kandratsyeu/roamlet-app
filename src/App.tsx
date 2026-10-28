@@ -11,7 +11,7 @@ import { Dialog } from './components/Dialog';
 import { Library } from './components/Library';
 
 const emptySegments: Coordinate[][] = [];
-const identity = () => ({ id: crypto.randomUUID(), createdAt: new Date().toISOString() });
+const identity = (): { id: string; createdAt: string } => ({ id: crypto.randomUUID(), createdAt: new Date().toISOString() });
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 interface Confirmation { title: string; text: string; label: string; action: () => void }
 
@@ -194,7 +194,7 @@ export default function App() {
         </div>
         <footer className="planner-footer"><div className="route-actions"><button className="primary" disabled={!canUseRoute} onClick={() => { if (!name) setName('Untitled adventure'); setSaveOpen(true); }}><Bookmark size={17} />Save route</button><button className="secondary" disabled={!canUseRoute} onClick={download}><Download size={17} />Export GPX</button></div><button className="import-action" onClick={() => fileInput.current?.click()}><Upload size={15} />Import GPX<span>or drop a file anywhere</span></button></footer>
       </aside>
-      <RouteMap segments={result?.segments || emptySegments} waypoints={mapWaypoints} editable={mode === 'manual' && !busy} fitToken={fitToken} onAdd={coordinate => addLocation(coordinate)} onMove={(id, coordinate) => changeWaypoints(waypoints.map(w => w.id === id ? { ...w, coordinate, name: `${coordinate[1].toFixed(5)}, ${coordinate[0].toFixed(5)}` } : w))} onError={fail} />
+      <RouteMap segments={result?.segments || emptySegments} waypoints={mapWaypoints} editable={mode === 'manual' && !busy && (planningMode === 'point' || !result)} fitToken={fitToken} onAdd={coordinate => addLocation(coordinate)} onMove={(id, coordinate) => changeWaypoints(waypoints.map(w => w.id === id ? { ...w, coordinate, name: `${coordinate[1].toFixed(5)}, ${coordinate[0].toFixed(5)}` } : w))} onError={fail} />
     </main>
     <input ref={fileInput} hidden type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" aria-label="Import GPX file" onChange={event => { void handleFile(event.target.files?.[0]); event.target.value = ''; }} />
     {libraryOpen && <Library onClose={() => setLibraryOpen(false)} onOpen={route => { setLibraryOpen(false); guard(() => openRoute(route)); }} />}
