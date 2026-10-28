@@ -130,7 +130,8 @@ async function fetchTile(key: string, signal?: AbortSignal): Promise<Tile> {
     const tile = await Promise.race([
       (async () => {
         const response = await fetch(url.toString(), {
-          credentials: 'omit', signal: controller.signal,
+          credentials: 'omit',
+          signal: controller.signal,
         });
         if (!response.ok) throw new Error('Terrain tile unavailable.');
         const blob = await response.blob();

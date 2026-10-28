@@ -27,7 +27,6 @@ test('uses timezone region first, restores last local view, and fits an imported
       },
     }),
   );
-  await page.route('**/api/health', (route) => route.fulfill({ json: { configured: false } }));
   await page.goto('/');
   await expect(page.locator('.mapboxgl-ctrl-logo')).toBeVisible();
   await expect(page.locator('.map-issue')).toBeVisible();

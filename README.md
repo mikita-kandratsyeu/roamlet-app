@@ -17,25 +17,27 @@ Use Yarn 4.18.1 (the latest stable release verified on 28 October 2026), pinned 
 
 ```sh
 yarn install --immutable
-cp proxy/.env.example proxy/.env
-# Set MAPBOX_ACCESS_TOKEN in proxy/.env (server routing/search/terrain token)
 cp client/.env.example client/.env.local
-# Set VITE_MAPBOX_ACCESS_TOKEN to a PUBLIC pk.* map token with URL restrictions
+# Set VITE_MAPBOX_ACCESS_TOKEN to a PUBLIC pk.* token with URL restrictions
+# Optionally set VITE_MAPBOX_STYLE
 yarn dev
 ```
 
-Requires Node.js 24+ in every workspace and the pinned Yarn release. `.nvmrc` selects Node.js 24 LTS (`nvm install && nvm use`); newer Node.js versions are also supported. Yarn’s default install-script restrictions remain in place; only esbuild’s required build script is explicitly allowed via `dependenciesMeta`. Create a [Mapbox account](https://account.mapbox.com/auth/signup/) and check quotas, billing, country/payment eligibility and service terms. Store `MAPBOX_ACCESS_TOKEN` only in `proxy/.env` or server secret settings; the browser never receives that token. Configure a separate public `pk.*` token as `VITE_MAPBOX_ACCESS_TOKEN` for Mapbox GL JS; this token is intentionally visible in the built client and must use minimal scopes and permitted-URL restrictions. Restart the proxy after changing server settings; restart Vite or rebuild after changing public map settings. Missing server credentials disable routing/search/terrain; missing public credentials disable the basemap. Local library and GPX remain usable. Permanent geocoding requires the appropriate paid-account access; a card-free trial may support routing/maps but reject permanent search.
+Requires Node.js 24+ and the pinned Yarn release. `.nvmrc` selects Node.js 24 LTS (`nvm install && nvm use`); newer Node.js versions are also supported. Yarn’s default install-script restrictions remain in place; only esbuild’s required build script is explicitly allowed via `dependenciesMeta`. Create a [Mapbox account](https://account.mapbox.com/auth/signup/) and check quotas, billing, country/payment eligibility and service terms. Configure one public `pk.*` token as `VITE_MAPBOX_ACCESS_TOKEN` for maps, Directions, permanent Geocoding v6 and Terrain-RGB. It is intentionally visible in the built client and browser requests; use minimal scopes and permitted-URL restrictions. Never use a secret `sk.*` token in Vite settings. Restart Vite or rebuild after changing settings. Missing credentials disable online map/routing/search/terrain services; the local library, coordinate input and GPX remain usable. Permanent geocoding requires appropriate account permissions and terms; a card-free trial may support routing/maps but reject permanent search.
 
-`yarn dev` starts two workspace processes: Vite at `http://127.0.0.1:5173` and the proxy at `http://127.0.0.1:3001`. Vite forwards `/api` to the proxy; the client always uses same-origin relative URLs. Client public settings live in `client/.env.local` (or `client/.env`, also loaded by Vite); old root `.env.local`, `ORS_API_KEY`, `ORS_URL`, `VITE_ORS_API_KEY` and `VITE_TILE_*` settings are no longer used. Do not copy old provider keys or secret Mapbox tokens into the client workspace. `.env` files in both workspaces are gitignored.
+`yarn dev` starts only the client Vite development server at `http://127.0.0.1:5173`. Settings live in gitignored `client/.env` or `client/.env.local`, loaded by Vite. All Mapbox requests go browser-direct to `https://api.mapbox.com`; there is no application backend, server token or server API.
 
-### Production: one Node.js service
+### Production: static frontend
 
 ```sh
 yarn build
+# Inspect the existing build locally:
 yarn start
+# Equivalent:
+yarn preview
 ```
 
-The proxy serves `client/dist` and `/api` at `http://127.0.0.1:3001`. Configure `PROXY_HOST=0.0.0.0` on hosting platforms that require external binding, set `PROXY_PORT` as needed, and terminate HTTPS at a trusted ingress. No separate browser CORS setup is needed. `yarn preview` is an alias for this production server and requires an existing build. The production service needs the built client directory alongside the proxy. No database or account service is added.
+`yarn build` produces static assets in `client/dist`. Both `yarn start` and `yarn preview` run Vite preview at `http://127.0.0.1:4173`; they require an existing build and are local preview commands, not production hosting. Deploy `client/dist` to static hosting at the origin root with SPA fallback to `index.html`. No application server or database is needed. HTTPS is required outside localhost for the offline app shell.
 
 ```sh
 yarn typecheck
@@ -51,7 +53,6 @@ yarn preview
 yarn workspace @roamlet/client playwright install chromium
 yarn test:e2e
 yarn test:offline
-yarn test:integration
 ```
 
 ## Branding and languages
@@ -75,7 +76,7 @@ ESLint checks code quality; Prettier handles consistent formatting. `eslint-conf
 - Mapbox GL JS vector map (Outdoors style by default) with required Mapbox/OSM attribution, zoom/pan, fit-to-route, optional user location, click-to-add, and draggable waypoint pins.
 - Initial viewport priority: opened route → locally saved map view → approximate browser timezone/locale region → world overview. Known IANA timezones select a regional view, other supported continent timezones select a wider view; otherwise locale country/language is a fallback. Browser settings are **not actual geolocation** and may be unrelated to the user's position. No IP lookup, inference API, or automatic location permission prompt is used.
 - Completed map movements save center, zoom, bearing and pitch under `roamlet:map-view:v1` in localStorage. Saved views take priority on reload, while opening/importing a route still fits its geometry. Malformed stored views are ignored; blocked/quota-limited storage does not prevent map use and shows a nonfatal save notice. Clearing site data resets the preference.
-- Manual routing with up to 25 stops; replacement search, reorder, remove, reverse, automatic cancellable recalculation, and Mapbox cycling/walking profiles. Existing longer GPX/ORS snapshots remain readable/exportable, but editing online requires reducing their stops to the new limit.
+- Manual routing with up to 25 stops; replacement search, reorder, remove, reverse, automatic cancellable recalculation, and Mapbox cycling/walking profiles. Existing longer Mapbox/GPX snapshots remain readable/exportable, but editing online requires reducing their stops to the new limit.
 - Loop discovery with a 2–100 km target: triangular intermediate points, two orientations and at most three routing attempts per orientation (six Directions requests). Candidates are actual routed geometry, deduplicated, closure-checked within 100 m, and ranked by proximity to target distance. Target length and distinct alternatives are not guaranteed.
 - Place/address search on explicit submission via Mapbox Geocoding v6 with `permanent=true`, not temporary Search Box results. A `latitude, longitude` input works without a token.
 - Geometry-derived distance, estimated moving time, available elevation gain/loss and elevation chart. Unavailable data is labeled honestly.
@@ -86,49 +87,46 @@ ESLint checks code quality; Prettier handles consistent formatting. `eslint-conf
 
 ## Configuration and providers
 
-| Variable                    | Meaning                                                                                                 |
-| --------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `MAPBOX_ACCESS_TOKEN`       | **Proxy only**: token for Directions, Permanent Geocoding and Terrain-RGB; never bundled in the browser |
-| `MAPBOX_URL`                | **Proxy only**: trusted Mapbox-compatible origin without path; default `https://api.mapbox.com`         |
-| `PROXY_PORT` / `PROXY_HOST` | Proxy listening address, defaults `3001` / `127.0.0.1`                                                  |
-| `VITE_MAPBOX_ACCESS_TOKEN`  | **Public** `pk.*` map token; minimal permissions and URL restrictions                                   |
-| `VITE_MAPBOX_STYLE`         | Mapbox GL style; default `mapbox://styles/mapbox/outdoors-v12`                                          |
+| Variable | Meaning |
+| --- | --- |
+| `VITE_MAPBOX_ACCESS_TOKEN` | One **public** `pk.*` token for maps, Directions, permanent Geocoding v6 and Terrain-RGB; minimal scopes and URL restrictions |
+| `VITE_MAPBOX_STYLE` | Mapbox GL style; default `mapbox://styles/mapbox/outdoors-v12` |
 
-The client API uses `POST /api/directions/cycling/geojson`, `POST /api/directions/walking/geojson`, `GET /api/geocode/search`, `GET /api/terrain/{z}/{x}/{y}.pngraw` and `GET /api/health`. The proxy injects its token into fixed Mapbox Directions v5, Geocoding v6 and Terrain-RGB requests and normalizes route/search responses to the app's GeoJSON contract; it is not a generic URL forwarder. Health reports configured credentials, not account permissions or connectivity. Maps/styles/fonts/tiles use the separate public token directly from Mapbox GL JS; changing the renderer to Mapbox does not route map traffic through the private proxy.
+All maps/styles/fonts/tiles, Directions v5, Geocoding v6 and Terrain-RGB requests go directly from the browser to `https://api.mapbox.com` using the same public token. The client normalizes routing/search responses to its domain contracts. There are no runtime application API endpoints or server credentials. The service worker caches only the static frontend shell, not provider requests.
 
-The proxy validates profile, point count, coordinate bounds, terrain tile coordinates and search parameters; caps request/response sizes, applies per-socket-IP rate limits, rejects cross-origin browser requests, supports request cancellation/timeouts, and returns sanitized failures. No inbound Authorization header is forwarded. API responses are not cached by the service worker. These controls protect basic deployments but **are not authentication**: a public endpoint can still be called by non-browser clients. Before broad release add ingress-level abuse protection and global/provider-budget limits. Rate limits are process-local; behind an ingress, socket IP limits may be shared by all visitors. Forwarded IP headers are not trusted automatically.
+A browser token cannot be hidden in source, bundles or request URLs. Permitted-URL restrictions and minimal scopes reduce exposure but cannot eliminate token reuse or quota abuse. There are no application server-side rate limits or secret-token protections; account permissions, quotas and billing remain Mapbox's responsibility.
 
 ### Provider evaluation
 
 Mapbox now supplies the map, cycling/walking routes, permanent geocoding and terrain. Directions does not supply target-distance loops or route elevations: loops are application-generated; heights are sampled from Terrain-RGB at zoom 12. Each route uses at most 64 unique terrain tiles with four concurrent fetches and a 32-tile decoded memory cache. Missing tiles, water/no-data, decoding errors or excessive tile coverage leave all elevations unavailable, rather than fabricating zeros. Gain/loss sums sampled height differences and is an estimate, not a surveyed measurement. Loop candidate searches request no elevation until the best routes are selected.
 
-Routing caches exact input/profile responses for five minutes (20 entries); permanent search caches 30 explicit queries. API calls have a 25-second timeout; terrain fetch/decode has a 10-second deadline. Cancellation, credential, quota, network and service errors remain explicit; no straight-line fallback is used. Map loads, Directions requests, permanent geocoding and terrain usage have distinct account-dependent billing. Mapbox spending alerts are not a hard spending cap; use ingress/global budgets before public launch.
+Routing caches exact input/profile responses for five minutes (20 entries); permanent search caches 30 explicit queries. API calls have a 25-second timeout; terrain fetch/decode has a 10-second deadline. Cancellation, credential, quota, network and service errors remain explicit; no straight-line fallback is used. Map loads, Directions requests, permanent geocoding and terrain usage have distinct account-dependent billing. Mapbox spending alerts are not a hard spending cap; review account usage and billing before public launch. Browser-side request bounds and caches do not enforce a global usage budget.
 
 **Before publication verify Mapbox account/payment eligibility for Belarus, commercial terms, storage and GPX redistribution permissions, permanent-geocoding access, usage budgets and attribution.** User approval to preserve storage/export is a product decision, not a legal grant from Mapbox. Live account verification with locally configured tokens returned HTTP 200 for cycling, walking, permanent geocoding and the Outdoors style. Terrain-RGB returned upstream HTTP 429; routes remain usable without heights until that account quota/access issue is resolved. Browser automation uses local synthetic styles/geometry, never production fallback data. See [third-party licenses and data policies](./THIRD_PARTY_LICENSES.md). Nominatim is intentionally not used.
 
 ## Architecture
 
-Yarn workspaces keep the application in two folders:
+Yarn has one application workspace, `client/`. Root scripts delegate development, build, preview and tests to it; the deployed application is browser-only.
 
 - `client/`: React/TypeScript/Vite app, browser tests, assets and public environment settings.
-- `proxy/`: dependency-free Node.js HTTP API proxy, private environment settings and Node tests. Also serves the production client build.
-- `scripts/dev.mjs`: starts both workspaces and terminates the sibling if either development process exits.
 - `client/src/domain/`: typed route/provider contracts, geometry calculations, bounded GPX parsing/export and Dexie persistence.
-- `client/src/services/routing.ts`: same-origin proxy requests, routing profiles and bounded in-memory caches; no provider keys or upstream URLs.
+- `client/src/services/routing.ts`: browser-direct Mapbox requests, routing profiles and bounded in-memory caches.
 - `client/src/components/`: map, statistics, library and dialogs.
-- `client/src/App.tsx`: editor/workflow state, including a non-secret proxy-health configuration check.
-- `client/public/sw.js`: production app shell only; explicitly excludes `/api` and all third-party map/routing URLs.
+- `client/src/App.tsx`: editor/workflow state and public-token configuration handling.
+- `client/public/sw.js`: static production app shell only; excludes all third-party map/routing requests.
+
+IndexedDB storage version 2 intentionally deletes legacy records whose `source` is neither `mapbox` nor `gpx` on first open, as explicitly approved by the user. Mapbox and GPX snapshots are retained. GPX exports use Mapbox/OSM attribution only; no retired-provider metadata is retained.
 
 Saved/imported routes open as snapshots and are never silently rerouted. Coordinates use `[longitude, latitude, elevation?]`, distances metres and durations seconds. GPX files are bounded to 10 MiB/100,000 points; segment boundaries and standalone waypoints are preserved. HTTPS or localhost is required for the service worker.
 
 ## Known limitations
 
-- Real online route/search quality, valid-key authentication, live elevation and real round-trip alternatives were **not verified**: no valid ORS key was supplied. The app does not claim success without the service.
-- ORS general cycling is not a dedicated gravel profile. Access restrictions and surface quality depend on OSM data. Surface breakdown is unavailable; terrain elevations and travel times are estimates.
+- Latest live account checks returned HTTP 200 for the Mapbox style, cycling/walking routes and permanent search, but Terrain-RGB returned HTTP 429. Browser-only verification is pending; successful service responses do not certify route quality or account/legal permissions.
+- Mapbox cycling/walking profiles are not certified gravel/trail access recommendations. Access restrictions and surface quality depend on geographic data. Surface breakdown is unavailable; terrain elevations and travel times are estimates.
 - Loop targets are approximate. The same network may yield one unique alternative or no viable loop. Loop geometry can be saved/exported unchanged; switching to manual editing recalculates a new route.
 - Editing an imported GPX explicitly converts its start/finish into a newly routed path and replaces the original geometry after confirmation. Multi-track gaps are otherwise preserved. A waypoint-only file is importable/saveable/exportable but cannot be converted through this editor.
 - GPX export preserves point order, segment boundaries, elevations, route name/description and standalone waypoints. It does not preserve every arbitrary vendor extension, original XML layout, per-point timestamps or separate track names; routes are exported as GPX tracks. Imported activity defaults to Hiking and can be changed.
-- No navigation, tracking, cloud backup, direct Strava/Komoot publishing, offline maps, dark theme or route surface analytics. The private-key API proxy is the only backend. Use the destination app/device's officially supported GPX upload workflow.
+- No navigation, tracking, cloud backup, direct Strava/Komoot publishing, offline maps or route surface analytics. There is no application backend. Use the destination app/device's officially supported GPX upload workflow.
 - Local browser data can be removed by storage eviction, private browsing, or clearing site data; export important routes as backups.
 - Mapbox GL JS requires WebGL and a public map token. A missing token or map outage is reported, never replaced by fake production content. On small screens, the route sheet scrolls/collapses to keep the map accessible.
 - Production output includes a large map/vendor JavaScript chunk; further lazy loading is a sensible optimization before broader launch.

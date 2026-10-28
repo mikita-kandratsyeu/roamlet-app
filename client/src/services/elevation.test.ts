@@ -108,11 +108,20 @@ describe('addTerrainElevation', () => {
     expect(url.toString()).not.toContain('sk.server');
     expect(fetcher.mock.calls[0][1]?.headers).toBeUndefined();
   });
-  it.each([undefined, '', ' ', 'sk.secret-test-only', 'invalid']) (
-    'returns entirely 2D without network requests for invalid public token %s', async token => {
+  it.each([undefined, '', ' ', 'sk.secret-test-only', 'invalid'])(
+    'returns entirely 2D without network requests for invalid public token %s',
+    async (token) => {
       vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', token);
       vi.stubEnv('MAPBOX_ACCESS_TOKEN', 'pk.server-test-only-not-a-real-token');
-      expect(await addTerrainElevation([[0, 0, 25], [0, 0]])).toEqual([[0, 0], [0, 0]]);
+      expect(
+        await addTerrainElevation([
+          [0, 0, 25],
+          [0, 0],
+        ]),
+      ).toEqual([
+        [0, 0],
+        [0, 0],
+      ]);
       expect(fetcher).not.toHaveBeenCalled();
       expect(bitmap).not.toHaveBeenCalled();
     },
@@ -124,7 +133,9 @@ describe('addTerrainElevation', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     const controller = new AbortController();
     controller.abort();
-    await expect(addTerrainElevation([[0, 0]], controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(addTerrainElevation([[0, 0]], controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    });
   });
   it('returns fresh coordinates on cache hits without mutating the cached tile', async () => {
     const original: Coordinate[] = [

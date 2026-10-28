@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { deleteRoute, duplicateRoute, listRoutes, routeDb, saveRoute } from './storage';
+import { deleteRoute, duplicateRoute, listRoutes, RouteDatabase, routeDb, saveRoute } from './storage';
+import Dexie from 'dexie';
 import type { PlannedRoute } from './types';
 
 function fixture(): PlannedRoute {
@@ -33,7 +34,25 @@ afterAll(async () => {
 });
 
 describe('route persistence', () => {
-  it.each(['mapbox', 'openrouteservice', 'gpx'] as const)(
+  it('upgrades old libraries by deleting retired-provider snapshots, retaining Mapbox and GPX', async () => {
+    const name = 'roamlet-retired-provider-test';
+    const old = new Dexie(name);
+    old.version(1).stores({ routes: 'id, updatedAt, createdAt' });
+    await old.table('routes').bulkPut([
+      { ...fixture(), id: 'retired', source: 'retired-provider' },
+      { ...fixture(), id: 'map', source: 'mapbox' },
+      { ...fixture(), id: 'gpx', source: 'gpx' },
+    ]);
+    old.close();
+    const upgraded = new RouteDatabase(name);
+    try {
+      await upgraded.open();
+      expect((await upgraded.routes.toArray()).map(route => route.id).sort()).toEqual(['gpx', 'map']);
+    } finally {
+      await upgraded.delete();
+    }
+  });
+  it.each(['mapbox', 'gpx'] as const)(
     'preserves %s snapshots without changing their source',
     async (source) => {
       const route = { ...fixture(), source };

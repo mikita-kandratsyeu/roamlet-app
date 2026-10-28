@@ -7,11 +7,10 @@ const coordinates = [
   [11.411, 47.271, 610],
 ];
 const fixture = {
-  type: 'FeatureCollection',
-  features: [
+  code: 'Ok',
+  routes: [
     {
-      type: 'Feature',
-      properties: { summary: { distance: 640, duration: 240 } },
+      distance: 640, duration: 240,
       geometry: { type: 'LineString', coordinates },
     },
   ],
@@ -48,20 +47,19 @@ test.beforeEach(async ({ page }) => {
   );
   await page.route('https://*.mapbox.com/**', (route) => route.abort());
   // Fixtures are confined to browser tests. Production never substitutes geometry.
-  await page.route('**/api/directions/**', (route) => route.fulfill({ json: fixture }));
-  await page.route('**/geocode/search?**', (route) =>
+  await page.route('**/directions/v5/mapbox/**', (route) => route.fulfill({ json: fixture }));
+  await page.route('**/search/geocode/v6/forward?**', (route) =>
     route.fulfill({
       json: {
         features: [
           {
             geometry: { coordinates: [11.4041, 47.2692] },
-            properties: { label: 'Innsbruck, Austria' },
+            properties: { full_address: 'Innsbruck, Austria' },
           },
         ],
       },
     }),
   );
-  await page.route('**/api/health', (route) => route.fulfill({ json: { configured: true } }));
   await page.goto('/');
 });
 test('creates, recalculates, saves, reloads, reopens and exports actual returned points', async ({
@@ -150,12 +148,12 @@ test('search works on submit; hiking and service failures are honest', async ({ 
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByRole('button', { name: 'Innsbruck, Austria' }).click();
   await page.getByRole('radio', { name: 'Hiking', exact: true }).click();
-  const request = page.waitForRequest('**/api/directions/walking/geojson');
+  const request = page.waitForRequest('**/directions/v5/mapbox/walking/**');
   await addPoint(page, '47.271, 11.411');
   await request;
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
-  await page.route('**/api/directions/**', (route) =>
-    route.fulfill({ status: 429, json: { error: 'quota' } }),
+  await page.route('**/directions/v5/mapbox/**', (route) =>
+    route.fulfill({ status: 429, json: { message: 'quota' } }),
   );
   await addPoint(page, '47.28, 11.42');
   await expect(page.getByRole('alert')).toContainText('quota');
@@ -166,16 +164,18 @@ test('round trips route intermediate points with bounded search; responsive cont
 }, testInfo) => {
   await page.getByRole('radio', { name: 'Round trip', exact: true }).click();
   await addPoint(page, '47.2692, 11.4041');
-  await page.route('**/api/directions/**', async (route) => {
-    const body = route.request().postDataJSON();
-    expect(body).not.toHaveProperty('options');
-    expect(body.coordinates).toHaveLength(4);
-    expect(body.coordinates[0]).toEqual(body.coordinates[3]);
+  await page.route('**/directions/v5/mapbox/**', async (route) => {
+    const url = new URL(route.request().url());
+    const points = url.pathname.split('/').at(-1)!.split(';');
+    expect(route.request().method()).toBe('GET');
+    expect(url.searchParams.has('options')).toBe(false);
+    expect(points).toHaveLength(4);
+    expect(points[0]).toEqual(points[3]);
     const loop = [coordinates[0], coordinates[1], coordinates[2], coordinates[0]];
     await route.fulfill({
       json: {
         ...fixture,
-        features: [{ ...fixture.features[0], geometry: { type: 'LineString', coordinates: loop } }],
+        routes: [{ ...fixture.routes[0], geometry: { type: 'LineString', coordinates: loop } }],
       },
     });
   });
@@ -377,9 +377,9 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await expect(zoom).toHaveCSS('outline-width', '2px');
   await expect(zoom).toHaveCSS('outline-offset', '-2px');
   await expect(zoom).toHaveCSS('box-shadow', 'none');
-  await page.locator('.maplibregl-canvas').focus();
-  await expect(page.locator('.maplibregl-canvas')).toHaveCSS('outline-width', '2px');
-  await expect(page.locator('.maplibregl-canvas')).toHaveCSS('outline-offset', '-3px');
+  await page.locator('.mapboxgl-canvas').focus();
+  await expect(page.locator('.mapboxgl-canvas')).toHaveCSS('outline-width', '2px');
+  await expect(page.locator('.mapboxgl-canvas')).toHaveCSS('outline-offset', '-3px');
   await page.emulateMedia({ forcedColors: 'active' });
   await expect(page.locator(':root')).toHaveCSS('--focus-ring', 'Highlight');
   await zoom.focus();
@@ -389,7 +389,6 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
 test('persists light and dark themes across reloads and themes dialogs and map controls', async ({
   page,
 }) => {
-  await page.route('**/api/health', (route) => route.fulfill({ json: { configured: false } }));
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
   await expect(page.locator('html')).not.toHaveClass(/dark/);

@@ -956,10 +956,8 @@ export default function App() {
                 <Info size={16} />
                 <span>
                   {configurationUnavailable
-                    ? t('The routing proxy is unreachable. Map, GPX, and saved routes still work.')
-                    : t(
-                        'Online routing is not configured on the server. Map, GPX, and saved routes still work.',
-                      )}
+                    ? t('Mapbox configuration could not be checked. GPX and saved routes still work.')
+                    : t('Configure a public Mapbox token in VITE_MAPBOX_ACCESS_TOKEN. GPX and saved routes remain available.')}
                 </span>
                 <Button variant="ghost" className="text-button" onClick={() => setHelpOpen(true)}>
                   {t('Setup')}
@@ -1145,10 +1143,8 @@ export default function App() {
               <a href="https://account.mapbox.com/auth/signup/" target="_blank" rel="noreferrer">
                 Mapbox
               </a>
-              {t('. Set')} <code>MAPBOX_ACCESS_TOKEN</code>{' '}
-              {t(
-                'in the proxy’s server environment and restart the proxy. The browser never receives this key; it submits routing requests through the same-origin API.',
-              )}
+              {t('. Set')} <code>VITE_MAPBOX_ACCESS_TOKEN</code>{' '}
+              {t('in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions. Maps, routes, search and terrain are requested directly from Mapbox.')}
             </p>
             <h3>{t('Your route, your device')}</h3>
             <p>
@@ -1184,7 +1180,7 @@ export default function App() {
             </p>
             <p className="fine-print">
               {t(
-                'The proxy forwards the places you search and route points you submit to the routing provider. Your saved local library is not uploaded. Private provider credentials stay on the server. The saved library and GPX work offline after the app shell has been cached in a production build.',
+                'Maps, searches, route points and terrain requests go directly from your browser to Mapbox using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.',
               )}
             </p>
           </div>

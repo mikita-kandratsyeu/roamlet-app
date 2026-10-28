@@ -202,24 +202,7 @@ export function exportGpx(route: PlannedRoute): string {
         metadata: {
           name: xmlText(route.name),
           desc: xmlText(route.description),
-          ...(route.source === 'openrouteservice'
-            ? {
-                copyright: {
-                  '@_author': 'OpenStreetMap contributors / OpenRouteService (HeiGIT)',
-                  license: 'https://opendatacommons.org/licenses/odbl/1-0/',
-                },
-                link: [
-                  {
-                    '@_href': 'https://www.openstreetmap.org/copyright',
-                    text: 'OpenStreetMap data attribution',
-                  },
-                  {
-                    '@_href': 'https://openrouteservice.org',
-                    text: 'Routing by OpenRouteService / HeiGIT',
-                  },
-                ],
-              }
-            : route.source === 'mapbox'
+          ...(route.source === 'mapbox'
               ? {
                   copyright: {
                     '@_author': 'Mapbox / OpenStreetMap contributors',

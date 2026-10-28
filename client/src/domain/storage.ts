@@ -3,11 +3,15 @@ import Dexie, { type Table } from 'dexie';
 import { calculateStats } from './stats';
 import type { PlannedRoute } from './types';
 
-class RouteDatabase extends Dexie {
+export class RouteDatabase extends Dexie {
   routes!: Table<PlannedRoute, string>;
-  constructor() {
-    super('roamlet-routes');
+  constructor(name = 'roamlet-routes') {
+    super(name);
     this.version(1).stores({ routes: 'id, updatedAt, createdAt' });
+    this.version(2).stores({ routes: 'id, updatedAt, createdAt' }).upgrade(async transaction => {
+      // The owner requested removal of snapshots from the retired provider.
+      await transaction.table('routes').filter(route => !['mapbox', 'gpx'].includes(route.source)).delete();
+    });
   }
 }
 export const routeDb = new RouteDatabase();
@@ -22,7 +26,7 @@ function validateRoute(route: PlannedRoute): void {
     !Array.isArray(route.segments) ||
     !route.segments.every(Array.isArray) ||
     !Array.isArray(route.waypoints) ||
-    !['gpx', 'openrouteservice', 'mapbox'].includes(route.source) ||
+    !['gpx', 'mapbox'].includes(route.source) ||
     typeof route.createdAt !== 'string' ||
     !Number.isFinite(Date.parse(route.createdAt)) ||
     typeof route.updatedAt !== 'string' ||

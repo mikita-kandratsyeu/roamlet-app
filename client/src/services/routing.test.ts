@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MapboxRoutingService, requestJson, searchPlaces } from './routing';
 import { addTerrainElevation } from './elevation';
 vi.mock('./elevation', () => ({ addTerrainElevation: vi.fn(async (coordinates) => coordinates) }));
@@ -14,10 +14,11 @@ const response = (
     [11.41, 47.27, 610],
   ],
 ) => ({
-  features: [
+  code: 'Ok',
+  routes: [
     {
       geometry: { type: 'LineString', coordinates },
-      properties: { summary: { distance: 1234, duration: 420 } },
+      distance: 1234, duration: 420,
     },
   ],
 });
@@ -30,34 +31,40 @@ function mockJson(data: unknown, status = 200) {
       }),
   );
 }
+beforeEach(() => vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'pk.test-public-token'));
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 describe('MapboxRoutingService', () => {
-  it('reports missing server credentials without fabricating geometry', async () => {
-    mockJson({ error: { code: 'NOT_CONFIGURED' } }, 503);
+  it('reports missing public token without fabricating geometry', async () => {
+    vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', '');
+    const fetcher = mockJson({});
     await expect(new MapboxRoutingService().calculateRoute(points, 'cycling')).rejects.toThrow(
-      'MAPBOX_ACCESS_TOKEN',
+      'VITE_MAPBOX_ACCESS_TOKEN',
     );
+    expect(fetcher).not.toHaveBeenCalled();
   });
-  it('sends only same-origin requests and never sends a provider key', async () => {
+  it('calls Mapbox directly with the public token and no cookies', async () => {
     const fetcher = mockJson(response());
     await new MapboxRoutingService().calculateRoute(points, 'cycling');
-    expect(fetcher.mock.calls[0][0]).toBe('/api/directions/cycling/geojson');
-    expect(fetcher.mock.calls[0][1]?.headers).toEqual({ 'Content-Type': 'application/json' });
-    await expect(requestJson('https://external.invalid/', {})).rejects.toThrow('local API proxy');
+    const url = new URL(String(fetcher.mock.calls[0][0]));
+    expect(url.origin).toBe('https://api.mapbox.com');
+    expect(url.pathname).toBe('/directions/v5/mapbox/cycling/11.4,47.26;11.41,47.27');
+    expect(url.searchParams.get('access_token')).toBe('pk.test-public-token');
+    expect(fetcher.mock.calls[0][1]?.credentials).toBe('omit');
+    expect(fetcher.mock.calls[0][1]?.headers).toEqual({ Accept: 'application/json' });
+    await expect(requestJson('https://external.invalid/', {})).rejects.toThrow('Unsupported Mapbox endpoint');
   });
   it('uses the cycling profile, terrain geometry distance and provider time', async () => {
     const fetcher = mockJson(response());
     const result = await new MapboxRoutingService().calculateRoute(points, 'cycling');
-    expect(JSON.parse(fetcher.mock.calls[0][1]?.body as string)).toEqual({
-      coordinates: [
-        [11.4, 47.26],
-        [11.41, 47.27],
-      ],
-      instructions: false,
-    });
+    const url = new URL(String(fetcher.mock.calls[0][0]));
+    expect(url.searchParams.get('geometries')).toBe('geojson');
+    expect(url.searchParams.get('overview')).toBe('full');
+    expect(url.searchParams.get('steps')).toBe('false');
+    expect(fetcher.mock.calls[0][1]?.method).toBe('GET');
+    expect(fetcher.mock.calls[0][1]?.body).toBeUndefined();
     expect(addTerrainElevation).toHaveBeenCalled();
     expect(result.segments[0]).toHaveLength(3);
     expect(result.stats.distance).toBeGreaterThan(1300);
@@ -68,7 +75,7 @@ describe('MapboxRoutingService', () => {
   it('routes hiking with walking, not a cycling fallback', async () => {
     const fetcher = mockJson(response());
     await new MapboxRoutingService().calculateRoute(points, 'hiking');
-    expect(fetcher.mock.calls[0][0]).toContain('/walking/geojson');
+    expect(String(fetcher.mock.calls[0][0])).toContain('/mapbox/walking/');
   });
   it('returns unavailable elevation instead of invented heights', async () => {
     mockJson(
@@ -135,19 +142,17 @@ describe('MapboxRoutingService', () => {
     );
     expect(result).toHaveLength(1);
     expect(fetcher.mock.calls.length).toBeLessThanOrEqual(6);
-    const body = JSON.parse(fetcher.mock.calls[0][1]?.body as string);
-    expect(body.coordinates).toHaveLength(4);
-    expect(body.coordinates[0]).toEqual(body.coordinates.at(-1));
-    expect(body).not.toHaveProperty('options');
-    expect(JSON.parse(fetcher.mock.calls[0][1]?.body as string).coordinates[1]).not.toEqual(
-      JSON.parse(fetcher.mock.calls.at(-1)![1]?.body as string).coordinates[1],
-    );
+    const coordinates = new URL(String(fetcher.mock.calls[0][0])).pathname.split('/').at(-1)!.split(';');
+    expect(coordinates).toHaveLength(4);
+    expect(coordinates[0]).toEqual(coordinates.at(-1));
+    expect(new URL(String(fetcher.mock.calls[0][0])).searchParams.has('options')).toBe(false);
+    expect(String(fetcher.mock.calls[0][0])).not.toEqual(String(fetcher.mock.calls.at(-1)![0]));
   });
   it('stops early when routed length matches the target and samples only selected loops', async () => {
     vi.mocked(addTerrainElevation).mockClear();
-    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_, options) => {
-      const body = JSON.parse(options?.body as string);
-      return new Response(JSON.stringify(response(body.coordinates)), {
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      const coordinates = new URL(String(url)).pathname.split('/').at(-1)!.split(';').map(point => point.split(',').map(Number));
+      return new Response(JSON.stringify(response(coordinates)), {
         headers: { 'Content-Type': 'application/json' },
       });
     });
@@ -205,19 +210,22 @@ describe('MapboxRoutingService', () => {
   });
   it('reports a network failure without falling back to a line', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Network'));
-    await expect(requestJson('/api/directions/cycling/geojson', {})).rejects.toThrow(
+    await expect(requestJson('/directions/v5/mapbox/cycling/11,47;12,48', {})).rejects.toThrow(
       'internet connection',
     );
   });
   it('parses permanent geocoding results and requests only on submit', async () => {
     const fetcher = mockJson({
       features: [
-        { geometry: { coordinates: [11.4, 47.26] }, properties: { label: 'Innsbruck, Austria' } },
+        { geometry: { coordinates: [11.4, 47.26] }, properties: { full_address: 'Innsbruck, Austria' } },
       ],
     });
     const places = await searchPlaces('Innsbruck test');
     expect(places[0].name).toBe('Innsbruck, Austria');
-    expect(fetcher.mock.calls[0][0]).toContain('/geocode/search?');
+    const url = new URL(String(fetcher.mock.calls[0][0]));
+    expect(url.pathname).toBe('/search/geocode/v6/forward');
+    expect(url.searchParams.get('permanent')).toBe('true');
+    expect(url.searchParams.get('autocomplete')).toBe('false');
     const controller = new AbortController();
     controller.abort();
     await expect(searchPlaces('Innsbruck test', controller.signal)).rejects.toMatchObject({

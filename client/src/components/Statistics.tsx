@@ -41,9 +41,7 @@ export function Statistics({ route }: { route: PlannedRoute | null }) {
           {route
             ? route.source === 'gpx'
               ? t('Imported GPX')
-              : route.source === 'mapbox'
-                ? 'Mapbox'
-                : 'OpenRouteService'
+              : 'Mapbox'
             : t('Ready when you are')}
         </span>
       </div>

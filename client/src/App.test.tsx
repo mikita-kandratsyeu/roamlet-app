@@ -169,7 +169,6 @@ describe('route planner interactions', () => {
     await plan();
     expect(screen.getAllByText('1.3 km').length).toBeGreaterThan(0);
     expect(screen.getByText('Mapbox')).toBeInTheDocument();
-    expect(screen.queryByText('OpenRouteService')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
       target: { value: 'River escape' },

@@ -21,7 +21,7 @@ export interface PlannedRoute {
   stats: RouteStats;
   createdAt: string;
   updatedAt: string;
-  source: 'mapbox' | 'openrouteservice' | 'gpx';
+  source: 'mapbox' | 'gpx';
 }
 export interface RoutingResult {
   segments: Coordinate[][];
