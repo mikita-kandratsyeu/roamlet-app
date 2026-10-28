@@ -103,7 +103,9 @@ export function Statistics({ route }: { route: PlannedRoute | null }) {
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
-                      labelFormatter={(_, payload) => formatDistance(Number(payload[0]?.payload.distance ?? 0))}
+                      labelFormatter={(_, payload) =>
+                        formatDistance(Number(payload[0]?.payload.distance ?? 0))
+                      }
                       formatter={(value) => `${formatNumber(Math.round(Number(value)))} ${t('m')}`}
                     />
                   }

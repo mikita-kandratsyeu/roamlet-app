@@ -108,7 +108,9 @@ export function Library({
       )}
       {loading ? (
         <div role="status" aria-label={t('Opening your library…')} className="library-loading">
-          {[0, 1, 2].map((index) => <Skeleton key={index} className="h-20 w-full rounded-xl" />)}
+          {[0, 1, 2].map((index) => (
+            <Skeleton key={index} className="h-20 w-full rounded-xl" />
+          ))}
         </div>
       ) : !routes.length ? (
         <div className="library-empty">
@@ -125,7 +127,12 @@ export function Library({
               <span className="activity-icon">
                 {route.activity === 'cycling' ? <Bike size={22} /> : <Footprints size={22} />}
               </span>
-              <Button variant="ghost" className="library-open" disabled={busy} onClick={() => onOpen(route)}>
+              <Button
+                variant="ghost"
+                className="library-open"
+                disabled={busy}
+                onClick={() => onOpen(route)}
+              >
                 <strong>{route.name}</strong>
                 <span>
                   {route.activity === 'cycling' ? t('Cycling') : t('Hiking')} ·{' '}
@@ -137,7 +144,8 @@ export function Library({
                 )}
               </Button>
               <div className="library-actions">
-                <Button variant="ghost"
+                <Button
+                  variant="ghost"
                   className="icon-button"
                   disabled={busy}
                   aria-label={t('Edit {{name}}', { name: route.name })}
@@ -152,7 +160,8 @@ export function Library({
                 >
                   <Pencil size={16} />
                 </Button>
-                <Button variant="ghost"
+                <Button
+                  variant="ghost"
                   className="icon-button"
                   disabled={busy}
                   aria-label={t('Duplicate {{name}}', { name: route.name })}
@@ -163,7 +172,8 @@ export function Library({
                 >
                   <Copy size={16} />
                 </Button>
-                <Button variant="ghost"
+                <Button
+                  variant="ghost"
                   className="icon-button"
                   disabled={busy}
                   aria-label={t('Delete {{name}}', { name: route.name })}
@@ -217,7 +227,13 @@ export function Library({
             />
           </Label>
           <div className="button-row">
-            <Button variant="ghost" type="button" className="secondary" disabled={busy} onClick={closeDetails}>
+            <Button
+              variant="ghost"
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={closeDetails}
+            >
               {t('Cancel')}
             </Button>
             <Button type="submit" className="primary" disabled={busy || !name.trim()}>
@@ -233,10 +249,17 @@ export function Library({
             {t('from this device? This cannot be undone.')}
           </p>
           <div className="button-row">
-            <Button variant="ghost" ref={keepButton} className="secondary" disabled={busy} onClick={closeDetails}>
+            <Button
+              variant="ghost"
+              ref={keepButton}
+              className="secondary"
+              disabled={busy}
+              onClick={closeDetails}
+            >
               {t('Keep route')}
             </Button>
-            <Button variant="destructive"
+            <Button
+              variant="destructive"
               className="danger"
               disabled={busy}
               onClick={() => void mutate(() => deleteRoute(deleting.id))}

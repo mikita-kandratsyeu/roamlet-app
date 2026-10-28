@@ -500,7 +500,8 @@ export default function App() {
       </header>
       <main className={`workspace ${collapsed ? 'panel-collapsed' : ''}`}>
         <aside className="planner" aria-label={t('Route planner')}>
-          <Button variant="ghost"
+          <Button
+            variant="ghost"
             className="mobile-sheet-toggle"
             onClick={() => setCollapsed(!collapsed)}
             aria-expanded={!collapsed}
@@ -523,7 +524,8 @@ export default function App() {
                 <p className="muted">{t('Find your own way, one stop at a time.')}</p>
               </div>
               {canUseRoute && (
-                <Button variant="ghost"
+                <Button
+                  variant="ghost"
                   className="icon-button"
                   aria-label={t('Edit route name')}
                   onClick={() => setSaveOpen(true)}
@@ -565,7 +567,10 @@ export default function App() {
                     }
                   }}
                 >
-                  <ToggleGroupItem value="point" className={planningMode === 'point' ? 'active' : ''}>
+                  <ToggleGroupItem
+                    value="point"
+                    className={planningMode === 'point' ? 'active' : ''}
+                  >
                     {t('Point to point')}
                   </ToggleGroupItem>
                   <ToggleGroupItem value="loop" className={planningMode === 'loop' ? 'active' : ''}>
@@ -590,7 +595,12 @@ export default function App() {
                     }
                     maxLength={200}
                   />
-                  <Button type="submit" variant="ghost" aria-label={t('Search')} disabled={searching || !query.trim()}>
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    aria-label={t('Search')}
+                    disabled={searching || !query.trim()}
+                  >
                     {searching ? (
                       <LoaderCircle size={18} className="spin" />
                     ) : (
@@ -602,7 +612,11 @@ export default function App() {
                   {t('Search a place, enter latitude, longitude, or click the map.')}
                 </p>
                 {searchTarget && (
-                  <Button variant="ghost" className="text-button" onClick={() => setSearchTarget(null)}>
+                  <Button
+                    variant="ghost"
+                    className="text-button"
+                    onClick={() => setSearchTarget(null)}
+                  >
                     {t('Cancel replacing stop')}
                   </Button>
                 )}
@@ -610,7 +624,10 @@ export default function App() {
                   <ul className="search-results">
                     {places.map((place, index) => (
                       <li key={index}>
-                        <Button variant="ghost" onClick={() => addLocation(place.coordinate, place.name)}>
+                        <Button
+                          variant="ghost"
+                          onClick={() => addLocation(place.coordinate, place.name)}
+                        >
                           {place.name}
                           <Plus size={16} />
                         </Button>
@@ -621,7 +638,8 @@ export default function App() {
                 <div className="waypoints-heading">
                   <h2>{planningMode === 'loop' ? t('Starting point') : t('Your stops')}</h2>
                   {planningMode === 'point' && (
-                    <Button variant="ghost"
+                    <Button
+                      variant="ghost"
                       className="text-button"
                       disabled={waypoints.length < 2}
                       onClick={() => changeWaypoints([...waypoints].reverse())}
@@ -648,7 +666,8 @@ export default function App() {
                         >
                           {index === 0 ? 'A' : index === waypoints.length - 1 ? 'B' : index}
                         </span>
-                        <Button variant="ghost"
+                        <Button
+                          variant="ghost"
                           className="stop-name"
                           onClick={() => {
                             setSearchTarget(point.id);
@@ -668,7 +687,8 @@ export default function App() {
                         <div className="stop-controls">
                           {planningMode === 'point' && (
                             <>
-                              <Button variant="ghost"
+                              <Button
+                                variant="ghost"
                                 className="icon-button"
                                 aria-label={t('Move stop {{number}} up', {
                                   number: formatNumber(index + 1),
@@ -682,7 +702,8 @@ export default function App() {
                               >
                                 <ArrowUp size={13} />
                               </Button>
-                              <Button variant="ghost"
+                              <Button
+                                variant="ghost"
                                 className="icon-button"
                                 aria-label={t('Move stop {{number}} down', {
                                   number: formatNumber(index + 1),
@@ -698,7 +719,8 @@ export default function App() {
                               </Button>
                             </>
                           )}
-                          <Button variant="ghost"
+                          <Button
+                            variant="ghost"
                             className="icon-button"
                             aria-label={t('Remove stop {{number}}', {
                               number: formatNumber(index + 1),
@@ -715,7 +737,8 @@ export default function App() {
                   </ol>
                 )}
                 {planningMode === 'point' && (
-                  <Button variant="ghost"
+                  <Button
+                    variant="ghost"
                     className="add-stop"
                     onClick={() => {
                       setSearchTarget(null);
@@ -764,7 +787,8 @@ export default function App() {
                     {alternatives.length > 0 && (
                       <div className="alternatives">
                         {alternatives.map((alternative, index) => (
-                          <Button variant="ghost"
+                          <Button
+                            variant="ghost"
                             className={selectedAlternative === index ? 'chosen' : ''}
                             key={index}
                             onClick={() => selectAlternative(alternative, index)}
@@ -815,7 +839,11 @@ export default function App() {
                 role={notice.error ? 'alert' : 'status'}
               >
                 <span>{translateMessage(notice.text)}</span>
-                <Button variant="ghost" aria-label={t('Dismiss notification')} onClick={() => setNotice(null)}>
+                <Button
+                  variant="ghost"
+                  aria-label={t('Dismiss notification')}
+                  onClick={() => setNotice(null)}
+                >
                   <X size={16} />
                 </Button>
               </Alert>
@@ -860,12 +888,21 @@ export default function App() {
                 <Bookmark size={17} />
                 {t('Save route')}
               </Button>
-              <Button variant="outline" className="secondary" disabled={!canUseRoute} onClick={download}>
+              <Button
+                variant="outline"
+                className="secondary"
+                disabled={!canUseRoute}
+                onClick={download}
+              >
                 <Download size={17} />
                 {t('Export GPX')}
               </Button>
             </div>
-            <Button variant="ghost" className="import-action" onClick={() => fileInput.current?.click()}>
+            <Button
+              variant="ghost"
+              className="import-action"
+              onClick={() => fileInput.current?.click()}
+            >
               <Upload size={15} />
               {t('Import GPX')}
               <span>{t('or drop a file anywhere')}</span>
@@ -961,7 +998,8 @@ export default function App() {
               </p>
             )}
             <div className="button-row">
-              <Button variant="outline"
+              <Button
+                variant="outline"
                 className="secondary"
                 type="button"
                 disabled={saving}
@@ -984,7 +1022,8 @@ export default function App() {
         >
           <p>{t(confirmation.text)}</p>
           <div className="button-row">
-            <Button variant="ghost"
+            <Button
+              variant="ghost"
               ref={confirmationCancel}
               className="secondary"
               onClick={() => setConfirmation(null)}

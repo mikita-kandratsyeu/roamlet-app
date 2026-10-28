@@ -247,7 +247,11 @@ export function RouteMap(props: Props) {
       {mapError && (
         <Alert className="map-warning" role="status">
           <span>{translateMessage(mapError)}</span>
-          <Button variant="ghost" onClick={() => setMapError('')} aria-label={t('Dismiss map notice')}>
+          <Button
+            variant="ghost"
+            onClick={() => setMapError('')}
+            aria-label={t('Dismiss map notice')}
+          >
             <X size={16} />
           </Button>
         </Alert>
@@ -284,7 +288,8 @@ export function RouteMap(props: Props) {
         >
           <Minus size={20} />
         </Button>
-        <Button variant="ghost"
+        <Button
+          variant="ghost"
           className="map-control"
           title={t('Use my location')}
           aria-label={t('Use my location')}
@@ -292,7 +297,8 @@ export function RouteMap(props: Props) {
         >
           <LocateFixed size={20} />
         </Button>
-        <Button variant="ghost"
+        <Button
+          variant="ghost"
           className="map-control"
           title={t('Fit route')}
           aria-label={t('Fit route')}

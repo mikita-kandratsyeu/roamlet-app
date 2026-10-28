@@ -360,7 +360,9 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await expect(zoom).toHaveCSS('outline-style', 'solid');
 });
 
-test('persists light and dark themes across reloads and themes dialogs and map controls', async ({ page }) => {
+test('persists light and dark themes across reloads and themes dialogs and map controls', async ({
+  page,
+}) => {
   await page.route('**/api/health', (route) => route.fulfill({ json: { configured: false } }));
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
@@ -369,11 +371,16 @@ test('persists light and dark themes across reloads and themes dialogs and map c
   await menu.click();
   await page.getByRole('menuitemradio', { name: 'Dark', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/dark/);
-  const darkSurface = await page.locator('.app-header').evaluate((element) => getComputedStyle(element).backgroundColor);
+  const darkSurface = await page
+    .locator('.app-header')
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await menu.click();
-  await expect(page.getByRole('menuitemradio', { name: 'Dark', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('menuitemradio', { name: 'Dark', exact: true })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
   await page.getByRole('menuitem', { name: 'Help and data sources' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCSS('background-color', darkSurface);
@@ -382,7 +389,11 @@ test('persists light and dark themes across reloads and themes dialogs and map c
   await menu.click();
   await page.getByRole('menuitemradio', { name: 'Light', exact: true }).click();
   await expect(page.locator('html')).not.toHaveClass(/dark/);
-  expect(await page.locator('.app-header').evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(darkSurface);
+  expect(
+    await page
+      .locator('.app-header')
+      .evaluate((element) => getComputedStyle(element).backgroundColor),
+  ).not.toBe(darkSurface);
   await menu.click();
   await page.getByRole('menuitemradio', { name: 'System', exact: true }).click();
   await page.emulateMedia({ colorScheme: 'dark' });
@@ -390,7 +401,9 @@ test('persists light and dark themes across reloads and themes dialogs and map c
   await page.emulateMedia({ colorScheme: 'light' });
   await expect(page.locator('html')).not.toHaveClass(/dark/);
   const viewport = page.viewportSize()!;
-  expect(await page.locator('body').evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+  expect(await page.locator('body').evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(
+    viewport.width,
+  );
   const zoom = page.getByRole('button', { name: 'Zoom in', exact: true });
   await expect(zoom).toHaveAttribute('data-slot', 'button');
   const bounds = await zoom.boundingBox();
