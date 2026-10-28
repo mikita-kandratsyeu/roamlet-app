@@ -2,7 +2,11 @@ import type { Activity, Coordinate, RoutingProvider, RoutingResult, Waypoint } f
 import { calculateStats } from '../domain/stats';
 
 export const profiles: Record<Activity, string> = { cycling: 'cycling-regular', hiking: 'foot-hiking' };
-export const routingConfigured = Boolean(import.meta.env.VITE_ORS_API_KEY?.trim());
+export async function checkRoutingConfiguration(signal?: AbortSignal): Promise<boolean> {
+  const data = object(await requestJson('/api/health', { method: 'GET' }, signal));
+  if (typeof data.configured !== 'boolean') throw new Error('The routing proxy returned an invalid health response.');
+  return data.configured;
+}
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('The service returned an invalid response.');
   return value as Record<string, unknown>;
@@ -10,17 +14,24 @@ const object = (value: unknown): Record<string, unknown> => {
 export function validCoordinate(value: unknown): value is Coordinate {
   return Array.isArray(value) && (value.length === 2 || value.length === 3) && value.every(v => typeof v === 'number' && Number.isFinite(v)) && Math.abs(value[0]) <= 180 && Math.abs(value[1]) <= 90;
 }
-export async function requestJson(url: string, key: string, options: RequestInit, signal?: AbortSignal): Promise<unknown> {
-  if (!key.trim()) throw new Error('Online routing and place search need an OpenRouteService key. Set VITE_ORS_API_KEY in .env.local and restart the app. GPX and your library still work.');
+export async function requestJson(url: string, options: RequestInit, signal?: AbortSignal): Promise<unknown> {
+  if (!url.startsWith('/api/')) throw new Error('Routing requests must use the local API proxy.');
   const controller = new AbortController();
   const cancel = () => controller.abort();
   if (signal?.aborted) controller.abort();
   signal?.addEventListener('abort', cancel, { once: true });
   const timer = setTimeout(() => controller.abort(), 25_000);
   try {
-    const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', Authorization: key, ...options.headers }, signal: controller.signal });
+    const response = await fetch(url, { ...options, credentials: 'same-origin', headers: options.body ? { 'Content-Type': 'application/json' } : {}, signal: controller.signal });
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) throw new Error('The routing key was rejected. Check your OpenRouteService key and account permissions.');
+      const failure: unknown = await response.json().catch(() => null);
+      if (failure && typeof failure === 'object' && 'error' in failure) {
+        const detail = failure.error;
+        if (detail && typeof detail === 'object' && 'code' in detail && detail.code === 'NOT_CONFIGURED') {
+          throw new Error('Routing is not configured on the server. Ask the deployment administrator to set ORS_API_KEY. GPX and your library still work.');
+        }
+      }
+      if (response.status === 401 || response.status === 403) throw new Error('The routing request was rejected. Check server configuration and provider account permissions.');
       if (response.status === 429) throw new Error('Routing quota reached. Wait a moment or check your provider account limits.');
       if (response.status >= 500) throw new Error('The routing service is unavailable. Try again later; your saved routes are safe.');
       throw new Error(`No route or location found (service ${response.status}). Try points closer to accessible roads or trails, or a shorter route.`);
@@ -36,7 +47,9 @@ export async function requestJson(url: string, key: string, options: RequestInit
 
 export class OpenRouteService implements RoutingProvider {
   private cache = new Map<string, { time: number; result: RoutingResult }>();
-  constructor(private key = import.meta.env.VITE_ORS_API_KEY ?? '', private base = import.meta.env.VITE_ORS_URL || 'https://api.openrouteservice.org') {}
+  constructor(private base = '/api') {
+    if (base !== '/api') throw new Error('Routing must use the same-origin /api proxy.');
+  }
   private async calculate(coordinates: Coordinate[], activity: Activity, options: Record<string, unknown>, signal?: AbortSignal): Promise<RoutingResult> {
     if (!coordinates.every(validCoordinate)) throw new Error('Route locations must contain valid longitude and latitude.');
     const body = { coordinates: coordinates.map(c => c.slice(0, 2)), elevation: true, instructions: false, options };
@@ -44,7 +57,7 @@ export class OpenRouteService implements RoutingProvider {
     const cached = this.cache.get(cacheKey);
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
     if (cached && Date.now() - cached.time < 300_000) return structuredClone(cached.result);
-    const data = object(await requestJson(`${this.base.replace(/\/$/, '')}/v2/directions/${profiles[activity]}/geojson`, this.key, { method: 'POST', body: JSON.stringify(body) }, signal));
+    const data = object(await requestJson(`${this.base}/directions/${profiles[activity]}/geojson`, { method: 'POST', body: JSON.stringify(body) }, signal));
     if (!Array.isArray(data.features) || !data.features.length) throw new Error('No route was returned. Try a different location.');
     const feature = object(data.features[0]);
     const geometry = object(feature.geometry);
@@ -84,9 +97,8 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
   const text = query.trim();
   if (text.length < 3 || text.length > 200) throw new Error('Enter a place or address between 3 and 200 characters.');
   if (searches.has(text)) return structuredClone(searches.get(text)!);
-  const base = import.meta.env.VITE_ORS_URL || 'https://api.openrouteservice.org';
   const params = new URLSearchParams({ text, size: '5' });
-  const data = object(await requestJson(`${base.replace(/\/$/, '')}/geocode/search?${params}`, import.meta.env.VITE_ORS_API_KEY ?? '', { method: 'GET' }, signal));
+  const data = object(await requestJson(`/api/geocode/search?${params}`, { method: 'GET' }, signal));
   if (!Array.isArray(data.features)) throw new Error('The search service returned invalid locations.');
   const places = data.features.map((raw: unknown) => {
     const feature = object(raw), geometry = object(feature.geometry), properties = object(feature.properties);

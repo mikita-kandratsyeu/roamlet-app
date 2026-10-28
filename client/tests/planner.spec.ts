@@ -13,8 +13,9 @@ async function createRoute(page: Page) {
 }
 test.beforeEach(async ({ page }) => {
   // Fixtures are confined to browser tests. Production never substitutes geometry.
-  await page.route('**/v2/directions/**', route => route.fulfill({ json: fixture }));
+  await page.route('**/api/directions/**', route => route.fulfill({ json: fixture }));
   await page.route('**/geocode/search?**', route => route.fulfill({ json: { features: [{ geometry: { coordinates: [11.4041, 47.2692] }, properties: { label: 'Innsbruck, Austria' } }] } }));
+  await page.route('**/api/health', route => route.fulfill({ json: { configured: true } }));
   await page.goto('/');
 });
 test('creates, recalculates, saves, reloads, reopens and exports actual returned points', async ({ page }) => {
@@ -58,14 +59,14 @@ test('search works on submit; hiking and service failures are honest', async ({ 
   await page.getByRole('textbox', { name: 'Search places or coordinates' }).fill('Innsbruck'); await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByRole('button', { name: 'Innsbruck, Austria' }).click();
   await page.getByRole('button', { name: 'Hiking', exact: true }).click();
-  const request = page.waitForRequest('**/v2/directions/foot-hiking/geojson'); await addPoint(page, '47.271, 11.411'); await request;
+  const request = page.waitForRequest('**/api/directions/foot-hiking/geojson'); await addPoint(page, '47.271, 11.411'); await request;
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
-  await page.route('**/v2/directions/**', route => route.fulfill({ status: 429, json: { error: 'quota' } }));
+  await page.route('**/api/directions/**', route => route.fulfill({ status: 429, json: { error: 'quota' } }));
   await addPoint(page, '47.28, 11.42'); await expect(page.getByRole('alert')).toContainText('quota'); await expect(page.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
 });
 test('round trips use real provider round-trip requests; responsive controls stay reachable', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: 'Round trip', exact: true }).click(); await addPoint(page, '47.2692, 11.4041');
-  await page.route('**/v2/directions/**', async route => {
+  await page.route('**/api/directions/**', async route => {
     const body = route.request().postDataJSON(); expect(body.options.round_trip.length).toBe(20000); expect(body.coordinates).toHaveLength(1);
     const loop = [coordinates[0], coordinates[1], coordinates[2], coordinates[0]];
     await route.fulfill({ json: { ...fixture, features: [{ ...fixture.features[0], geometry: { type: 'LineString', coordinates: loop } }] } });

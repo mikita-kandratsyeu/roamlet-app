@@ -17,12 +17,25 @@ Use Yarn Classic and the standard npm registry (`.yarnrc` configures it):
 
 ```sh
 yarn install --registry https://registry.npmjs.org
-cp .env.example .env.local
-# Set VITE_ORS_API_KEY in .env.local, then:
+cp proxy/.env.example proxy/.env
+# Set ORS_API_KEY in proxy/.env (never in the client)
+# Optional PUBLIC tile settings:
+cp client/.env.example client/.env.local
 yarn dev
 ```
 
-Obtain a browser-appropriate OpenRouteService API key through [HeiGIT Account](https://account.heigit.org/signup), currently linked from [openrouteservice.org](https://openrouteservice.org). Check your account's quotas and terms. Vite `VITE_*` variables are PUBLIC, embedded in the browser bundle; never use a private server secret. Restart Vite after editing the environment. Without a key, the map, local library, and GPX workflows work; online routing and search report a configuration error.
+Requires Node.js 22+ and Yarn Classic. Obtain an OpenRouteService API key through [HeiGIT Account](https://account.heigit.org/signup), currently linked from [openrouteservice.org](https://openrouteservice.org). Check your account's quotas and terms. Store `ORS_API_KEY` only in `proxy/.env` or the hosting platform's server secret settings. The browser receives route/search results, **never the provider key**. Restart the proxy after editing its environment. Without a key, the map, local library, and GPX still work; online routing/search show a server configuration error.
+
+`yarn dev` starts two workspace processes: Vite at `http://127.0.0.1:5173` and the proxy at `http://127.0.0.1:3001`. Vite forwards `/api` to the proxy; the client always uses same-origin relative URLs. Client public settings live in `client/.env.local`; old root `.env.local` and `VITE_ORS_API_KEY` are no longer used. Do not copy old keys into the client workspace. `.env` files in both workspaces are gitignored.
+
+### Production: one Node.js service
+
+```sh
+yarn build
+yarn start
+```
+
+The proxy serves `client/dist` and `/api` at `http://127.0.0.1:3001`. Configure `PROXY_HOST=0.0.0.0` on hosting platforms that require external binding, set `PROXY_PORT` as needed, and terminate HTTPS at a trusted ingress. No separate browser CORS setup is needed. `yarn preview` is an alias for this production server and requires an existing build. The production service needs the built client directory alongside the proxy. No database or account service is added.
 
 ```sh
 yarn typecheck
@@ -31,7 +44,7 @@ yarn test
 yarn build
 yarn preview
 # First browser test run only:
-yarn playwright install chromium
+yarn workspace @roamlet/client playwright install chromium
 yarn test:e2e
 yarn test:offline
 ```
@@ -52,8 +65,9 @@ yarn test:offline
 
 | Variable | Meaning |
 | --- | --- |
-| `VITE_ORS_API_KEY` | Public browser ORS key required for online directions and geocoding |
-| `VITE_ORS_URL` | ORS-compatible base URL; defaults to `https://api.openrouteservice.org` |
+| `ORS_API_KEY` | **Proxy only**: private ORS key for online directions/geocoding |
+| `ORS_URL` | **Proxy only**: trusted ORS-compatible upstream URL, default `https://api.openrouteservice.org` |
+| `PROXY_PORT` / `PROXY_HOST` | Proxy listening address, defaults `3001` / `127.0.0.1` |
 | `VITE_TILE_URL` | Raster tile template; default OSM public tiles are only a low-traffic development choice |
 | `VITE_TILE_ATTRIBUTION` | Tile provider's required attribution HTML, from trusted deployment configuration |
 | `VITE_TILE_MAX_ZOOM` | Native raster tile maximum zoom, default 19 |

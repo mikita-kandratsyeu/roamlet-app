@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, cleanup, within } from '@testing-li
 import App from './App';
 import { routeDb } from './domain/storage';
 const provider = vi.hoisted(() => ({ calculateRoute: vi.fn(), calculateAlternatives: vi.fn() }));
-vi.mock('./services/routing', () => ({ routingConfigured: true, routingProvider: provider, searchPlaces: vi.fn().mockResolvedValue([]) }));
+vi.mock('./services/routing', () => ({ checkRoutingConfiguration: vi.fn().mockResolvedValue(true), routingProvider: provider, searchPlaces: vi.fn().mockResolvedValue([]) }));
 vi.mock('./components/RouteMap', () => ({ RouteMap: ({ segments }: { segments: unknown[] }) => <div data-testid="map" data-segments={segments.length}>Map</div> }));
 const geometry = [[11.4, 47.26, 600], [11.405, 47.265, 630], [11.41, 47.27, 615]];
 beforeEach(async () => {

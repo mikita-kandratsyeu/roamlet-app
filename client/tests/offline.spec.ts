@@ -34,7 +34,7 @@ test('missing credentials show a clear failure, with no fake route', async ({ pa
     await page.getByRole('textbox', { name: 'Search places or coordinates' }).fill(value);
     await page.getByRole('button', { name: 'Search', exact: true }).click();
   }
-  await expect(page.getByRole('alert')).toContainText('VITE_ORS_API_KEY');
+  await expect(page.getByRole('alert')).toContainText('ORS_API_KEY');
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
 });
 test('waypoint-only GPX remains usable and cannot crash route conversion', async ({ page }) => {

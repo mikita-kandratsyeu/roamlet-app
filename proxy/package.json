@@ -1,0 +1,11 @@
+{
+  "name": "@roamlet/proxy",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=.env src/index.js",
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "test": "node --test"
+  }
+}

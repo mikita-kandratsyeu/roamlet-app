@@ -4,7 +4,7 @@ import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from
 import { importGpx, exportGpx, gpxFilename } from './domain/gpx';
 import { calculateStats } from './domain/stats';
 import { saveRoute } from './domain/storage';
-import { routingConfigured, routingProvider, searchPlaces, type Place } from './services/routing';
+import { checkRoutingConfiguration, routingProvider, searchPlaces, type Place } from './services/routing';
 import { RouteMap } from './components/RouteMap';
 import { Statistics, formatDistance, formatDuration } from './components/Statistics';
 import { Dialog } from './components/Dialog';
@@ -25,6 +25,8 @@ export default function App() {
   const [description, setDescription] = useState('');
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [routingConfigured, setRoutingConfigured] = useState<boolean | null>(null);
+  const [configurationUnavailable, setConfigurationUnavailable] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const [query, setQuery] = useState('');
@@ -60,6 +62,15 @@ export default function App() {
     }, 350);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [activity, waypoints, mode, planningMode]);
+  useEffect(() => {
+    const controller = new AbortController();
+    checkRoutingConfiguration(controller.signal).then(configured => {
+      if (!controller.signal.aborted) setRoutingConfigured(configured);
+    }).catch(() => {
+      if (!controller.signal.aborted) setConfigurationUnavailable(true);
+    });
+    return () => controller.abort();
+  }, []);
   useEffect(() => () => { request.current?.abort(); searchRequest.current?.abort(); }, []);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } };
@@ -204,7 +215,7 @@ export default function App() {
           </> : <div className="snapshot-notice"><Check size={18} /><div><strong>{result?.source === 'gpx' ? 'Original GPX geometry' : 'Saved route, ready to explore'}</strong><p>Save and export without changing any points.</p><button className="text-button" onClick={editSnapshot}><Pencil size={14} />Edit waypoints</button></div></div>}
           {busy && <p className="routing-status" role="status"><LoaderCircle size={16} className="spin" />Calculating a real {activity === 'cycling' ? 'cycling' : 'hiking'} route…</p>}
           {notice && <div className={`notice ${notice.error ? 'error' : 'success'}`} role={notice.error ? 'alert' : 'status'}><span>{notice.text}</span><button aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={16} /></button></div>}
-          {!routingConfigured && !notice?.error && <div className="configuration-note"><Info size={16} /><span>Connect an OpenRouteService key for routing and place search. Map, GPX, and saved routes work without it.</span><button className="text-button" onClick={() => setHelpOpen(true)}>Setup</button></div>}
+          {(routingConfigured === false || configurationUnavailable) && !notice?.error && <div className="configuration-note"><Info size={16} /><span>{configurationUnavailable ? 'The routing proxy is unreachable. Map, GPX, and saved routes still work.' : 'Online routing is not configured on the server. Map, GPX, and saved routes still work.'}</span><button className="text-button" onClick={() => setHelpOpen(true)}>Setup</button></div>}
           <Statistics route={result} />
           {!waypoints.length && !result && <div className="outdoor-note"><span>LESS SCROLLING. MORE STROLLING.</span><p>Start small. Take the scenic way.<br/>Make a route that feels like you.</p></div>}
         </div>
@@ -216,6 +227,6 @@ export default function App() {
     {libraryOpen && <Library onClose={() => setLibraryOpen(false)} onOpen={route => { setLibraryOpen(false); guard(() => openRoute(route)); }} />}
     {saveOpen && <Dialog title="Save your adventure" onClose={() => { if (!saving) setSaveOpen(false); }}><p className="muted">Keep it on this device. Give it a name you’ll remember.</p><form onSubmit={event => { event.preventDefault(); void doSave(); }}><label>Route name<input autoFocus required maxLength={120} value={name} placeholder="Sunday’s scenic escape" onChange={event => { setName(event.target.value); setDirty(true); }} /></label><label>Description <span className="muted">(optional)</span><textarea maxLength={2000} value={description} placeholder="A note for your future self…" onChange={event => { setDescription(event.target.value); setDirty(true); }} /></label>{notice?.error && <p role="alert" className="error-inline">{notice.text}</p>}<div className="button-row"><button className="secondary" type="button" disabled={saving} onClick={() => setSaveOpen(false)}>Cancel</button><button className="primary" disabled={saving || !name.trim()}>{saving ? 'Saving…' : 'Save to library'}</button></div></form></Dialog>}
     {confirmation && <Dialog title={confirmation.title} onClose={() => setConfirmation(null)}><p>{confirmation.text}</p><div className="button-row"><button className="secondary" onClick={() => setConfirmation(null)}>Cancel</button><button className="primary" onClick={() => { const action = confirmation.action; setConfirmation(null); action(); }}>{confirmation.label}</button></div></Dialog>}
-    {helpOpen && <Dialog title="A few helpful things" onClose={() => setHelpOpen(false)}><div className="help-content"><h3>Connect routing & search</h3><p>Create a key at <a href="https://account.heigit.org/signup" target="_blank" rel="noreferrer">HeiGIT / OpenRouteService</a>. Set <code>VITE_ORS_API_KEY</code> in your local environment and restart the app. Browser keys are public; do not use private credentials.</p><h3>Your route, your device</h3><p>Routes stay in your browser’s IndexedDB. No account or backend is needed. Export GPX backups before clearing browser data.</p><h3>Take it with you</h3><p>Export a GPX, then use the file-import feature supported by your GPS device or app. Check the official Strava or Komoot help for GPX import availability. There is no direct publishing integration.</p><h3>Real data, honest limits</h3><p>Cycling uses ORS general cycling, not a dedicated gravel profile. Hiking uses foot-hiking. Access and surface quality depend on mapped data; always check conditions. Time and terrain elevations are estimates. Loops use ORS round-trip requests and may differ from the target distance.</p><h3>Data & attribution</h3><p>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> (ODbL). Default OSM tiles are for low-traffic development; use a suitable hosted provider for production. No map tiles are downloaded for offline use. Routing & place search © <a href="https://openrouteservice.org" target="_blank" rel="noreferrer">OpenRouteService / HeiGIT</a>, with OSM data.</p><p className="fine-print">Online services receive the places you search and the route points you submit. The app does not send your local route library to a server. The saved library and GPX work offline after the app shell has been cached in a production build.</p></div></Dialog>}
+    {helpOpen && <Dialog title="A few helpful things" onClose={() => setHelpOpen(false)}><div className="help-content"><h3>Connect routing & search</h3><p>For deployment administrators: create a key at <a href="https://account.heigit.org/signup" target="_blank" rel="noreferrer">HeiGIT / OpenRouteService</a>. Set <code>ORS_API_KEY</code> in the proxy’s server environment and restart the proxy. The browser never receives this key; it submits routing requests through the same-origin API.</p><h3>Your route, your device</h3><p>Routes stay in your browser’s IndexedDB. No account or backend is needed. Export GPX backups before clearing browser data.</p><h3>Take it with you</h3><p>Export a GPX, then use the file-import feature supported by your GPS device or app. Check the official Strava or Komoot help for GPX import availability. There is no direct publishing integration.</p><h3>Real data, honest limits</h3><p>Cycling uses ORS general cycling, not a dedicated gravel profile. Hiking uses foot-hiking. Access and surface quality depend on mapped data; always check conditions. Time and terrain elevations are estimates. Loops use ORS round-trip requests and may differ from the target distance.</p><h3>Data & attribution</h3><p>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a> (ODbL). Default OSM tiles are for low-traffic development; use a suitable hosted provider for production. No map tiles are downloaded for offline use. Routing & place search © <a href="https://openrouteservice.org" target="_blank" rel="noreferrer">OpenRouteService / HeiGIT</a>, with OSM data.</p><p className="fine-print">The proxy forwards the places you search and route points you submit to the routing provider. Your saved local library is not uploaded. Private provider credentials stay on the server. The saved library and GPX work offline after the app shell has been cached in a production build.</p></div></Dialog>}
   </div>;
 }
