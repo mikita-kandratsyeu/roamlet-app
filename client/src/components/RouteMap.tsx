@@ -62,6 +62,7 @@ export function RouteMap(props: Props) {
   const { resolvedTheme } = useTheme();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const locationMarker = useRef<maplibregl.Marker | null>(null);
   const latest = useRef(props);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -253,6 +254,8 @@ export function RouteMap(props: Props) {
       window.removeEventListener('pagehide', persistOnHide);
       observer.disconnect();
       if (moved) persistView();
+      locationMarker.current?.remove();
+      locationMarker.current = null;
       instance.remove();
       map.current = null;
     };
@@ -338,14 +341,28 @@ export function RouteMap(props: Props) {
       );
       return;
     }
+    const instance = map.current;
+    if (!instance) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (map.current !== instance) return;
         setLocating(false);
         const coordinate: Coordinate = [position.coords.longitude, position.coords.latitude];
-        map.current?.flyTo({ center: coordinate, zoom: 14, duration: mapMotionDuration() });
+        if (!locationMarker.current) {
+          const element = document.createElement('div');
+          element.className = 'user-location-marker';
+          locationMarker.current = new maplibregl.Marker({ element });
+        }
+        locationMarker.current.setLngLat(coordinate).addTo(instance);
+        instance.flyTo({
+          center: coordinate,
+          zoom: Math.max(instance.getZoom(), 14),
+          duration: mapMotionDuration(),
+        });
       },
       () => {
+        if (map.current !== instance) return;
         setLocating(false);
         props.onError(
           'Location permission was denied or your position is unavailable. Enter coordinates or click the map instead.',

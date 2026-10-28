@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   options: vi.fn(),
   handlers: new Map<string, (event?: { lngLat: { lng: number; lat: number } }) => void>(),
   markerOptions: vi.fn(),
+  markerPosition: vi.fn(),
+  zoom: 10,
   markerDrag: [] as (() => void)[],
   markerRemove: vi.fn(),
   data: vi.fn(),
@@ -42,7 +44,7 @@ vi.mock('maplibre-gl', () => ({
         return { wrap: () => ({ lng: 12, lat: 48 }) };
       }
       getZoom() {
-        return 10;
+        return mocks.zoom;
       }
       getBearing() {
         return 20;
@@ -62,7 +64,8 @@ vi.mock('maplibre-gl', () => ({
       constructor(options: unknown) {
         mocks.markerOptions(options);
       }
-      setLngLat() {
+      setLngLat(coordinate: unknown) {
+        mocks.markerPosition(coordinate);
         return this;
       }
       addTo() {
@@ -113,6 +116,7 @@ beforeEach(() => {
   vi.stubEnv('VITE_MAP_STYLE', '');
   vi.clearAllMocks();
   mocks.theme = 'light';
+  mocks.zoom = 10;
   mocks.handlers.clear();
   mocks.markerDrag.length = 0;
   vi.stubGlobal(
@@ -384,7 +388,52 @@ it.each([true, false])('location recenters without adding a stop (editable: %s)'
   act(() => mocks.handlers.get('load')!());
   fireEvent.click(screen.getByRole('button', { name: 'Use my location' }));
   expect(mocks.fly).toHaveBeenCalledWith(expect.objectContaining({ center: [13, 49], zoom: 14 }));
+  expect(mocks.markerOptions).toHaveBeenCalledWith({
+    element: expect.objectContaining({ className: 'user-location-marker' }),
+  });
+  expect(mocks.markerPosition).toHaveBeenLastCalledWith([13, 49]);
   expect(props.onAdd).not.toHaveBeenCalled();
+});
+
+it('updates a single location dot, preserves closer zoom and removes the dot on unmount', () => {
+  let success: PositionCallback = () => {};
+  vi.stubGlobal('navigator', {
+    geolocation: {
+      getCurrentPosition: (callback: PositionCallback) => { success = callback; },
+    },
+  });
+  mocks.zoom = 16;
+  const { unmount } = render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')!());
+  const button = screen.getByRole('button', { name: 'Use my location' });
+  fireEvent.click(button);
+  expect(button).toBeDisabled();
+  act(() => success({ coords: { longitude: 13, latitude: 49 } } as GeolocationPosition));
+  fireEvent.click(button);
+  act(() => success({ coords: { longitude: 14, latitude: 50 } } as GeolocationPosition));
+  expect(mocks.markerOptions).toHaveBeenCalledOnce();
+  expect(mocks.markerPosition).toHaveBeenLastCalledWith([14, 50]);
+  expect(mocks.fly).toHaveBeenLastCalledWith(expect.objectContaining({ center: [14, 50], zoom: 16 }));
+  expect(props.onAdd).not.toHaveBeenCalled();
+  expect(props.onMove).not.toHaveBeenCalled();
+  unmount();
+  expect(mocks.markerRemove).toHaveBeenCalledOnce();
+});
+
+it('ignores a location response after the map is unmounted', () => {
+  let success: PositionCallback = () => {};
+  vi.stubGlobal('navigator', {
+    geolocation: {
+      getCurrentPosition: (callback: PositionCallback) => { success = callback; },
+    },
+  });
+  const { unmount } = render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')!());
+  fireEvent.click(screen.getByRole('button', { name: 'Use my location' }));
+  unmount();
+  act(() => success({ coords: { longitude: 13, latitude: 49 } } as GeolocationPosition));
+  expect(mocks.markerOptions).not.toHaveBeenCalled();
+  expect(mocks.fly).not.toHaveBeenCalled();
 });
 
 it('switches map controls and existing warnings without recreating or refitting the map', async () => {

@@ -35,6 +35,7 @@ test('production shell keeps saved routes and GPX export available offline, with
 }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
   await expect(page.locator('.maplibregl-canvas')).toHaveCount(1);
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
@@ -90,6 +91,7 @@ test('production shell keeps saved routes and GPX export available offline, with
 test('missing routing token keeps the map usable but never substitutes a fake route', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
   await expect(page.locator('.maplibregl-canvas')).toHaveCount(1);
   await expect(page.getByRole('region', { name: 'Interactive route map' }).getByRole('status')).toHaveCount(0);
   for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {

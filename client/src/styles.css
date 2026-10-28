@@ -1073,6 +1073,15 @@ textarea::placeholder {
 .maplibregl-ctrl-attrib a {
   color: var(--foreground);
 }
+.user-location-marker {
+  width: 18px;
+  height: 18px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #2684ff;
+  box-shadow: 0 0 0 7px #2684ff30, 0 1px 6px #00000040;
+  pointer-events: none;
+}
 .waypoint-marker {
   display: grid;
   place-items: center;

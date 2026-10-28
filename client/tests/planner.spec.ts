@@ -61,6 +61,8 @@ test.beforeEach(async ({ page }) => {
   // Fixtures are confined to browser tests. Production never substitutes geometry.
   await page.route('**/directions/v5/mapbox/**', (route) => route.fulfill({ json: fixture }));
   await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
 test('global map loader covers the viewport and releases controls after loading', async ({
   page,
@@ -100,7 +102,6 @@ test('global map loader covers the viewport and releases controls after loading'
     release();
   }
 });
-
 test('creates, recalculates, saves, reloads, reopens and exports actual returned points', async ({
   page,
 }) => {
