@@ -37,6 +37,8 @@ import {
   MapPin,
   Route as RouteIcon,
   Navigation,
+  GripVertical,
+  Library as LibraryIcon,
 } from 'lucide-react';
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
 import { importGpx, exportGpx, gpxFilename } from './domain/gpx';
@@ -90,6 +92,8 @@ export default function App() {
   const [description, setDescription] = useState('');
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [routeRevision, setRouteRevision] = useState(0);
+  const [draggedStop, setDraggedStop] = useState<string | null>(null);
   const [routingConfigured, setRoutingConfigured] = useState<boolean | null>(null);
   const [configurationUnavailable, setConfigurationUnavailable] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -151,7 +155,7 @@ export default function App() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [activity, waypoints, mode, planningMode]);
+  }, [activity, waypoints, mode, planningMode, routeRevision]);
   useEffect(() => {
     const controller = new AbortController();
     checkRoutingConfiguration(controller.signal)
@@ -209,9 +213,19 @@ export default function App() {
       fail('A route supports up to 25 stops. Remove a stop before adding another.');
       return;
     }
+    searchRequest.current?.abort();
+    setSearching(false);
     setPlaces([]);
     setQuery('');
     setSearchTarget(null);
+  }
+  function reorderStop(fromId: string, toId: string) {
+    const from = waypoints.findIndex((point) => point.id === fromId);
+    const to = waypoints.findIndex((point) => point.id === toId);
+    if (from < 0 || to < 0 || from === to) return;
+    const next = [...waypoints];
+    next.splice(to, 0, next.splice(from, 1)[0]);
+    changeWaypoints(next);
   }
   function guard(action: () => void) {
     if (dirty)
@@ -512,8 +526,16 @@ export default function App() {
           </span>
           <strong className="brand-wordmark">Roamlet</strong>
         </a>
-        <span className="brand-tagline">{t('A little planning. A lot of possibility.')}</span>
         <nav aria-label={t('Main navigation')}>
+          <Button
+            variant="ghost"
+            className="header-library"
+            onClick={() => setLibraryOpen(true)}
+            aria-label={t('My routes')}
+          >
+            <LibraryIcon size={18} aria-hidden="true" />
+            <span>{t('My routes')}</span>
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -569,12 +591,11 @@ export default function App() {
           <div className="planner-scroll">
             <div className="planner-heading">
               <div>
+                <h1>{name || t('Where shall we go?')}</h1>
                 <div className="planner-kicker">
-                  <p className="eyebrow">{t('MAKE TIME FOR OUTSIDE')}</p>
+                  <p className="muted">{t('Choose an activity, then add your stops.')}</p>
                   {dirty && <Badge variant="secondary">{t('Unsaved changes')}</Badge>}
                 </div>
-                <h1>{name || t('Where shall we go?')}</h1>
-                <p className="muted">{t('Find your own way, one stop at a time.')}</p>
               </div>
               <div className="planner-heading-actions">
                 {canUseRoute && (
@@ -631,9 +652,19 @@ export default function App() {
                   aria-label={t('Route style')}
                   onValueChange={(value) => {
                     if ((value === 'point' || value === 'loop') && value !== planningMode) {
-                      invalidate();
-                      setPlanningMode(value);
-                      if (value === 'loop') setWaypoints(waypoints.slice(0, 1));
+                      const changeMode = () => {
+                        invalidate();
+                        setPlanningMode(value);
+                        if (value === 'loop') setWaypoints(waypoints.slice(0, 1));
+                      };
+                      if (value === 'loop' && waypoints.length > 1)
+                        setConfirmation({
+                          title: 'Switch to a round trip?',
+                          text: 'Only your starting point will be kept. Save or export the current route first to keep it.',
+                          label: 'Switch to round trip',
+                          action: changeMode,
+                        });
+                      else changeMode();
                     }
                   }}
                 >
@@ -656,6 +687,8 @@ export default function App() {
                     aria-label={t('Search places or coordinates')}
                     value={query}
                     onChange={(event) => {
+                      searchRequest.current?.abort();
+                      setSearching(false);
                       setQuery(event.target.value);
                       setPlaces([]);
                     }}
@@ -693,7 +726,7 @@ export default function App() {
                   </Button>
                 )}
                 {places.length > 0 && (
-                  <ul className="search-results">
+                  <ul className="search-results" aria-label={t('Search results')}>
                     {places.map((place, index) => (
                       <li key={index}>
                         <Button
@@ -760,8 +793,37 @@ export default function App() {
                 ) : (
                   <ol className="waypoint-list">
                     {waypoints.map((point, index) => (
-                      <li key={point.id}>
+                      <li
+                        key={point.id}
+                        className={draggedStop === point.id ? 'dragging' : ''}
+                        onDragOver={(event) => {
+                          if (draggedStop && planningMode === 'point') event.preventDefault();
+                        }}
+                        onDrop={(event) => {
+                          if (!draggedStop) return;
+                          event.preventDefault();
+                          event.stopPropagation();
+                          reorderStop(draggedStop, point.id);
+                          setDraggedStop(null);
+                        }}
+                      >
                         <Card className="waypoint-card">
+                          {planningMode === 'point' && (
+                            <span
+                              className="stop-grip"
+                              draggable
+                              aria-hidden="true"
+                              title={t('Drag to reorder stops')}
+                              onDragStart={(event) => {
+                                event.dataTransfer.setData('text/plain', point.id);
+                                event.dataTransfer.effectAllowed = 'move';
+                                setDraggedStop(point.id);
+                              }}
+                              onDragEnd={() => setDraggedStop(null)}
+                            >
+                              <GripVertical size={14} />
+                            </span>
+                          )}
                           <Badge
                             className={`stop-badge ${waypointKind(index, waypoints.length)}`}
                             aria-hidden="true"
@@ -839,7 +901,7 @@ export default function App() {
                     ))}
                   </ol>
                 )}
-                {planningMode === 'point' && (
+                {planningMode === 'point' && waypoints.length > 0 && (
                   <Button
                     variant="ghost"
                     className="add-stop"
@@ -852,6 +914,25 @@ export default function App() {
                     {t('Add a stop')}
                     <span>{t('or click the map')}</span>
                   </Button>
+                )}
+                {planningMode === 'point' && (
+                  <div className="calculate-action">
+                    <Button
+                      className="primary full-width"
+                      disabled={busy || waypoints.length < 2}
+                      onClick={() => setRouteRevision((revision) => revision + 1)}
+                    >
+                      {busy ? <LoaderCircle size={17} className="spin" /> : <RouteIcon size={17} />}
+                      {busy
+                        ? t('Calculating route…')
+                        : result
+                          ? t('Update route')
+                          : t('Calculate route')}
+                    </Button>
+                    <p className="fine-print">
+                      {t('Routes update automatically as you edit stops.')}
+                    </p>
+                  </div>
                 )}
                 {planningMode === 'loop' && (
                   <div className="loop-planner">
@@ -968,7 +1049,14 @@ export default function App() {
                 </Button>
               </div>
             )}
-            <Statistics route={result} />
+            <Statistics
+              route={result}
+              emptyHint={
+                planningMode === 'loop'
+                  ? t('Choose a start and find round trips to see route details.')
+                  : undefined
+              }
+            />
           </div>
           <footer className="planner-footer">
             <div className="route-actions">

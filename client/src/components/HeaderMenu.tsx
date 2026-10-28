@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Globe, Info, Library, Monitor, Moon, Plus, Sun } from 'lucide-react';
+import { Menu, Globe, Info, Library, Monitor, Moon, Plus, Sun } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -130,7 +130,7 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
               } else initialFocus.current = 'first';
             }}
           >
-            <ChevronDown size={19} aria-hidden="true" />
+            <Menu size={19} aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent

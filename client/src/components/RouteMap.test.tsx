@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   paint: vi.fn(),
   zoomIn: vi.fn(),
   zoomOut: vi.fn(),
+  setStyle: vi.fn(),
   theme: 'light',
 }));
 vi.mock('../theme', () => ({ useTheme: () => ({ resolvedTheme: mocks.theme }) }));
@@ -53,6 +54,7 @@ vi.mock('mapbox-gl', () => ({
       setPaintProperty = mocks.paint;
       zoomIn = mocks.zoomIn;
       zoomOut = mocks.zoomOut;
+      setStyle = mocks.setStyle;
     },
     Marker: class {
       constructor(options: unknown) {
@@ -125,6 +127,34 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
+it('changes supported styles and restores actual geometry without resetting the camera', () => {
+  const segments: [number, number][][] = [
+    [
+      [11, 47],
+      [12, 48],
+    ],
+  ];
+  render(<RouteMap {...props} segments={segments} />);
+  act(() => mocks.handlers.get('load')?.());
+  const fitCalls = mocks.fit.mock.calls.length;
+  fireEvent.change(screen.getByRole('combobox', { name: 'Map style' }), {
+    target: { value: 'mapbox://styles/mapbox/satellite-streets-v12' },
+  });
+  expect(mocks.setStyle).toHaveBeenCalledWith('mapbox://styles/mapbox/satellite-streets-v12');
+  expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
+  act(() => mocks.handlers.get('style.load')?.());
+  expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+  expect(mocks.data).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      features: [
+        expect.objectContaining({ geometry: { type: 'LineString', coordinates: segments[0] } }),
+      ],
+    }),
+  );
+  expect(mocks.fit).toHaveBeenCalledTimes(fitCalls);
+  expect(mocks.options).toHaveBeenCalledTimes(1);
+});
+
 it('uses the configured Mapbox style, official logo and source attribution control', () => {
   vi.stubEnv('VITE_MAPBOX_STYLE', '/test-style.json');
   render(<RouteMap {...props} />);

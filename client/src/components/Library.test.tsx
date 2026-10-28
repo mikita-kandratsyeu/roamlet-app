@@ -56,6 +56,16 @@ it('loads with search focus, route count, activity and distance, and reopens the
   expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
   expect(screen.getByRole('status')).toHaveTextContent('Saved routes 2');
   expect(routeNames()[0]).toContain('Woodland walk');
+  const savedRoutes = screen.getByRole('list', { name: 'Saved routes' });
+  expect(within(savedRoutes).getAllByRole('listitem')).toHaveLength(2);
+  expect(within(savedRoutes).getByRole('button', { name: 'Edit Alpine loop' })).toBeVisible();
+  expect(
+    screen.getByText(
+      i18next.t(
+        'Your browser stores these routes in IndexedDB. Export important routes as GPX before clearing browser data.',
+      ),
+    ),
+  ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: /Alpine loop Cycling.*8\.0 km/ }));
   expect(onOpen).toHaveBeenCalledWith(alpine);
   expect(screen.getByRole('dialog')).toHaveAccessibleDescription(
@@ -166,6 +176,19 @@ it('edits trimmed details, exposes busy state and returns focus to the edit acti
     expect(screen.queryByRole('textbox', { name: 'Route name' })).not.toBeInTheDocument(),
   );
   await waitFor(() => expect(trigger).toHaveFocus());
+});
+
+it('does not save a blank route name and keeps the labeled editor available', async () => {
+  await openLibrary();
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Alpine loop' }));
+  const editor = screen.getByRole('form', { name: 'Edit route details' });
+  fireEvent.change(within(editor).getByRole('textbox', { name: 'Route name' }), {
+    target: { value: '   ' },
+  });
+  expect(within(editor).getByRole('button', { name: 'Save changes' })).toBeDisabled();
+  fireEvent.submit(editor);
+  expect(saveRoute).not.toHaveBeenCalled();
+  expect(editor).toBeVisible();
 });
 
 it('cancels editing without saving and restores the initiating action focus', async () => {

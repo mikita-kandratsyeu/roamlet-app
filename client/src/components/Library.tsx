@@ -2,7 +2,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
-import { Card } from './ui/card';
+import './Library.css';
 import { Skeleton } from './ui/skeleton';
 import {
   DropdownMenu,
@@ -23,6 +23,7 @@ import {
   FolderHeart,
   ArrowUpDown,
   ChevronDown,
+  ChevronRight,
   LoaderCircle,
   Save,
   HardDrive,
@@ -158,303 +159,307 @@ export function Library({
       initialFocusRef={searchInput}
       wide
     >
-      <div className="library-toolbar">
-        <Label className="library-search">
-          <Search size={18} aria-hidden="true" />
-          <Input
-            ref={searchInput}
-            aria-label={t('Search saved routes')}
-            placeholder={t('Find a saved route…')}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </Label>
-        {routes.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="library-sort"
-                disabled={loading || !routes.length || busy}
-                aria-label={t('Sort routes: {{sort}}', { sort: t(sortLabels[sort]) })}
-              >
-                <ArrowUpDown size={16} aria-hidden="true" />
-                {t(sortLabels[sort])}
-                <ChevronDown size={14} aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="library-sort-menu">
-              <DropdownMenuRadioGroup
-                value={sort}
-                onValueChange={(value) => setSort(value as RouteSort)}
-              >
-                {(Object.keys(sortLabels) as RouteSort[]).map((value) => (
-                  <DropdownMenuRadioItem key={value} value={value}>
-                    {t(sortLabels[value])}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-      {!loading && !loadFailed && (
-        <div className="library-summary" role="status">
-          <span>
-            {t('Saved routes')} <strong>{routes.length}</strong>
-          </span>
-          {query.trim() && (
-            <span>{t('{{count}} matching routes', { count: filtered.length })}</span>
+      <div className="route-library">
+        <div className="library-toolbar">
+          <Label className="library-search">
+            <Search size={18} aria-hidden="true" />
+            <Input
+              ref={searchInput}
+              aria-label={t('Search saved routes')}
+              placeholder={t('Find a saved route…')}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </Label>
+          {routes.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="library-sort"
+                  disabled={loading || !routes.length || busy}
+                  aria-label={t('Sort routes: {{sort}}', { sort: t(sortLabels[sort]) })}
+                >
+                  <ArrowUpDown size={16} aria-hidden="true" />
+                  {t(sortLabels[sort])}
+                  <ChevronDown size={14} aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="library-sort-menu">
+                <DropdownMenuRadioGroup
+                  value={sort}
+                  onValueChange={(value) => setSort(value as RouteSort)}
+                >
+                  {(Object.keys(sortLabels) as RouteSort[]).map((value) => (
+                    <DropdownMenuRadioItem key={value} value={value}>
+                      {t(sortLabels[value])}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
-      )}
-      {busy && (
-        <p className="library-progress" role="status">
-          <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-          {t('Updating your library…')}
-        </p>
-      )}
-      {error && (
-        <p className="error-inline" role="alert">
-          {translateMessage(error)}
-        </p>
-      )}
-      {loading ? (
-        <div role="status" aria-label={t('Opening your library…')} className="library-loading">
-          {[0, 1, 2].map((index) => (
-            <Skeleton key={index} className="h-20 w-full rounded-xl" />
-          ))}
-        </div>
-      ) : loadFailed ? (
-        <div className="library-empty library-load-error">
-          <FolderHeart size={34} aria-hidden="true" />
-          <h3>{t('Your library could not be loaded.')}</h3>
-          <Button variant="outline" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
-            {t('Try again')}
-          </Button>
-        </div>
-      ) : !routes.length ? (
-        <div className="library-empty">
-          <FolderHeart size={34} aria-hidden="true" />
-          <h3>{t('Your next adventure belongs here')}</h3>
-          <p>{t('Plan a route or import a GPX, then save it for later.')}</p>
-        </div>
-      ) : !filtered.length ? (
-        <div className="library-empty library-no-match">
-          <Search size={30} aria-hidden="true" />
-          <h3>{t('No routes match your search.')}</h3>
-          <p>{t('Try another name or a word from the description.')}</p>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setQuery('');
-              searchInput.current?.focus();
+        {!loading && !loadFailed && (
+          <div className="library-summary" role="status">
+            <span className="library-collection-label">
+              <FolderHeart size={16} aria-hidden="true" />
+              {t('Saved routes')} <strong>{routes.length}</strong>
+            </span>
+            {query.trim() && (
+              <span>{t('{{count}} matching routes', { count: filtered.length })}</span>
+            )}
+          </div>
+        )}
+        {busy && (
+          <p className="library-progress" role="status">
+            <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+            {t('Updating your library…')}
+          </p>
+        )}
+        {error && (
+          <p className="error-inline" role="alert">
+            {translateMessage(error)}
+          </p>
+        )}
+        {loading ? (
+          <div role="status" aria-label={t('Opening your library…')} className="library-loading">
+            {[0, 1, 2].map((index) => (
+              <Skeleton key={index} className="h-20 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : loadFailed ? (
+          <div className="library-empty library-load-error">
+            <FolderHeart size={34} aria-hidden="true" />
+            <h3>{t('Your library could not be loaded.')}</h3>
+            <Button variant="outline" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+              {t('Try again')}
+            </Button>
+          </div>
+        ) : !routes.length ? (
+          <div className="library-empty">
+            <FolderHeart size={34} aria-hidden="true" />
+            <h3>{t('Your next adventure belongs here')}</h3>
+            <p>{t('Plan a route or import a GPX, then save it for later.')}</p>
+          </div>
+        ) : !filtered.length ? (
+          <div className="library-empty library-no-match">
+            <Search size={30} aria-hidden="true" />
+            <h3>{t('No routes match your search.')}</h3>
+            <p>{t('Try another name or a word from the description.')}</p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setQuery('');
+                searchInput.current?.focus();
+              }}
+            >
+              {t('Clear search')}
+            </Button>
+          </div>
+        ) : (
+          <ul className="library-list" aria-label={t('Saved routes')} aria-busy={busy}>
+            {filtered.map((route) => (
+              <li className="library-route" key={route.id}>
+                <span className="library-activity-icon">
+                  {route.activity === 'cycling' ? (
+                    <Bike size={22} aria-hidden="true" />
+                  ) : (
+                    <Footprints size={22} aria-hidden="true" />
+                  )}
+                </span>
+                <Button
+                  variant="ghost"
+                  className="library-open"
+                  disabled={busy}
+                  onClick={() => onOpen(route)}
+                >
+                  <strong>{route.name}</strong>
+                  <span className="library-route-meta">
+                    <span className="library-activity">
+                      {route.activity === 'cycling' ? t('Cycling') : t('Hiking')}
+                    </span>
+                    <span aria-hidden="true"> · </span>
+                    <span className="library-distance">{formatDistance(route.stats.distance)}</span>
+                  </span>
+                  <span className="library-updated">
+                    {t('· Updated')} {new Date(route.updatedAt).toLocaleDateString(locale())}
+                  </span>
+                  {route.description && (
+                    <span className="route-description">{route.description}</span>
+                  )}
+                  <ChevronRight size={16} className="library-open-chevron" aria-hidden="true" />
+                </Button>
+                <div className="library-actions">
+                  <Button
+                    variant="ghost"
+                    className="icon-button"
+                    disabled={busy}
+                    aria-label={t('Edit {{name}}', { name: route.name })}
+                    onClick={(event) => {
+                      actionTrigger.current = event.currentTarget;
+                      restoreFocus.current = false;
+                      setEditing(route);
+                      setDeleting(null);
+                      setName(route.name);
+                      setDescription(route.description);
+                    }}
+                  >
+                    <Pencil size={16} aria-hidden="true" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="icon-button"
+                    disabled={busy}
+                    aria-label={t('Duplicate {{name}}', { name: route.name })}
+                    onClick={(event) => {
+                      actionTrigger.current = event.currentTarget;
+                      void mutate(() => duplicateRoute(route), `duplicate:${route.id}`);
+                    }}
+                  >
+                    {pendingAction === `duplicate:${route.id}` ? (
+                      <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Copy size={16} aria-hidden="true" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="icon-button"
+                    disabled={busy}
+                    aria-label={t('Delete {{name}}', { name: route.name })}
+                    title={t('Delete {{name}}', { name: route.name })}
+                    data-destructive="true"
+                    onClick={(event) => {
+                      actionTrigger.current = event.currentTarget;
+                      restoreFocus.current = false;
+                      setDeleting(route);
+                      setEditing(null);
+                    }}
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {editing && (
+          <form
+            className="library-edit"
+            aria-labelledby={editTitleId}
+            aria-busy={busy}
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (name.trim())
+                void mutate(
+                  () =>
+                    saveRoute({
+                      ...editing,
+                      name: name.trim(),
+                      description: description.trim(),
+                      updatedAt: new Date().toISOString(),
+                    }),
+                  'save',
+                );
             }}
           >
-            {t('Clear search')}
-          </Button>
-        </div>
-      ) : (
-        <div className="library-list" aria-busy={busy}>
-          {filtered.map((route) => (
-            <Card className="library-route" key={route.id}>
-              <span className="activity-icon">
-                {route.activity === 'cycling' ? (
-                  <Bike size={22} aria-hidden="true" />
-                ) : (
-                  <Footprints size={22} aria-hidden="true" />
-                )}
-              </span>
+            <div className="library-detail-heading">
+              <Pencil size={18} aria-hidden="true" />
+              <h3 id={editTitleId}>{t('Edit route details')}</h3>
+            </div>
+            <p className="library-detail-context">{editing.name}</p>
+            <Label>
+              {t('Route name')}
+              <Input
+                ref={editInput}
+                disabled={busy}
+                required
+                maxLength={120}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </Label>
+            <Label>
+              {t('Description')}
+              <Textarea
+                disabled={busy}
+                maxLength={2000}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </Label>
+            <div className="button-row">
               <Button
                 variant="ghost"
-                className="library-open"
+                type="button"
+                className="secondary"
                 disabled={busy}
-                onClick={() => onOpen(route)}
+                onClick={closeDetails}
               >
-                <strong>{route.name}</strong>
-                <span className="library-route-meta">
-                  <span className="library-activity">
-                    {route.activity === 'cycling' ? t('Cycling') : t('Hiking')}
-                  </span>
-                  <span aria-hidden="true"> · </span>
-                  <span className="library-distance">{formatDistance(route.stats.distance)}</span>
-                </span>
-                <span className="library-updated">
-                  {t('· Updated')} {new Date(route.updatedAt).toLocaleDateString(locale())}
-                </span>
-                {route.description && (
-                  <span className="route-description">{route.description}</span>
-                )}
+                {t('Cancel')}
               </Button>
-              <div className="library-actions">
-                <Button
-                  variant="ghost"
-                  className="icon-button"
-                  disabled={busy}
-                  aria-label={t('Edit {{name}}', { name: route.name })}
-                  onClick={(event) => {
-                    actionTrigger.current = event.currentTarget;
-                    restoreFocus.current = false;
-                    setEditing(route);
-                    setDeleting(null);
-                    setName(route.name);
-                    setDescription(route.description);
-                  }}
-                >
-                  <Pencil size={16} aria-hidden="true" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="icon-button"
-                  disabled={busy}
-                  aria-label={t('Duplicate {{name}}', { name: route.name })}
-                  onClick={(event) => {
-                    actionTrigger.current = event.currentTarget;
-                    void mutate(() => duplicateRoute(route), `duplicate:${route.id}`);
-                  }}
-                >
-                  {pendingAction === `duplicate:${route.id}` ? (
-                    <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Copy size={16} aria-hidden="true" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="icon-button"
-                  disabled={busy}
-                  aria-label={t('Delete {{name}}', { name: route.name })}
-                  title={t('Delete {{name}}', { name: route.name })}
-                  data-destructive="true"
-                  onClick={(event) => {
-                    actionTrigger.current = event.currentTarget;
-                    restoreFocus.current = false;
-                    setDeleting(route);
-                    setEditing(null);
-                  }}
-                >
+              <Button type="submit" className="primary" disabled={busy || !name.trim()}>
+                {pendingAction === 'save' ? (
+                  <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+                ) : (
+                  <Save size={16} aria-hidden="true" />
+                )}
+                {t('Save changes')}
+              </Button>
+            </div>
+          </form>
+        )}
+        {deleting && (
+          <section
+            className="delete-confirm"
+            role="alert"
+            aria-labelledby={deleteTitleId}
+            aria-busy={busy}
+          >
+            <div className="library-detail-heading">
+              <Trash2 size={18} aria-hidden="true" />
+              <h3 id={deleteTitleId}>{t('Delete route')}</h3>
+            </div>
+            <p>
+              {t('Delete')} <strong>{deleting.name}</strong>{' '}
+              {t('from this device? This cannot be undone.')}
+            </p>
+            <div className="button-row">
+              <Button
+                variant="ghost"
+                ref={keepButton}
+                className="secondary"
+                disabled={busy}
+                onClick={closeDetails}
+              >
+                {t('Keep route')}
+              </Button>
+              <Button
+                variant="destructive"
+                className="danger"
+                disabled={busy}
+                onClick={() => void mutate(() => deleteRoute(deleting.id), 'delete')}
+              >
+                {pendingAction === 'delete' ? (
+                  <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+                ) : (
                   <Trash2 size={16} aria-hidden="true" />
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-      {editing && (
-        <form
-          className="library-edit"
-          aria-labelledby={editTitleId}
-          aria-busy={busy}
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (name.trim())
-              void mutate(
-                () =>
-                  saveRoute({
-                    ...editing,
-                    name: name.trim(),
-                    description: description.trim(),
-                    updatedAt: new Date().toISOString(),
-                  }),
-                'save',
-              );
-          }}
-        >
-          <div className="library-detail-heading">
-            <Pencil size={18} aria-hidden="true" />
-            <h3 id={editTitleId}>{t('Edit route details')}</h3>
-          </div>
-          <p className="library-detail-context">{editing.name}</p>
-          <Label>
-            {t('Route name')}
-            <Input
-              ref={editInput}
-              disabled={busy}
-              required
-              maxLength={120}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </Label>
-          <Label>
-            {t('Description')}
-            <Textarea
-              disabled={busy}
-              maxLength={2000}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </Label>
-          <div className="button-row">
-            <Button
-              variant="ghost"
-              type="button"
-              className="secondary"
-              disabled={busy}
-              onClick={closeDetails}
-            >
-              {t('Cancel')}
-            </Button>
-            <Button type="submit" className="primary" disabled={busy || !name.trim()}>
-              {pendingAction === 'save' ? (
-                <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-              ) : (
-                <Save size={16} aria-hidden="true" />
-              )}
-              {t('Save changes')}
-            </Button>
-          </div>
-        </form>
-      )}
-      {deleting && (
-        <section
-          className="delete-confirm"
-          role="alert"
-          aria-labelledby={deleteTitleId}
-          aria-busy={busy}
-        >
-          <div className="library-detail-heading">
-            <Trash2 size={18} aria-hidden="true" />
-            <h3 id={deleteTitleId}>{t('Delete route')}</h3>
-          </div>
-          <p>
-            {t('Delete')} <strong>{deleting.name}</strong>{' '}
-            {t('from this device? This cannot be undone.')}
-          </p>
-          <div className="button-row">
-            <Button
-              variant="ghost"
-              ref={keepButton}
-              className="secondary"
-              disabled={busy}
-              onClick={closeDetails}
-            >
-              {t('Keep route')}
-            </Button>
-            <Button
-              variant="destructive"
-              className="danger"
-              disabled={busy}
-              onClick={() => void mutate(() => deleteRoute(deleting.id), 'delete')}
-            >
-              {pendingAction === 'delete' ? (
-                <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-              ) : (
-                <Trash2 size={16} aria-hidden="true" />
-              )}
-              {t('Delete route')}
-            </Button>
-          </div>
-        </section>
-      )}
-      <p className="fine-print library-storage-note">
-        <HardDrive size={15} aria-hidden="true" />
-        <span>
-          {t(
-            'Your browser stores these routes in IndexedDB. Export important routes as GPX before clearing browser data.',
-          )}
-        </span>
-      </p>
+                )}
+                {t('Delete route')}
+              </Button>
+            </div>
+          </section>
+        )}
+        <p className="fine-print library-storage-note">
+          <HardDrive size={15} aria-hidden="true" />
+          <span>
+            {t(
+              'Your browser stores these routes in IndexedDB. Export important routes as GPX before clearing browser data.',
+            )}
+          </span>
+        </p>
+      </div>
     </Dialog>
   );
 }

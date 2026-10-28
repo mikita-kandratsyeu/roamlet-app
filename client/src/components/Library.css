@@ -1,0 +1,497 @@
+.route-library {
+  color: var(--foreground);
+  --library-quiet: var(--muted-foreground);
+  --library-tint: color-mix(in srgb, var(--green) 5%, var(--surface));
+}
+
+.dialog:has(.route-library) .dialog-description {
+  max-width: 48ch;
+}
+
+.route-library .library-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 22px 0 18px;
+}
+
+.route-library .library-search {
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--library-tint);
+  color: var(--library-quiet);
+}
+
+.route-library .library-search input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+.route-library .library-search input::placeholder {
+  color: var(--library-quiet);
+  opacity: 1;
+}
+
+.route-library .library-search:focus-within {
+  border-color: var(--ring, var(--green));
+  outline: 2px solid var(--ring, var(--green));
+  outline-offset: 2px;
+}
+
+.route-library .library-sort {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 550;
+  white-space: normal;
+}
+
+.library-sort-menu {
+  max-width: calc(100vw - 32px);
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.library-sort-menu [role='menuitemradio'] {
+  min-height: 44px;
+  border-radius: 7px;
+  font-size: 13px;
+  white-space: normal;
+}
+
+.library-sort-menu [role='menuitemradio'][data-highlighted] {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+.route-library .library-summary,
+.route-library .library-collection-label,
+.route-library .library-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.route-library .library-summary {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  color: var(--library-quiet);
+  font-size: 12px;
+}
+
+.route-library .library-collection-label {
+  font-weight: 550;
+}
+
+.route-library .library-collection-label > svg {
+  color: var(--green);
+}
+
+.route-library .library-summary strong {
+  min-width: 23px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--library-tint);
+  color: var(--foreground);
+  text-align: center;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.route-library .library-progress {
+  padding: 8px 0;
+  color: var(--library-quiet);
+  font-size: 12px;
+}
+
+.route-library .error-inline {
+  margin: 12px 0;
+  color: var(--destructive);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.route-library .library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 42dvh;
+  margin: 0;
+  padding: 4px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.route-library .library-route {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.route-library .library-route:last-child {
+  border-bottom: 0;
+}
+
+.route-library .library-activity-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border: 1px solid color-mix(in srgb, var(--green) 12%, var(--border));
+  border-radius: 50%;
+  background: var(--library-tint);
+  color: var(--green);
+}
+
+.route-library .library-open {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  padding: 5px 22px 5px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--foreground);
+  text-align: start;
+  white-space: normal;
+}
+
+.route-library .library-open strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.2px;
+  overflow-wrap: anywhere;
+}
+
+.route-library .library-route-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--library-quiet);
+}
+
+.route-library .library-distance {
+  color: var(--green);
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+
+.route-library .library-updated {
+  color: var(--library-quiet);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.route-library .route-description {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--library-quiet);
+  font-size: 12px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-library .library-open-chevron {
+  position: absolute;
+  right: 2px;
+  top: calc(50% - 8px);
+  color: var(--library-quiet);
+}
+
+.route-library .library-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0;
+}
+
+.route-library .library-actions .icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--library-quiet);
+}
+
+.route-library .library-actions [data-destructive='true'] {
+  color: var(--destructive);
+}
+
+.route-library .library-open:hover,
+.route-library .library-sort:hover,
+.route-library .library-actions .icon-button:hover {
+  background: var(--library-tint);
+}
+
+.route-library button:focus-visible,
+.route-library .library-edit input:focus-visible,
+.route-library .library-edit textarea:focus-visible {
+  outline: 2px solid var(--ring, var(--green));
+  outline-offset: 2px;
+}
+
+.route-library .library-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 38px 20px;
+  color: var(--library-quiet);
+  text-align: center;
+}
+
+.route-library .library-empty > svg {
+  margin-bottom: 4px;
+  color: var(--green);
+  stroke-width: 1.5;
+}
+
+.route-library .library-empty h3 {
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.route-library .library-empty p {
+  max-width: 38ch;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.route-library .library-empty button {
+  min-height: 44px;
+  margin-top: 4px;
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--green);
+}
+
+.route-library .library-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px;
+}
+
+.route-library .library-loading > div {
+  height: 90px;
+  border-radius: 6px;
+  background: var(--library-tint);
+}
+
+.route-library .library-edit,
+.route-library .delete-confirm {
+  margin-top: 18px;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.route-library .library-detail-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: var(--green);
+}
+
+.route-library .library-detail-heading h3 {
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.route-library .library-detail-context {
+  margin-bottom: 16px;
+  color: var(--library-quiet);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.route-library .library-edit label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  margin-top: 12px;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.route-library .library-edit input,
+.route-library .library-edit textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--library-tint);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.route-library .library-edit textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.route-library .delete-confirm .library-detail-heading {
+  color: var(--destructive);
+}
+
+.route-library .delete-confirm p {
+  color: var(--library-quiet);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.route-library .delete-confirm p strong {
+  color: var(--foreground);
+}
+
+.route-library .button-row {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.route-library .button-row button {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
+
+.route-library .library-storage-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 18px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--library-quiet);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.route-library .library-storage-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--green);
+}
+
+@media (max-width: 560px) {
+  .route-library .library-toolbar {
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 18px;
+  }
+
+  .route-library .library-search {
+    flex-basis: 100%;
+  }
+
+  .route-library .library-sort {
+    margin-inline-start: auto;
+    padding-inline: 4px;
+  }
+
+  .route-library .library-route {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 4px 12px;
+    padding-block: 12px;
+  }
+
+  .route-library .library-activity-icon {
+    width: 38px;
+    height: 38px;
+    align-self: start;
+    margin-top: 6px;
+  }
+
+  .route-library .library-actions {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .route-library .library-list {
+    max-height: 40dvh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-library .animate-spin,
+  .route-library .library-loading > div {
+    animation: none;
+  }
+}

@@ -80,7 +80,7 @@ test('creates, recalculates, saves, reloads, reopens and exports actual returned
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'My routes' }).click();
   await page.getByRole('button', { name: /Weekend escape Cycling/ }).click();
-  await expect(page.getByRole('heading', { name: 'Weekend escape' })).toBeVisible();
+  await expect(page.locator('.planner')).toContainText('Weekend escape');
   const downloaded = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export GPX' }).click();
   const download = await downloaded;
@@ -104,7 +104,7 @@ test('imports multiple segments, preserves GPX geometry and errors gracefully', 
     mimeType: 'application/gpx+xml',
     buffer: Buffer.from(gpx),
   });
-  await expect(page.getByRole('heading', { name: 'Mountain morning' })).toBeVisible();
+  await expect(page.locator('.planner')).toContainText('Mountain morning');
   const downloaded = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export GPX' }).click();
   const text = await readFile((await (await downloaded).path())!, 'utf8');
@@ -117,7 +117,7 @@ test('imports multiple segments, preserves GPX geometry and errors gracefully', 
     buffer: Buffer.from('<gpx><trk><'),
   });
   await expect(page.getByRole('alert')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Mountain morning' })).toBeVisible();
+  await expect(page.locator('.planner')).toContainText('Mountain morning');
 });
 test('edits names, duplicates, filters and confirms deletion', async ({ page }) => {
   await createRoute(page);
@@ -229,7 +229,12 @@ test('split header keeps route creation direct and supports an accessible respon
   page,
 }, testInfo) => {
   const trigger = page.getByRole('button', { name: 'Menu', exact: true });
-  await expect(page.getByRole('banner').getByRole('button')).toHaveCount(2);
+  await expect(page.getByRole('banner').getByRole('button')).toHaveCount(
+    testInfo.project.name === 'mobile' ? 3 : 4,
+  );
+  await expect(
+    page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }),
+  ).toBeVisible();
   for (const control of [trigger, page.getByRole('button', { name: 'New route', exact: true })]) {
     const bounds = await control.boundingBox();
     expect(bounds?.width).toBeGreaterThanOrEqual(44);
@@ -254,7 +259,7 @@ test('split header keeps route creation direct and supports an accessible respon
     true,
   );
   await trigger.click();
-  await page.getByRole('heading', { name: 'Plan a route' }).click();
+  await page.locator('.planner-scroll').click({ position: { x: 8, y: 8 } });
   await expect(page.getByRole('menu')).not.toBeVisible();
   await trigger.click();
   await page.getByRole('menuitem', { name: 'Help and data sources' }).click();
@@ -444,7 +449,7 @@ test('persists light and dark themes across reloads and themes dialogs and map c
 test('uses subtle surface motion and respects reduced-motion preferences', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.reload();
-  await expect(page.locator('.planner-heading')).toHaveCSS('animation-name', 'soft-rise');
+  await expect(page.locator('.planner-heading')).toHaveCSS('animation-name', 'none');
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await expect(page.getByRole('menu')).toHaveCSS('animation-name', 'surface-open');
   await page.getByRole('menuitem', { name: 'Help and data sources' }).click();

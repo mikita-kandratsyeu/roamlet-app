@@ -158,11 +158,60 @@ describe('route planner interactions', () => {
     );
     expect(screen.getByRole('button', { name: 'Отбросить изменения' })).toBeInTheDocument();
   });
-  it('starts with honest empty statistics and disabled save/export', () => {
+  it('starts with an actionable empty overview instead of unavailable metrics', () => {
     render(<App />);
     expect(screen.getByRole('button', { name: 'Save route' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Calculate route' })).toBeDisabled();
     expect(screen.getByText('Add a starting point')).toBeInTheDocument();
+    expect(
+      screen.getByText('Add two stops to see distance, time and elevation.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Unavailable')).not.toBeInTheDocument();
+  });
+  it('retries a failed calculation without duplicate requests or stale export', async () => {
+    provider.calculateRoute.mockRejectedValueOnce(new Error('Connection failed'));
+    render(<App />);
+    addCoordinate('47.26, 11.4');
+    addCoordinate('47.27, 11.41');
+    await screen.findByText('Connection failed');
+    fireEvent.click(screen.getByRole('button', { name: 'Calculate route' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Calculating route…' })).toBeDisabled(),
+    );
+    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
+    expect(provider.calculateRoute).toHaveBeenCalledTimes(2);
+  });
+  it('reorders stops by dragging while retaining the keyboard alternative', async () => {
+    render(<App />);
+    await plan();
+    const items = screen.getAllByRole('listitem');
+    fireEvent.dragStart(items[0].querySelector('[draggable]')!, {
+      dataTransfer: { setData: vi.fn(), effectAllowed: 'move' },
+    });
+    fireEvent.drop(items[1]);
+    await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
+    expect(provider.calculateRoute.mock.calls[1][0][0].coordinate).toEqual([11.41, 47.27]);
+    expect(screen.getByRole('button', { name: 'Move stop 1 down' })).toBeEnabled();
+  });
+  it('confirms destructive routing mode changes and preserves stops on cancel', async () => {
+    vi.stubGlobal('ResizeObserver', class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    });
+    render(<App />);
+    await plan();
+    fireEvent.click(screen.getByRole('radio', { name: 'Round trip' }));
+    expect(screen.getByRole('dialog', { name: 'Switch to a round trip?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getByRole('radio', { name: 'Point to point' })).toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: 'Round trip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to round trip' }));
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
   });
   it('plans, saves, opens its library and reopens a persistent route', async () => {
     render(<App />);

@@ -4,8 +4,17 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView, saveMapView } from '../domain/mapView';
-import { mapTiles, MAPBOX_TOKEN_REQUIRED_MESSAGE } from '../domain/mapTiles';
-import { LocateFixed, Maximize, MapPin, Plus, Minus, X, Map as MapIcon } from 'lucide-react';
+import { mapTiles, MAPBOX_TOKEN_REQUIRED_MESSAGE, DEFAULT_MAPBOX_STYLE } from '../domain/mapTiles';
+import {
+  LocateFixed,
+  Maximize,
+  MapPin,
+  Plus,
+  Minus,
+  X,
+  Map as MapIcon,
+  LoaderCircle,
+} from 'lucide-react';
 import { waypointKind } from './waypointStyle';
 import { useTheme } from '../theme';
 import { Alert } from './ui/alert';
@@ -15,6 +24,20 @@ import i18n, { formatNumber, translateMessage } from '../i18n';
 
 const mapMotionDuration = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 450;
+
+function mapFitPadding(container: HTMLElement | null) {
+  const viewport = container?.getBoundingClientRect();
+  const planner = document.getElementById('route-planner')?.getBoundingClientRect();
+  if (
+    !viewport?.width ||
+    !planner?.width ||
+    planner.top >= viewport.bottom ||
+    planner.bottom <= viewport.top
+  )
+    return 65;
+  const left = Math.min(planner.right - viewport.left + 24, viewport.width - 140);
+  return { top: 65, bottom: 65, left: Math.max(65, left), right: 65 };
+}
 
 interface Props {
   segments: Coordinate[][];
@@ -34,6 +57,17 @@ export function RouteMap(props: Props) {
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState('');
   const [configurationError, setConfigurationError] = useState(false);
+  const configuredStyle = import.meta.env.VITE_MAPBOX_STYLE?.trim() || DEFAULT_MAPBOX_STYLE;
+  const [style, setStyle] = useState(configuredStyle);
+  const [locating, setLocating] = useState(false);
+  const skipStyleFit = useRef(false);
+  const styles = [
+    { value: DEFAULT_MAPBOX_STYLE, label: t('Outdoors') },
+    { value: 'mapbox://styles/mapbox/streets-v12', label: t('Streets') },
+    { value: 'mapbox://styles/mapbox/satellite-streets-v12', label: t('Satellite') },
+  ];
+  if (!styles.some((item) => item.value === configuredStyle))
+    styles.unshift({ value: configuredStyle, label: t('Configured map') });
   useEffect(() => {
     latest.current = props;
   });
@@ -99,28 +133,32 @@ export function RouteMap(props: Props) {
     };
     window.addEventListener('pagehide', persistOnHide);
     instance.addControl(new mapboxgl.AttributionControl({ compact: false }), 'bottom-right');
-    instance.on('load', () => {
-      instance.addSource('route', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
-      instance.addLayer({
-        id: 'route-casing',
-        type: 'line',
-        source: 'route',
-        paint: { 'line-color': '#faf7f2', 'line-width': 8, 'line-opacity': 0.95 },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-      });
-      instance.addLayer({
-        id: 'route-line',
-        type: 'line',
-        source: 'route',
-        paint: { 'line-color': '#173b30', 'line-width': 4 },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-      });
+    const installRouteLayers = () => {
+      if (!instance.getSource('route')) {
+        instance.addSource('route', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+        instance.addLayer({
+          id: 'route-casing',
+          type: 'line',
+          source: 'route',
+          paint: { 'line-color': '#faf7f2', 'line-width': 8, 'line-opacity': 0.95 },
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+        });
+        instance.addLayer({
+          id: 'route-line',
+          type: 'line',
+          source: 'route',
+          paint: { 'line-color': '#173b30', 'line-width': 4 },
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+        });
+      }
       setReady(true);
       setMapError('');
-    });
+    };
+    instance.on('load', installRouteLayers);
+    instance.on('style.load', installRouteLayers);
     instance.on('error', () =>
       setMapError(
         'Some map tiles could not load. Check your connection or configured tile provider. No offline map is stored.',
@@ -200,13 +238,21 @@ export function RouteMap(props: Props) {
   }, [t, ready]);
   useEffect(() => {
     if (!ready || !map.current) return;
+    if (skipStyleFit.current) {
+      skipStyleFit.current = false;
+      return;
+    }
     const coordinates = props.segments.flat().length
       ? props.segments.flat()
       : props.waypoints.map((w) => w.coordinate);
     if (!coordinates.length) return;
     const bounds = new mapboxgl.LngLatBounds();
     coordinates.forEach((c) => bounds.extend([c[0], c[1]]));
-    map.current.fitBounds(bounds, { padding: 65, maxZoom: 15, duration: mapMotionDuration() });
+    map.current.fitBounds(bounds, {
+      padding: mapFitPadding(container.current),
+      maxZoom: 15,
+      duration: mapMotionDuration(),
+    });
   }, [ready, props.fitToken, props.segments, props.waypoints]);
   function locate() {
     if (!navigator.geolocation) {
@@ -215,16 +261,20 @@ export function RouteMap(props: Props) {
       );
       return;
     }
+    setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        setLocating(false);
         const coordinate: Coordinate = [position.coords.longitude, position.coords.latitude];
         map.current?.flyTo({ center: coordinate, zoom: 14, duration: mapMotionDuration() });
         if (props.editable) props.onAdd(coordinate);
       },
-      () =>
+      () => {
+        setLocating(false);
         props.onError(
           'Location permission was denied or your position is unavailable. Search for a place or click the map instead.',
-        ),
+        );
+      },
       { timeout: 10000 },
     );
   }
@@ -252,7 +302,27 @@ export function RouteMap(props: Props) {
         </div>
       )}
       <Badge variant="secondary" className="map-top-label">
-        <MapIcon size={16} aria-hidden="true" /> {t('Map')}
+        <MapIcon size={16} aria-hidden="true" />
+        <select
+          className="map-style-select"
+          aria-label={t('Map style')}
+          value={style}
+          disabled={!map.current}
+          onChange={(event) => {
+            const next = event.target.value;
+            skipStyleFit.current = true;
+            setStyle(next);
+            setReady(false);
+            setMapError('');
+            map.current?.setStyle(next);
+          }}
+        >
+          {styles.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
       </Badge>
       <div className="map-extra-controls" role="group" aria-label={t('Map controls')}>
         <Button
@@ -282,10 +352,10 @@ export function RouteMap(props: Props) {
           className="map-control"
           title={t('Use my location')}
           aria-label={t('Use my location')}
-          disabled={!ready}
+          disabled={!ready || locating}
           onClick={locate}
         >
-          <LocateFixed size={20} />
+          {locating ? <LoaderCircle size={20} className="spin" /> : <LocateFixed size={20} />}
         </Button>
         <Button
           variant="ghost"
@@ -300,7 +370,7 @@ export function RouteMap(props: Props) {
             const bounds = new mapboxgl.LngLatBounds();
             coordinates.forEach((c) => bounds.extend([c[0], c[1]]));
             map.current?.fitBounds(bounds, {
-              padding: 65,
+              padding: mapFitPadding(container.current),
               maxZoom: 15,
               duration: mapMotionDuration(),
             });
