@@ -117,10 +117,13 @@ Saved/imported routes open as snapshots and are never silently rerouted. Coordin
 
 Executed with Node 25.6.1, Yarn Classic 1.22.22 and public npm registry dependencies:
 
-- `yarn test`: **55 passing** domain, persistence, GPX, routing-adapter and component tests.
+- `yarn test`: **56 client tests + 15 proxy tests** passing: domain/persistence/GPX/routing/UI and actual HTTP proxy authentication, whitelist/validation, origin checks, quotas, cancellation, response bounds and static serving.
 - `yarn test:e2e`: **10 passing** Chromium workflows across desktop and Pixel 7 mobile viewports: create/recalculate, save/reload/reopen/export, import/error handling, rename/duplicate/filter/delete, hiking/search/service failures and round trips.
 - `yarn test:offline`: **3 passing** production browser checks: offline reload/library/GPX export, no external map caching, missing-key failure, waypoint-only GPX conversion handling.
+- `yarn test:integration`: **1 passing** browser → real Node proxy → local test upstream flow. Search, route, save/reload/export pass; the upstream requires the server-only sentinel key and the browser/bundle has no provider key or ORS API URL.
 - `yarn typecheck`, `yarn lint`, `yarn build`: passed; Vite reports the large-chunk optimization warning noted above.
 - Dev server started through the VS Code `Roamlet: dev` task at `http://127.0.0.1:5173/`; HTTP response and real map tiles/attribution were inspected in the integrated browser.
 
-Browser planning tests use clearly test-only HTTP fixtures, not real hosted routes, to exercise deterministic workflows. Production offline/missing-key tests build without a key and make no routing-success claims. The IDE's test runner initially reported no discovered tests, so the project's configured Vitest runner was used. Browser tests initially lacked Chromium; it was installed using `yarn playwright install chromium`. Failures found during verification (mobile icon accessible names, stale export behavior tests, first-load service-worker control and cached `Vary: Origin` assets) were fixed and retested.
+Browser planning tests use test-only HTTP fixtures, not real hosted routes. The integration suite uses an actual Node proxy and a local synthetic upstream with a test-only sentinel key; production code has no fixture fallback. Production offline/missing-key tests build without a provider key and run the real proxy/static server. Real valid-key ORS service responses remain unverified.
+
+The IDE initially discovered no tests, so configured CLI runners were used. Chromium was installed through the client workspace's Playwright CLI. Migration verification caught a production service-worker bootstrap request to `/` using `Accept: */*`; the static server was fixed to serve the root index for that request while keeping other SPA fallback rules strict. Client keys and upstream URLs were removed from the frontend configuration; production browser testing asserts that the build and request headers do not contain them.
