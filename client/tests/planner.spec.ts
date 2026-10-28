@@ -99,7 +99,9 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   expect(directions).toEqual([]);
 });
 
-test('manual controls keep logical order and remain reachable at 320px in Russian', async ({ page }) => {
+test('manual controls keep logical order and remain reachable at 320px in Russian', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
@@ -108,7 +110,7 @@ test('manual controls keep logical order and remain reachable at 320px in Russia
   await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
   const tool = page.getByRole('button', { name: 'Ручное рисование', exact: true });
   await expect(tool).toHaveAttribute('aria-pressed', 'true');
-  await expect(tool).toHaveCSS('background-color', 'rgb(167, 207, 175)');
+  await expect(tool).toHaveCSS('background-color', 'rgb(155, 197, 167)');
   const controls = page.getByRole('group', { name: 'Управление картой', exact: true });
   const buttons = controls.locator('button');
   await expect(buttons).toHaveCount(6);

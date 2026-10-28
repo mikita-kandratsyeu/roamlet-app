@@ -212,6 +212,43 @@ describe('route planner interactions', () => {
     expect(provider.calculateRoute).toHaveBeenCalledTimes(1);
   });
 
+  it('confirms loop conversion, keeps its stops and restores the previous automatic mode', async () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+    provider.calculateAlternatives.mockResolvedValueOnce([
+      {
+        segments: [
+          [
+            [11.4, 47.26],
+            [11.41, 47.27],
+            [11.42, 47.28],
+            [11.43, 47.27],
+            [11.4, 47.26],
+          ],
+        ],
+        stats: { distance: 5000, duration: 1000 },
+      },
+    ]);
+    render(<App />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Round trip' }));
+    addCoordinate('47.26, 11.4');
+    fireEvent.click(screen.getByRole('button', { name: 'Discover round trips' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Switch to manual drawing?');
+    fireEvent.click(screen.getByRole('button', { name: 'Switch mode' }));
+    expect(JSON.parse(screen.getByTestId('map').getAttribute('data-geometry')!)[0]).toHaveLength(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Only your starting point will be kept');
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to round trip' }));
+    expect(screen.getByRole('radio', { name: 'Round trip' })).toHaveAttribute('data-state', 'on');
+    expect(screen.getByRole('button', { name: 'Manual drawing' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+    expect(provider.calculateAlternatives).toHaveBeenCalledTimes(1);
+  });
+
   it('supports more than 25 manual points without silently dropping them in automatic mode', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));

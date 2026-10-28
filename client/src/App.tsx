@@ -79,6 +79,7 @@ export default function App() {
   const [result, setResult] = useState<PlannedRoute | null>(null);
   const [mode, setMode] = useState<'manual' | 'snapshot'>('manual');
   const [planningMode, setPlanningMode] = useState<PlanningMode>('point');
+  const automaticMode = useRef<'point' | 'loop'>('point');
   const stopLimit = planningMode === 'manual' ? MANUAL_STOP_LIMIT : 25;
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -226,6 +227,8 @@ export default function App() {
   }
   function changePlanningMode(next: PlanningMode) {
     if (next === planningMode) return;
+    const points =
+      next === 'manual' && planningMode === 'loop' && result ? result.waypoints : waypoints;
     if (next === 'point' && waypoints.length > 25) {
       fail('Automatic routing supports up to 25 stops. Remove points or keep manual mode.');
       return;
@@ -234,8 +237,10 @@ export default function App() {
       invalidate();
       setSearchTarget(null);
       setQuery('');
+      if (next !== 'manual') automaticMode.current = next;
       setPlanningMode(next);
-      if (next === 'loop') setWaypoints(waypoints.slice(0, 1));
+      if (next === 'loop') setWaypoints(points.slice(0, 1));
+      else if (next === 'manual') setWaypoints(points);
     };
     if (next === 'loop' && waypoints.length > 1) {
       setConfirmation({
@@ -244,7 +249,7 @@ export default function App() {
         label: 'Switch to round trip',
         action: change,
       });
-    } else if (waypoints.length > 1 && (next === 'manual' || planningMode === 'manual')) {
+    } else if (points.length > 1 && (next === 'manual' || planningMode === 'manual')) {
       setConfirmation({
         title: next === 'manual' ? 'Switch to manual drawing?' : 'Switch to automatic routing?',
         text:
@@ -313,6 +318,7 @@ export default function App() {
     setDescription('');
     setMode('manual');
     setPlanningMode('point');
+    automaticMode.current = 'point';
     setDirty(false);
     setQuery('');
     setSearchTarget(null);
@@ -327,6 +333,7 @@ export default function App() {
     setActivity(route.activity);
     setMode('snapshot');
     setPlanningMode(route.source === 'manual' ? 'manual' : 'point');
+    automaticMode.current = 'point';
     setDirty(false);
     setLibraryOpen(false);
     setCollapsed(false);
@@ -477,6 +484,7 @@ export default function App() {
       setMode('manual');
       setWaypoints(next);
       setPlanningMode('point');
+      automaticMode.current = 'point';
     };
     setConfirmation({
       title: source === 'gpx' ? 'Convert GPX to an editable route?' : 'Edit this route?',
@@ -1172,7 +1180,8 @@ export default function App() {
           manualDrawing={mode === 'manual' && planningMode === 'manual'}
           onToggleManualDrawing={
             mode === 'manual'
-              ? () => changePlanningMode(planningMode === 'manual' ? 'point' : 'manual')
+              ? () =>
+                  changePlanningMode(planningMode === 'manual' ? automaticMode.current : 'manual')
               : result?.source === 'manual'
                 ? editSnapshot
                 : undefined
