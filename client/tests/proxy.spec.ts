@@ -50,5 +50,6 @@ test('browser uses real private-key proxy for search/routing without receiving t
       expect(bundle).not.toContain('test-only-server-sentinel-never-in-browser');
       expect(bundle).not.toContain('VITE_ORS_API_KEY');
       expect(bundle).not.toContain('api.openrouteservice.org');
+      expect(bundle).not.toContain('api.heigit.org');
     }
 });

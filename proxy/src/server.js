@@ -251,7 +251,7 @@ async function serveStatic(req, res, pathname, distPath) {
 
 export function createProxyServer({
   key = process.env.ORS_API_KEY ?? '',
-  base = process.env.ORS_URL || 'https://api.openrouteservice.org',
+  base = process.env.ORS_URL || 'https://api.heigit.org',
   fetchImpl = globalThis.fetch,
   distPath = defaultDist,
   rateLimit = process.env.PROXY_RATE_LIMIT,
@@ -446,12 +446,17 @@ export function createProxyServer({
           (req.headers['content-encoding'] && req.headers['content-encoding'] !== 'identity')
         )
           throw invalid();
-        await forward(req, res, `/v2${pathname.slice(4)}`, routePayload(await readBody(req)));
+        await forward(
+          req,
+          res,
+          `/openrouteservice/v2${pathname.slice(4)}`,
+          routePayload(await readBody(req)),
+        );
       } else if (pathname === '/api/geocode/search') {
         if (req.method !== 'GET')
           throw new SafeError(405, 'METHOD_NOT_ALLOWED', 'The method is not allowed.');
         quota(req, res);
-        await forward(req, res, `/geocode/search?${geocodeParams(url.searchParams)}`);
+        await forward(req, res, `/pelias/v1/search?${geocodeParams(url.searchParams)}`);
       } else if (pathname === '/api' || pathname.startsWith('/api/')) {
         throw new SafeError(404, 'NOT_FOUND', 'The resource was not found.');
       } else await serveStatic(req, res, pathname, distPath);

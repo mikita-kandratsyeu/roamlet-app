@@ -84,12 +84,38 @@ test('injects only private auth into fixed upstream paths and strips upstream he
   assert.deepEqual(await response.json(), { features: [], reflected: '[redacted]' });
   for (const name of ['authorization', 'set-cookie', 'access-control-allow-origin'])
     assert.equal(response.headers.get(name), null);
-  assert.equal(seen[0].url, '/v2/directions/cycling-regular/geojson');
+  assert.equal(seen[0].url, '/openrouteservice/v2/directions/cycling-regular/geojson');
   assert.equal(seen[0].headers.authorization, 'private-test-key');
   assert.equal(seen[0].headers.cookie, undefined);
   assert.deepEqual(JSON.parse(seen[0].body), payload);
   assert.equal((await fetch(url + search + '&size=2')).status, 200);
-  assert.equal(seen[1].url, '/geocode/search?text=Innsbruck&size=2');
+  assert.equal(seen[1].url, '/pelias/v1/search?text=Innsbruck&size=2');
+});
+
+test('uses the HeiGIT directions endpoint for both supported profiles by default', async (t) => {
+  const seen = [];
+  const url = await proxy(t, {
+    fetchImpl: async (address, options) => {
+      seen.push({ url: String(address), options });
+      return successful();
+    },
+  });
+  for (const profile of ['cycling-regular', 'foot-hiking']) {
+    const response = await fetch(url + `/api/directions/${profile}/geojson`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    assert.equal(response.status, 200);
+    const request = seen.at(-1);
+    assert.equal(
+      request.url,
+      `https://api.heigit.org/openrouteservice/v2/directions/${profile}/geojson`,
+    );
+    assert.equal(request.options.method, 'POST');
+    assert.equal(request.options.headers.Authorization, 'private-test-key');
+    assert.deepEqual(JSON.parse(request.options.body), payload);
+  }
 });
 
 test('health contains only configured boolean; missing key has exact safe error', async (t) => {
@@ -240,7 +266,7 @@ test('geocoding validates length, size, duplicates and unknown parameters', asyn
   }
   assert.equal(seen.length, 0);
   assert.equal((await fetch(url + '/api/geocode/search?text=%20abc%20')).status, 200);
-  assert.equal(seen[0], 'https://api.openrouteservice.org/geocode/search?text=abc&size=5');
+  assert.equal(seen[0], 'https://api.heigit.org/pelias/v1/search?text=abc&size=5');
 });
 
 test('only exposes enumerated APIs and methods; rejects cross-origin and does not emit CORS', async (t) => {

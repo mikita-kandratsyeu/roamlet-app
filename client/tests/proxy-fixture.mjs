@@ -12,7 +12,7 @@ const upstream = createServer(async (req, res) => {
   let text = '';
   for await (const chunk of req) text += chunk;
   res.setHeader('Content-Type', 'application/json');
-  if (req.url.startsWith('/geocode/search')) {
+  if (req.url.startsWith('/pelias/v1/search')) {
     res.end(
       JSON.stringify({
         features: [
@@ -23,7 +23,7 @@ const upstream = createServer(async (req, res) => {
         ],
       }),
     );
-  } else if (req.url.startsWith('/v2/directions/')) {
+  } else if (req.url.startsWith('/openrouteservice/v2/directions/')) {
     const body = JSON.parse(text);
     const coordinates = body.coordinates.map((point, i) => [...point, 600 + i * 10]);
     res.end(
