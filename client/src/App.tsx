@@ -186,6 +186,7 @@ export default function App() {
   const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
   const [focusWaypointToken, setFocusWaypointToken] = useState(0);
   const [elevationCoordinate, setElevationCoordinate] = useState<Coordinate | null>(null);
+  const [elevationOpen, setElevationOpen] = useState<boolean | undefined>(undefined);
   const [fitToken, setFitToken] = useState(0);
   function selectWaypoint(id: string, focusMap = false) {
     setSelectedWaypointId(id);
@@ -1828,6 +1829,8 @@ export default function App() {
                   route={result}
                   mapAvailable={online}
                   onElevationHover={setElevationCoordinate}
+                  elevationOpen={elevationOpen}
+                  onElevationOpenChange={setElevationOpen}
                   speedKmh={speeds[activity]}
                   stopsMinutes={stopsMinutes}
                   fitness={fitness}

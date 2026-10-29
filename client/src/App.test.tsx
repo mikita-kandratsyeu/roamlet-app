@@ -972,6 +972,25 @@ describe('route planner interactions', () => {
 });
 
 describe('map and routing improvements', () => {
+  it('remembers a closed elevation profile across recalculation and history', async () => {
+    await i18n.changeLanguage('en');
+    provider.calculateRoute.mockResolvedValue({
+      segments: [geometry],
+      stats: { distance: 1342, duration: 480, ascent: 30, descent: 15 },
+      elevationSource: 'openrouteservice',
+    });
+    render(<App />);
+    await plan();
+    fireEvent.click(screen.getByText('Elevation profile').closest('summary')!);
+    expect(screen.getByText('Elevation profile').closest('details')).not.toHaveAttribute('open');
+    expect(provider.calculateRoute).toHaveBeenCalledOnce();
+    addCoordinate('47.28, 11.42');
+    await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
+    expect(screen.getByText('Elevation profile').closest('details')).not.toHaveAttribute('open');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByText('Elevation profile').closest('details')).not.toHaveAttribute('open');
+  });
   it('links map selection to the stop card without entering replacement mode', async () => {
     await i18n.changeLanguage('en');
     render(<App />);

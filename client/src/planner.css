@@ -553,7 +553,7 @@
 .personal-time-field .personal-time-error {
   margin: 0;
   color: var(--destructive);
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-helper);
   font-weight: 400;
   line-height: 18px;
   overflow-wrap: anywhere;

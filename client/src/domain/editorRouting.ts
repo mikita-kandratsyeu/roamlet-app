@@ -38,9 +38,7 @@ export function isRouteResultCurrent(snapshot: EditorSnapshot): boolean {
       planningMode:
         snapshot.result.source === 'manual' && !snapshot.result.directSegments?.length
           ? 'manual'
-          : snapshot.planningMode === 'loop'
-            ? 'loop'
-            : 'point',
+          : 'point',
       waypoints: snapshot.result.waypoints,
       routingOptions: snapshot.result.routingOptions,
     })

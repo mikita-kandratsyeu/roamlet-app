@@ -38,6 +38,8 @@ export function Statistics({
   surface = 'unknown',
   mapAvailable = true,
   onElevationHover,
+  elevationOpen,
+  onElevationOpenChange,
 }: {
   route: PlannedRoute | null;
   emptyHint?: string;
@@ -47,11 +49,15 @@ export function Statistics({
   surface?: Surface;
   mapAvailable?: boolean;
   onElevationHover?: (coordinate: Coordinate | null) => void;
+  elevationOpen?: boolean;
+  onElevationOpenChange?: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [elevationTarget, setElevationTarget] = useState<HTMLElement | null>(null);
   const [compact, setCompact] = useState(false);
   const [profilePosition, setProfilePosition] = useState(0);
+  const [localElevationOpen, setLocalElevationOpen] = useState<boolean | undefined>(undefined);
+  const profileOpen = elevationOpen ?? localElevationOpen ?? !compact;
   useEffect(() => {
     setProfilePosition(0);
     onElevationHover?.(null);
@@ -102,8 +108,18 @@ export function Statistics({
     onElevationHover?.(active ? (sample?.coordinate ?? null) : null);
   };
   const elevationProfile = showElevation ? (
-    <details className="elevation-box" open={!compact}>
-      <summary className="section-heading">
+    <details className="elevation-box" open={profileOpen}>
+      <summary
+        className="section-heading"
+        aria-expanded={profileOpen}
+        onClick={(event) => {
+          event.preventDefault();
+          const open = !profileOpen;
+          setLocalElevationOpen(open);
+          onElevationOpenChange?.(open);
+          if (!open) onElevationHover?.(null);
+        }}
+      >
         <span>{t('Elevation profile')}</span>
         <span className="elevation-toggle" aria-hidden="true">
           <ChevronDown size={18} />

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { Coordinate, PlannedRoute } from '../domain/types';
 import { calculateStats } from '../domain/stats';
@@ -229,4 +229,35 @@ it('uses the larger provider estimate as an explicit planning reference even for
     ),
   ).toBeInTheDocument();
   expect(snapshot.stats.duration).toBe(3600);
+});
+
+it('keeps the elevation profile collapsed while its geometry changes', () => {
+  const onOpen = vi.fn();
+  const onHover = vi.fn();
+  const first = route([
+    [
+      [11, 47, 100],
+      [11.01, 47.01, 120],
+    ],
+  ]);
+  const { rerender } = render(
+    <Statistics route={first} onElevationOpenChange={onOpen} onElevationHover={onHover} />,
+  );
+  const summary = screen.getByText('Elevation profile').closest('summary')!;
+  fireEvent.click(summary);
+  expect(summary.closest('details')).not.toHaveAttribute('open');
+  expect(onOpen).toHaveBeenCalledWith(false);
+  expect(onHover).toHaveBeenLastCalledWith(null);
+  rerender(
+    <Statistics
+      route={route([
+        [
+          [11, 47, 100],
+          [11.02, 47.02, 140],
+        ],
+      ])}
+      onElevationOpenChange={onOpen}
+    />,
+  );
+  expect(screen.getByText('Elevation profile').closest('details')).not.toHaveAttribute('open');
 });

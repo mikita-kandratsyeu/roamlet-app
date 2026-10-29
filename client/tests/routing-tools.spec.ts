@@ -130,6 +130,11 @@ test('recalculation notice has readable width and disabled alternatives explain 
   page,
 }) => {
   await plan(page);
+  const elevationProfile = page.locator('.elevation-box');
+  if ((await elevationProfile.getAttribute('open')) === null)
+    await elevationProfile.locator('summary').click();
+  await elevationProfile.locator('summary').click();
+  await expect(elevationProfile).not.toHaveAttribute('open');
   let release!: () => void;
   let received!: () => void;
   const started = new Promise<void>((resolve) => {
@@ -163,6 +168,7 @@ test('recalculation notice has readable width and disabled alternatives explain 
   release();
   await expect(page.getByRole('button', { name: 'Сохранить маршрут', exact: true })).toBeEnabled();
   await expect(note).toHaveCount(0);
+  await expect(elevationProfile).not.toHaveAttribute('open');
 });
 
 test('routing errors keep text, recovery actions and dismissal separate', async ({ page }) => {
