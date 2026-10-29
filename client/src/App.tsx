@@ -21,7 +21,7 @@ import { optionalLazy } from './components/OptionalPanel';
 import { formatDistance, formatDuration } from './domain/format';
 import { useAppUpdate } from './hooks/useAppUpdate';
 const Statistics = optionalLazy<{ route: PlannedRoute | null; emptyHint?: string; speedKmh?: number; stopsMinutes?: number }>(() => import('./components/Statistics').then(m => ({ default: m.Statistics })));
-const Library = optionalLazy<{ onClose: () => void; onOpen: (route: PlannedRoute) => void }>(() => import('./components/Library').then(m => ({ default: m.Library })));
+const Library = optionalLazy<{ onClose: () => void; onOpen: (route: PlannedRoute) => void }>(() => import('./components/Library').then(m => ({ default: m.Library })), 'screen');
 import {
   MapPinPlus,
   Plus,
@@ -72,7 +72,7 @@ interface Confirmation {
 export default function App() {
   const { t } = useTranslation();
   const [preferences] = useState(loadPreferences);
-  const [editorInitial] = useState(() => ({ ...initialEditor(), activity: preferences.activity, planningMode: preferences.planningMode, targetKm: preferences.targetKm, speeds: preferences.speeds, stopsMinutes: preferences.stopsMinutes }));
+  const [editorInitial] = useState(() => ({ ...initialEditor(), activity: preferences.activity, planningMode: preferences.planningMode, automaticMode: preferences.planningMode === 'loop' ? 'loop' as const : 'point' as const, targetKm: preferences.targetKm, speeds: preferences.speeds, stopsMinutes: preferences.stopsMinutes }));
   const editor = useRouteEditor(editorInitial);
   const { activity, setActivity, waypoints, setWaypoints, result, setResult, mode, setMode, planningMode, setPlanningMode, name, setName, description, setDescription, targetKm, setTargetKm, speeds, setSpeeds, stopsMinutes, setStopsMinutes } = editor;
   const [panelHidden, setPanelHidden] = useState(preferences.panelHidden);
@@ -84,7 +84,7 @@ export default function App() {
     plannerFocusRequested.current = false;
     (panelHidden ? showPlannerButton : hidePlannerButton).current?.focus({ preventScroll: true });
   }, [panelHidden]);
-  const automaticMode = useRef<'point' | 'loop'>('point');
+  const automaticMode = editor.snapshot.automaticMode ?? 'point';
   const stopLimit = planningMode === 'manual' ? MANUAL_STOP_LIMIT : 25;
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -124,10 +124,26 @@ export default function App() {
   const [searchTarget, setSearchTarget] = useState<string | null>(null);
   const [fitToken, setFitToken] = useState(0);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const libraryTrigger = useRef<HTMLButtonElement>(null);
+  const libraryReturnFocus = useRef<HTMLElement | null>(null);
+  const libraryWasOpen = useRef(false);
+  function openLibrary() {
+    libraryReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setLibraryOpen(true);
+  }
+  function closeLibrary() { setLibraryOpen(false); }
   const [saveOpen, setSaveOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(preferences.collapsed);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  useEffect(() => {
+    if (libraryWasOpen.current && !libraryOpen && !confirmation) {
+      const previous = libraryReturnFocus.current;
+      const target = previous?.isConnected && !previous.closest('[hidden], [inert], [aria-hidden="true"]') ? previous : libraryTrigger.current;
+      target?.focus({ preventScroll: true });
+    }
+    libraryWasOpen.current = libraryOpen;
+  }, [libraryOpen, confirmation]);
   const [alternatives, setAlternatives] = useState<RoutingResult[]>([]);
   const [selectedAlternative, setSelectedAlternative] = useState(-1);
   const routeIdentity = { current: editor.identity };
@@ -186,7 +202,10 @@ export default function App() {
       setPanelHidden(next.panelHidden);
       setCollapsed(next.collapsed);
       setTargetKm(next.targetKm);
-      if (!dirty && !result && mode !== 'snapshot') setPlanningMode(next.planningMode);
+      if (!dirty && !result && mode !== 'snapshot') {
+        setPlanningMode(next.planningMode);
+        if (next.planningMode !== 'manual') editor.setAutomaticMode(next.planningMode);
+      }
     };
     const connection = () => setOnline(navigator.onLine);
     window.addEventListener('roamlet-preferences-change', apply);
@@ -209,6 +228,7 @@ export default function App() {
   }
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
+      if (libraryOpen || document.querySelector('[role="dialog"], dialog[open]')) return;
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select'))) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !event.altKey) {
@@ -276,7 +296,7 @@ export default function App() {
       invalidate();
       setSearchTarget(null);
       setQuery('');
-      if (next !== 'manual') automaticMode.current = next;
+      if (next !== 'manual') editor.setAutomaticMode(next);
       setPlanningMode(next);
       if (next === 'loop') setWaypoints(points.slice(0, 1));
       else if (next === 'manual') setWaypoints(points);
@@ -359,7 +379,7 @@ export default function App() {
     setNotice(null);
     setPanelHidden(false);
     setCollapsed(false);
-    automaticMode.current = defaults.planningMode === 'loop' ? 'loop' : 'point';
+    editor.setAutomaticMode(defaults.planningMode === 'loop' ? 'loop' : 'point');
     setDirty(false);
     setQuery('');
     setSearchTarget(null);
@@ -374,7 +394,7 @@ export default function App() {
       activity: route.activity, mode: 'snapshot', planningMode: route.source === 'manual' ? 'manual' : 'point' });
     setAlternatives([]);
     setSelectedAlternative(-1);
-    automaticMode.current = 'point';
+    editor.setAutomaticMode('point');
     setDirty(false);
     setLibraryOpen(false);
     setCollapsed(false);
@@ -533,7 +553,7 @@ export default function App() {
       setMode('manual');
       setWaypoints(next);
       setPlanningMode('point');
-      automaticMode.current = 'point';
+      editor.setAutomaticMode('point');
     };
     setConfirmation({
       title: source === 'gpx' ? 'Convert GPX to an editable route?' : 'Edit this route?',
@@ -563,7 +583,7 @@ export default function App() {
       );
       if (!controller.signal.aborted) {
         setAlternatives(found);
-        selectAlternative(found[0], 0);
+        selectAlternative(found[0], 0, false);
       }
     } catch (error) {
       if (!controller.signal.aborted) fail(errorMessage(error), 'routing');
@@ -571,8 +591,9 @@ export default function App() {
       if (!controller.signal.aborted) setBusy(false);
     }
   }
-  function selectAlternative(calculated: RoutingResult, index: number) {
-    if (index !== 0 || result) editor.checkpoint();
+  function selectAlternative(calculated: RoutingResult, index: number, recordHistory = true) {
+    if (recordHistory && selectedAlternative === index && result) return;
+    if (recordHistory) editor.checkpoint();
     const coordinates = calculated.segments[0];
     const stops = [0, 0.25, 0.5, 0.75, 1].map((fraction, i) => ({
       id: crypto.randomUUID(),
@@ -628,6 +649,7 @@ export default function App() {
         void handleFile(event.dataTransfer.files[0]);
       }}
     >
+      <div className="editor-screen" aria-hidden={libraryOpen || undefined} inert={libraryOpen || undefined}>
       <header className="app-header">
         <a
           className="brand"
@@ -647,7 +669,8 @@ export default function App() {
           <Button
             variant="ghost"
             className="header-library"
-            onClick={() => setLibraryOpen(true)}
+            ref={libraryTrigger}
+            onClick={openLibrary}
             aria-label={t('My routes')}
           >
             <LibraryIcon size={18} aria-hidden="true" />
@@ -655,12 +678,12 @@ export default function App() {
           </Button>
           <HeaderMenu
             onNewRoute={() => guard(newRoute)}
-            onLibrary={() => setLibraryOpen(true)}
+            onLibrary={openLibrary}
             onHelp={() => setHelpOpen(true)}
           />
         </nav>
       </header>
-      {!online && <Alert role="status"><span>{t('Offline: saved routes, GPX and manual drawing remain available. Routing and basemaps need internet.')}</span><Button variant="ghost" onClick={() => setLibraryOpen(true)}>{t('My routes')}</Button><Button variant="ghost" onClick={() => changePlanningMode('manual')}>{t('Use manual drawing')}</Button></Alert>}
+      {!online && <Alert role="status"><span>{t('Offline: saved routes, GPX and manual drawing remain available. Routing and basemaps need internet.')}</span><Button variant="ghost" onClick={openLibrary}>{t('My routes')}</Button><Button variant="ghost" onClick={() => changePlanningMode('manual')}>{t('Use manual drawing')}</Button></Alert>}
       {update.available && <Alert role="status"><span>{t('An app update is ready.')}</span><Button disabled={update.installing} onClick={() => setConfirmation({ title: 'Update app?', text: 'Your draft will be saved before reloading.', label: 'Reload app', action: () => { void update.apply(); } })}>{t('Update app')}</Button></Alert>}
       {update.failed && <Alert role="alert">{t('The update could not save your draft. Please retry; the app has not reloaded.')}</Alert>}
       {draftError && <Alert role="alert"><span>{t('The draft could not be loaded or saved. Your routes and settings are unchanged.')}</span><Button onClick={() => { void writer.clear().then(ok => { if (ok) setDraftError(false); }); }}>{t('Delete draft')}</Button></Alert>}
@@ -1158,7 +1181,7 @@ export default function App() {
                   else { editor.routingAllowed.current = true; setRouteRevision(revision => revision + 1); }
                 }}>{t('Retry routing')}</Button>}
                 {notice.kind === 'map' && <Button variant="ghost" onClick={() => { setMapRetryToken(value => value + 1); setNotice(null); }}>{t('Retry map')}</Button>}
-                {notice.kind && <Button variant="ghost" onClick={() => setLibraryOpen(true)}>{t('Open library')}</Button>}
+                {notice.kind && <Button variant="ghost" onClick={openLibrary}>{t('Open library')}</Button>}
                 {notice.kind === 'routing' && <Button variant="ghost" onClick={() => changePlanningMode('manual')}>{t('Use manual drawing')}</Button>}
                 <Button
                   variant="ghost"
@@ -1248,7 +1271,7 @@ export default function App() {
           onToggleManualDrawing={
             mode === 'manual'
               ? () =>
-                  changePlanningMode(planningMode === 'manual' ? automaticMode.current : 'manual')
+                  changePlanningMode(planningMode === 'manual' ? automaticMode : 'manual')
               : result?.source === 'manual'
                 ? editSnapshot
                 : undefined
@@ -1292,20 +1315,21 @@ export default function App() {
           event.target.value = '';
         }}
       />
+      </div>
       {libraryOpen && (
         <Library
-          onClose={() => setLibraryOpen(false)}
+          onClose={closeLibrary}
           onOpen={(route) => {
             setLibraryOpen(false);
             guard(() => openRoute(route));
           }}
         />
       )}
-      {draft && <DraftPrompt onDismiss={() => setDraft(null)} onDelete={() => { void writer.clear().then(ok => { if (ok) setDraft(null); }); }} onRestore={() => {
+      {draft && !libraryOpen && <DraftPrompt onDismiss={() => setDraft(null)} onDelete={() => { void writer.clear().then(ok => { if (ok) setDraft(null); }); }} onRestore={() => {
         request.current?.abort(); setBusy(false); editor.reset(draft.snapshot); setDirty(true); setDraft(null);
         setAlternatives([]); setSelectedAlternative(-1); setFitToken(token => token + 1);
       }} />}
-      {saveOpen && (
+      {saveOpen && !libraryOpen && (
         <Dialog
           title={t('Save your adventure')}
           initialFocusRef={routeNameInput}
@@ -1368,7 +1392,7 @@ export default function App() {
           </form>
         </Dialog>
       )}
-      {confirmation && (
+      {confirmation && !libraryOpen && (
         <Dialog
           title={t(confirmation.title)}
           initialFocusRef={confirmationCancel}
@@ -1397,7 +1421,7 @@ export default function App() {
           </div>
         </Dialog>
       )}
-      {helpOpen && (
+      {helpOpen && !libraryOpen && (
         <Dialog title={t('A few helpful things')} onClose={() => setHelpOpen(false)}>
           <div className="help-content">
             <h3>{t('Routing setup')}</h3>

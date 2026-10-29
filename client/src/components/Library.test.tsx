@@ -87,7 +87,7 @@ it('loads with search focus, route count, activity and distance, and reopens the
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: /Alpine loop Cycling.*8\.0 km/ }));
   expect(onOpen).toHaveBeenCalledWith(alpine);
-  expect(screen.getByRole('dialog')).toHaveAccessibleDescription(
+  expect(screen.getByRole('region', { name: 'Saved routes' })).toHaveAccessibleDescription(
     i18next.t('Good routes are worth keeping. Saved on this device, no account needed.'),
   );
 });
@@ -142,17 +142,8 @@ it('offers backup import for an empty library without fake route creation contro
   expect(screen.getByLabelText('Import library file')).toBeEnabled();
   expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
   expect(screen.getByRole('status')).toHaveTextContent('Saved routes 0');
-  const rectangles = vi
-    .spyOn(HTMLElement.prototype, 'getClientRects')
-    .mockReturnValue([new DOMRect(0, 0, 10, 10)] as unknown as DOMRectList);
-  const file = screen.getByRole('button', { name: 'Import library' });
-  const close = screen.getByRole('button', { name: 'Close dialog' });
-  file.focus();
-  fireEvent.keyDown(file, { key: 'Tab' });
-  expect(close).toHaveFocus();
-  fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
-  expect(screen.getByRole('button', { name: 'Import library' })).toHaveFocus();
-  rectangles.mockRestore();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Back to map' })).toBeEnabled();
 });
 
 it('announces loading and allows retrying a failed load rather than claiming the library is empty', async () => {
@@ -465,4 +456,62 @@ it('keeps named keyboard-operated filter menus and groups the star with route ac
     'library-favorite-action',
   );
   expect(within(actions).getByRole('button', { name: 'Edit Alpine loop' })).toBeVisible();
+});
+
+it('renders a separate screen and overlays editing/deletion without placing dialogs in screen flow', async () => {
+  const user = userEvent.setup();
+  const { onClose } = await openLibrary();
+  const libraryScreen = screen.getByRole('region', { name: 'Saved routes' });
+  expect(libraryScreen).toHaveClass('library-screen');
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  const edit = screen.getByRole('button', { name: 'Edit Alpine loop' });
+  await user.click(edit);
+  const dialog = screen.getByRole('dialog', { name: 'Edit route details' });
+  expect(libraryScreen.contains(dialog)).toBe(false);
+  expect(within(dialog).getByRole('textbox', { name: 'Route name' })).toHaveFocus();
+  await user.keyboard('{Escape}');
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(onClose).not.toHaveBeenCalled();
+  await waitFor(() => expect(edit).toHaveFocus());
+  await user.click(screen.getByRole('button', { name: 'Delete Alpine loop' }));
+  const deletion = screen.getByRole('dialog', { name: 'Delete route' });
+  expect(libraryScreen.contains(deletion)).toBe(false);
+  expect(within(deletion).getByRole('button', { name: 'Keep route' })).toHaveFocus();
+  await user.keyboard('{Escape}');
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it('backs to the preserved map only without a child dialog and restores previous focus on unmount', async () => {
+  const map = document.createElement('button');
+  map.textContent = 'Map controls';
+  document.body.append(map);
+  map.focus();
+  const onClose = vi.fn();
+  const view = render(<Library onClose={onClose} onOpen={() => {}} />);
+  try {
+    await screen.findByRole('button', { name: /Alpine loop Cycling/ });
+    expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to map' }));
+    expect(onClose).toHaveBeenCalledOnce();
+    view.unmount();
+    await waitFor(() => expect(map).toHaveFocus());
+  } finally {
+    map.remove();
+  }
+});
+
+it('opens import preview in a separate dialog and Escape cancels preview rather than leaving the screen', async () => {
+  const user = userEvent.setup();
+  const { onClose } = await openLibrary();
+  const libraryScreen = screen.getByRole('region', { name: 'Saved routes' });
+  fireEvent.change(screen.getByLabelText('Import library file'), {
+    target: { files: [new File([exportBackup([alpine])], 'library.json')] },
+  });
+  const preview = await screen.findByRole('dialog', { name: 'Library import preview' });
+  expect(libraryScreen.contains(preview)).toBe(false);
+  expect(within(preview).getByRole('button', { name: 'Cancel import' })).toHaveFocus();
+  await user.keyboard('{Escape}');
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(onClose).not.toHaveBeenCalled();
+  expect(importBackup).not.toHaveBeenCalled();
 });

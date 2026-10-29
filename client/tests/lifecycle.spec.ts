@@ -122,13 +122,11 @@ test('library backup round trip is local and import leaves the editor unchanged'
 });
 
 test('favorites, tags and combined library filters survive reload and backup', async ({ page }) => {
-  await page
-    .getByLabel('Import GPX file')
-    .setInputFiles({
-      name: 'segments.gpx',
-      mimeType: 'application/gpx+xml',
-      buffer: Buffer.from(gpx),
-    });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'segments.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
@@ -141,7 +139,8 @@ test('favorites, tags and combined library filters survive reload and backup', a
   await page.getByLabel('Tags', { exact: true }).fill('ridge, weekend');
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await page.getByRole('button', { name: 'Favorites only', exact: true }).click();
-  await page.getByLabel('Filter by tag', { exact: true }).selectOption('ridge');
+  await page.getByRole('button', { name: 'Filter by tag', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'ridge', exact: true }).click();
   await page.getByLabel('Minimum length (km)', { exact: true }).fill('0');
   await page.getByLabel('Maximum length (km)', { exact: true }).fill('100');
   await page.getByRole('textbox', { name: 'Search saved routes' }).fill('Segmented');
@@ -155,7 +154,9 @@ test('favorites, tags and combined library filters survive reload and backup', a
     'aria-pressed',
     'true',
   );
-  await expect(page.getByLabel('Filter by tag', { exact: true })).toHaveValue('ridge');
+  await expect(page.getByRole('button', { name: 'Filter by tag', exact: true })).toContainText(
+    'ridge',
+  );
   await expect(page.getByLabel('Maximum length (km)', { exact: true })).toHaveValue('100');
   await expect(page.getByRole('textbox', { name: 'Search saved routes' })).toHaveValue('Segmented');
   await expect(page.locator('.library-route')).toHaveCount(1);
@@ -204,7 +205,7 @@ test('invalid backup does not change the library or editor', async ({ page }) =>
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({ version: 999, routes: [] })),
   });
-  await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible();
+  await expect(page.locator('.library-screen').getByRole('alert')).toBeVisible();
   await expect(page.locator('.library-route')).toHaveCount(0);
   await page.keyboard.press('Escape');
   expect(await readDownload(page, 'Export GPX')).toBe(before);

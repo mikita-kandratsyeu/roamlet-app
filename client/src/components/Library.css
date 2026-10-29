@@ -9,18 +9,14 @@
   display: none;
 }
 
-.dialog.roamlet-dialog:has(.route-library) .dialog-description {
-  max-width: 64ch;
-}
-
-.roamlet-dialog .route-library .library-toolbar {
+.route-library .library-toolbar {
   display: flex;
   align-items: center;
   gap: 16px;
   margin: 0 0 20px;
 }
 
-.roamlet-dialog .route-library .library-search {
+.route-library .library-search {
   display: flex;
   flex: 1;
   flex-direction: row;
@@ -36,7 +32,7 @@
   color: var(--library-quiet);
 }
 
-.roamlet-dialog .route-library .library-search input {
+.route-library .library-search input {
   flex: 1;
   min-width: 0;
   min-height: 42px;
@@ -52,7 +48,7 @@
   font-weight: 400;
 }
 
-.roamlet-dialog .route-library .library-search input:focus-visible {
+.route-library .library-search input:focus-visible {
   border: 0;
   outline: none;
   box-shadow: none;
@@ -421,19 +417,6 @@
 }
 
 @media (max-width: 560px) {
-  .dialog.roamlet-dialog:has(.route-library) .dialog-header {
-    min-height: 68px;
-    border-bottom: 0;
-  }
-
-  .dialog.roamlet-dialog:has(.route-library) .dialog-header h2 {
-    font-size: 20px;
-  }
-
-  .dialog.roamlet-dialog:has(.route-library) .dialog-description {
-    display: none;
-  }
-
   .route-library {
     display: flex;
     flex-direction: column;
@@ -464,12 +447,7 @@
     display: none;
   }
 
-  .dialog.roamlet-dialog:has(.route-library) .dialog-body {
-    display: block;
-    padding: 16px 16px max(16px, env(safe-area-inset-bottom));
-  }
-
-  .roamlet-dialog .route-library .library-toolbar {
+  .route-library .library-toolbar {
     order: -1;
     flex-direction: column;
     align-items: stretch;
@@ -477,11 +455,11 @@
     margin-bottom: 16px;
   }
 
-  .roamlet-dialog .route-library .library-search {
+  .route-library .library-search {
     flex: auto;
   }
 
-  .roamlet-dialog .route-library .library-search input {
+  .route-library .library-search input {
     font-size: 16px;
   }
 
@@ -820,5 +798,155 @@
   .route-library .library-route {
     column-gap: 8px;
     padding: 12px;
+  }
+}
+
+.library-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--background);
+  color: var(--foreground);
+}
+.library-screen-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px max(24px, calc((100vw - 1040px) / 2));
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.library-screen-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.library-screen-heading > svg {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+.library-screen-heading h1 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.library-screen .library-back-button {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.library-screen-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+}
+.library-screen-scroll > .route-library {
+  width: 100%;
+  max-width: 1040px;
+  min-width: 0;
+  margin: 0 auto;
+}
+.library-screen-description {
+  margin: 0 0 20px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.library-screen .library-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: none;
+  overflow: visible;
+  align-items: start;
+}
+.library-screen .library-loading {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.library-screen .library-summary {
+  order: initial;
+}
+.library-screen .library-mobile-description {
+  display: none;
+}
+.library-screen .library-count-label {
+  display: inline;
+}
+.library-dialog-content {
+  min-width: 0;
+}
+.roamlet-dialog .library-dialog-content .library-edit,
+.library-dialog-content .delete-confirm,
+.library-dialog-content .library-import-preview {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.library-dialog-content .library-detail-heading {
+  display: none;
+}
+.library-dialog-content .library-edit label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.library-dialog-content .library-edit input,
+.library-dialog-content .library-edit textarea {
+  width: 100%;
+  min-width: 0;
+}
+.library-dialog-content .library-edit-favorite {
+  grid-column: auto;
+}
+@media (max-width: 800px) {
+  .library-screen .library-list,
+  .library-screen .library-loading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .library-screen-header {
+    gap: 8px;
+    padding: 12px 16px;
+  }
+  .library-screen-heading {
+    gap: 6px;
+  }
+  .library-screen-heading h1 {
+    font-size: 17px;
+  }
+  .library-screen-heading > svg {
+    display: none;
+  }
+  .library-screen .library-back-button {
+    min-width: 0;
+    padding: 8px;
+    font-size: 12px;
+    white-space: normal;
+  }
+  .library-screen-scroll {
+    padding: 16px 12px max(16px, env(safe-area-inset-bottom));
+  }
+  .library-screen-description {
+    order: -2;
+    margin-bottom: 16px;
+  }
+  .library-screen .library-toolbar {
+    order: initial;
+    gap: 10px;
   }
 }

@@ -24,7 +24,7 @@ export function useRouteEditor(initial: EditorSnapshot = initialEditor()) {
       return (value: SetStateAction<EditorSnapshot[K]>) => dispatch({ type: 'patch', key, value });
     }
     return { setActivity: setter('activity'), setWaypoints: setter('waypoints'), setResult: setter('result'), setMode: setter('mode'),
-      setPlanningMode: setter('planningMode'), setTargetKm: setter('targetKm'), setName: setter('name'), setDescription: setter('description'),
+      setPlanningMode: setter('planningMode'), setAutomaticMode: setter('automaticMode'), setTargetKm: setter('targetKm'), setName: setter('name'), setDescription: setter('description'),
       setSpeeds: setter('speeds'), setStopsMinutes: setter('stopsMinutes'), setSavedRouteId: setter('savedRouteId'), setIdentity: setter('identity') };
   }, []);
   return { ...history.present, ...setters, snapshot: history.present, routingAllowed,

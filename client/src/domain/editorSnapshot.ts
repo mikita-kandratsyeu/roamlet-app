@@ -11,6 +11,7 @@ export interface EditorSnapshot {
   result: PlannedRoute | null;
   mode: 'manual' | 'snapshot';
   planningMode: 'point' | 'loop' | 'manual';
+  automaticMode?: 'point' | 'loop';
   targetKm: number;
   name: string;
   description: string;
@@ -20,7 +21,7 @@ export interface EditorSnapshot {
 export const newIdentity = () => ({ id: crypto.randomUUID(), createdAt: new Date().toISOString() });
 export function initialEditor(): EditorSnapshot {
   return { identity: newIdentity(), savedRouteId: null, activity: 'cycling', waypoints: [], result: null,
-    mode: 'manual', planningMode: 'point', targetKm: 20, name: '', description: '',
+    mode: 'manual', planningMode: 'point', automaticMode: 'point', targetKm: 20, name: '', description: '',
     speeds: { cycling: 18, hiking: 5 }, stopsMinutes: 0 };
 }
 export function validateSnapshot(value: unknown): asserts value is EditorSnapshot {
@@ -30,7 +31,7 @@ export function validateSnapshot(value: unknown): asserts value is EditorSnapsho
       !Number.isFinite(Date.parse(s.identity.createdAt)) ||
       !(s.savedRouteId === null || typeof s.savedRouteId === 'string') ||
       !['cycling', 'hiking'].includes(s.activity) || !['manual', 'snapshot'].includes(s.mode) ||
-      !['point', 'loop', 'manual'].includes(s.planningMode) || !Number.isFinite(s.targetKm) || s.targetKm <= 0 ||
+      !['point', 'loop', 'manual'].includes(s.planningMode) || (s.automaticMode !== undefined && !['point', 'loop'].includes(s.automaticMode)) || !Number.isFinite(s.targetKm) || s.targetKm <= 0 ||
       typeof s.name !== 'string' || typeof s.description !== 'string' || !Array.isArray(s.waypoints) || s.waypoints.length > 1000 ||
       !s.speeds || ![s.speeds.cycling, s.speeds.hiking].every(n => Number.isFinite(n) && n > 0) ||
       !Number.isFinite(s.stopsMinutes) || s.stopsMinutes < 0) throw new Error('Invalid draft data.');
