@@ -65,7 +65,8 @@ it('shows Figma preference order, selected checks and explanatory notes', async 
   ]);
   for (const choice of choices) {
     expect(choice.querySelector('.preference-check') !== null).toBe(
-      choice.getAttribute('aria-checked') === 'true',
+      !choice.classList.contains('header-menu-theme-option') &&
+        choice.getAttribute('aria-checked') === 'true',
     );
   }
   expect(screen.getByText('LANGUAGE / ЯЗЫК')).toBeInTheDocument();
@@ -75,6 +76,18 @@ it('shows Figma preference order, selected checks and explanatory notes', async 
   expect(
     screen.getByText('Theme and language do not change the route, calculation or map position.'),
   ).toBeInTheDocument();
+});
+
+it('uses matching left-aligned icon actions for library, reset and help', async () => {
+  const { user, trigger } = setup();
+  await user.click(trigger);
+  for (const name of ['My routes', 'Reset settings', 'Help and data sources']) {
+    const item = screen.getByRole('menuitem', { name });
+    expect(item).toHaveClass('header-menu-item');
+    expect(item).not.toHaveClass('header-menu-action-item');
+    expect(item.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    expect(item.querySelector('span')?.textContent).toBe(name);
+  }
 });
 
 it('uses labeled icon choices with horizontal keyboard navigation without changing theme on focus', async () => {

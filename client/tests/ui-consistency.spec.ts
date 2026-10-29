@@ -31,6 +31,7 @@ test('theme icons stay in one accessible row on narrow and desktop screens', asy
       await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
       const options = page.locator('.header-menu-theme-option');
       await expect(options).toHaveCount(3);
+      await expect(page.locator('.header-menu-panel')).toHaveCSS('scale', '1');
       const boxes = await Promise.all(
         (await options.all()).map((option) => option.boundingBox()),
       );
@@ -42,9 +43,34 @@ test('theme icons stay in one accessible row on narrow and desktop screens', asy
         expect(box!.x).toBeGreaterThanOrEqual(0);
         expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
       }
-      const choice = options.locator(`[data-state='checked']`);
+      const groupBox = (await page.locator('.header-menu-theme-options').boundingBox())!;
+      const rowBox = (await page.locator('.header-menu-theme-row').boundingBox())!;
+      expect(groupBox.width).toBeCloseTo(rowBox.width, 1);
+      expect(boxes[1]!.width).toBeCloseTo(boxes[0]!.width, 1);
+      expect(boxes[2]!.width).toBeCloseTo(boxes[0]!.width, 1);
+      const choice = page.locator('.header-menu-theme-option[data-state="checked"]');
       await expect(choice).toHaveCount(1);
-      await expect(choice.locator('.preference-check')).toBeVisible();
+      await expect(choice).toHaveAttribute('aria-checked', 'true');
+      await expect(options.locator('.preference-check')).toHaveCount(0);
+      await expect(choice).not.toHaveCSS('box-shadow', 'none');
+      const reset = page.getByRole('menuitem', { name: /^(Reset settings|Сбросить настройки)$/ });
+      const help = page.getByRole('menuitem', { name: /^(Help and data sources|Помощь и источники данных)$/ });
+      const library = page.getByRole('menuitem', { name: /^(My routes|Мои маршруты)$/ });
+      const actions = [library, reset, help];
+      if (testInfo.project.name === 'mobile') {
+        actions.push(page.getByRole('menuitem', { name: /^(New route|Новый маршрут)$/ }));
+      }
+      for (const item of actions) {
+        await expect(item).toHaveCSS('justify-content', 'normal');
+        await expect(item).toHaveCSS('font-weight', '400');
+        await expect(item).toHaveCSS('font-size', '14px');
+        const icon = (await item.locator('svg').boundingBox())!;
+        const text = (await item.locator('span').boundingBox())!;
+        const referenceIcon = (await reset.locator('svg').boundingBox())!;
+        const referenceText = (await reset.locator('span').boundingBox())!;
+        expect(icon.x).toBeCloseTo(referenceIcon.x, 1);
+        expect(text.x).toBeCloseTo(referenceText.x, 1);
+      }
       await expect(page.locator('.header-menu-panel')).toBeInViewport();
       await page.screenshot({ path: testInfo.outputPath(`theme-row-${language}-${theme}.png`) });
       const index = ['light', 'dark', 'system'].indexOf(theme);
@@ -94,6 +120,40 @@ test('personal time fields follow planner sizing without duplicate history butto
   );
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('planner-time-fields.png') });
+});
+
+test('time controls have compact spacing and contained Russian dropdowns', async ({ page }) => {
+  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  const speed = page.getByLabel('Personal speed (km/h)', { exact: true });
+  const fitnessLabel = page.getByText('Fitness level', { exact: true });
+  await speed.scrollIntoViewIfNeeded();
+  const speedBox = (await speed.boundingBox())!;
+  const labelBox = (await fitnessLabel.boundingBox())!;
+  expect(labelBox.y - speedBox.y - speedBox.height).toBeGreaterThanOrEqual(6);
+  expect(labelBox.y - speedBox.y - speedBox.height).toBeLessThanOrEqual(16);
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Dark', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
+  for(const width of [320,390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const surface = page.getByRole('button', { name: 'Покрытие', exact: true });
+    await surface.scrollIntoViewIfNeeded();
+    const card = surface.locator('xpath=ancestor::details[1]');
+    const cardBox = (await card.boundingBox())!;
+    const surfaceBox = (await surface.boundingBox())!;
+    expect(surfaceBox.x).toBeGreaterThanOrEqual(cardBox.x + 10);
+    expect(surfaceBox.x + surfaceBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width - 10);
+    await expect(surface.locator('svg').last()).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await surface.click();
+    const menu = page.getByRole('menu');
+    const menuBox = (await menu.boundingBox())!;
+    expect(menuBox.x).toBeGreaterThanOrEqual(0);
+    expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(width);
+    await expect(page.getByRole('menuitemradio', { name: 'Неизвестное покрытие', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+  }
 });
 
 test('personal time allows clearing and retyping with localized validation', async ({ page }) => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Menu, Check, CircleHelp, Library, Monitor, Moon, Plus, Sun } from 'lucide-react';
+import { Menu, Check, CircleHelp, Library, Monitor, Moon, Plus, RotateCcw, Sun } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -195,7 +195,7 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
             </DropdownMenuItem>
           )}
           <DropdownMenuItem
-            className="header-menu-item header-menu-action-item"
+            className="header-menu-item"
             onSelect={() => activate(onLibrary)}
           >
             <Library size={18} aria-hidden="true" />
@@ -263,9 +263,6 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
                   textValue={t(label)}
                 >
                   <Icon size={18} aria-hidden="true" />
-                  {theme === value && (
-                    <Check className="preference-check" size={18} aria-hidden="true" />
-                  )}
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
@@ -278,10 +275,11 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
             className="header-menu-item"
             onSelect={() => activate(() => setResetOpen(true))}
           >
-            {t('Reset settings')}
+            <RotateCcw size={18} aria-hidden="true" />
+            <span>{t('Reset settings')}</span>
           </DropdownMenuItem>
           <DropdownMenuItem
-            className="header-menu-item header-menu-action-item"
+            className="header-menu-item"
             onSelect={() => activate(onHelp)}
           >
             <CircleHelp size={18} aria-hidden="true" />
