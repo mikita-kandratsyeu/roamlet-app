@@ -39,6 +39,21 @@ it('does not carry an open description over to a different route', async () => {
   expect(screen.getByText('Second note')).toBeVisible();
 });
 
+it.each(['', 'A note for this route.'])('limits the preview to three tags and shows all tags in the full view (description: %j)', async (description) => {
+  const user = userEvent.setup();
+  const tags = ['Forest', 'Weekend', 'Scenic', 'Water', 'Quiet'];
+  render(<RouteDescription name="Forest walk" description={description} tags={tags} />);
+  const trigger = screen.getByRole('button', { name: 'View all route tags' });
+  expect(trigger.querySelectorAll('[data-slot="badge"]')).toHaveLength(4);
+  expect(trigger).toHaveTextContent('ForestWeekendScenic+2');
+  await user.click(trigger);
+  const dialog = screen.getByRole('dialog', { name: description ? 'Route description' : 'Route details' });
+  expect(within(dialog).getAllByRole('listitem')).toHaveLength(5);
+  for (const tag of tags) expect(within(dialog).getByText(tag)).toBeVisible();
+  await user.keyboard('{Escape}');
+  expect(trigger).toHaveFocus();
+});
+
 it('localizes the description control and dialog in Russian', async () => {
   const user = userEvent.setup();
   await i18n.changeLanguage('ru');

@@ -160,6 +160,66 @@
   overflow-wrap: anywhere;
   line-height: 1.45;
 }
+.planner-route-tags {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  gap: 4px;
+  padding: 0 10px;
+  margin: 0 0 14px;
+  overflow: hidden;
+}
+.planner-route-tags .planner-route-tag {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: 24px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--primary);
+  font-size: var(--font-size-label);
+  line-height: 1.45;
+}
+.planner-route-tag-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.planner-route-tags .planner-route-tag-overflow {
+  flex-shrink: 0;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.route-full-tags-section {
+  margin-top: 16px;
+}
+.route-full-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0;
+  margin: 8px 0 0;
+  list-style: none;
+}
+.route-full-tags > li {
+  min-width: 0;
+  max-width: 100%;
+}
+.route-full-tags [data-slot='badge'] {
+  max-width: 100%;
+  border-radius: 6px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.planner-route-description:has(+ .planner-route-tags) {
+  margin-bottom: 6px;
+}
 .route-description-full {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

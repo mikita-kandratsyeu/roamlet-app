@@ -243,8 +243,23 @@ test('saved descriptions use two-line previews and open in the planner without m
   await page.getByRole('textbox', { name: /^Description/ }).fill(description);
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
+  if (testInfo.project.name === 'mobile') {
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await page.locator('.header-menu-theme-option').nth(1).click();
+  }
   await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
   await expect(page.getByTestId('panel-loader')).toHaveCount(0);
+  const tags = ['Scenic', 'Weekend', 'Forest', 'Water', 'LongTag'.repeat(20)];
+  await page.getByRole('button', { name: 'Edit Forest notes', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Tags', exact: true }).fill(tags.join(', '));
+  await page.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const libraryTag = page.locator('.library-route .library-route-tag').first();
+  const tagColors = await libraryTag.evaluate((element) => ({
+    background: getComputedStyle(element).backgroundColor,
+    color: getComputedStyle(element).color,
+    border: getComputedStyle(element).borderColor,
+  }));
   const libraryPreview = page.locator('.library-route .route-description');
   await expect(libraryPreview).toHaveCSS('-webkit-line-clamp', '2');
   await expect(libraryPreview).toHaveAttribute('title', description);
@@ -260,9 +275,24 @@ test('saved descriptions use two-line previews and open in the planner without m
   await expect(page.locator('.planner').getByRole('button', { name: 'Read route description' })).toBeVisible();
   await expect(page.locator('.map-region .planner-route-description')).toHaveCount(0);
   await expect(trigger.locator('.planner-route-description-preview')).toHaveCSS('-webkit-line-clamp', '2');
+  const tagPreview = page.getByRole('button', { name: 'View all route tags' });
+  await expect(tagPreview.locator('[data-slot="badge"]')).toHaveCount(4);
+  await expect(tagPreview.locator('.planner-route-tag-overflow')).toHaveText('+2');
+  const firstTag = tagPreview.locator('.planner-route-tag').first();
+  await expect(firstTag).toHaveCSS('background-color', tagColors.background);
+  await expect(firstTag).toHaveCSS('color', tagColors.color);
+  await expect(firstTag).toHaveCSS('border-color', tagColors.border);
+  const noteBox = (await trigger.boundingBox())!;
+  const tagsBox = (await tagPreview.boundingBox())!;
+  expect(tagsBox.y).toBeGreaterThanOrEqual(noteBox.y + noteBox.height);
+  expect(tagsBox.x + tagsBox.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await page.screenshot({ path: testInfo.outputPath('planner-route-tags.png') });
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: 'Route description' });
   expect(await dialog.locator('.route-description-full').textContent()).toBe(description);
+  await expect(dialog.locator('.route-full-tags > li')).toHaveCount(tags.length);
+  for (const tag of tags) await expect(dialog.getByText(tag, { exact: true })).toBeVisible();
+  await expect(dialog.locator('.route-full-tags [data-slot="badge"]').first()).toHaveCSS('background-color', tagColors.background);
   expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('full-route-description.png') });
   await dialog.press('Escape');

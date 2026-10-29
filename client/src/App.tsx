@@ -1119,7 +1119,12 @@ export default function App() {
                   </Button>
                 </div>
               </div>
-              <RouteDescription key={editor.identity.id} description={description} name={name} />
+              <RouteDescription
+                key={editor.identity.id}
+                description={description}
+                name={name}
+                tags={editor.snapshot.routeMetadata?.tags}
+              />
               <ToggleGroup
                 type="single"
                 value={activity}

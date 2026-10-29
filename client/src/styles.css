@@ -93,6 +93,15 @@ button svg {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+:is(.route-library .library-route-tags, .planner-route-tags, .route-full-tags) [data-slot='badge'] {
+  background: var(--accent);
+  color: var(--primary);
+  border-color: transparent;
+}
+:is(.route-library .library-route-tags, .planner-route-tags) :is(.library-route-tag-overflow, .planner-route-tag-overflow) {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
 a {
   color: var(--primary);
 }

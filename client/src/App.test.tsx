@@ -726,6 +726,7 @@ describe('route planner interactions', () => {
   });
   it('plans, saves, opens its library and reopens a persistent route', async () => {
     render(<App />);
+    expect(screen.queryByRole('button', { name: 'View all route tags' })).not.toBeInTheDocument();
     await plan();
     expect((await screen.findAllByText('1.3 km')).length).toBeGreaterThan(0);
     expect(await screen.findByText('OpenRouteService')).toBeInTheDocument();
@@ -738,6 +739,7 @@ describe('route planner interactions', () => {
     const saved = (await routeDb.routes.toArray())[0];
     expect(saved.source).toBe('openrouteservice');
     expect(saved.segments).toEqual([geometry]);
+    await routeDb.routes.update(saved.id, { tags: ['Scenic', 'Weekend', 'Forest', 'Water', 'Quiet'] });
     cleanup();
     render(<App />);
     openMenu();
@@ -746,6 +748,11 @@ describe('route planner interactions', () => {
     fireEvent.click(open);
     expect(screen.getByRole('heading', { name: 'River escape' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
+    const tags = screen.getByRole('button', { name: 'View all route tags' });
+    expect(tags).toHaveTextContent('ScenicWeekendForest+2');
+    fireEvent.click(tags);
+    const details = screen.getByRole('dialog', { name: 'Route details' });
+    expect(within(details).getByRole('list')).toHaveTextContent('ScenicWeekendForestWaterQuiet');
   });
   it('recalculates reversed/removed waypoints and uses the hiking profile', async () => {
     render(<App />);
