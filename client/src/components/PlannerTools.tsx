@@ -52,7 +52,7 @@ export function PlannerTools({
           />
           <p
             id="personal-speed-error"
-            className="personal-time-error"
+            className="personal-time-error text-xs font-normal leading-[18px] text-destructive"
             role={speedInvalid ? 'alert' : undefined}
             aria-hidden={!speedInvalid}
           >
@@ -72,7 +72,7 @@ export function PlannerTools({
           />
           <p
             id="stops-minutes-error"
-            className="personal-time-error"
+            className="personal-time-error text-xs font-normal leading-[18px] text-destructive"
             role={stopsInvalid ? 'alert' : undefined}
             aria-hidden={!stopsInvalid}
           >

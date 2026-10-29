@@ -2,7 +2,6 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { PlannerTools } from './PlannerTools';
-import styles from '../planner.css?raw';
 import i18n from '../i18n';
 it('localizes the personal-time heading and concise validation message in Russian', async () => {
   await act(async () => {
@@ -101,12 +100,8 @@ it('rejects empty, zero, negative and nonfinite speeds only on commit and clears
   fireEvent.blur(speed);
   expect(onSpeed).toHaveBeenCalledWith(6);
   expect(speed).not.toHaveAttribute('aria-invalid', 'true');
-  const caption = styles.match(/\.personal-time-field \.personal-time-error \{([^}]+)\}/)?.[1];
-  expect(caption).toContain('font-size: 12px');
-  expect(caption).toContain('line-height: 18px');
-  expect(caption).toContain('font-weight: 400');
-  expect(caption).toContain('color: var(--destructive)');
-  expect(styles).toMatch(/input\[aria-invalid='true'\] \{\s*border-color: var\(--destructive\)/);
+  expect(speed).toHaveClass('aria-invalid:border-destructive');
+  expect(document.getElementById('personal-speed-error')).toHaveClass('personal-time-error', 'text-xs', 'font-normal', 'leading-[18px]', 'text-destructive');
 });
 it('rejects empty, negative and nonfinite stops while accepting zero minutes', () => {
   const { stops, onStops } = controlledTools();
