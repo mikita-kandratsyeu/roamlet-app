@@ -344,8 +344,8 @@ it('orders icon-only Standard before Light and keeps accessible map and sun labe
     const icon = screen.getByRole('radio', { name: label }).querySelector('svg');
     expect(icon).toHaveClass(iconClass);
     expect(icon).toHaveAttribute('aria-hidden', 'true');
-    expect(icon).toHaveAttribute('width', '18');
-    expect(icon).toHaveAttribute('height', '18');
+    expect(icon).toHaveAttribute('width', '20');
+    expect(icon).toHaveAttribute('height', '20');
   }
 });
 
