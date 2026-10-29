@@ -42,7 +42,6 @@ export function usePointRouting({
     const hasAutomaticLegs =
       planningMode === 'loop' || (planningMode === 'point' && automaticPointCount(waypoints) > 0);
     if (!online && hasAutomaticLegs) {
-      if (allowed.current && mode === 'manual' && waypoints.length >= 2) setRouteStale?.(true);
       allowed.current = false;
       request.current?.abort();
       setBusy(false);

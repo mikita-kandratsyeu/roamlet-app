@@ -5,7 +5,7 @@ import { Label } from './components/ui/label';
 import { Slider } from './components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from './components/ui/toggle-group';
 import { Badge } from './components/ui/badge';
-import { Alert } from './components/ui/alert';
+import { Alert, AlertDescription } from './components/ui/alert';
 import { Card } from './components/ui/card';
 import { waypointKind } from './components/waypointStyle';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouteEditor } from './hooks/useRouteEditor';
 import { usePointRouting } from './hooks/usePointRouting';
 import { PlannerTools } from './components/PlannerTools';
+import { PlannerChoice } from './components/PlannerChoice';
 import { CoordinateInput, type CoordinateInputHandle } from './components/CoordinateInput';
 import { DraftPrompt } from './components/DraftPrompt';
 import { initialEditor, newIdentity } from './domain/editorSnapshot';
@@ -67,6 +68,15 @@ import { HeaderMenu } from './components/HeaderMenu';
 import i18n, { formatNumber, translateMessage } from './i18n';
 
 const emptySegments: Coordinate[][] = [];
+const cyclingChoices = [
+  { value: 'cycling-regular', label: 'Regular cycling' },
+  { value: 'cycling-road', label: 'Road cycling' },
+  { value: 'cycling-mountain', label: 'Mountain biking' },
+] as const;
+const sectionChoices = [
+  { value: 'automatic', label: 'Road/path routing' },
+  { value: 'direct', label: 'Direct line — unverified' },
+] as const;
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 interface Confirmation {
@@ -880,6 +890,15 @@ export default function App() {
     return result && planningMode === 'loop' ? result.waypoints : waypoints;
   }, [result, planningMode, waypoints]);
   const canUseRoute = isRouteResultCurrent(editor.snapshot) && !busy && !routeStale;
+  const alternativesHelp = !online
+    ? 'Connect to the internet to find alternatives.'
+    : waypoints.length !== 2
+      ? 'Alternatives are available for routes with exactly two stops.'
+      : waypoints[0]?.legMode === 'direct'
+        ? 'Switch the section to road/path routing to find alternatives.'
+        : busy
+          ? 'Wait for the current calculation to finish.'
+          : 'Compare different routes between the start and finish.';
 
   return (
     <div
@@ -1161,23 +1180,20 @@ export default function App() {
                   {planningMode !== 'manual' && (
                     <div className="routing-preferences">
                       {activity === 'cycling' && (
-                        <label>
-                          {t('Cycling route profile')}
-                          <select
+                        <div className="routing-profile-field">
+                          <span className="personal-time-label">{t('Cycling route profile')}</span>
+                          <PlannerChoice
+                            label={t('Cycling route profile')}
                             value={routingOptions.cyclingProfile ?? 'cycling-regular'}
-                            onChange={(event) =>
-                              changeRoutingOptions({
-                                ...routingOptions,
-                                cyclingProfile: event.target.value as typeof routingOptions.cyclingProfile,
-                              })
+                            options={cyclingChoices}
+                            disabled={offlineAutomatic}
+                            onChange={(cyclingProfile) =>
+                              changeRoutingOptions({ ...routingOptions, cyclingProfile })
                             }
-                          >
-                            <option value="cycling-regular">{t('Regular cycling')}</option>
-                            <option value="cycling-road">{t('Road cycling')}</option>
-                            <option value="cycling-mountain">{t('Mountain biking')}</option>
-                          </select>
-                        </label>
+                          />
+                        </div>
                       )}
+                      <div className="routing-avoid-options">
                       <label>
                         <input
                           type="checkbox"
@@ -1198,6 +1214,7 @@ export default function App() {
                         />
                         {t('Avoid steps')}
                       </label>
+                      </div>
                       <p className="fine-print">
                         {t('Routing preferences do not guarantee road surface or access.')}
                       </p>
@@ -1388,25 +1405,22 @@ export default function App() {
                             </div>
                           </Card>
                           {planningMode === 'point' && index < waypoints.length - 1 && (
-                            <label className="leg-mode">
-                              {t('Section {{number}}', { number: formatNumber(index + 1) })}
-                              <select
-                                aria-label={t('Section {{number}} mode', { number: formatNumber(index + 1) })}
+                            <div className="leg-mode">
+                              <span>{t('Section {{number}}', { number: formatNumber(index + 1) })}</span>
+                              <PlannerChoice
+                                label={t('Section {{number}} mode', { number: formatNumber(index + 1) })}
                                 value={point.legMode ?? 'automatic'}
-                                onChange={(event) =>
+                                options={sectionChoices}
+                                disabled={offlineAutomatic}
+                                onChange={(legMode) =>
                                   changeWaypoints(
                                     waypoints.map((candidate) =>
-                                      candidate.id === point.id
-                                        ? { ...candidate, legMode: event.target.value as 'automatic' | 'direct' }
-                                        : candidate,
+                                      candidate.id === point.id ? { ...candidate, legMode } : candidate,
                                     ),
                                   )
                                 }
-                              >
-                                <option value="automatic">{t('Road/path routing')}</option>
-                                <option value="direct">{t('Direct line — unverified')}</option>
-                              </select>
-                            </label>
+                              />
+                            </div>
                           )}
                         </li>
                       ))}
@@ -1491,15 +1505,20 @@ export default function App() {
                       {routingProvider.calculatePointAlternatives && (
                         <Button
                           variant="outline"
+                          className="find-alternatives full-width"
+                          aria-describedby="point-alternatives-help"
                           disabled={!online || busy || waypoints.length !== 2 || waypoints[0]?.legMode === 'direct'}
                           onClick={() => void generatePointAlternatives()}
                         >
+                          <Sparkles size={16} aria-hidden="true" />
                           {t('Find alternatives')}
                         </Button>
                       )}
-                      <p className="fine-print">
-                        {t('Alternatives require two stops and an automatic section. Provider limits apply.')}
-                      </p>
+                      {routingProvider.calculatePointAlternatives && (
+                        <p id="point-alternatives-help" className="fine-print alternatives-help">
+                          {t(alternativesHelp)}
+                        </p>
+                      )}
                       {alternatives.length > 0 && (
                         <div className="alternatives point-alternatives">
                           {alternatives.map((alternative, index) => (
@@ -1615,14 +1634,17 @@ export default function App() {
               )}
               {routeStale && result && (
                 <Alert className="stale-route-note" role="status">
-                  {t(
-                    busy
-                      ? 'Previous route shown while recalculating. Saving and export are paused.'
-                      : 'Previous route shown. Recalculate successfully before saving or exporting.',
-                  )}
+                  <Info aria-hidden="true" />
+                  <AlertDescription>
+                    {t(
+                      busy
+                        ? 'Previous route shown while recalculating. Saving and export are paused.'
+                        : 'Previous route shown. Recalculate successfully before saving or exporting.',
+                    )}
+                  </AlertDescription>
                 </Alert>
               )}
-              {busy && (
+              {busy && !(routeStale && result) && (
                 <p className="routing-status" role="status">
                   <LoaderCircle size={16} className="spin" />
                   {t('Calculating a real')} {activity === 'cycling' ? t('cycling') : t('hiking')}{' '}

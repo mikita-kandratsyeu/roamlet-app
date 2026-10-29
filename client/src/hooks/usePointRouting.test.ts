@@ -166,6 +166,25 @@ describe('retaining ready geometry while stale routing is pending', () => {
     expect(result.current.editor.routeStale).toBe(true);
     expect(result.current.busy).toBe(false);
   });
+  it('keeps completed matching geometry current offline and does not recalculate on reconnect', async () => {
+    const calculate = vi.spyOn(routingProvider, 'calculateRoute').mockResolvedValue(calculated);
+    const snapshot = initial();
+    const { result, rerender } = renderHook(({ online }) => useHarness(snapshot, online), {
+      initialProps: { online: true },
+    });
+    await runDebounce();
+    const ready = result.current.editor.result;
+    expect(result.current.editor.routeStale).toBe(false);
+    rerender({ online: false });
+    expect(result.current.editor.result).toBe(ready);
+    expect(result.current.editor.routeStale).toBe(false);
+    expect(isRouteResultCurrent(result.current.editor.snapshot)).toBe(true);
+    rerender({ online: true });
+    await runDebounce();
+    expect(calculate).toHaveBeenCalledTimes(1);
+    expect(result.current.editor.result).toBe(ready);
+    expect(result.current.editor.routeStale).toBe(false);
+  });
   it('calculates all-direct point mode offline immediately with no routing request', () => {
     const calculate = vi.spyOn(routingProvider, 'calculateRoute');
     const snapshot = initial();

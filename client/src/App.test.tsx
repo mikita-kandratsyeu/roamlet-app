@@ -124,6 +124,10 @@ function addCoordinate(text: string) {
   });
   fireEvent.click(screen.getByRole('button', { name: 'Add coordinates' }));
 }
+function choosePlannerOption(label: string, option: string) {
+  fireEvent.keyDown(screen.getByRole('button', { name: label }), { key: 'ArrowDown' });
+  fireEvent.click(screen.getByRole('menuitemradio', { name: option }));
+}
 async function plan() {
   addCoordinate('47.26, 11.4');
   addCoordinate('47.27, 11.41');
@@ -1001,10 +1005,10 @@ describe('map and routing improvements', () => {
     await i18n.changeLanguage('en');
     render(<App />);
     await plan();
-    fireEvent.change(screen.getByRole('combobox', { name: 'Cycling route profile' }), { target: { value: 'road' } });
+    choosePlannerOption('Cycling route profile', 'Road cycling');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Avoid ferries' }));
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
-    expect(provider.calculateRoute.mock.calls[1][3]).toMatchObject({ cyclingProfile: 'road', avoidFerries: true });
+    expect(provider.calculateRoute.mock.calls[1][3]).toMatchObject({ cyclingProfile: 'cycling-road', avoidFerries: true });
     provider.calculatePointAlternatives.mockResolvedValueOnce([
       { segments: [geometry], stats: { distance: 1000, duration: 300 } },
       { segments: [[[11.4, 47.26], [11.42, 47.27], [11.41, 47.27]]], stats: { distance: 1300, duration: 400 } },
@@ -1025,12 +1029,12 @@ describe('map and routing improvements', () => {
     await plan();
     addCoordinate('47.28, 11.42');
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Section 2 mode' }), { target: { value: 'direct' } });
+    choosePlannerOption('Section 2 mode', 'Direct line — unverified');
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(3));
     fireEvent.click(screen.getByRole('button', { name: 'Reverse' }));
-    expect(screen.getByRole('combobox', { name: 'Section 1 mode' })).toHaveValue('direct');
-    expect(screen.getByRole('combobox', { name: 'Section 2 mode' })).toHaveValue('automatic');
+    expect(screen.getByRole('button', { name: 'Section 1 mode' })).toHaveTextContent('Direct line — unverified');
+    expect(screen.getByRole('button', { name: 'Section 2 mode' })).toHaveTextContent('Road/path routing');
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(screen.getByRole('combobox', { name: 'Section 2 mode' })).toHaveValue('direct');
+    expect(screen.getByRole('button', { name: 'Section 2 mode' })).toHaveTextContent('Direct line — unverified');
   });
 });

@@ -3,14 +3,7 @@ import { ChevronDown, Clock3 } from 'lucide-react';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { useDecimalField } from '../hooks/useDecimalField';
-import { Button } from './ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from './ui/dropdown-menu';
+import { PlannerChoice } from './PlannerChoice';
 import {
   isFitness,
   isSurface,
@@ -43,23 +36,14 @@ function TimeChoice({
   return (
     <div className="personal-time-field">
       <span className="personal-time-label">{t(label)}</span>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="personal-time-choice" aria-label={t(label)}>
-            <span>{t(value === 'unknown' ? 'Unknown' : options[value])}</span>
-            <ChevronDown size={14} aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" collisionPadding={12} className="personal-time-menu">
-          <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
-            {Object.entries(options).map(([key, text]) => (
-              <DropdownMenuRadioItem key={key} value={key}>
-                {t(text)}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <PlannerChoice
+        label={t(label)}
+        value={value}
+        options={Object.entries(options).map(([key, text]) => ({ value: key, label: text }))}
+        onChange={onChange}
+        className="personal-time-choice"
+        menuClassName="personal-time-menu"
+      />
     </div>
   );
 }

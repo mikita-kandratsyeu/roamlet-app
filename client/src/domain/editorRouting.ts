@@ -22,6 +22,13 @@ export function routingInputKey(
 export function isRouteResultCurrent(snapshot: EditorSnapshot): boolean {
   if (!snapshot.result || snapshot.routeStale) return false;
   if (snapshot.mode === 'snapshot') return true;
+  if (snapshot.planningMode === 'loop')
+    return (
+      snapshot.result.activity === snapshot.activity &&
+      snapshot.result.segments.some((segment) => segment.length >= 2) &&
+      JSON.stringify(normalizeRoutingOptions(snapshot.result.routingOptions)) ===
+        JSON.stringify(normalizeRoutingOptions(snapshot.routingOptions))
+    );
   const key = snapshot.result.routingInputKey;
   if (key !== undefined) return key === routingInputKey(snapshot);
   return (

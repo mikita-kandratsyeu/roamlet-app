@@ -116,6 +116,25 @@ describe('stale geometry and backwards compatible snapshots', () => {
       }),
     ).toBe(false);
   });
+  it('accepts a ready loop with generated stops while checking stale status, activity and options', () => {
+    const result = ready();
+    result.routingOptions = { cyclingProfile: 'cycling-road', avoidFerries: true };
+    const snapshot = {
+      ...initialEditor(),
+      planningMode: 'loop' as const,
+      waypoints: [points[0]],
+      result,
+      routingOptions: result.routingOptions,
+    };
+    result.routingInputKey = routingInputKey({ ...snapshot, waypoints: points });
+    expect(isRouteResultCurrent(snapshot)).toBe(true);
+    expect(isRouteResultCurrent({ ...snapshot, routeStale: true })).toBe(false);
+    expect(isRouteResultCurrent({ ...snapshot, activity: 'hiking' })).toBe(false);
+    expect(
+      isRouteResultCurrent({ ...snapshot, routingOptions: { cyclingProfile: 'cycling-mountain' } }),
+    ).toBe(false);
+    expect(isRouteResultCurrent({ ...snapshot, result: { ...result, segments: [] } })).toBe(false);
+  });
   it('converts GPX endpoints only explicitly and rejects isolated trackpoints', () => {
     const route = {
       ...ready(),
