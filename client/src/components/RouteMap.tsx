@@ -813,10 +813,9 @@ export function RouteMap(props: Props) {
           <Button variant="ghost" aria-label={t('Close waypoint actions')} onClick={() => setMenuWaypointId(null)}><X size={16} /></Button>
         </div>
       )}
-      {ready && (accuracy !== null || props.elevationCoordinate || insertionPreview || props.routeStale) && (
+      {ready && (accuracy !== null || insertionPreview || props.routeStale) && (
         <div className="map-annotation-status" role="status">
           {accuracy !== null && <span>{t('Location accuracy: ±{{meters}} m', { meters: formatNumber(Math.round(accuracy)) })}</span>}
-          {props.elevationCoordinate && <span>{t('Elevation location')}</span>}
           {insertionPreview && <span>{t('Insert waypoint here')}</span>}
           {props.routeStale && <span>{t('Route is out of date')}</span>}
         </div>

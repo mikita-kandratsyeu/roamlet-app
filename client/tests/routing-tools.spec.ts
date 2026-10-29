@@ -67,7 +67,9 @@ test('planner choices share translated accessible menus and remain inside the vi
   await surface.click();
   await expect(page.getByRole('menu')).toHaveClass(/planner-choice-menu/);
   await page.keyboard.press('Escape');
-  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  await page.getByRole('button', { name: 'Меню', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Тёмная', exact: true }).click();
+  await expect(page.locator('html')).toHaveClass(/dark/);
   await profile.click();
   const colors = await page.getByRole('menu').evaluate((element) => {
     const style = getComputedStyle(element);

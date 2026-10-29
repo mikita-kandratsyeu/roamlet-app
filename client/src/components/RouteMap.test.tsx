@@ -1029,6 +1029,12 @@ it('renders isolated direct, inactive alternative and elevation geometry without
   });
   act(() => mocks.handlers.get('click')?.({ lngLat: { lng: 10.01, lat: 0 }, point: { x: 1, y: 1 } }));
   expect(props.onAdd).not.toHaveBeenCalled();
+  rerender(<RouteMap {...options} routeStale={false} />);
+  expect(screen.queryByText('Elevation location')).not.toBeInTheDocument();
+  expect(document.querySelector('.map-annotation-status')).not.toBeInTheDocument();
+  expect(mocks.extraData.get('route-elevation')).toHaveBeenLastCalledWith(expect.objectContaining({
+    features: [expect.objectContaining({ geometry: { type: 'Point', coordinates: [0.01, 0] } })],
+  }));
   rerender(<RouteMap {...options} elevationCoordinate={null} routeStale={false} />);
   expect(mocks.extraData.get('route-elevation')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
   expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-opacity', 1);
