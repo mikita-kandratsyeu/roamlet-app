@@ -95,9 +95,13 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   await page.mouse.click(box.x + box.width * 0.65, box.y + box.height * 0.15);
   await page.mouse.click(box.x + box.width * 0.75, box.y + box.height * 0.2);
   await expect(page.locator('.waypoint-marker')).toHaveCount(2);
-  await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export GPX', exact: true }).click();
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Export route', exact: true })
+    .getByRole('button', { name: 'Download GPX', exact: true })
+    .click();
   const xml = await readFile((await (await download).path())!, 'utf8');
   expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
   expect(xml).not.toContain('Routing by Mapbox');
@@ -105,10 +109,69 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   await canvas.focus();
   await page.keyboard.press('Control+z');
   await expect(page.locator('.waypoint-marker')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(page.locator('.waypoint-marker')).toHaveCount(0);
   expect(directions).toEqual([]);
+});
+
+test('export dialog edits a safe filename, keeps Komoot help collapsed and restores focus', async ({
+  page,
+}) => {
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'mountain.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
+  const exportButton = page.getByRole('button', { name: 'Export', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Export route', exact: true });
+  let downloads = 0;
+  page.on('download', () => downloads++);
+  await exportButton.click();
+  await expect(dialog).toBeVisible();
+  const filename = dialog.getByRole('textbox', { name: 'File name', exact: true });
+  await expect(filename).toBeEditable();
+  const summary = dialog.locator('summary').filter({ hasText: 'How to import into Komoot' });
+  const guide = summary.locator('..');
+  await expect(summary).toBeVisible();
+  await expect(guide).not.toHaveAttribute('open');
+  const helpLink = guide.getByRole('link');
+  await expect(helpLink).not.toBeVisible();
+  await summary.focus();
+  await summary.press('Enter');
+  await expect(guide).toHaveAttribute('open');
+  await expect(helpLink).toBeVisible();
+  const helpUrl = new URL((await helpLink.getAttribute('href'))!);
+  expect(helpUrl.protocol).toBe('https:');
+  expect(helpUrl.hostname).toBe('support.komoot.com');
+  expect(helpUrl.pathname).toMatch(/^\/hc\/en-us\/articles\/\d+/);
+  expect(downloads).toBe(0);
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(exportButton).toBeFocused();
+  expect(downloads).toBe(0);
+
+  await exportButton.click();
+  await expect(dialog).toBeVisible();
+  await expect(guide).not.toHaveAttribute('open');
+  await filename.fill('  Ridge / walk:?  ');
+  await expect(filename).toHaveValue('  Ridge / walk:?  ');
+  expect(downloads).toBe(0);
+  const pending = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Download GPX', exact: true }).click();
+  const download = await pending;
+  await expect(dialog).not.toBeVisible();
+  await expect(exportButton).toBeFocused();
+  expect(downloads).toBe(1);
+  const suggestedFilename = download.suggestedFilename();
+  expect(suggestedFilename).toMatch(/^Ridge[ _-]+walk[ _-]*\.gpx$/);
+  expect(suggestedFilename).not.toMatch(/[<>:"/\\|?*]/);
+  expect([...suggestedFilename].every((character) => character.charCodeAt(0) >= 32)).toBe(true);
+  expect(suggestedFilename).toBe(suggestedFilename.trim());
+  const xml = await readFile((await download.path())!, 'utf8');
+  expect(xml.match(/<trkseg>/g)).toHaveLength(2);
+  expect(xml.match(/<trkpt\s/g)).toHaveLength(4);
+  expect(xml).toContain('Mountain morning');
 });
 
 test('manual controls keep logical order and remain reachable at 320px in Russian', async ({
@@ -157,7 +220,11 @@ test('manual routes retain exact points when saved, reopened and edited', async 
   await expect(page.getByRole('dialog')).not.toBeVisible();
   await addPoint(page, '47.273, 11.413');
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export GPX', exact: true }).click();
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Export route', exact: true })
+    .getByRole('button', { name: 'Download GPX', exact: true })
+    .click();
   const xml = await readFile((await (await download).path())!, 'utf8');
   expect(xml.match(/<trkpt\s/g)).toHaveLength(3);
   expect(xml).toContain('lat="47.273" lon="11.413"');
@@ -221,7 +288,11 @@ test('creates, recalculates, saves, reloads, reopens and exports actual returned
   await page.getByRole('button', { name: /Weekend escape Cycling/ }).click();
   await expect(page.locator('.planner')).toContainText('Weekend escape');
   const downloaded = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export GPX' }).click();
+  await page.getByRole('button', { name: 'Export' }).click();
+  await page
+    .getByRole('dialog', { name: 'Export route', exact: true })
+    .getByRole('button', { name: 'Download GPX', exact: true })
+    .click();
   const download = await downloaded;
   expect(download.suggestedFilename()).toBe('Weekend escape.gpx');
   const text = await readFile((await download.path())!, 'utf8');
@@ -260,7 +331,11 @@ test('imports multiple segments, preserves GPX geometry and errors gracefully', 
     .toBeLessThan(1);
   expect((await edit.boundingBox())!.width).toBeCloseTo((await snapshot.boundingBox())!.width, 0);
   const downloaded = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export GPX' }).click();
+  await page.getByRole('button', { name: 'Export' }).click();
+  await page
+    .getByRole('dialog', { name: 'Export route', exact: true })
+    .getByRole('button', { name: 'Download GPX', exact: true })
+    .click();
   const text = await readFile((await (await downloaded).path())!, 'utf8');
   expect(text.match(/<trkseg>/g)).toHaveLength(2);
   expect(text.match(/<trkpt\s/g)).toHaveLength(4);
@@ -330,13 +405,13 @@ test('coordinate input replaces paid search; hiking and service failures are hon
     instructions: false,
     elevation: false,
   });
-  await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();
   await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) =>
     route.fulfill({ status: 429, json: { error: { message: 'quota' } } }),
   );
   await addPoint(page, '47.28, 11.42');
   await expect(page.getByRole('alert')).toContainText('quota');
-  await expect(page.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Export' })).toBeDisabled();
   expect(paidRequests).toEqual([]);
 });
 test('round trips route intermediate points with bounded search; responsive controls stay reachable', async ({
@@ -376,14 +451,14 @@ test('round trips route intermediate points with bounded search; responsive cont
   await expect(page.getByRole('button', { name: /Option 1/ })).toBeVisible();
   expect(attempts).toBeGreaterThan(0);
   expect(attempts).toBeLessThanOrEqual(6);
-  await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();
   if (testInfo.project.name === 'mobile') {
     await page.locator('.mobile-sheet-toggle').click();
     await expect(page.locator('.planner-scroll')).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Export GPX' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Zoom in' })).toBeVisible();
     await page.locator('.mobile-sheet-toggle').click();
-    await expect(page.getByRole('button', { name: 'Export GPX' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
@@ -518,7 +593,7 @@ test('header supports desktop creation and an accessible compact menu', async ({
   await expect(page.getByRole('dialog', { name: 'Leave this route?' })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(creationFocus).toBeFocused();
-  await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();
 });
 
 test('focus indicators are single and keyboard focus follows fields, dialogs, library actions and map controls', async ({
@@ -556,7 +631,7 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(newRoute).toBeFocused();
-  await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();
   const save = page.getByRole('button', { name: 'Save route', exact: true });
   await save.press('Enter');
   const name = page.getByRole('textbox', { name: 'Route name' });
@@ -728,7 +803,7 @@ test('matches Figma planner geometry while preserving branding and responsive el
     await expect(page.locator('.elevation-box')).not.toHaveAttribute('open');
     await expect(page.locator('.statistics .elevation-box')).toHaveCount(1);
     await page.locator('.mobile-sheet-toggle').click();
-    await expect(page.getByRole('button', { name: 'Export GPX' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
   } else {
     await expect(page.locator('#map-elevation-root .elevation-box')).toHaveAttribute('open');
     const chart = await page.locator('#map-elevation-root').boundingBox();

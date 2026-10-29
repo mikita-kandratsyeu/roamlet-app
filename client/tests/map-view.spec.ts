@@ -101,3 +101,61 @@ test('uses timezone region first, restores last local view, and fits an imported
     .toBeLessThan(12);
   expect(errors).toEqual([]);
 });
+
+test('loads the Standard OSM raster style and preserves waypoints when switching maps', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  const tileRequests: { referer?: string; cacheControl?: string }[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'roamlet:preferences:v1',
+      JSON.stringify({ style: 'standard', theme: 'light', panelHidden: true }),
+    );
+  });
+  await page.route('https://tile.openstreetmap.org/**', (route) => {
+    const headers = route.request().headers();
+    tileRequests.push({ referer: headers.referer, cacheControl: headers['cache-control'] });
+    return route.fulfill({
+      contentType: 'image/png',
+      headers: { 'cache-control': 'public, max-age=604800' },
+      body: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZXsAAAAASUVORK5CYII=',
+        'base64',
+      ),
+    });
+  });
+  await page.route('https://tiles.openfreemap.org/styles/bright', (route) =>
+    route.fulfill({
+      json: {
+        version: 8,
+        sources: {},
+        layers: [
+          { id: 'background', type: 'background', paint: { 'background-color': '#faf7f2' } },
+        ],
+      },
+    }),
+  );
+  await page.goto('/');
+  const picker = page.getByLabel('Map style', { exact: true });
+  await expect(picker).toHaveValue('/osm-standard.json');
+  await expect(page.locator('.maplibregl-ctrl-attrib')).toContainText('OpenStreetMap');
+  await expect(page.locator('.maplibregl-ctrl-attrib')).toBeVisible();
+  await expect.poll(() => tileRequests.length).toBeGreaterThan(0);
+  for (const request of tileRequests) {
+    expect(request.referer).toContain('http://127.0.0.1:4174/');
+    expect(request.cacheControl).toBeUndefined();
+  }
+  const canvas = page.locator('.maplibregl-canvas');
+  const bounds = await canvas.boundingBox();
+  expect(bounds).not.toBeNull();
+  await canvas.click({ position: { x: bounds!.width * 0.6, y: bounds!.height * 0.4 } });
+  await expect(page.locator('.maplibregl-marker')).toHaveCount(1);
+  await picker.selectOption('https://tiles.openfreemap.org/styles/bright');
+  await expect(page.locator('.maplibregl-ctrl-attrib')).not.toContainText('OpenStreetMap');
+  await picker.selectOption('/osm-standard.json');
+  await expect(page.locator('.maplibregl-ctrl-attrib')).toContainText('OpenStreetMap');
+  await expect(page.locator('.maplibregl-marker')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});

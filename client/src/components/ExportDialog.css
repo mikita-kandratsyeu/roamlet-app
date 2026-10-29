@@ -1,0 +1,66 @@
+.export-route-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+}
+
+.export-route-summary strong {
+  min-width: 0;
+}
+
+.export-copy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.export-format {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.export-download {
+  width: 100%;
+  min-height: 44px;
+}
+
+.export-guide {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.export-guide summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.export-guide summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.export-guide ol {
+  margin: 12px 0;
+  padding-left: 20px;
+}
+
+.export-guide li + li {
+  margin-top: 8px;
+}
+
+.export-guide a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--primary);
+  text-decoration: underline;
+}

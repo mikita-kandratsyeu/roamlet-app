@@ -1,4 +1,4 @@
-export const DEFAULT_MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+export const DEFAULT_MAP_STYLE = '/osm-standard.json';
 export const BRIGHT_MAP_STYLE = 'https://tiles.openfreemap.org/styles/bright';
 export const MAP_STYLE_CONFIGURATION_MESSAGE =
   'Set VITE_MAP_STYLE to an HTTP(S) or root-relative style URL. Saved routes and GPX remain available. Offline basemaps are not supported.';

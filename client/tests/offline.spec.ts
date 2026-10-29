@@ -77,7 +77,11 @@ test('production shell keeps saved routes and GPX export available offline, with
   await page.getByRole('button', { name: /Offline escape Hiking/ }).click();
   await expect(page.getByRole('heading', { name: 'Offline escape' })).toBeVisible();
   const downloaded = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export GPX' }).click();
+  await page.getByRole('button', { name: 'Export' }).click();
+  await page
+    .getByRole('dialog', { name: 'Export route', exact: true })
+    .getByRole('button', { name: 'Download GPX', exact: true })
+    .click();
   const text = await readFile((await (await downloaded).path())!, 'utf8');
   expect(text.match(/<trkpt\s/g)).toHaveLength(2);
   const cached = await page.evaluate(async () => {
@@ -116,7 +120,7 @@ for (const viewport of [
         mimeType: 'application/gpx+xml',
         buffer: Buffer.from(gpx),
       });
-      await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeEnabled();
+      await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
       await context.setOffline(true);
       try {
         await expect(page.getByText('No internet connection', { exact: true })).toBeVisible();
@@ -134,7 +138,11 @@ for (const viewport of [
           await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
         ).toBe(true);
         const pending = page.waitForEvent('download');
-        await page.getByRole('button', { name: 'Export GPX', exact: true }).click();
+        await page.getByRole('button', { name: 'Export', exact: true }).click();
+        await page
+          .getByRole('dialog', { name: 'Export route', exact: true })
+          .getByRole('button', { name: 'Download GPX', exact: true })
+          .click();
         const offlineXml = await readFile((await (await pending).path())!, 'utf8');
         expect(offlineXml.match(/<trkpt\s/g)).toHaveLength(2);
         await page
@@ -149,7 +157,11 @@ for (const viewport of [
         await expect(page.getByRole('heading', { name: 'Map unavailable offline' })).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
         const reconnected = page.waitForEvent('download');
-        await page.getByRole('button', { name: 'Export GPX', exact: true }).click();
+        await page.getByRole('button', { name: 'Export', exact: true }).click();
+        await page
+          .getByRole('dialog', { name: 'Export route', exact: true })
+          .getByRole('button', { name: 'Download GPX', exact: true })
+          .click();
         const onlineXml = await readFile((await (await reconnected).path())!, 'utf8');
         expect(onlineXml).toBe(offlineXml);
         await page.screenshot({ path: test.info().outputPath('reconnected.png') });
@@ -181,7 +193,9 @@ test.describe('core panels without a service worker', () => {
               manual: 'Новый маршрут по координатам',
               coordinates: 'Широта',
               add: 'Добавить координаты',
-              export: 'Экспорт GPX',
+              export: 'Экспорт',
+              exportDialog: 'Экспорт маршрута',
+              download: 'Скачать GPX',
             }
           : {
               save: 'Save route',
@@ -191,7 +205,9 @@ test.describe('core panels without a service worker', () => {
               manual: 'New manual route',
               coordinates: 'Latitude',
               add: 'Add coordinates',
-              export: 'Export GPX',
+              export: 'Export',
+              exportDialog: 'Export route',
+              download: 'Download GPX',
             };
       await page.goto('/');
       await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
@@ -228,6 +244,10 @@ test.describe('core panels without a service worker', () => {
         await expect(page.getByTestId('panel-loader')).toHaveCount(0);
         const pending = page.waitForEvent('download');
         await page.getByRole('button', { name: copy.export, exact: true }).click();
+        await page
+          .getByRole('dialog', { name: copy.exportDialog, exact: true })
+          .getByRole('button', { name: copy.download, exact: true })
+          .click();
         const xml = await readFile((await (await pending).path())!, 'utf8');
         expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
       } finally {
@@ -252,7 +272,7 @@ test('missing routing key keeps the map usable but never substitutes a fake rout
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
   await expect(page.getByRole('alert')).toContainText('VITE_ORS_API_KEY');
-  await expect(page.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Export' })).toBeDisabled();
 });
 test('manual drawing calculates and exports offline without a routing key', async ({
   page,
@@ -268,10 +288,14 @@ test('manual drawing calculates and exports offline without a routing key', asyn
       await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
       await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
     }
-    await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
     await expect(page.locator('.configuration-note')).toHaveCount(0);
     const downloaded = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Export GPX', exact: true }).click();
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: 'Export route', exact: true })
+      .getByRole('button', { name: 'Download GPX', exact: true })
+      .click();
     const xml = await readFile((await (await downloaded).path())!, 'utf8');
     expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
     expect(xml).not.toContain('Routing by Mapbox');
@@ -301,7 +325,7 @@ test('offline reload restores an unsaved draft and exposes library backup withou
     await page.unroute('**/*.openfreemap.org/**');
     await page.reload();
     await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
     await page.getByRole('button', { name: 'Save route', exact: true }).click();
     await page.getByRole('textbox', { name: 'Route name' }).fill('Offline draft');
     await page.getByRole('button', { name: 'Save to library', exact: true }).click();
@@ -358,7 +382,11 @@ test('confirming a waiting update saves the current draft before reloading', asy
       'true',
     );
     const pending = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Export GPX', exact: true }).click();
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: 'Export route', exact: true })
+      .getByRole('button', { name: 'Download GPX', exact: true })
+      .click();
     const xml = await readFile((await (await pending).path())!, 'utf8');
     expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
   } finally {
@@ -375,8 +403,8 @@ test('waypoint-only GPX remains usable and cannot crash route conversion', async
       '<gpx version="1.1"><wpt lat="47.2692" lon="11.4041"><name>Meeting point</name></wpt></gpx>',
     ),
   });
-  await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();
   await page.getByRole('button', { name: 'Edit waypoints', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('isolated points');
-  await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();
 });

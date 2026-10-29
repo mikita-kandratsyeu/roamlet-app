@@ -1,10 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_MAP_STYLE, mapTiles } from './mapTiles';
+import standardStyle from '../../public/osm-standard.json';
 
 describe('MapLibre map configuration', () => {
-  it('uses OpenFreeMap without credentials by default', () => {
+  it('uses the local OpenStreetMap raster style without credentials by default', () => {
     expect(mapTiles({})).toEqual({ style: DEFAULT_MAP_STYLE });
-    expect(DEFAULT_MAP_STYLE).toBe('https://tiles.openfreemap.org/styles/liberty');
+    expect(DEFAULT_MAP_STYLE).toBe('/osm-standard.json');
+  });
+  it('uses standard OSM tiles with visible attribution and native tile dimensions', () => {
+    expect(standardStyle.version).toBe(8);
+    expect(standardStyle.sources.osm).toEqual({
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      minzoom: 0,
+      maxzoom: 19,
+      attribution:
+        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    });
+    expect(standardStyle.layers).toEqual([
+      { id: 'osm-standard', type: 'raster', source: 'osm' },
+    ]);
   });
   it('trims the configured style and treats blank values as the default', () => {
     expect(mapTiles({ VITE_MAP_STYLE: ' https://maps.example/style.json ' })).toEqual({

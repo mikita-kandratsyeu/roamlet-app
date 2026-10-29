@@ -50,7 +50,8 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
-import { importGpx, exportGpx, gpxFilename } from './domain/gpx';
+import { importGpx, exportGpx } from './domain/gpx';
+import { ExportDialog } from './components/ExportDialog';
 import { calculateStats } from './domain/stats';
 import { MANUAL_STOP_LIMIT } from './domain/manualRoute';
 type PlanningMode = 'point' | 'loop' | 'manual';
@@ -177,6 +178,7 @@ export default function App() {
     setLibraryOpen(false);
   }
   const [saveOpen, setSaveOpen] = useState(false);
+  const [exportRoute, setExportRoute] = useState<PlannedRoute | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(preferences.collapsed);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
@@ -619,26 +621,24 @@ export default function App() {
       setSaving(false);
     }
   }
-  function download() {
-    const route = currentRoute();
-    if (!route || busy) return;
+  function download(route: PlannedRoute, filename: string) {
+    const blob = new Blob([exportGpx(route)], { type: 'application/gpx+xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
     try {
-      const blob = new Blob([exportGpx(route)], { type: 'application/gpx+xml' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = gpxFilename(route.name);
       document.body.append(link);
       link.click();
+    } finally {
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setNotice({
-        text: 'GPX exported. Import it through your GPS device or compatible app’s GPX upload workflow.',
-        error: false,
-      });
-    } catch (error) {
-      fail(errorMessage(error));
     }
+    setExportRoute(null);
+    setNotice({
+      text: 'GPX exported. Import it through your GPS device or compatible app’s GPX upload workflow.',
+      error: false,
+    });
   }
   async function handleFile(file?: File) {
     if (!file) return;
@@ -1578,10 +1578,12 @@ export default function App() {
                   variant="outline"
                   className="secondary"
                   disabled={!canUseRoute}
-                  onClick={download}
+                  onClick={() => {
+                    if (!busy) setExportRoute(currentRoute());
+                  }}
                 >
                   <Download size={17} />
-                  {t('Export GPX')}
+                  {t('Export')}
                 </Button>
               </div>
               <Button
@@ -1697,6 +1699,13 @@ export default function App() {
             setSelectedAlternative(-1);
             setFitToken((token) => token + 1);
           }}
+        />
+      )}
+      {exportRoute && !libraryOpen && (
+        <ExportDialog
+          route={exportRoute}
+          onDownload={download}
+          onClose={() => setExportRoute(null)}
         />
       )}
       {saveOpen && !libraryOpen && (

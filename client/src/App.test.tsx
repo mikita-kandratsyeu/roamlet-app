@@ -111,6 +111,47 @@ function setOnline(online: boolean) {
   act(() => window.dispatchEvent(new Event(online ? 'online' : 'offline')));
 }
 
+describe('route export', () => {
+  it('opens the export dialog before downloading and keeps the original route name', async () => {
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:test-export');
+    vi.stubGlobal(
+      'URL',
+      class extends URL {
+        static createObjectURL = createObjectURL;
+        static revokeObjectURL = vi.fn();
+      },
+    );
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    render(<App />);
+    await plan();
+    const geometryBefore = screen.getByTestId('map').getAttribute('data-geometry');
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    const dialog = screen.getByRole('dialog', { name: 'Export route' });
+    expect(createObjectURL).not.toHaveBeenCalled();
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'File name' }), {
+      target: { value: 'Weekend/trip.gpx' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Download GPX' }));
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(click.mock.instances[0]).toHaveAttribute('download', 'Weekend-trip.gpx');
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    expect(blob.type).toBe('application/gpx+xml');
+    const xml = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(blob);
+    });
+    expect(xml).toContain('<name>Untitled route</name>');
+    expect(xml).not.toContain('Weekend');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('map').getAttribute('data-geometry')).toBe(geometryBefore);
+    await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-export'), {
+      timeout: 1500,
+    });
+  });
+});
+
 describe('offline planner', () => {
   it('preserves calculated geometry and export, blocks online editing, and does not recalculate on reconnect', async () => {
     await i18n.changeLanguage('en');
@@ -123,7 +164,7 @@ describe('offline planner', () => {
     expect(screen.getByRole('button', { name: 'Update route' })).toBeDisabled();
     expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeDisabled();
     expect(screen.getByRole('radio', { name: 'Cycling' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Move first map point' }));
     expect(screen.getByTestId('map').getAttribute('data-geometry')).toBe(original);
@@ -157,7 +198,7 @@ describe('offline planner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Use manual drawing' }));
     addCoordinate('47.26, 11.4');
     addCoordinate('47.27, 11.41');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled());
     expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeEnabled();
     expect(
       screen.getByText('Enter coordinates to draw straight lines without an online map.'),
@@ -206,7 +247,7 @@ describe('route planner interactions', () => {
     await act(async () => {
       await i18n.changeLanguage('en');
     });
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
   });
   it('draws, moves, reverses and undoes manual segments without Directions or a token', async () => {
     vi.mocked(checkRoutingConfiguration).mockResolvedValue(false);
@@ -259,7 +300,7 @@ describe('route planner interactions', () => {
         ],
       ]),
     );
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
     expect(screen.getByTestId('map')).toHaveAttribute(
       'data-geometry',
@@ -584,7 +625,7 @@ describe('route planner interactions', () => {
   it('starts with an actionable empty overview instead of unavailable metrics', () => {
     render(<App />);
     expect(screen.getByRole('button', { name: 'Save route' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Calculate route' })).toBeDisabled();
     expect(screen.getByText('Where shall we go?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add a stop' })).toBeEnabled();
@@ -601,7 +642,7 @@ describe('route planner interactions', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Calculating route…' })).toBeDisabled(),
     );
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
     expect(provider.calculateRoute).toHaveBeenCalledTimes(2);
   });
@@ -654,7 +695,7 @@ describe('route planner interactions', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Round trip' }));
     fireEvent.click(screen.getByRole('button', { name: 'Switch to round trip' }));
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
   });
   it('plans, saves, opens its library and reopens a persistent route', async () => {
     render(<App />);
@@ -677,7 +718,7 @@ describe('route planner interactions', () => {
     const open = await screen.findByRole('button', { name: /River escape Cycling/ });
     fireEvent.click(open);
     expect(screen.getByRole('heading', { name: 'River escape' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
   });
   it('recalculates reversed/removed waypoints and uses the hiking profile', async () => {
     render(<App />);
@@ -689,7 +730,7 @@ describe('route planner interactions', () => {
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(3));
     expect(provider.calculateRoute.mock.calls[2][1]).toBe('hiking');
     fireEvent.click(screen.getByRole('button', { name: 'Remove stop 2' }));
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
   });
   it('never leaves stale geometry exportable on failed recalculation', async () => {
     render(<App />);
@@ -697,7 +738,7 @@ describe('route planner interactions', () => {
     provider.calculateRoute.mockRejectedValueOnce(new Error('Routing quota reached.'));
     addCoordinate('47.28, 11.42');
     await screen.findByRole('alert');
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
     expect(screen.getByTestId('map')).toHaveAttribute('data-segments', '0');
   });
   it('validates coordinate bounds without calling a service', () => {
@@ -713,10 +754,10 @@ describe('route planner interactions', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Unsaved changes');
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'New route' }));
     fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
   });
   it('edits, duplicates and confirms deletion in the local library', async () => {
     render(<App />);

@@ -689,7 +689,7 @@ it('falls back once for an unavailable saved style, warns and retains manual ret
   render(<RouteMap {...props} />);
   act(() => mocks.handlers.get('error')?.());
   expect(mocks.setStyle).toHaveBeenCalledTimes(1);
-  expect(mocks.setStyle).toHaveBeenLastCalledWith('https://tiles.openfreemap.org/styles/liberty');
+  expect(mocks.setStyle).toHaveBeenLastCalledWith('/osm-standard.json');
   expect(screen.getByRole('status')).toHaveTextContent(
     'The saved map style is unavailable. The standard map is being used.',
   );
@@ -704,7 +704,7 @@ it('uses standard with a warning when the saved custom style is no longer config
   savePreferences({ style: 'custom' });
   render(<RouteMap {...props} />);
   expect(mocks.options).toHaveBeenCalledWith(
-    expect.objectContaining({ style: 'https://tiles.openfreemap.org/styles/liberty' }),
+    expect.objectContaining({ style: '/osm-standard.json' }),
   );
   expect(
     screen.getByText('The saved map style is unavailable. The standard map is being used.'),
@@ -717,7 +717,7 @@ it('resets the current camera and style without mutating route geometry', () => 
   act(() => {
     expect(resetPreferences()).toBe(true);
   });
-  expect(mocks.setStyle).toHaveBeenLastCalledWith('https://tiles.openfreemap.org/styles/liberty');
+  expect(mocks.setStyle).toHaveBeenLastCalledWith('/osm-standard.json');
   expect(mocks.jump).toHaveBeenLastCalledWith(defaultMapView());
   expect(props.onAdd).not.toHaveBeenCalled();
   expect(props.onMove).not.toHaveBeenCalled();

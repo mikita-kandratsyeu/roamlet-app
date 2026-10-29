@@ -13,6 +13,12 @@ async function choose(page: Page, label: string, option: string) {
 async function download(page: Page, label: string) {
   const pending = page.waitForEvent('download');
   await page.getByRole('button', { name: label, exact: true }).click();
+  if (label === 'Export') {
+    await page
+      .getByRole('dialog', { name: 'Export route', exact: true })
+      .getByRole('button', { name: 'Download GPX', exact: true })
+      .click();
+  }
   return readFile((await (await pending).path())!, 'utf8');
 }
 
@@ -120,7 +126,7 @@ test('hiking pace and climb allowance preserve split GPX tracks and original hei
   await pace.fill('15');
   await pace.press('Enter');
   await expect.poll(() => statistics.innerText()).not.toBe(before);
-  const xml = await download(page, 'Export GPX');
+  const xml = await download(page, 'Export');
   expect(xml.match(/<trkseg>/g)).toHaveLength(2);
   expect(xml.match(/<trkpt\s/g)).toHaveLength(4);
   for (const height of [100, 400, 500, 800]) expect(xml).toContain(`<ele>${height}</ele>`);

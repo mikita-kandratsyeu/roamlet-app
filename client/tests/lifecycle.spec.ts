@@ -13,6 +13,12 @@ async function library(page: Page) {
 async function readDownload(page: Page, buttonName: string) {
   const pending = page.waitForEvent('download');
   await page.getByRole('button', { name: buttonName, exact: true }).click();
+  if (buttonName === 'Export') {
+    await page
+      .getByRole('dialog', { name: 'Export route', exact: true })
+      .getByRole('button', { name: 'Download GPX', exact: true })
+      .click();
+  }
   return readFile((await (await pending).path())!, 'utf8');
 }
 
@@ -53,12 +59,12 @@ test('manual edits undo and redo, retain native text undo, and recover after rel
   await page.reload();
   await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
   await expect(page.locator('.waypoint-marker')).toHaveCount(2);
-  await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Manual drawing', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  const xml = await readDownload(page, 'Export GPX');
+  const xml = await readDownload(page, 'Export');
   expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
 });
 
@@ -75,7 +81,7 @@ test('restored GPX preserves disconnected tracks and heights without routing', a
   await page.waitForTimeout(1200);
   await page.reload();
   await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
-  const xml = await readDownload(page, 'Export GPX');
+  const xml = await readDownload(page, 'Export');
   expect(xml.match(/<trkseg>/g)).toHaveLength(2);
   expect(xml.match(/<trkpt\s/g)).toHaveLength(4);
   for (const height of [600, 620, 800, 790]) expect(xml).toContain(`<ele>${height}</ele>`);
@@ -93,7 +99,7 @@ test('library backup round trip is local and import leaves the editor unchanged'
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
-  const before = await readDownload(page, 'Export GPX');
+  const before = await readDownload(page, 'Export');
   await library(page);
   const backup = await readDownload(page, 'Export library');
   const data = JSON.parse(backup);
@@ -117,7 +123,7 @@ test('library backup round trip is local and import leaves the editor unchanged'
   await page.getByRole('button', { name: 'Import routes', exact: true }).click();
   await expect(page.locator('.library-route')).toHaveCount(2);
   await page.keyboard.press('Escape');
-  const after = await readDownload(page, 'Export GPX');
+  const after = await readDownload(page, 'Export');
   expect(after).toBe(before);
 });
 
@@ -182,7 +188,7 @@ test('clicking an editable route inserts an ordered stop and one undo removes it
   const y = (first.y + first.height / 2 + last.y + last.height / 2) / 2;
   await page.mouse.click(x, y);
   await expect(markers).toHaveCount(3);
-  const xml = await readDownload(page, 'Export GPX');
+  const xml = await readDownload(page, 'Export');
   const points = [...xml.matchAll(/<trkpt lat="([^"]+)" lon="([^"]+)"/g)];
   expect(points).toHaveLength(3);
   expect(Number(points[1][1])).toBeGreaterThan(47.26);
@@ -198,7 +204,7 @@ test('invalid backup does not change the library or editor', async ({ page }) =>
     mimeType: 'application/gpx+xml',
     buffer: Buffer.from(gpx),
   });
-  const before = await readDownload(page, 'Export GPX');
+  const before = await readDownload(page, 'Export');
   await library(page);
   await page.getByLabel('Import library file').setInputFiles({
     name: 'unsupported.json',
@@ -208,7 +214,7 @@ test('invalid backup does not change the library or editor', async ({ page }) =>
   await expect(page.locator('.library-screen').getByRole('alert')).toBeVisible();
   await expect(page.locator('.library-route')).toHaveCount(0);
   await page.keyboard.press('Escape');
-  expect(await readDownload(page, 'Export GPX')).toBe(before);
+  expect(await readDownload(page, 'Export')).toBe(before);
 });
 
 test('automatic undo restores ready geometry without an extra routing request', async ({
@@ -233,15 +239,15 @@ test('automatic undo restores ready geometry without an extra routing request', 
   });
   await addPoint(page, '47.26, 11.4');
   await addPoint(page, '47.27, 11.41');
-  await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeEnabled();
-  const twoPoints = await readDownload(page, 'Export GPX');
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
+  const twoPoints = await readDownload(page, 'Export');
   await addPoint(page, '47.28, 11.42');
-  await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
   expect(requests).toBe(2);
   await page.locator('.maplibregl-canvas').focus();
   await page.keyboard.press('Control+z');
   await expect(page.locator('.waypoint-marker')).toHaveCount(2);
-  expect(await readDownload(page, 'Export GPX')).toBe(twoPoints);
+  expect(await readDownload(page, 'Export')).toBe(twoPoints);
   await page.keyboard.press('Control+Shift+z');
   await expect(page.locator('.waypoint-marker')).toHaveCount(3);
   await page.waitForTimeout(600);

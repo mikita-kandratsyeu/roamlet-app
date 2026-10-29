@@ -457,5 +457,18 @@
   "Flat-ground speed {{speed}} km/h; surface factor ×{{factor}}; stops {{stops}} min added once.": "Скорость на ровной местности {{speed}} км/ч; поправка покрытия ×{{factor}}; остановки {{stops}} мин добавлены один раз.",
   "GPX ascent {{ascent}} m after 3 m noise filtering; climb allowance {{minutes}} min. No downhill bonus.": "Подъём GPX {{ascent}} м после фильтрации шума 3 м; поправка {{minutes}} мин. Спуски не ускоряют оценку.",
   "Weather, wind, load and access are not inferred. Original route statistics remain unchanged.": "Погода, ветер, груз и доступность не определяются. Исходная статистика маршрута не изменяется.",
-  "Personal estimate unavailable for these inputs.": "Для этих параметров личная оценка недоступна."
+  "Personal estimate unavailable for these inputs.": "Для этих параметров личная оценка недоступна.",
+  "Export": "Экспорт",
+  "Export route": "Экспорт маршрута",
+  "File name": "Имя файла",
+  "Saved as {{filename}}": "Будет сохранён как {{filename}}",
+  "GPX for GPS devices and apps": "GPX для GPS-устройств и приложений",
+  "Includes track geometry, elevations when available, and waypoints.": "Включает трек, высоты при наличии и путевые точки.",
+  "Download GPX": "Скачать GPX",
+  "How to import into Komoot": "Как импортировать в Komoot",
+  "Import the downloaded file yourself. Roamlet does not send routes to Komoot.": "Импортируйте скачанный файл самостоятельно. Roamlet не отправляет маршруты в Komoot.",
+  "Download the GPX file above.": "Скачайте GPX-файл кнопкой выше.",
+  "In Komoot, open Profile → Saved routes → Import a GPS file.": "В Komoot откройте Профиль → Сохранённые маршруты → Импорт GPS-файла.",
+  "Choose the downloaded file, import it as a planned route, and save.": "Выберите скачанный файл, импортируйте его как запланированный маршрут и сохраните.",
+  "Komoot import instructions": "Инструкция по импорту в Komoot"
 }
