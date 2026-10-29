@@ -94,6 +94,43 @@ test('imports GPX from the planner without a duplicate map action', async ({ pag
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
 });
 
+test('export summary shows route metrics and GPX counts without overflowing small screens', async ({ page }, testInfo) => {
+  await page.setViewportSize(testInfo.project.name === 'mobile'
+    ? { width: 320, height: 740 }
+    : { width: 1440, height: 1000 });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'export-details.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
+  await expect(page.locator('.stat-card')).toHaveCount(6);
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page.getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' }).click();
+    await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: /^(Export route|Экспорт маршрута)$/ });
+    const summary = dialog.locator('.export-route-overview');
+    await expect(summary.locator('dt')).toHaveCount(8);
+    const value = (label: string) => summary.locator('dt').filter({ hasText: label }).locator('xpath=following-sibling::dd');
+    await expect(value(language === 'ru' ? 'Точки трека' : 'Track points')).toHaveText('4');
+    await expect(value(language === 'ru' ? 'Участки GPX' : 'GPX segments')).toHaveText('2');
+    await expect(value(language === 'ru' ? 'Путевые точки' : 'Waypoints')).toHaveText('1');
+    await expect(value(language === 'ru' ? 'Набор высоты' : 'Elevation gain')).toHaveText(language === 'ru' ? '20 м' : '20 m');
+    await expect(dialog.getByRole('textbox')).toBeFocused();
+    await summary.scrollIntoViewIfNeeded();
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    for (const cell of await summary.locator('.export-route-details > div').all()) {
+      const box = (await cell.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    }
+    await page.screenshot({ path: testInfo.outputPath(`export-details-${language}.png`) });
+    await expect(dialog.getByRole('button', { name: /^(Download GPX|Скачать GPX)$/ })).toBeEnabled();
+    await dialog.press('Escape');
+    await expect(dialog).toHaveCount(0);
+  }
+});
+
 test('manual drawing uses one ruler tool, direct map points and local undo without Directions', async ({
   page,
 }) => {

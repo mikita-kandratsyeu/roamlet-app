@@ -1,3 +1,42 @@
+.export-route-overview {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+}
+.export-route-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+.export-route-details > div {
+  min-width: 0;
+}
+.export-route-details dt {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-helper);
+  line-height: 1.4;
+}
+.export-route-details dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .export-route-overview {
+    padding: 12px;
+    gap: 12px;
+  }
+  .export-route-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
 .export-route-summary {
   display: flex;
   flex-wrap: wrap;

@@ -40,6 +40,55 @@ describe('ExportDialog', () => {
     expect(onDownload).not.toHaveBeenCalled();
   });
 
+  it('summarizes activity, original time and the actual exported geometry counts', () => {
+    const snapshot: PlannedRoute = {
+      ...route,
+      activity: 'cycling',
+      segments: [...route.segments, [], [[12, 48, 500]]],
+      waypoints: [{ id: 'stop', name: 'Meeting point', coordinate: [11, 47] }],
+    };
+    render(<ExportDialog route={snapshot} onDownload={vi.fn()} onClose={vi.fn()} />);
+    const summary = screen.getByRole('region', { name: 'Route details' });
+    const value = (label: string) => within(summary).getByText(label, { selector: 'dt' }).nextElementSibling;
+    expect(value('Activity')).toHaveTextContent('Cycling');
+    expect(value('Distance')).toHaveTextContent('12.4 km');
+    expect(value('Original time estimate')).toHaveTextContent('10 min');
+    expect(value('Track points')).toHaveTextContent('3');
+    expect(value('GPX segments')).toHaveTextContent('3');
+    expect(value('Waypoints')).toHaveTextContent('1');
+    expect(within(summary).queryByText('Elevation gain')).not.toBeInTheDocument();
+  });
+
+  it.each(['gpx', 'openrouteservice'] as const)('shows available heights, including zero, for %s', (source) => {
+    const snapshot: PlannedRoute = {
+      ...route,
+      source,
+      ...(source === 'openrouteservice' ? { elevationSource: 'openrouteservice' as const } : {}),
+      stats: { ...route.stats, ascent: 30, descent: 0 },
+    };
+    render(<ExportDialog route={snapshot} onDownload={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByText('Elevation gain', { selector: 'dt' }).nextElementSibling).toHaveTextContent('30 m');
+    expect(screen.getByText('Elevation loss', { selector: 'dt' }).nextElementSibling).toHaveTextContent('0 m');
+  });
+
+  it.each(['missing', 'partial', 'manual', 'legacy-mapbox'] as const)(
+    'does not claim elevation metrics for %s heights',
+    (kind) => {
+      const snapshot: PlannedRoute = {
+        ...route,
+        stats: { ...route.stats, ascent: 30, descent: 0 },
+        ...(kind === 'missing' ? { segments: [[[11, 47], [12, 48]]] } : {}),
+        ...(kind === 'partial' ? { segments: [[[11, 47, 100], [12, 48]]] } : {}),
+        ...(kind === 'manual' ? { source: 'manual' } : {}),
+        ...(kind === 'legacy-mapbox' ? { source: 'mapbox' } : {}),
+      };
+      render(<ExportDialog route={snapshot} onDownload={vi.fn()} onClose={vi.fn()} />);
+      const summary = screen.getByRole('region', { name: 'Route details' });
+      expect(within(summary).queryByText('Elevation gain')).not.toBeInTheDocument();
+      expect(within(summary).queryByText('Elevation loss')).not.toBeInTheDocument();
+    },
+  );
+
   it('sanitizes the file name without changing the exported route', () => {
     const onDownload = vi.fn();
     render(<ExportDialog route={route} onDownload={onDownload} onClose={vi.fn()} />);
@@ -132,5 +181,8 @@ describe('ExportDialog', () => {
     expect(within(dialog).getByText('Будет сохранён как Лесная прогулка.gpx')).toBeVisible();
     expect(within(dialog).getByRole('button', { name: 'Скачать GPX' })).toBeEnabled();
     expect(within(dialog).getByText('Как импортировать в Komoot')).toBeVisible();
+    const details = within(dialog).getByRole('region', { name: 'Данные маршрута' });
+    expect(within(details).getByText('Точки трека', { selector: 'dt' }).nextElementSibling).toHaveTextContent('2');
+    expect(within(details).getByText('12,4 км')).toBeVisible();
   });
 });

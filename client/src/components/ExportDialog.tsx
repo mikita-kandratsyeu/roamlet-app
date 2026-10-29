@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, ExternalLink } from 'lucide-react';
 import { Dialog } from './Dialog';
@@ -6,9 +6,9 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { gpxFilename } from '../domain/gpx';
-import { formatDistance } from '../domain/format';
+import { formatDistance, formatDuration } from '../domain/format';
 import type { PlannedRoute } from '../domain/types';
-import { translateMessage } from '../i18n';
+import { formatNumber, translateMessage } from '../i18n';
 import './ExportDialog.css';
 
 export function ExportDialog({
@@ -24,13 +24,46 @@ export function ExportDialog({
   const [filename, setFilename] = useState(() => gpxFilename(route.name));
   const [error, setError] = useState<string | null>(null);
   const filenameInput = useRef<HTMLInputElement>(null);
+  const trackPoints = useMemo(
+    () => route.segments.reduce((sum, segment) => sum + segment.length, 0),
+    [route.segments],
+  );
+  const completeHeights = useMemo(
+    () => route.segments.every((segment) => segment.every((point) => Number.isFinite(point[2]))),
+    [route.segments],
+  );
+  const showElevation =
+    (route.source === 'gpx' || route.elevationSource === 'openrouteservice') &&
+    trackPoints > 1 && completeHeights &&
+    Number.isFinite(route.stats.ascent) && Number.isFinite(route.stats.descent);
+  const details = [
+    [t('Activity'), t(route.activity === 'cycling' ? 'Cycling' : 'Hiking')],
+    [t('Distance'), formatDistance(route.stats.distance)],
+    [t('Original time estimate'), formatDuration(route.stats.duration)],
+    ...(showElevation ? [
+      [t('Elevation gain'), `${formatNumber(Math.round(route.stats.ascent!))} ${t('m')}`],
+      [t('Elevation loss'), `${formatNumber(Math.round(route.stats.descent!))} ${t('m')}`],
+    ] : []),
+    [t('Track points'), formatNumber(trackPoints)],
+    [t('GPX segments'), formatNumber(route.segments.length)],
+    [t('Waypoints'), formatNumber(route.waypoints.length)],
+  ];
 
   return (
     <Dialog title={t('Export route')} initialFocusRef={filenameInput} onClose={onClose}>
-      <p className="export-route-summary">
-        <strong>{route.name || t('Untitled adventure')}</strong>
-        <span className="muted">{formatDistance(route.stats.distance)}</span>
-      </p>
+      <section className="export-route-overview" aria-label={t('Route details')}>
+        <p className="export-route-summary">
+          <strong>{route.name || t('Untitled adventure')}</strong>
+        </p>
+        <dl className="export-route-details">
+          {details.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
       <form
         onSubmit={(event) => {
           event.preventDefault();
