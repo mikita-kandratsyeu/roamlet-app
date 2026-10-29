@@ -527,7 +527,7 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   const search = page.getByRole('textbox', { name: 'Latitude' });
   await search.fill('Innsbruck');
   await expect(search).toHaveCSS('outline-width', '2px');
-  await expect(page.locator('.coordinate-entry')).toHaveCSS('outline-width', '0px');
+  await expect(page.locator('.coordinate-entry')).toHaveCSS('outline-style', 'none');
   await page.keyboard.press('Tab');
   await expect(page.getByRole('textbox', { name: 'Longitude' })).toBeFocused();
   await page.keyboard.press('Tab');

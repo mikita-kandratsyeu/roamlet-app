@@ -276,6 +276,48 @@ describe('route planner interactions', () => {
     expect(provider.calculateAlternatives).not.toHaveBeenCalled();
   });
 
+  it('replaces a stop through separate coordinate fields and clears them only after a valid change', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    addCoordinate('47.26, 11.4');
+    addCoordinate('47.27, 11.41');
+    fireEvent.click(screen.getByRole('button', { name: /^Start 47/ }));
+    const latitude = screen.getByRole('textbox', { name: 'Latitude' });
+    const longitude = screen.getByRole('textbox', { name: 'Longitude' });
+    expect(latitude).toHaveFocus();
+    fireEvent.change(latitude, { target: { value: '91' } });
+    fireEvent.change(longitude, { target: { value: '11.5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Replace stop coordinates' }));
+    expect(latitude).toHaveValue('91');
+    expect(screen.getByTestId('map')).toHaveAttribute(
+      'data-geometry',
+      JSON.stringify([
+        [
+          [11.4, 47.26],
+          [11.41, 47.27],
+        ],
+      ]),
+    );
+    fireEvent.change(latitude, { target: { value: '47.3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Replace stop coordinates' }));
+    expect(screen.getByTestId('map')).toHaveAttribute(
+      'data-geometry',
+      JSON.stringify([
+        [
+          [11.5, 47.3],
+          [11.41, 47.27],
+        ],
+      ]),
+    );
+    expect(latitude).toHaveValue('');
+    expect(longitude).toHaveValue('');
+    expect(latitude).toHaveFocus();
+    expect(
+      screen.queryByRole('button', { name: 'Replace stop coordinates' }),
+    ).not.toBeInTheDocument();
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+  });
+
   it('saves and reopens manual routes for editing without converting them to provider routes', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
