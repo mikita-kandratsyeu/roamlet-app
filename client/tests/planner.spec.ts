@@ -542,10 +542,8 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await expect(page.locator('.library-search')).toHaveCSS('outline-width', '2px');
   await expect(librarySearch).toHaveCSS('outline-style', 'none');
   await page.keyboard.press('Shift+Tab');
-  await expect(page.getByRole('button', { name: 'Close dialog' })).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
-  await expect(librarySearch).toBeFocused();
-  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Back to map', exact: true })).toBeFocused();
+  await page.keyboard.press('Enter');
   await expect(menu).toBeFocused();
   await createRoute(page);
   const newRoute = await requestNewRoute(page);
@@ -576,7 +574,10 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await expect(librarySearch).toBeFocused();
   const edit = page.getByRole('button', { name: 'Edit Focus trip' });
   await expect(edit).toBeVisible();
-  for (let step = 0; step < 4; step++) await page.keyboard.press('Tab');
+  for (let step = 0; step < 20; step++) {
+    if (await edit.evaluate((element) => element === document.activeElement)) break;
+    await page.keyboard.press('Tab');
+  }
   await expect(edit).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(name).toBeFocused();

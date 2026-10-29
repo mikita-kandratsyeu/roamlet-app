@@ -27,6 +27,51 @@ it('cancels old scheduled writes, serializes deletes, and retains a newly schedu
   expect((await loadDraft())?.snapshot.identity).toEqual(next.identity);
   expect((await loadDraft())?.snapshot.name).toBe('New session');
 });
+function blockNextDraftWrite() {
+  let release!: () => void;
+  let start!: () => void;
+  const started = new Promise<void>((resolve) => {
+    start = resolve;
+  });
+  const gate = new Dexie.Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const table = routeDb.table('drafts');
+  const originalPut = table.put.bind(table);
+  vi.spyOn(table, 'put').mockImplementationOnce((record) => {
+    start();
+    return gate.then(() => originalPut(record));
+  });
+  return { release, started };
+}
+it('flushes edits made while an earlier draft write is awaiting completion before resolving', async () => {
+  const blocked = blockNextDraftWrite();
+  const writer = draftWriter(vi.fn());
+  const snapshot = initialEditor();
+  writer.schedule(snapshot);
+  const flushed = writer.flush();
+  await blocked.started;
+  writer.schedule({ ...snapshot, name: 'Edited during flush' });
+  blocked.release();
+  expect(await flushed).toBe(true);
+  expect((await loadDraft())?.snapshot.name).toBe('Edited during flush');
+});
+it('does not resurrect an old write or delete a new session when resetting during an awaited write', async () => {
+  const blocked = blockNextDraftWrite();
+  const writer = draftWriter(vi.fn());
+  writer.schedule(initialEditor());
+  const previousFlush = writer.flush();
+  await blocked.started;
+  const deleted = writer.clear();
+  const next = initialEditor();
+  next.name = 'After reset';
+  writer.schedule(next);
+  const nextFlush = writer.flush();
+  blocked.release();
+  await Promise.all([previousFlush, deleted, nextFlush]);
+  expect((await loadDraft())?.snapshot.identity).toEqual(next.identity);
+  expect((await loadDraft())?.snapshot.name).toBe('After reset');
+});
 it('captures snapshots before asynchronous writes and reports nonblocking errors', async () => {
   const onError = vi.fn();
   const writer = draftWriter(onError);

@@ -505,6 +505,7 @@ describe('route planner interactions', () => {
     render(<App />);
     await plan();
     const items = screen.getAllByRole('listitem');
+    const originalOrder = items.map((item) => item.getAttribute('data-stop-id'));
     fireEvent.dragStart(items[0].querySelector('[draggable]')!, {
       dataTransfer: { setData: vi.fn(), effectAllowed: 'move' },
     });
@@ -512,6 +513,23 @@ describe('route planner interactions', () => {
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
     expect(provider.calculateRoute.mock.calls[1][0][0].coordinate).toEqual([11.41, 47.27]);
     expect(screen.getByRole('button', { name: 'Move stop 1 down' })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(
+      screen.getAllByRole('listitem').map((item) => item.getAttribute('data-stop-id')),
+    ).toEqual(originalOrder);
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
+    expect(
+      screen.getAllByRole('listitem').map((item) => item.getAttribute('data-stop-id')),
+    ).toEqual(originalOrder);
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
+    expect(
+      screen.getAllByRole('listitem').map((item) => item.getAttribute('data-stop-id')),
+    ).toEqual([...originalOrder].reverse());
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(provider.calculateRoute).toHaveBeenCalledTimes(2);
   });
   it('confirms destructive routing mode changes and preserves stops on cancel', async () => {
     vi.stubGlobal(

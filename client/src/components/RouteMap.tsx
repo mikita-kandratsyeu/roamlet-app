@@ -142,6 +142,7 @@ export function RouteMap(props: Props) {
       ),
     ];
     const stylePicker = region.querySelector<HTMLElement>('.map-top-label');
+    const controls = region.querySelector<HTMLElement>('.map-extra-controls');
     const reopen = workspace.querySelector<HTMLElement>('.planner-reopen');
     const measure = () => {
       const attributionHeight = Math.max(
@@ -149,6 +150,10 @@ export function RouteMap(props: Props) {
         ...attribution.map((element) => element.getBoundingClientRect().height),
       );
       const toolbarHeight = toolbar.getBoundingClientRect().height;
+      const wrappedControlsHeight =
+        window.innerWidth <= 700
+          ? Math.max(0, (controls?.getBoundingClientRect().height || 44) - 44)
+          : 0;
       const spacing = Number.parseFloat(getComputedStyle(region).getPropertyValue('--space')) || 12;
       const pickerTop =
         reopen && window.innerWidth <= 1024
@@ -157,7 +162,7 @@ export function RouteMap(props: Props) {
       workspace.style.setProperty('--map-attribution-height', `${attributionHeight}px`);
       workspace.style.setProperty(
         '--map-bottom-reserved',
-        `${attributionHeight + toolbarHeight + 32}px`,
+        `${attributionHeight + toolbarHeight + wrappedControlsHeight + 32}px`,
       );
       workspace.style.setProperty(
         '--map-mobile-controls-bottom',
@@ -170,7 +175,7 @@ export function RouteMap(props: Props) {
       );
     };
     const observer = new ResizeObserver(measure);
-    for (const element of [region, toolbar, ...attribution, stylePicker, reopen]) {
+    for (const element of [region, toolbar, ...attribution, stylePicker, controls, reopen]) {
       if (element) observer.observe(element);
     }
     measure();

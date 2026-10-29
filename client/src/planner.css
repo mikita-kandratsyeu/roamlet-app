@@ -1015,8 +1015,16 @@
   .map-extra-controls {
     top: auto;
     bottom: var(--map-mobile-controls-bottom, 64px);
+    max-width: calc(100% - 24px);
     flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 6px;
+  }
+  .map-extra-controls .map-control {
+    flex: 0 0 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
   .map-control:first-child,
   .map-control:nth-child(2) {
