@@ -82,6 +82,24 @@ test('personal time allows clearing and retyping with localized validation', asy
   await speed.fill('0');
   await speed.press('Tab');
   await expect(speed).toHaveAttribute('aria-invalid', 'true');
+  const error = page.getByText('Enter a speed greater than 0.', { exact: true });
+  await expect(error).toHaveCSS('font-size', '12px');
+  await expect(error).toHaveCSS('line-height', '18px');
+  await expect(error).toHaveCSS('font-weight', '400');
+  expect(
+    await speed.evaluate((element) =>
+      element
+        .getAttribute('aria-describedby')
+        ?.split(/\s+/)
+        .some((id) =>
+          document.getElementById(id)?.textContent?.includes('Enter a speed greater than 0.'),
+        ),
+    ),
+  ).toBe(true);
+  await expect(speed).toHaveCSS(
+    'border-color',
+    await error.evaluate((element) => getComputedStyle(element).color),
+  );
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
   await expect(page.getByText('Оценка времени', { exact: true })).toBeVisible();

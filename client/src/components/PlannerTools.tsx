@@ -40,7 +40,7 @@ export function PlannerTools({
             aria-describedby={speedInvalid ? 'personal-speed-error' : undefined}
             {...speedField}
           />
-          {speedInvalid && <p id="personal-speed-error" className="personal-time-error" role="alert">{t('Enter a finite speed greater than zero.')}</p>}
+          <p id="personal-speed-error" className="personal-time-error" role={speedInvalid ? 'alert' : undefined} aria-hidden={!speedInvalid}>{speedInvalid ? t('Enter a finite speed greater than zero.') : '\u00a0'}</p>
         </div>
         <div className="personal-time-field">
           <Label htmlFor="stops-minutes">{t('Stops (minutes)')}</Label>
@@ -53,7 +53,7 @@ export function PlannerTools({
             aria-describedby={stopsInvalid ? 'stops-minutes-error' : undefined}
             {...stopsField}
           />
-          {stopsInvalid && <p id="stops-minutes-error" className="personal-time-error" role="alert">{t('Enter a finite stop duration of zero or more.')}</p>}
+          <p id="stops-minutes-error" className="personal-time-error" role={stopsInvalid ? 'alert' : undefined} aria-hidden={!stopsInvalid}>{stopsInvalid ? t('Enter a finite stop duration of zero or more.') : '\u00a0'}</p>
         </div>
       </div>
     </details>

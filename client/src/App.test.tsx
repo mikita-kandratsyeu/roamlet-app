@@ -705,14 +705,20 @@ describe('route planner interactions', () => {
     const { unmount } = render(<App />);
     await plan();
     fireEvent.change(screen.getByLabelText('Personal speed (km/h)'), { target: { value: '12' } });
+    fireEvent.blur(screen.getByLabelText('Personal speed (km/h)'));
     fireEvent.change(screen.getByLabelText('Stops (minutes)'), { target: { value: '20' } });
-    await waitFor(async () => expect(await routeDb.table('drafts').count()).toBe(1));
+    fireEvent.keyDown(screen.getByLabelText('Stops (minutes)'), { key: 'Enter' });
+    await waitFor(async () => {
+      const stored = await routeDb.table('drafts').get('current');
+      expect(stored?.snapshot.speeds.cycling).toBe(12);
+      expect(stored?.snapshot.stopsMinutes).toBe(20);
+    });
     unmount();
     render(<App />);
     fireEvent.click(await screen.findByRole('button', { name: 'Restore draft' }));
     expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
-    expect(screen.getByLabelText('Personal speed (km/h)')).toHaveValue(12);
-    expect(screen.getByLabelText('Stops (minutes)')).toHaveValue(20);
+    expect(screen.getByLabelText('Personal speed (km/h)')).toHaveValue('12');
+    expect(screen.getByLabelText('Stops (minutes)')).toHaveValue('20');
     expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(provider.calculateRoute).toHaveBeenCalledTimes(1);
@@ -756,8 +762,17 @@ describe('route planner interactions', () => {
   it('keeps personal time changes separate from provider statistics and routing', async () => {
     render(<App />);
     await plan();
-    fireEvent.change(screen.getByLabelText('Personal speed (km/h)'), { target: { value: '6' } });
+    const speed = screen.getByLabelText('Personal speed (km/h)');
+    fireEvent.focus(speed);
+    fireEvent.change(speed, { target: { value: '' } });
+    fireEvent.keyDown(speed, { key: 'Enter' });
+    expect(speed).toHaveValue('');
+    expect(speed).toHaveAttribute('aria-invalid', 'true');
+    await waitFor(async () => expect((await routeDb.table('drafts').get('current'))?.snapshot.speeds.cycling).toBe(18));
+    fireEvent.change(speed, { target: { value: '6' } });
+    fireEvent.blur(speed);
     fireEvent.change(screen.getByLabelText('Stops (minutes)'), { target: { value: '10' } });
+    fireEvent.blur(screen.getByLabelText('Stops (minutes)'));
     expect(await screen.findByText('Total time with stops')).toBeInTheDocument();
     expect(screen.getByText('Original time estimate')).toBeInTheDocument();
     expect(provider.calculateRoute).toHaveBeenCalledTimes(1);

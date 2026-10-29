@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 let forbiddenRequests: string[] = [];
 test.beforeEach(async ({ page }) => {
@@ -180,6 +181,49 @@ test('offline reload restores an unsaved draft and exposes library backup withou
     await expect(page.locator('.library-route')).toHaveCount(2);
   } finally {
     await context.setOffline(false);
+  }
+});
+
+test('confirming a waiting update saves the current draft before reloading', async ({ page }) => {
+  const workerName = `__update-test-${crypto.randomUUID()}.js`;
+  const workerPath = resolve('dist', workerName);
+  await writeFile(
+    workerPath,
+    `self.addEventListener('message', event => { if(event.data?.type === 'SKIP_WAITING') self.skipWaiting(); }); self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));`,
+    { flag: 'wx' },
+  );
+  try {
+    await page.goto('/');
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+    await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+    for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
+      await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+      await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
+    }
+    await page.evaluate(async (name) => {
+      await navigator.serviceWorker.register(`/${name}`, { scope: '/' });
+    }, workerName);
+    await page.waitForFunction(async () =>
+      Boolean((await navigator.serviceWorker.getRegistration())?.waiting),
+    );
+    await page.getByRole('button', { name: 'Update app', exact: true }).click();
+    const reloaded = page.waitForEvent('load');
+    await page.getByRole('button', { name: 'Reload app', exact: true }).click();
+    await reloaded;
+    await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Manual drawing', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    const pending = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export GPX', exact: true }).click();
+    const xml = await readFile((await (await pending).path())!, 'utf8');
+    expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
+  } finally {
+    await rm(workerPath, { force: true });
   }
 });
 
