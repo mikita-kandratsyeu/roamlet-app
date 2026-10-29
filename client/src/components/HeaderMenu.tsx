@@ -306,19 +306,21 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
               )}
             </p>
           )}
-          <Button ref={cancelReset} variant="outline" onClick={() => setResetOpen(false)}>
-            {t('Cancel')}
-          </Button>
-          <Button
-            onClick={() => {
-              if (resetPreferences()) {
-                setPreferencesError(false);
-                setResetOpen(false);
-              }
-            }}
-          >
-            {t('Reset settings')}
-          </Button>
+          <div className="button-row dialog-actions">
+            <Button ref={cancelReset} variant="outline" onClick={() => setResetOpen(false)}>
+              {t('Cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                if (resetPreferences()) {
+                  setPreferencesError(false);
+                  setResetOpen(false);
+                }
+              }}
+            >
+              {t('Reset settings')}
+            </Button>
+          </div>
         </Dialog>
       )}
     </div>

@@ -16,6 +16,9 @@ vi.mock('./components/RouteMap', () => ({
     manualDrawing,
     onToggleManualDrawing,
     onUndo,
+    onRedo,
+    canUndo,
+    canRedo,
     onMove,
     waypoints,
   }: {
@@ -23,6 +26,9 @@ vi.mock('./components/RouteMap', () => ({
     manualDrawing?: boolean;
     onToggleManualDrawing?: () => void;
     onUndo?: () => void;
+    onRedo?: () => void;
+    canUndo?: boolean;
+    canRedo?: boolean;
     onMove: (id: string, coordinate: [number, number]) => void;
     waypoints: { id: string }[];
   }) => (
@@ -36,9 +42,10 @@ vi.mock('./components/RouteMap', () => ({
       <button aria-pressed={manualDrawing} onClick={onToggleManualDrawing}>
         Manual drawing
       </button>
-      <button disabled={!onUndo} onClick={onUndo}>
-        Undo last point
+      <button disabled={!onUndo || canUndo === false} onClick={onUndo}>
+        Undo
       </button>
+      <button disabled={!onRedo || canRedo === false} onClick={onRedo}>Redo</button>
       <button disabled={!waypoints.length} onClick={() => onMove(waypoints[0].id, [11.5, 47.3])}>
         Move first map point
       </button>
@@ -173,7 +180,7 @@ describe('route planner interactions', () => {
         ],
       ]),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Undo last point' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify([[[11.5, 47.3], [11.41, 47.27]]]));
     expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Redo' }));

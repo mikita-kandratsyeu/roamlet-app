@@ -153,6 +153,10 @@
   margin-top: 20px;
 }
 
+.roamlet-dialog .dialog-actions {
+  gap: 8px;
+}
+
 .roamlet-dialog form > .button-row {
   margin-top: 0;
 }

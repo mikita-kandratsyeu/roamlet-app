@@ -27,6 +27,10 @@ import {
   LoaderCircle,
   Save,
   Info,
+  Upload,
+  Download,
+  Star,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 import type { PlannedRoute } from '../domain/types';
@@ -50,6 +54,48 @@ const sortLabels: Record<RouteSort, string> = {
   name: 'Name (A–Z)',
   distance: 'Distance (shortest first)',
 };
+
+function LibraryChoice({
+  label,
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="library-filter-field">
+      <span className="library-field-label">{label}</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            className="library-choice"
+            disabled={disabled}
+            aria-label={label}
+          >
+            <span>{options.find((option) => option.value === value)?.label ?? value}</span>
+            <ChevronDown size={14} aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="library-sort-menu">
+          <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
+            {options.map((option) => (
+              <DropdownMenuRadioItem key={option.value} value={option.value}>
+                {option.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
 
 export function Library({
   onClose,
@@ -108,6 +154,7 @@ export function Library({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const searchInput = useRef<HTMLInputElement>(null);
+  const importInput = useRef<HTMLInputElement>(null);
   const editInput = useRef<HTMLInputElement>(null);
   const keepButton = useRef<HTMLButtonElement>(null);
   const actionTrigger = useRef<HTMLButtonElement | null>(null);
@@ -277,101 +324,121 @@ export function Library({
               }
             }}
           >
+            <Download size={16} aria-hidden="true" />
             {t('Export library')}
           </Button>
-          <Label className="library-import-label">
+          <Button
+            variant="outline"
+            disabled={loading || busy || loadFailed}
+            onClick={() => importInput.current?.click()}
+          >
+            <Upload size={16} aria-hidden="true" />
             {t('Import library')}
-            <input
-              type="file"
-              accept="application/json,.json"
-              aria-label={t('Import library file')}
-              disabled={loading || busy || loadFailed}
-              onChange={async (event) => {
-                const file = event.target.files?.[0];
-                event.target.value = '';
-                if (!file) return;
-                setBusy(true);
-                setError('');
-                setBackup(null);
-                setImportResult('');
-                try {
-                  setBackup(await readBackupFile(file));
-                  setConflictMode('copy');
-                } catch (error) {
-                  setError(error instanceof Error ? error.message : 'Invalid library backup.');
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            />
-          </Label>
+          </Button>
+          <input
+            ref={importInput}
+            hidden
+            type="file"
+            accept="application/json,.json"
+            aria-label={t('Import library file')}
+            disabled={loading || busy || loadFailed}
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              if (!file) return;
+              setBusy(true);
+              setError('');
+              setBackup(null);
+              setImportResult('');
+              try {
+                setBackup(await readBackupFile(file));
+                setConflictMode('copy');
+              } catch (error) {
+                setError(error instanceof Error ? error.message : 'Invalid library backup.');
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
         </div>
         {routes.length > 0 && (
-          <fieldset className="library-filters" disabled={busy || loading}>
-            <legend>{t('Filter routes')}</legend>
-            <Label>
-              {t('Activity')}
-              <select
+          <section className="library-filters" aria-label={t('Filter routes')}>
+            <div className="library-filter-heading">
+              <span>
+                <SlidersHorizontal size={15} aria-hidden="true" />
+                {t('Filter routes')}
+              </span>
+              <Button variant="ghost" size="sm" disabled={busy || loading} onClick={resetFilters}>
+                {t('Reset filters')}
+              </Button>
+            </div>
+            <div className="library-filter-grid">
+              <LibraryChoice
+                label={t('Activity')}
                 value={activity}
-                onChange={(event) =>
-                  updateFilters({ activity: event.target.value as typeof activity })
-                }
+                disabled={busy || loading}
+                onChange={(value) => updateFilters({ activity: value as typeof activity })}
+                options={[
+                  { value: 'all', label: t('All activities') },
+                  { value: 'cycling', label: t('Cycling') },
+                  { value: 'hiking', label: t('Hiking') },
+                ]}
+              />
+              <LibraryChoice
+                label={t('Filter by tag')}
+                value={tag}
+                disabled={busy || loading}
+                onChange={(tag) => updateFilters({ tag })}
+                options={[
+                  { value: '', label: t('All tags') },
+                  ...[
+                    ...new Set([
+                      ...routes.flatMap((route) => route.tags ?? []),
+                      ...(tag ? [tag] : []),
+                    ]),
+                  ]
+                    .sort()
+                    .map((tag) => ({ value: tag, label: tag })),
+                ]}
+              />
+              <div className="library-filter-field library-length-field">
+                <span className="library-field-label">{t('Route length (km)')}</span>
+                <div className="library-length-range">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder={t('Min')}
+                    aria-label={t('Minimum length (km)')}
+                    disabled={busy || loading}
+                    value={minKm}
+                    onChange={(event) => updateFilters({ minKm: event.target.value })}
+                  />
+                  <span aria-hidden="true">–</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder={t('Max')}
+                    aria-label={t('Maximum length (km)')}
+                    disabled={busy || loading}
+                    value={maxKm}
+                    onChange={(event) => updateFilters({ maxKm: event.target.value })}
+                  />
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="library-favorite-filter"
+                disabled={busy || loading}
+                aria-pressed={favoriteOnly}
+                onClick={() => updateFilters({ favoriteOnly: !favoriteOnly })}
               >
-                <option value="all">{t('All activities')}</option>
-                <option value="cycling">{t('Cycling')}</option>
-                <option value="hiking">{t('Hiking')}</option>
-              </select>
-            </Label>
-            <Label className="library-checkbox">
-              <input
-                type="checkbox"
-                checked={favoriteOnly}
-                onChange={(event) => updateFilters({ favoriteOnly: event.target.checked })}
-              />
-              {t('Favorites only')}
-            </Label>
-            <Label>
-              {t('Filter by tag')}
-              <select value={tag} onChange={(event) => updateFilters({ tag: event.target.value })}>
-                <option value="">{t('All tags')}</option>
-                {[
-                  ...new Set([
-                    ...routes.flatMap((route) => route.tags ?? []),
-                    ...(tag ? [tag] : []),
-                  ]),
-                ]
-                  .sort()
-                  .map((tag) => (
-                    <option key={tag} value={tag}>
-                      {tag}
-                    </option>
-                  ))}
-              </select>
-            </Label>
-            <Label>
-              {t('Minimum length (km)')}
-              <Input
-                type="number"
-                min="0"
-                step="any"
-                value={minKm}
-                onChange={(event) => updateFilters({ minKm: event.target.value })}
-              />
-            </Label>
-            <Label>
-              {t('Maximum length (km)')}
-              <Input
-                type="number"
-                min="0"
-                step="any"
-                value={maxKm}
-                onChange={(event) => updateFilters({ maxKm: event.target.value })}
-              />
-            </Label>
-            <Button variant="ghost" onClick={resetFilters}>
-              {t('Reset filters')}
-            </Button>
-          </fieldset>
+                <Star size={16} aria-hidden="true" />
+                {t('Favorites only')}
+              </Button>
+            </div>
+          </section>
         )}
         {backup && (
           <section className="library-import-preview" aria-label={t('Library import preview')}>
@@ -384,18 +451,17 @@ export function Library({
                 ).length,
               })}
             </p>
-            <Label>
-              {t('Conflicting routes')}
-              <select
-                disabled={busy}
-                value={conflictMode}
-                onChange={(event) => setConflictMode(event.target.value as ConflictMode)}
-              >
-                <option value="copy">{t('Import copies')}</option>
-                <option value="skip">{t('Skip existing routes')}</option>
-                <option value="replace">{t('Replace existing routes')}</option>
-              </select>
-            </Label>
+            <LibraryChoice
+              label={t('Conflicting routes')}
+              value={conflictMode}
+              disabled={busy}
+              onChange={(value) => setConflictMode(value as ConflictMode)}
+              options={[
+                { value: 'copy', label: t('Import copies') },
+                { value: 'skip', label: t('Skip existing routes') },
+                { value: 'replace', label: t('Replace existing routes') },
+              ]}
+            />
             <p>{t('Import changes only your library, not the route in the editor.')}</p>
             <div className="button-row">
               <Button variant="ghost" disabled={busy} onClick={() => setBackup(null)}>
@@ -538,16 +604,25 @@ export function Library({
                 <Button
                   variant="outline"
                   className="library-open-action"
+                  aria-label={t('Open')}
                   disabled={busy}
                   onClick={() => onOpen(route)}
                 >
                   <ArrowUpRight size={18} aria-hidden="true" />
-                  {t('Open', { defaultValue: locale() === 'ru-RU' ? 'Открыть' : 'Open' })}
+                  <span className="library-open-label">
+                    {t('Open', { defaultValue: locale() === 'ru-RU' ? 'Открыть' : 'Open' })}
+                  </span>
                 </Button>
-                <div className="library-actions">
+                <div
+                  className="library-actions"
+                  role="group"
+                  aria-label={t('Actions for {{name}}', { name: route.name })}
+                >
                   <Button
                     variant="ghost"
                     disabled={busy}
+                    className="icon-button library-favorite-action"
+                    title={t(route.favorite ? 'Remove from favorites' : 'Add to favorites')}
                     aria-label={t(route.favorite ? 'Remove from favorites' : 'Add to favorites')}
                     aria-pressed={route.favorite ?? false}
                     onClick={(event) => {
@@ -558,7 +633,7 @@ export function Library({
                       );
                     }}
                   >
-                    <span aria-hidden="true">{route.favorite ? '★' : '☆'}</span>
+                    <Star size={18} aria-hidden="true" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -684,15 +759,17 @@ export function Library({
                 maxLength={2000}
               />
             </Label>
-            <Label className="library-checkbox">
-              <input
-                type="checkbox"
-                disabled={busy}
-                checked={favorite}
-                onChange={(event) => setFavorite(event.target.checked)}
-              />
+            <Button
+              variant="outline"
+              type="button"
+              className="library-favorite-filter library-edit-favorite"
+              disabled={busy}
+              aria-pressed={favorite}
+              onClick={() => setFavorite(!favorite)}
+            >
+              <Star size={16} aria-hidden="true" />
               {t('Favorite')}
-            </Label>
+            </Button>
             <div className="button-row">
               <Button
                 variant="ghost"

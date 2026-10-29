@@ -1,29 +1,31 @@
 npm warn Unknown user config "always-auth". This will stop working in the next major version of npm.
 
 > @roamlet/client@0.1.0 test
-> vitest run App.test.tsx components/Statistics.test.tsx hooks/useRouteEditor.test.ts domain/drafts.test.ts domain/time.test.ts domain/appUpdate.test.ts domain/serviceWorker.test.ts --reporter=dot
+> vitest run App.test.tsx components/Statistics.test.tsx components/OptionalPanel.test.tsx hooks/useRouteEditor.test.ts domain/drafts.test.ts domain/time.test.ts domain/appUpdate.test.ts domain/serviceWorker.test.ts --reporter=dot
 
 
  RUN  v3.2.7 /Users/Mikita_Kandratsyeu1/Desktop/EPAM/roamlet-app/client
 
-(node:42620) Warning: `--localstorage-file` was provided without a valid path
+(node:45061) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:42621) Warning: `--localstorage-file` was provided without a valid path
+(node:45067) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:42617) Warning: `--localstorage-file` was provided without a valid path
+(node:45062) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:42622) Warning: `--localstorage-file` was provided without a valid path
+(node:45060) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:42619) Warning: `--localstorage-file` was provided without a valid path
+(node:45066) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:42618) Warning: `--localstorage-file` was provided without a valid path
+(node:45065) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-(node:42616) Warning: `--localstorage-file` was provided without a valid path
+(node:45063) Warning: `--localstorage-file` was provided without a valid path
 (Use `node --trace-warnings ...` to show where the warning was created)
-····················································
+(node:45064) Warning: `--localstorage-file` was provided without a valid path
+(Use `node --trace-warnings ...` to show where the warning was created)
+······················································
 
- Test Files  7 passed (7)
-      Tests  52 passed (52)
-   Start at  10:45:08
-   Duration  19.63s (transform 447ms, setup 1.30s, collect 1.41s, tests 18.37s, environment 2.66s, prepare 431ms)
+ Test Files  8 passed (8)
+      Tests  54 passed (54)
+   Start at  10:50:28
+   Duration  19.68s (transform 465ms, setup 1.32s, collect 1.41s, tests 19.15s, environment 3.15s, prepare 592ms)
 

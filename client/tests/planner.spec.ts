@@ -84,7 +84,7 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   });
   const tool = page.getByRole('button', { name: 'Manual drawing', exact: true });
   await expect(tool).toHaveCount(1);
-  await expect(page.getByRole('group', { name: 'Map controls' }).locator('button')).toHaveCount(5);
+  await expect(page.getByRole('group', { name: 'Map controls' }).locator('button')).toHaveCount(7);
   await expect(page.getByRole('radio', { name: 'Manual', exact: true })).toHaveCount(0);
   await tool.click();
   await expect(tool).toHaveAttribute('aria-pressed', 'true');
@@ -106,7 +106,7 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   await page.keyboard.press('Control+z');
   await expect(page.locator('.waypoint-marker')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'Undo last point', exact: true }).click();
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(page.locator('.waypoint-marker')).toHaveCount(0);
   expect(directions).toEqual([]);
 });
@@ -125,7 +125,7 @@ test('manual controls keep logical order and remain reachable at 320px in Russia
   await expect(tool).toHaveCSS('background-color', 'rgb(155, 197, 167)');
   const controls = page.getByRole('group', { name: 'Управление картой', exact: true });
   const buttons = controls.locator('button');
-  await expect(buttons).toHaveCount(6);
+  await expect(buttons).toHaveCount(7);
   for (const button of await buttons.all()) {
     await expect(button).toBeVisible();
     const box = (await button.boundingBox())!;

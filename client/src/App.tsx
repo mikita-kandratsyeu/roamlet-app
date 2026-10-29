@@ -1188,8 +1188,7 @@ export default function App() {
                   </Button>
                 </div>
               )}
-            <PlannerTools canUndo={editor.canUndo} canRedo={editor.canRedo} onUndo={() => travelHistory('undo')} onRedo={() => travelHistory('redo')}
-              speed={speeds[activity]} stops={stopsMinutes}
+            <PlannerTools speed={speeds[activity]} stops={stopsMinutes}
               onSpeed={value => { setSpeeds(previous => ({ ...previous, [activity]: value })); if (waypoints.length || result) setDirty(true); }}
               onStops={value => { setStopsMinutes(value); if (waypoints.length || result) setDirty(true); }} />
             {result ? <Statistics
@@ -1302,7 +1301,7 @@ export default function App() {
           }}
         />
       )}
-      {draft && <DraftPrompt onDelete={() => { void writer.clear().then(ok => { if (ok) setDraft(null); }); }} onRestore={() => {
+      {draft && <DraftPrompt onDismiss={() => setDraft(null)} onDelete={() => { void writer.clear().then(ok => { if (ok) setDraft(null); }); }} onRestore={() => {
         request.current?.abort(); setBusy(false); editor.reset(draft.snapshot); setDirty(true); setDraft(null);
         setAlternatives([]); setSelectedAlternative(-1); setFitToken(token => token + 1);
       }} />}

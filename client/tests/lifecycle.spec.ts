@@ -122,16 +122,25 @@ test('library backup round trip is local and import leaves the editor unchanged'
 });
 
 test('favorites, tags and combined library filters survive reload and backup', async ({ page }) => {
-  await page.getByLabel('Import GPX file').setInputFiles({ name: 'segments.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from(gpx) });
+  await page
+    .getByLabel('Import GPX file')
+    .setInputFiles({
+      name: 'segments.gpx',
+      mimeType: 'application/gpx+xml',
+      buffer: Buffer.from(gpx),
+    });
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
   await library(page);
-  await page.locator('.library-route').getByRole('button', { name: /Add to favorites/ }).click();
+  await page
+    .locator('.library-route')
+    .getByRole('button', { name: /Add to favorites/ })
+    .click();
   await page.getByRole('button', { name: 'Edit Segmented ride', exact: true }).click();
   await page.getByLabel('Tags', { exact: true }).fill('ridge, weekend');
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
-  await page.getByLabel('Favorites only', { exact: true }).check();
+  await page.getByRole('button', { name: 'Favorites only', exact: true }).click();
   await page.getByLabel('Filter by tag', { exact: true }).selectOption('ridge');
   await page.getByLabel('Minimum length (km)', { exact: true }).fill('0');
   await page.getByLabel('Maximum length (km)', { exact: true }).fill('100');
@@ -142,13 +151,19 @@ test('favorites, tags and combined library filters survive reload and backup', a
   expect(backup.routes[0].tags).toEqual(['ridge', 'weekend']);
   await page.reload();
   await library(page);
-  await expect(page.getByLabel('Favorites only', { exact: true })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Favorites only', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(page.getByLabel('Filter by tag', { exact: true })).toHaveValue('ridge');
   await expect(page.getByLabel('Maximum length (km)', { exact: true })).toHaveValue('100');
   await expect(page.getByRole('textbox', { name: 'Search saved routes' })).toHaveValue('Segmented');
   await expect(page.locator('.library-route')).toHaveCount(1);
   await page.getByRole('button', { name: 'Reset filters', exact: true }).click();
-  await expect(page.getByLabel('Favorites only', { exact: true })).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Favorites only', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
 });
 
 test('clicking an editable route inserts an ordered stop and one undo removes it', async ({
@@ -177,22 +192,18 @@ test('clicking an editable route inserts an ordered stop and one undo removes it
 });
 
 test('invalid backup does not change the library or editor', async ({ page }) => {
-  await page
-    .getByLabel('Import GPX file')
-    .setInputFiles({
-      name: 'segments.gpx',
-      mimeType: 'application/gpx+xml',
-      buffer: Buffer.from(gpx),
-    });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'segments.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
   const before = await readDownload(page, 'Export GPX');
   await library(page);
-  await page
-    .getByLabel('Import library file')
-    .setInputFiles({
-      name: 'unsupported.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify({ version: 999, routes: [] })),
-    });
+  await page.getByLabel('Import library file').setInputFiles({
+    name: 'unsupported.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({ version: 999, routes: [] })),
+  });
   await expect(page.getByRole('dialog').getByRole('alert')).toBeVisible();
   await expect(page.locator('.library-route')).toHaveCount(0);
   await page.keyboard.press('Escape');
@@ -262,13 +273,11 @@ test('language, appearance and map view persist without automatic geolocation', 
 });
 
 test('reset settings confirms without deleting a draft or saved routes', async ({ page }) => {
-  await page
-    .getByLabel('Import GPX file')
-    .setInputFiles({
-      name: 'segments.gpx',
-      mimeType: 'application/gpx+xml',
-      buffer: Buffer.from(gpx),
-    });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'segments.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);

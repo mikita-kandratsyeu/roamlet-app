@@ -65,7 +65,7 @@ async function openLibrary() {
   return { onClose, onOpen };
 }
 function routeNames() {
-  return screen
+  return within(screen.getByRole('list', { name: 'Saved routes' }))
     .getAllByRole('button', { name: /(?:Cycling|Hiking)/ })
     .map((button) => button.textContent);
 }
@@ -145,13 +145,13 @@ it('offers backup import for an empty library without fake route creation contro
   const rectangles = vi
     .spyOn(HTMLElement.prototype, 'getClientRects')
     .mockReturnValue([new DOMRect(0, 0, 10, 10)] as unknown as DOMRectList);
-  const file = screen.getByLabelText('Import library file');
+  const file = screen.getByRole('button', { name: 'Import library' });
   const close = screen.getByRole('button', { name: 'Close dialog' });
   file.focus();
   fireEvent.keyDown(file, { key: 'Tab' });
   expect(close).toHaveFocus();
   fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
-  expect(screen.getByLabelText('Import library file')).toHaveFocus();
+  expect(screen.getByRole('button', { name: 'Import library' })).toHaveFocus();
   rectangles.mockRestore();
 });
 
@@ -264,18 +264,17 @@ it('keeps failed edits available with an error and returns focus to the name fie
 });
 
 it('combines activity, favorite, tag, distance, search and sort filters and resets every filter', async () => {
+  const user = userEvent.setup();
   vi.mocked(listRoutes).mockResolvedValue([
     { ...alpine, favorite: true, tags: ['mountain'] },
     { ...woodland, tags: ['forest'] },
   ]);
   await openLibrary();
-  fireEvent.change(screen.getByRole('combobox', { name: 'Activity' }), {
-    target: { value: 'cycling' },
-  });
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Favorites only' }));
-  fireEvent.change(screen.getByRole('combobox', { name: 'Filter by tag' }), {
-    target: { value: 'mountain' },
-  });
+  await user.click(screen.getByRole('button', { name: 'Activity' }));
+  await user.click(screen.getByRole('menuitemradio', { name: 'Cycling' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Favorites only' }));
+  await user.click(screen.getByRole('button', { name: 'Filter by tag' }));
+  await user.click(screen.getByRole('menuitemradio', { name: 'mountain' }));
   fireEvent.change(screen.getByRole('spinbutton', { name: 'Minimum length (km)' }), {
     target: { value: '7' },
   });
@@ -332,7 +331,7 @@ it('edits favorite and trimmed deduplicated tags and toggles favorites without o
   fireEvent.change(screen.getByRole('textbox', { name: 'Tags' }), {
     target: { value: ' forest, weekend, forest, ' },
   });
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Favorite' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Favorite' }));
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await waitFor(() =>
     expect(screen.queryByRole('textbox', { name: 'Tags' })).not.toBeInTheDocument(),
@@ -355,7 +354,9 @@ it('previews backup counts with safe copy default and imports only after confirm
   const preview = await screen.findByRole('region', { name: 'Library import preview' });
   expect(preview).toHaveTextContent('2 routes to import');
   expect(preview).toHaveTextContent('2 conflicting routes');
-  expect(screen.getByRole('combobox', { name: 'Conflicting routes' })).toHaveValue('copy');
+  expect(screen.getByRole('button', { name: 'Conflicting routes' })).toHaveTextContent(
+    'Import copies',
+  );
   expect(importBackup).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Import routes' }));
   await waitFor(() =>
@@ -366,15 +367,15 @@ it('previews backup counts with safe copy default and imports only after confirm
 });
 
 it('allows choosing replacement, cancelling previews and reports malformed files without importing', async () => {
+  const user = userEvent.setup();
   await openLibrary();
   const input = screen.getByLabelText('Import library file');
   fireEvent.change(input, {
     target: { files: [new File([exportBackup([alpine])], 'library.json')] },
   });
   await screen.findByRole('region', { name: 'Library import preview' });
-  fireEvent.change(screen.getByRole('combobox', { name: 'Conflicting routes' }), {
-    target: { value: 'replace' },
-  });
+  await user.click(screen.getByRole('button', { name: 'Conflicting routes' }));
+  await user.click(screen.getByRole('menuitemradio', { name: 'Replace existing routes' }));
   fireEvent.click(screen.getByRole('button', { name: 'Cancel import' }));
   expect(importBackup).not.toHaveBeenCalled();
   fireEvent.change(input, { target: { files: [new File(['{'], 'bad.json')] } });
@@ -426,4 +427,42 @@ it('generates finite bounded local thumbnails with separate GPX segment paths', 
   expect(
     thumbnailPaths([Array.from({ length: 100000 }, (_, i) => [i / 1000, 1])])[0].split(' '),
   ).toHaveLength(200);
+});
+
+it('uses a hidden file picker behind the styled Import library button and cohesive toggle controls', async () => {
+  const user = userEvent.setup();
+  await openLibrary();
+  const input = screen.getByLabelText('Import library file');
+  expect(input).toHaveAttribute('hidden');
+  const pick = vi.spyOn(input as HTMLInputElement, 'click').mockImplementation(() => {});
+  await user.click(screen.getByRole('button', { name: 'Import library' }));
+  expect(pick).toHaveBeenCalledOnce();
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  const favorites = screen.getByRole('button', { name: 'Favorites only' });
+  expect(favorites).toHaveAttribute('aria-pressed', 'false');
+  await user.click(favorites);
+  expect(favorites).toHaveAttribute('aria-pressed', 'true');
+  await user.click(favorites);
+  expect(favorites).toHaveAttribute('aria-pressed', 'false');
+  expect(screen.getByRole('region', { name: 'Filter routes' })).toHaveClass('library-filters');
+});
+
+it('keeps named keyboard-operated filter menus and groups the star with route actions', async () => {
+  const user = userEvent.setup();
+  await openLibrary();
+  const activity = screen.getByRole('button', { name: 'Activity' });
+  await user.click(activity);
+  expect(screen.getByRole('menuitemradio', { name: 'All activities' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await user.keyboard('{Escape}');
+  expect(activity).toHaveFocus();
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  const actions = screen.getByRole('group', { name: 'Actions for Alpine loop' });
+  expect(within(actions).getByRole('button', { name: 'Add to favorites' })).toHaveClass(
+    'icon-button',
+    'library-favorite-action',
+  );
+  expect(within(actions).getByRole('button', { name: 'Edit Alpine loop' })).toBeVisible();
 });
