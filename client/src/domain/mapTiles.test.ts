@@ -18,9 +18,7 @@ describe('MapLibre map configuration', () => {
       attribution:
         '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     });
-    expect(standardStyle.layers).toEqual([
-      { id: 'osm-standard', type: 'raster', source: 'osm' },
-    ]);
+    expect(standardStyle.layers).toEqual([{ id: 'osm-standard', type: 'raster', source: 'osm' }]);
   });
   it('trims the configured style and treats blank values as the default', () => {
     expect(mapTiles({ VITE_MAP_STYLE: ' https://maps.example/style.json ' })).toEqual({

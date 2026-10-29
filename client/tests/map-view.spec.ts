@@ -114,31 +114,43 @@ test('loads the Standard OSM raster style and preserves waypoints when switching
       JSON.stringify({ style: 'standard', theme: 'light', panelHidden: true }),
     );
   });
+  const tileImage = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 256;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#faf7f2';
+    context.fillRect(0, 0, 256, 256);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
   await page.route('https://tile.openstreetmap.org/**', (route) => {
     const headers = route.request().headers();
     tileRequests.push({ referer: headers.referer, cacheControl: headers['cache-control'] });
     return route.fulfill({
       contentType: 'image/png',
       headers: { 'cache-control': 'public, max-age=604800' },
-      body: Buffer.from(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZXsAAAAASUVORK5CYII=',
-        'base64',
-      ),
+      body: Buffer.from(tileImage, 'base64'),
     });
   });
   await page.route('https://tiles.openfreemap.org/styles/bright', (route) =>
     route.fulfill({
       json: {
         version: 8,
-        sources: {},
+        sources: {
+          fixture: {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+            attribution: 'Synthetic Light map',
+          },
+        },
         layers: [
           { id: 'background', type: 'background', paint: { 'background-color': '#faf7f2' } },
+          { id: 'fixture', type: 'circle', source: 'fixture' },
         ],
       },
     }),
   );
   await page.goto('/');
-  const picker = page.getByLabel('Map style', { exact: true });
+  const picker = page.locator('select.map-style-select');
   await expect(picker).toHaveValue('/osm-standard.json');
   await expect(page.locator('.maplibregl-ctrl-attrib')).toContainText('OpenStreetMap');
   await expect(page.locator('.maplibregl-ctrl-attrib')).toBeVisible();
@@ -152,10 +164,11 @@ test('loads the Standard OSM raster style and preserves waypoints when switching
   expect(bounds).not.toBeNull();
   await canvas.click({ position: { x: bounds!.width * 0.6, y: bounds!.height * 0.4 } });
   await expect(page.locator('.maplibregl-marker')).toHaveCount(1);
-  await picker.selectOption('https://tiles.openfreemap.org/styles/bright');
-  await expect(page.locator('.maplibregl-ctrl-attrib')).not.toContainText('OpenStreetMap');
-  await picker.selectOption('/osm-standard.json');
+  await picker.selectOption('https://tiles.openfreemap.org/styles/bright', { force: true });
+  await expect(page.locator('.maplibregl-ctrl-attrib')).toContainText('Synthetic Light map');
+  await picker.selectOption('/osm-standard.json', { force: true });
   await expect(page.locator('.maplibregl-ctrl-attrib')).toContainText('OpenStreetMap');
   await expect(page.locator('.maplibregl-marker')).toHaveCount(1);
+  await expect(page.locator('.map-warning')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

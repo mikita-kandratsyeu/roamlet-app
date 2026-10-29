@@ -113,7 +113,7 @@ function setOnline(online: boolean) {
 
 describe('route export', () => {
   it('opens the export dialog before downloading and keeps the original route name', async () => {
-    const createObjectURL = vi.fn((_blob: Blob) => 'blob:test-export');
+    const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:test-export');
     vi.stubGlobal(
       'URL',
       class extends URL {
