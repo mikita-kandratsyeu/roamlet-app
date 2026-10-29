@@ -126,6 +126,16 @@ test('export summary shows route metrics and GPX counts without overflowing smal
     }
     await page.screenshot({ path: testInfo.outputPath(`export-details-${language}.png`) });
     await expect(dialog.getByRole('button', { name: /^(Download GPX|Скачать GPX)$/ })).toBeEnabled();
+    const strava = dialog.locator('summary').filter({ hasText: language === 'ru' ? 'Как импортировать в Strava' : 'How to import into Strava' });
+    await expect(strava.locator('..')).not.toHaveAttribute('open');
+    await strava.click();
+    await expect(strava.locator('..')).toHaveAttribute('open');
+    const instructions = dialog.getByRole('link', { name: language === 'ru' ? 'Инструкция по импорту в Strava' : 'Strava import instructions' });
+    await expect(instructions).toHaveAttribute('href', 'https://support.strava.com/en-us/articles/15402061-how-do-i-create-a-route-from-a-gpx-file');
+    await expect(instructions).toHaveAttribute('rel', 'noopener noreferrer');
+    await instructions.scrollIntoViewIfNeeded();
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`export-strava-${language}.png`) });
     await dialog.press('Escape');
     await expect(dialog).toHaveCount(0);
   }

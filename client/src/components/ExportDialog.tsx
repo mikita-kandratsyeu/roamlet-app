@@ -126,6 +126,28 @@ export function ExportDialog({
           <ExternalLink size={14} aria-hidden="true" />
         </a>
       </details>
+      <details className="export-guide">
+        <summary>{t('How to import into Strava')}</summary>
+        <p className="muted export-copy">
+          {t('Import the downloaded file yourself. Roamlet does not send routes to Strava.')}
+        </p>
+        <ol>
+          <li>{t('Download the GPX file above.')}</li>
+          <li>{t('On the Strava website, open Dashboard → My Routes → Create New Route.')}</li>
+          <li>{t('Use the upload button to choose the GPX file, review the route, and save.')}</li>
+        </ol>
+        <p className="muted export-copy">
+          {t('These steps create a route, not a recorded activity. Strava may require a subscription for route creation.')}
+        </p>
+        <a
+          href="https://support.strava.com/en-us/articles/15402061-how-do-i-create-a-route-from-a-gpx-file"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {t('Strava import instructions')}
+          <ExternalLink size={14} aria-hidden="true" />
+        </a>
+      </details>
     </Dialog>
   );
 }

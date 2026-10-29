@@ -37,6 +37,7 @@ describe('ExportDialog', () => {
     expect(screen.getByText('How to import into Komoot').closest('details')).not.toHaveAttribute(
       'open',
     );
+    expect(screen.getByText('How to import into Strava').closest('details')).not.toHaveAttribute('open');
     expect(onDownload).not.toHaveBeenCalled();
   });
 
@@ -139,6 +140,23 @@ describe('ExportDialog', () => {
     ).toBeVisible();
   });
 
+  it('opens an independent Strava route guide with safe official help and no automatic transfer', async () => {
+    const user = userEvent.setup();
+    const onDownload = vi.fn();
+    render(<ExportDialog route={route} onDownload={onDownload} onClose={vi.fn()} />);
+    const summary = screen.getByText('How to import into Strava');
+    await user.click(summary);
+    expect(summary.closest('details')).toHaveAttribute('open');
+    expect(screen.getByText('How to import into Komoot').closest('details')).not.toHaveAttribute('open');
+    const link = screen.getByRole('link', { name: 'Strava import instructions' });
+    expect(link).toHaveAttribute('href', 'https://support.strava.com/en-us/articles/15402061-how-do-i-create-a-route-from-a-gpx-file');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(screen.getByText('Import the downloaded file yourself. Roamlet does not send routes to Strava.')).toBeVisible();
+    expect(screen.getByText('These steps create a route, not a recorded activity. Strava may require a subscription for route creation.')).toBeVisible();
+    expect(onDownload).not.toHaveBeenCalled();
+  });
+
   it('supports Escape and restores focus to the trigger', async () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
@@ -181,6 +199,7 @@ describe('ExportDialog', () => {
     expect(within(dialog).getByText('Будет сохранён как Лесная прогулка.gpx')).toBeVisible();
     expect(within(dialog).getByRole('button', { name: 'Скачать GPX' })).toBeEnabled();
     expect(within(dialog).getByText('Как импортировать в Komoot')).toBeVisible();
+    expect(within(dialog).getByText('Как импортировать в Strava')).toBeVisible();
     const details = within(dialog).getByRole('region', { name: 'Данные маршрута' });
     expect(within(details).getByText('Точки трека', { selector: 'dt' }).nextElementSibling).toHaveTextContent('2');
     expect(within(details).getByText('12,4 км')).toBeVisible();
