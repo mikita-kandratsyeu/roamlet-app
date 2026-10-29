@@ -182,6 +182,36 @@ for (const viewport of [
   }
 }
 
+test('an unopened elevation chart loads on its first offline expansion', async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'lazy-profile.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
+  const profile = page.locator('.planner .elevation-box');
+  await expect(profile).toBeVisible();
+  await expect(profile).not.toHaveAttribute('open');
+  await expect(profile.locator('.elevation-chart')).toHaveCount(0);
+  expect(await page.evaluate(() => performance.getEntriesByType('resource').some(
+    (entry) => /\/assets\/ElevationChart-[^/]+\.js/.test(entry.name),
+  ))).toBe(false);
+  await context.setOffline(true);
+  try {
+    await profile.locator('summary').click();
+    await expect(profile.locator('.elevation-chart .recharts-surface')).toBeVisible();
+    await expect(page.getByTestId('panel-loader')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
 test.describe('core panels without a service worker', () => {
   test.use({ serviceWorkers: 'block' });
   for (const language of ['en', 'ru'] as const) {

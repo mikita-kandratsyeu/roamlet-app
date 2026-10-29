@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, type ComponentProps } from 'react';
 import { optionalLazy } from './OptionalPanel';
 import { ChevronDown, Info } from 'lucide-react';
 import type { Coordinate, PlannedRoute } from '../domain/types';
@@ -17,8 +17,8 @@ import {
   type TimeRange,
   type TimeWarning,
 } from '../domain/time';
-const ElevationChart = optionalLazy(() =>
-  import('./ElevationChart').then(({ ElevationChart }) => ({ default: ElevationChart })),
+const ElevationChart = optionalLazy<ComponentProps<typeof import('./ElevationChart').ElevationChart>>(
+  () => import('./ElevationChart').then(({ ElevationChart }) => ({ default: ElevationChart })),
 );
 
 function formatTimeRange(range: TimeRange) {
@@ -57,7 +57,9 @@ export function Statistics({
   onElevationOpenChange?: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const [compact, setCompact] = useState(false);
+  const [compact, setCompact] = useState(
+    () => window.matchMedia?.('(max-width: 700px)').matches ?? false,
+  );
   const [profilePosition, setProfilePosition] = useState(0);
   const [localElevationOpen, setLocalElevationOpen] = useState<boolean | undefined>(undefined);
   const profileOpen = elevationOpen ?? localElevationOpen ?? !compact;
