@@ -726,11 +726,10 @@ it('updates route colors without touching the vector basemap or recreating or re
   expect(mocks.remove).not.toHaveBeenCalled();
 });
 
-it('keeps GPX import accessible from the shared map toolbar', () => {
-  const onImport = vi.fn();
-  render(<RouteMap {...props} onImport={onImport} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Import GPX on map' }));
-  expect(onImport).toHaveBeenCalledOnce();
+it('does not duplicate the planner GPX import action on the map', () => {
+  render(<RouteMap {...props} />);
+  expect(screen.queryByRole('button', { name: 'Import GPX on map' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Import GPX' })).not.toBeInTheDocument();
 });
 
 it('keeps two primary mobile controls and exposes secondary tools in a dismissible panel', async () => {

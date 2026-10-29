@@ -1895,7 +1895,6 @@ export default function App() {
             onLibrary={openLibrary}
             onCheckConnection={checkConnection}
             plannerHidden={panelHidden}
-            onImport={() => fileInput.current?.click()}
             segments={result?.segments || emptySegments}
             waypoints={mapWaypoints}
             selectedWaypointId={selectedWaypointId}

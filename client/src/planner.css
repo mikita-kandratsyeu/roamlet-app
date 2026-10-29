@@ -803,19 +803,6 @@
   color: var(--primary-foreground);
   border-color: var(--primary);
 }
-.map-import {
-  position: absolute;
-  bottom: 44px;
-  right: var(--space);
-  min-height: 44px;
-  padding: 0 14px;
-  gap: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: var(--font-size-control);
-  z-index: 2;
-}
 .maplibregl-ctrl-bottom-right {
   max-width: calc(100% - 108px);
 }
@@ -858,7 +845,6 @@
 }
 .map-bottom-leading .map-hint,
 .map-bottom-leading .map-style-tabs,
-.map-bottom-trailing .map-import,
 .map-bottom-trailing .map-issue {
   position: static;
   max-width: 100%;
@@ -1135,8 +1121,7 @@
     min-height: 40px;
     padding: 8px 10px;
   }
-  .map-style-tabs,
-  .map-import {
+  .map-style-tabs {
     display: none;
   }
   .map-warning {

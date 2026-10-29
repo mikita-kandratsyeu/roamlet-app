@@ -94,10 +94,26 @@
 }
 @media (min-width: 1025px) {
   .workspace #map-elevation-root {
-    width: min(714px, calc(100% - var(--panel-width) - var(--space) * 3 - 134px));
+    left: auto;
+    right: var(--space);
+    width: min(714px, calc(100% - var(--panel-width) - var(--space) * 3 - 10px));
   }
   .workspace.desktop-panel-hidden #map-elevation-root {
-    width: min(714px, calc(100% - var(--space) * 2 - 134px));
+    width: min(714px, calc(100% - var(--space) * 2));
+  }
+  .workspace .map-style-picker.map-top-label {
+    bottom: calc(var(--map-attribution-height, 24px) + 16px);
+  }
+  .workspace .map-bottom-toolbar {
+    right: calc(var(--space) + 104px + 12px);
+  }
+  .workspace:has(#map-elevation-root:not(:empty)) .map-extra-controls {
+    max-height: calc(100% - var(--map-bottom-reserved, 110px) - var(--map-elevation-height, 0px) - var(--space) - 12px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .workspace .map-extra-controls .map-control {
+    flex-shrink: 0;
   }
 }
 @media (max-width: 700px) {

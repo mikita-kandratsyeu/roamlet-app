@@ -76,6 +76,24 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
+test('imports GPX from the planner without a duplicate map action', async ({ page }) => {
+  const sheet = page.locator('.mobile-sheet-toggle');
+  if (await sheet.isVisible() && await sheet.getAttribute('aria-expanded') === 'false')
+    await sheet.click();
+  await expect(page.getByRole('button', { name: 'Import GPX on map' })).toHaveCount(0);
+  const importer = page.locator('.planner-footer').getByRole('button', { name: 'Import GPX', exact: true });
+  await expect(importer).toBeVisible();
+  const chooser = page.waitForEvent('filechooser');
+  await importer.click();
+  await (await chooser).setFiles({
+    name: 'planner-import.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
+  await expect(page.locator('.stat-card').first()).toContainText('0.3 km');
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
+});
+
 test('manual drawing uses one ruler tool, direct map points and local undo without Directions', async ({
   page,
 }) => {
@@ -812,7 +830,7 @@ test('matches Figma planner geometry while preserving branding and responsive el
   } else {
     await expect(page.locator('#map-elevation-root .elevation-box')).toHaveAttribute('open');
     const chart = await page.locator('#map-elevation-root').boundingBox();
-    expect(chart?.x).toBe(478);
+    expect(chart!.x + chart!.width).toBe(1440 - 24);
     expect(chart?.width).toBe(714);
     const summary = page.locator('.elevation-box summary');
     await expect(summary).toHaveText('Elevation profile');
@@ -945,7 +963,6 @@ for (const hidden of [false, true]) {
       '.map-top-label',
       '.map-hint',
       '.map-style-tabs',
-      '.map-import',
       '.map-issue',
       '.map-extra-controls',
       '#map-elevation-root',
@@ -1003,6 +1020,10 @@ for (const hidden of [false, true]) {
           }).toBe(width - spacing);
           const picker = (await page.locator('.map-style-picker').boundingBox())!;
           expect(picker.y).toBeGreaterThan(height / 2);
+          if (width > 1024 && await page.locator('#map-elevation-root').isVisible()) {
+            const elevation = (await page.locator('#map-elevation-root').boundingBox())!;
+            expect(elevation.x + elevation.width).toBeCloseTo(width - spacing, 0);
+          }
           if (await page.locator('.planner').isVisible()) {
             const planner = (await page.locator('.planner').boundingBox())!;
             const workspace = (await page.locator('.workspace').boundingBox())!;

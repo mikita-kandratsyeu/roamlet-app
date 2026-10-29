@@ -38,7 +38,6 @@ import {
   Minus,
   X,
   LoaderCircle,
-  FileUp,
   RefreshCw,
   Library,
   MoreHorizontal,
@@ -75,7 +74,6 @@ interface Props {
   onAdd: (coordinate: Coordinate) => void;
   onMove: (id: string, coordinate: Coordinate) => void;
   onError: (message: string) => void;
-  onImport?: () => void;
   plannerHidden?: boolean;
   manualDrawing?: boolean;
   onToggleManualDrawing?: () => void;
@@ -187,13 +185,19 @@ export function RouteMap(props: Props) {
     ];
     const stylePicker = region.querySelector<HTMLElement>('.map-top-label');
     const controls = region.querySelector<HTMLElement>('.map-extra-controls');
+    const elevation = workspace.querySelector<HTMLElement>('#map-elevation-root');
     const reopen = workspace.querySelector<HTMLElement>('.planner-reopen');
     const measure = () => {
       const attributionHeight = Math.max(
         24,
         ...attribution.map((element) => element.getBoundingClientRect().height),
       );
-      const toolbarHeight = toolbar.getBoundingClientRect().height;
+      const toolbarHeight = Math.max(
+        toolbar.getBoundingClientRect().height,
+        window.matchMedia?.('(min-width: 1025px)').matches
+          ? stylePicker?.getBoundingClientRect().height || 0
+          : 0,
+      );
       const wrappedControlsHeight =
         window.innerWidth <= 700
           ? Math.max(0, (controls?.getBoundingClientRect().height || 44) - 44)
@@ -205,6 +209,7 @@ export function RouteMap(props: Props) {
           ? reopen.getBoundingClientRect().bottom - region.getBoundingClientRect().top + 8
           : spacing;
       workspace.style.setProperty('--map-attribution-height', `${attributionHeight}px`);
+      workspace.style.setProperty('--map-elevation-height', `${elevation?.getBoundingClientRect().height || 0}px`);
       workspace.style.setProperty(
         '--map-bottom-reserved',
         `${attributionHeight + toolbarHeight + wrappedControlsHeight + 32}px`,
@@ -222,7 +227,7 @@ export function RouteMap(props: Props) {
       );
     };
     const observer = new ResizeObserver(measure);
-    for (const element of [region, toolbar, ...attribution, stylePicker, controls, reopen]) {
+    for (const element of [region, toolbar, ...attribution, stylePicker, controls, elevation, reopen]) {
       if (element) observer.observe(element);
     }
     measure();
@@ -230,6 +235,7 @@ export function RouteMap(props: Props) {
       observer.disconnect();
       for (const property of [
         '--map-attribution-height',
+        '--map-elevation-height',
         '--map-bottom-reserved',
         '--map-mobile-controls-bottom',
         '--map-style-top',
@@ -1189,18 +1195,6 @@ export function RouteMap(props: Props) {
           )}
         </div>
         <div className="map-bottom-trailing">
-          {props.onImport && (
-            <Button
-              variant="outline"
-              className="map-import"
-              aria-label={t('Import GPX on map')}
-              onClick={props.onImport}
-            >
-              <FileUp size={18} />
-              {t('Import GPX')}
-            </Button>
-          )}
-
           {ready && (
             <a
               className="map-issue"
