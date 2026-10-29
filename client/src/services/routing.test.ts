@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MapboxRoutingService, requestJson } from './routing';
+import { OpenRouteServiceRoutingService, requestJson } from './routing';
 import * as routing from './routing';
-import { mapboxUrl } from './mapbox';
+import { openRouteServiceUrl } from './openrouteservice';
 import type { Waypoint } from '../domain/types';
 const points: Waypoint[] = [
   { id: 'a', name: 'A', coordinate: [11.4, 47.26] },
@@ -14,12 +14,12 @@ const response = (
     [11.41, 47.27, 610],
   ],
 ) => ({
-  code: 'Ok',
-  routes: [
+  type: 'FeatureCollection',
+  features: [
     {
+      type: 'Feature',
       geometry: { type: 'LineString', coordinates },
-      distance: 1234,
-      duration: 420,
+      properties: { summary: { distance: 1234, duration: 420 } },
     },
   ],
 });
@@ -32,42 +32,46 @@ function mockJson(data: unknown, status = 200) {
       }),
   );
 }
-beforeEach(() => vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'pk.test-public-token'));
+beforeEach(() => vi.stubEnv('VITE_ORS_API_KEY', 'test-ors-key'));
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
-describe('MapboxRoutingService', () => {
-  it('reports missing public token without fabricating geometry', async () => {
-    vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', '');
+describe('OpenRouteServiceRoutingService', () => {
+  it('reports a missing API key without fabricating geometry', async () => {
+    vi.stubEnv('VITE_ORS_API_KEY', '');
     const fetcher = mockJson({});
-    await expect(new MapboxRoutingService().calculateRoute(points, 'cycling')).rejects.toThrow(
-      'VITE_MAPBOX_ACCESS_TOKEN',
-    );
+    await expect(
+      new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling'),
+    ).rejects.toThrow('VITE_ORS_API_KEY');
     expect(fetcher).not.toHaveBeenCalled();
   });
-  it('calls Mapbox directly with the public token and no cookies', async () => {
+  it('calls OpenRouteService directly with header authentication and no cookies', async () => {
     const fetcher = mockJson(response());
-    await new MapboxRoutingService().calculateRoute(points, 'cycling');
+    await new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling');
     const url = new URL(String(fetcher.mock.calls[0][0]));
-    expect(url.origin).toBe('https://api.mapbox.com');
-    expect(url.pathname).toBe('/directions/v5/mapbox/cycling/11.4,47.26;11.41,47.27');
-    expect(url.searchParams.get('access_token')).toBe('pk.test-public-token');
+    expect(url.origin).toBe('https://api.heigit.org');
+    expect(url.pathname).toBe('/openrouteservice/v2/directions/cycling-regular/geojson');
+    expect(url.search).toBe('');
     expect(fetcher.mock.calls[0][1]?.credentials).toBe('omit');
-    expect(fetcher.mock.calls[0][1]?.headers).toEqual({ Accept: 'application/json' });
+    expect(fetcher.mock.calls[0][1]?.headers).toEqual({
+      Accept: 'application/geo+json',
+      'Content-Type': 'application/json',
+      Authorization: 'test-ors-key',
+    });
     await expect(requestJson('https://external.invalid/', {})).rejects.toThrow(
-      'Unsupported Mapbox endpoint',
+      'Unsupported OpenRouteService endpoint',
     );
   });
   it('uses cycling geometry distance and provider time, discarding provider heights', async () => {
     const fetcher = mockJson(response());
-    const result = await new MapboxRoutingService().calculateRoute(points, 'cycling');
-    const url = new URL(String(fetcher.mock.calls[0][0]));
-    expect(url.searchParams.get('geometries')).toBe('geojson');
-    expect(url.searchParams.get('overview')).toBe('full');
-    expect(url.searchParams.get('steps')).toBe('false');
-    expect(fetcher.mock.calls[0][1]?.method).toBe('GET');
-    expect(fetcher.mock.calls[0][1]?.body).toBeUndefined();
+    const result = await new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling');
+    expect(fetcher.mock.calls[0][1]?.method).toBe('POST');
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({
+      coordinates: points.map((point) => point.coordinate),
+      instructions: false,
+      elevation: false,
+    });
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(result.segments[0]).toEqual([
       [11.4, 47.26],
@@ -79,10 +83,10 @@ describe('MapboxRoutingService', () => {
     expect(result.stats.ascent).toBeUndefined();
     expect(result.stats.descent).toBeUndefined();
   });
-  it('routes hiking with walking, not a cycling fallback', async () => {
+  it('routes hiking with foot-hiking, not a cycling fallback', async () => {
     const fetcher = mockJson(response());
-    await new MapboxRoutingService().calculateRoute(points, 'hiking');
-    expect(String(fetcher.mock.calls[0][0])).toContain('/mapbox/walking/');
+    await new OpenRouteServiceRoutingService().calculateRoute(points, 'hiking');
+    expect(String(fetcher.mock.calls[0][0])).toContain('/directions/foot-hiking/');
   });
   it('returns unavailable elevation instead of invented heights', async () => {
     mockJson(
@@ -91,12 +95,12 @@ describe('MapboxRoutingService', () => {
         [11.41, 47.27],
       ]),
     );
-    const result = await new MapboxRoutingService().calculateRoute(points, 'hiking');
+    const result = await new OpenRouteServiceRoutingService().calculateRoute(points, 'hiking');
     expect(result.stats.ascent).toBeUndefined();
   });
   it('caches exact requests but not waypoint changes', async () => {
     const fetcher = mockJson(response());
-    const provider = new MapboxRoutingService();
+    const provider = new OpenRouteServiceRoutingService();
     const first = await provider.calculateRoute(points, 'cycling');
     first.segments[0][0][0] = 0;
     const second = await provider.calculateRoute(points, 'cycling');
@@ -107,18 +111,14 @@ describe('MapboxRoutingService', () => {
   });
   it.each([401, 403, 429, 503, 400, 422])('reports service failure %s', async (status) => {
     mockJson({}, status);
-    await expect(new MapboxRoutingService().calculateRoute(points, 'cycling')).rejects.toThrow(
-      status === 429
-        ? 'quota'
-        : status >= 500
-          ? 'unavailable'
-          : status === 401 || status === 403
-            ? 'rejected'
-            : 'No route',
+    await expect(
+      new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling'),
+    ).rejects.toThrow(
+      status === 429 ? 'quota' : status === 401 || status === 403 ? 'rejected' : 'unavailable',
     );
   });
-  it('validates the Mapbox point limit and geometry', async () => {
-    const provider = new MapboxRoutingService();
+  it('preserves the application point limit and validates geometry', async () => {
+    const provider = new OpenRouteServiceRoutingService();
     await expect(provider.calculateRoute([], 'cycling')).rejects.toThrow('2 and 25');
     await expect(provider.calculateRoute(Array(26).fill(points[0]), 'cycling')).rejects.toThrow(
       '2 and 25',
@@ -142,7 +142,7 @@ describe('MapboxRoutingService', () => {
         [11.4, 47.26, 600],
       ]),
     );
-    const result = await new MapboxRoutingService().calculateAlternatives(
+    const result = await new OpenRouteServiceRoutingService().calculateAlternatives(
       points[0],
       'hiking',
       20000,
@@ -158,30 +158,23 @@ describe('MapboxRoutingService', () => {
     expect(fetcher.mock.calls.length).toBeLessThanOrEqual(6);
     expect(
       fetcher.mock.calls.every(([url]) =>
-        new URL(String(url)).pathname.startsWith('/directions/v5/mapbox/'),
+        new URL(String(url)).pathname.startsWith('/openrouteservice/v2/directions/'),
       ),
     ).toBe(true);
-    const coordinates = new URL(String(fetcher.mock.calls[0][0])).pathname
-      .split('/')
-      .at(-1)!
-      .split(';');
-    expect(coordinates).toHaveLength(4);
-    expect(coordinates[0]).toEqual(coordinates.at(-1));
-    expect(new URL(String(fetcher.mock.calls[0][0])).searchParams.has('options')).toBe(false);
-    expect(String(fetcher.mock.calls[0][0])).not.toEqual(String(fetcher.mock.calls.at(-1)![0]));
+    const body = JSON.parse(String(fetcher.mock.calls[0][1]?.body));
+    expect(body.coordinates).toHaveLength(4);
+    expect(body.coordinates[0]).toEqual(body.coordinates.at(-1));
+    expect(body).not.toHaveProperty('options');
+    expect(fetcher.mock.calls[0][1]?.body).not.toEqual(fetcher.mock.calls.at(-1)![1]?.body);
   });
   it('stops early when routed length matches the target without elevation requests', async () => {
-    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
-      const coordinates = new URL(String(url)).pathname
-        .split('/')
-        .at(-1)!
-        .split(';')
-        .map((point) => point.split(',').map(Number));
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, options) => {
+      const { coordinates } = JSON.parse(String(options?.body));
       return new Response(JSON.stringify(response(coordinates)), {
         headers: { 'Content-Type': 'application/json' },
       });
     });
-    const results = await new MapboxRoutingService().calculateAlternatives(
+    const results = await new OpenRouteServiceRoutingService().calculateAlternatives(
       points[0],
       'cycling',
       20000,
@@ -198,7 +191,7 @@ describe('MapboxRoutingService', () => {
   });
   it('stops after the bounded search and rejects a nonclosed loop', async () => {
     const fetcher = mockJson(response());
-    const provider = new MapboxRoutingService();
+    const provider = new OpenRouteServiceRoutingService();
     await expect(provider.calculateAlternatives(points[0], 'cycling', 500)).rejects.toThrow(
       '2 and 100',
     );
@@ -208,15 +201,15 @@ describe('MapboxRoutingService', () => {
     expect(fetcher).toHaveBeenCalledTimes(6);
   });
   it('retries NoRoute candidates but not quota failures', async () => {
-    const fetcher = mockJson({ code: 'NoRoute' }, 422);
+    const fetcher = mockJson({ error: { code: 2009, message: 'Route not found' } }, 404);
     await expect(
-      new MapboxRoutingService().calculateAlternatives(points[0], 'cycling', 20000),
+      new OpenRouteServiceRoutingService().calculateAlternatives(points[0], 'cycling', 20000),
     ).rejects.toThrow('closed loop');
     expect(fetcher).toHaveBeenCalledTimes(6);
     fetcher.mockRestore();
     const quota = mockJson({}, 429);
     await expect(
-      new MapboxRoutingService().calculateAlternatives(points[0], 'cycling', 20000),
+      new OpenRouteServiceRoutingService().calculateAlternatives(points[0], 'cycling', 20000),
     ).rejects.toThrow('quota');
     expect(quota).toHaveBeenCalledTimes(1);
   });
@@ -224,10 +217,10 @@ describe('MapboxRoutingService', () => {
     const controller = new AbortController();
     controller.abort();
     await expect(
-      new MapboxRoutingService().calculateRoute(points, 'cycling', controller.signal),
+      new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling', controller.signal),
     ).rejects.toMatchObject({ name: 'AbortError' });
     await expect(
-      new MapboxRoutingService().calculateAlternatives(
+      new OpenRouteServiceRoutingService().calculateAlternatives(
         points[0],
         'cycling',
         20000,
@@ -235,26 +228,141 @@ describe('MapboxRoutingService', () => {
       ),
     ).rejects.toMatchObject({ name: 'AbortError' });
   });
+  it('cancels an in-flight request', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (_url, options) =>
+        new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')),
+          );
+        }),
+    );
+    const controller = new AbortController();
+    const promise = new OpenRouteServiceRoutingService().calculateRoute(
+      points,
+      'cycling',
+      controller.signal,
+    );
+    controller.abort();
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+  });
+  it('times out without returning fabricated geometry', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(globalThis, 'fetch').mockImplementation(
+        (_url, options) =>
+          new Promise((_resolve, reject) => {
+            options?.signal?.addEventListener('abort', () =>
+              reject(new DOMException('Aborted', 'AbortError')),
+            );
+          }),
+      );
+      const promise = new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling');
+      const assertion = expect(promise).rejects.toThrow('took too long');
+      await vi.advanceTimersByTimeAsync(25_000);
+      await assertion;
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it('reports a network failure without falling back to a line', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Network'));
-    await expect(requestJson('/directions/v5/mapbox/cycling/11,47;12,48', {})).rejects.toThrow(
+    await expect(requestJson('/openrouteservice/v2/directions/cycling-regular/geojson', {})).rejects.toThrow(
       'internet connection',
     );
   });
   it('does not expose an address search helper', () => {
     expect(routing).not.toHaveProperty('searchPlaces');
   });
+  it('checks a trimmed ORS key without requests or a Mapbox token prefix', async () => {
+    const fetcher = mockJson(response());
+    vi.stubEnv('VITE_ORS_API_KEY', '  ors-key  ');
+    expect(await routing.checkRoutingConfiguration()).toBe(true);
+    await new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling');
+    expect(fetcher.mock.calls[0][1]?.headers).toHaveProperty('Authorization', 'ors-key');
+    vi.stubEnv('VITE_ORS_API_KEY', '   ');
+    expect(await routing.checkRoutingConfiguration()).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const controller = new AbortController();
+    controller.abort();
+    await expect(routing.checkRoutingConfiguration(controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    await expect(
+      new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling', controller.signal),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+  it('does not reuse cached results after the key is removed or changed', async () => {
+    const fetcher = mockJson(response());
+    const provider = new OpenRouteServiceRoutingService();
+    await provider.calculateRoute(points, 'cycling');
+    vi.stubEnv('VITE_ORS_API_KEY', '');
+    await expect(provider.calculateRoute(points, 'cycling')).rejects.toThrow('VITE_ORS_API_KEY');
+    vi.stubEnv('VITE_ORS_API_KEY', 'another-test-key');
+    await provider.calculateRoute(points, 'cycling');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it.each([2009, 2010])('retries ORS route/snap error %s', async (code) => {
+    const fetcher = mockJson({ error: { code } }, 404);
+    await expect(
+      new OpenRouteServiceRoutingService().calculateAlternatives(points[0], 'cycling', 20000),
+    ).rejects.toThrow('closed loop');
+    expect(fetcher).toHaveBeenCalledTimes(6);
+  });
+  it.each([2003, 2004, 2011])('does not retry invalid or oversized requests %s', async (code) => {
+    const fetcher = mockJson({ error: { code } }, 400);
+    await expect(
+      new OpenRouteServiceRoutingService().calculateAlternatives(points[0], 'cycling', 20000),
+    ).rejects.toThrow(code === 2004 ? 'service limits' : 'unavailable');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
   it.each([
-    '/search/geocode/v6/forward?q=Innsbruck',
-    '/geocoding/v5/mapbox.places/Innsbruck.json',
-    '/v4/mapbox.terrain-rgb/1/1/1.pngraw',
-    '/directions/v5/mapbox/driving/11,47;12,48',
-    '/directions/v5/mapbox/cycling/../../../../search/geocode/v6/forward?q=Innsbruck',
-    '//external.invalid/directions/v5/mapbox/cycling/11,47;12,48',
+    {},
+    { type: 'FeatureCollection', features: null },
+    { type: 'FeatureCollection', features: [{}] },
+  ])('rejects malformed GeoJSON responses', async (data) => {
+    mockJson(data);
+    await expect(
+      new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling'),
+    ).rejects.toThrow('invalid response');
+  });
+  it.each([-1, Infinity, '420'])('rejects invalid provider durations %s', async (duration) => {
+    const data = response();
+    Object.assign(data.features[0].properties.summary, { duration });
+    mockJson(data);
+    await expect(
+      new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling'),
+    ).rejects.toThrow('invalid route statistics');
+  });
+  it('posts longitude/latitude only and keeps all intermediate points', async () => {
+    const fetcher = mockJson(response());
+    const waypoints: Waypoint[] = [
+      { ...points[0], coordinate: [11.4, 47.26, 600] },
+      { id: 'via', name: 'Via', coordinate: [11.405, 47.265] },
+      points[1],
+    ];
+    await new OpenRouteServiceRoutingService().calculateRoute(waypoints, 'cycling');
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body)).coordinates).toEqual([
+      [11.4, 47.26],
+      [11.405, 47.265],
+      [11.41, 47.27],
+    ]);
+  });
+  it.each([
+    '/geocode/search?text=Innsbruck',
+    '/elevation/line',
+    '/openrouteservice/v2/directions/driving-car/geojson',
+    '/openrouteservice/v2/directions/cycling-regular/json',
+    '/openrouteservice/v2/directions/cycling-regular/../../geocode/search',
+    '//external.invalid/openrouteservice/v2/directions/cycling-regular/geojson',
+    'https://external.invalid/openrouteservice/v2/directions/cycling-regular/geojson',
+    '/openrouteservice/v2/directions/cycling-regular/geojson?api_key=test',
+    '/openrouteservice/v2/directions/cycling-regular/geojson#fragment',
   ])('rejects unsupported endpoint %s without making a request', async (path) => {
     const fetcher = mockJson({});
-    expect(() => mapboxUrl(path)).toThrow('Unsupported Mapbox endpoint');
-    await expect(requestJson(path, {})).rejects.toThrow('Unsupported Mapbox endpoint');
+    expect(() => openRouteServiceUrl(path)).toThrow('Unsupported OpenRouteService endpoint');
+    await expect(requestJson(path, {})).rejects.toThrow('Unsupported OpenRouteService endpoint');
     expect(fetcher).not.toHaveBeenCalled();
   });
 });

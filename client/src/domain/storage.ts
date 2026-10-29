@@ -14,7 +14,9 @@ export class RouteDatabase extends Dexie {
         // The owner requested removal of snapshots from the retired provider.
         await transaction
           .table('routes')
-          .filter((route) => !['mapbox', 'gpx', 'manual'].includes(route.source))
+          .filter(
+            (route) => !['openrouteservice', 'mapbox', 'gpx', 'manual'].includes(route.source),
+          )
           .delete();
       });
   }
@@ -31,7 +33,7 @@ function validateRoute(route: PlannedRoute): void {
     !Array.isArray(route.segments) ||
     !route.segments.every(Array.isArray) ||
     !Array.isArray(route.waypoints) ||
-    !['gpx', 'mapbox', 'manual'].includes(route.source) ||
+    !['gpx', 'openrouteservice', 'mapbox', 'manual'].includes(route.source) ||
     typeof route.createdAt !== 'string' ||
     !Number.isFinite(Date.parse(route.createdAt)) ||
     typeof route.updatedAt !== 'string' ||

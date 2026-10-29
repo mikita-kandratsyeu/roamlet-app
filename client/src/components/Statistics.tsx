@@ -185,7 +185,9 @@ export function Statistics({
             ? t('Imported GPX')
             : route.source === 'manual'
               ? t('Manual route')
-              : 'Mapbox'}
+              : route.source === 'mapbox'
+                ? 'Mapbox'
+                : 'OpenRouteService'}
         </span>
       </p>
       {elevationTarget ? createPortal(elevationProfile, elevationTarget) : elevationProfile}

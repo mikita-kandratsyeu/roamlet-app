@@ -202,15 +202,15 @@ export function exportGpx(route: PlannedRoute): string {
         metadata: {
           name: xmlText(route.name),
           desc: xmlText(route.description),
-          ...(route.source === 'mapbox'
+          ...(route.source === 'openrouteservice'
             ? {
                 copyright: {
-                  '@_author': 'Mapbox / OpenStreetMap contributors',
+                  '@_author': 'openrouteservice / OpenStreetMap contributors',
                 },
                 link: [
                   {
-                    '@_href': 'https://www.mapbox.com/about/maps/',
-                    text: 'Routing by Mapbox',
+                    '@_href': 'https://openrouteservice.org/',
+                    text: 'Routing by openrouteservice',
                   },
                   {
                     '@_href': 'https://www.openstreetmap.org/copyright',
@@ -218,7 +218,23 @@ export function exportGpx(route: PlannedRoute): string {
                   },
                 ],
               }
-            : {}),
+            : route.source === 'mapbox'
+              ? {
+                  copyright: {
+                    '@_author': 'Mapbox / OpenStreetMap contributors',
+                  },
+                  link: [
+                    {
+                      '@_href': 'https://www.mapbox.com/about/maps/',
+                      text: 'Routing by Mapbox',
+                    },
+                    {
+                      '@_href': 'https://www.openstreetmap.org/copyright',
+                      text: 'OpenStreetMap contributors',
+                    },
+                  ],
+                }
+              : {}),
         },
         wpt: route.waypoints.map((waypoint) => ({
           ...xmlPoint(waypoint.coordinate),

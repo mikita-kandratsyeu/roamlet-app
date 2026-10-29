@@ -23,7 +23,7 @@ export default defineConfig({
     timeout: 120_000,
     reuseExistingServer: false,
     env: {
-      VITE_MAPBOX_ACCESS_TOKEN: '',
+      VITE_ORS_API_KEY: '',
       VITE_MAP_STYLE: '',
     },
   },

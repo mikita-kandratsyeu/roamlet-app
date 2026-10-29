@@ -23,10 +23,23 @@ describe('GPX', () => {
     ];
     const xml = exportGpx(route);
     expect(xml).not.toContain('Routing by Mapbox');
+    expect(xml).not.toContain('Routing by openrouteservice');
     expect(xml).not.toContain('Mapbox / OpenStreetMap');
     expect(importGpx(xml).segments).toEqual(route.segments);
   });
-  it('attributes new Mapbox exports without relicensing provider data as ODbL', () => {
+  it('attributes OpenRouteService exports without relicensing provider data as ODbL', () => {
+    const route = importGpx(fixture);
+    route.source = 'openrouteservice';
+    const xml = exportGpx(route);
+    expect(xml).toContain('Routing by openrouteservice');
+    expect(xml).toContain('https://openrouteservice.org/');
+    expect(xml).toContain('openrouteservice / OpenStreetMap contributors');
+    expect(xml).toContain('https://www.openstreetmap.org/copyright');
+    expect(xml).not.toContain('Mapbox');
+    expect(xml).not.toContain('<license>');
+    expect(importGpx(xml).segments).toEqual(route.segments);
+  });
+  it('retains legacy Mapbox attribution without relicensing provider data as ODbL', () => {
     const route = importGpx(fixture);
     route.source = 'mapbox';
     const xml = exportGpx(route);

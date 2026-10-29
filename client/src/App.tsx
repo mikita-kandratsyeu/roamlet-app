@@ -169,7 +169,7 @@ export default function App() {
             waypoints,
             ...calculated,
             updatedAt: new Date().toISOString(),
-            source: 'mapbox',
+            source: 'openrouteservice',
           });
         })
         .catch((error) => {
@@ -542,7 +542,7 @@ export default function App() {
       waypoints: stops,
       ...calculated,
       updatedAt: new Date().toISOString(),
-      source: 'mapbox',
+      source: 'openrouteservice',
     });
     setSelectedAlternative(index);
     setDirty(true);
@@ -1116,10 +1116,10 @@ export default function App() {
                   <span>
                     {configurationUnavailable
                       ? t(
-                          'Mapbox configuration could not be checked. GPX and saved routes still work.',
+                          'OpenRouteService configuration could not be checked. GPX and saved routes still work.',
                         )
                       : t(
-                          'Configure a public Mapbox token in VITE_MAPBOX_ACCESS_TOKEN. GPX and saved routes remain available.',
+                          'Configure an OpenRouteService API key in VITE_ORS_API_KEY. GPX and saved routes remain available.',
                         )}
                   </span>
                   <Button variant="ghost" className="text-button" onClick={() => setHelpOpen(true)}>
@@ -1327,12 +1327,12 @@ export default function App() {
             <h3>{t('Routing setup')}</h3>
             <p>
               {t('For deployment administrators: create a key at')}{' '}
-              <a href="https://account.mapbox.com/auth/signup/" target="_blank" rel="noreferrer">
-                Mapbox
+              <a href="https://account.heigit.org/signup" target="_blank" rel="noreferrer">
+                OpenRouteService
               </a>
-              {t('. Set')} <code>VITE_MAPBOX_ACCESS_TOKEN</code>{' '}
+              {t('. Set')} <code>VITE_ORS_API_KEY</code>{' '}
               {t(
-                'in the client environment and restart Vite or rebuild. Use a public pk. token with minimal scopes and URL restrictions for Mapbox Directions only. The map uses MapLibre and OpenFreeMap without a token.',
+                'in the client environment and restart Vite or rebuild. The OpenRouteService API key is visible in the browser and built assets. Never commit actual keys. Monitor account quotas; production shared or public apps should use a server proxy. The map uses MapLibre and OpenFreeMap without a key.',
               )}
             </p>
             <h3>{t('Your route, your device')}</h3>
@@ -1350,7 +1350,7 @@ export default function App() {
             <h3>{t('Real data, honest limits')}</h3>
             <p>
               {t(
-                'Cycling and hiking use Mapbox cycling and walking profiles. Check access and trail conditions. Moving time is an estimate. Loops use intermediate points and may differ from the target distance. Elevation is shown only from imported GPX files with complete height data.',
+                'Cycling and hiking use OpenRouteService cycling-regular and foot-hiking profiles. Check access and trail conditions. Moving time is an estimate. Loops use intermediate points and may differ from the target distance. Elevation is shown only from imported GPX files with complete height data.',
               )}
             </p>
             <p>
@@ -1367,14 +1367,14 @@ export default function App() {
               {t(
                 '(ODbL). Basemaps are provided by OpenFreeMap using OpenMapTiles data. No map regions are downloaded for offline use. Routing ©',
               )}{' '}
-              <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noreferrer">
-                Mapbox
+              <a href="https://openrouteservice.org/" target="_blank" rel="noreferrer">
+                OpenRouteService
               </a>
               {t(', with OSM data.')}
             </p>
             <p className="fine-print">
               {t(
-                'Map requests go directly to the configured map provider (OpenFreeMap by default); route points go to Mapbox Directions using a public token. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.',
+                'Map requests go directly to the configured map provider (OpenFreeMap by default); route points go to hosted OpenRouteService using your API key. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.',
               )}
             </p>
           </div>

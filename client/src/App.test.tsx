@@ -88,6 +88,46 @@ async function plan() {
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
 }
 describe('route planner interactions', () => {
+  it('shows exact missing-key guidance and hosted ORS setup without requiring a key for the map', async () => {
+    vi.mocked(checkRoutingConfiguration).mockResolvedValue(false);
+    render(<App />);
+    expect(
+      await screen.findByText(
+        'Configure an OpenRouteService API key in VITE_ORS_API_KEY. GPX and saved routes remain available.',
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Setup help' }));
+    const help = screen.getByRole('dialog');
+    expect(within(help).getAllByRole('link', { name: 'OpenRouteService' })[0]).toHaveAttribute(
+      'href',
+      'https://account.heigit.org/signup',
+    );
+    expect(help).toHaveTextContent('VITE_ORS_API_KEY');
+    expect(help).toHaveTextContent('visible in the browser and built assets');
+    expect(help).toHaveTextContent('server proxy');
+  });
+  it.each([
+    [
+      'The routing request was rejected. Check the OpenRouteService API key and account permissions.',
+      'Запрос маршрута отклонён. Проверьте API-ключ OpenRouteService и права аккаунта.',
+    ],
+    [
+      'The routing request exceeds the service limits. Try fewer points or a shorter route.',
+      'Запрос маршрута превышает ограничения сервиса. Попробуйте меньше точек или более короткий маршрут.',
+    ],
+  ])('localizes actionable ORS error: %s', async (message, russian) => {
+    provider.calculateRoute.mockRejectedValueOnce(new Error(message));
+    render(<App />);
+    addCoordinate('47.26, 11.4');
+    addCoordinate('47.27, 11.41');
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+    selectLanguage('Русский');
+    expect(screen.getByRole('alert')).toHaveTextContent(russian);
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+  });
   it('draws, moves, reverses and undoes manual segments without Directions or a token', async () => {
     vi.mocked(checkRoutingConfiguration).mockResolvedValue(false);
     render(<App />);
@@ -108,7 +148,7 @@ describe('route planner interactions', () => {
       ]),
     );
     expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
-    expect(screen.queryByText('VITE_MAPBOX_ACCESS_TOKEN')).not.toBeInTheDocument();
+    expect(screen.queryByText('VITE_ORS_API_KEY')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Move first map point' }));
     expect(screen.getByTestId('map')).toHaveAttribute(
       'data-geometry',
@@ -457,13 +497,16 @@ describe('route planner interactions', () => {
     render(<App />);
     await plan();
     expect(screen.getAllByText('1.3 km').length).toBeGreaterThan(0);
-    expect(screen.getByText('Mapbox')).toBeInTheDocument();
+    expect(screen.getByText('OpenRouteService')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
       target: { value: 'River escape' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save to library' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const saved = (await routeDb.routes.toArray())[0];
+    expect(saved.source).toBe('openrouteservice');
+    expect(saved.segments).toEqual([geometry]);
     cleanup();
     render(<App />);
     openMenu();

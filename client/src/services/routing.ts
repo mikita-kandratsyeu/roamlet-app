@@ -7,19 +7,17 @@ import type {
 } from '../domain/types';
 import { calculateStats } from '../domain/stats';
 import { coordinateDistance, loopWaypoints } from './loops';
-import { mapboxUrl } from './mapbox';
+import { openRouteServiceApiKey, openRouteServiceUrl } from './openrouteservice';
 
 export const profiles: Record<Activity, string> = {
-  cycling: 'cycling',
-  hiking: 'walking',
+  cycling: 'cycling-regular',
+  hiking: 'foot-hiking',
 };
 
 class NoRouteError extends Error {}
 export async function checkRoutingConfiguration(signal?: AbortSignal): Promise<boolean> {
   if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
-  return String(import.meta.env.VITE_MAPBOX_ACCESS_TOKEN ?? '')
-    .trim()
-    .startsWith('pk.');
+  return Boolean(String(import.meta.env.VITE_ORS_API_KEY ?? '').trim());
 }
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -40,7 +38,8 @@ export async function requestJson(
   options: RequestInit,
   signal?: AbortSignal,
 ): Promise<unknown> {
-  const target = mapboxUrl(url);
+  const target = openRouteServiceUrl(url);
+  const apiKey = openRouteServiceApiKey();
   const controller = new AbortController();
   const cancel = () => controller.abort();
   if (signal?.aborted) controller.abort();
@@ -50,13 +49,17 @@ export async function requestJson(
     const response = await fetch(target, {
       ...options,
       credentials: 'omit',
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/geo+json',
+        'Content-Type': 'application/json',
+        Authorization: apiKey,
+      },
       signal: controller.signal,
     });
     if (!response.ok) {
       if (response.status === 401 || response.status === 403)
         throw new Error(
-          'The routing request was rejected. Check the public Mapbox token, URL restrictions and account permissions.',
+          'The routing request was rejected. Check the OpenRouteService API key and account permissions.',
         );
       if (response.status === 429)
         throw new Error(
@@ -66,18 +69,21 @@ export async function requestJson(
         throw new Error(
           'The routing service is unavailable. Try again later; your saved routes are safe.',
         );
-      throw new NoRouteError(
-        `No route found (service ${response.status}). Try points closer to accessible roads or trails, or a shorter route.`,
-      );
     }
     const data: unknown = await response.json();
-    if (data && typeof data === 'object' && 'code' in data && data.code !== 'Ok') {
-      if (data.code === 'NoRoute' || data.code === 'NoSegment')
+    const error = data && typeof data === 'object' && 'error' in data ? data.error : undefined;
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 2009 || error.code === 2010)
         throw new NoRouteError('No route was returned. Try a different location.');
+      if (error.code === 2004)
+        throw new Error(
+          'The routing request exceeds the service limits. Try fewer points or a shorter route.',
+        );
+    }
+    if (!response.ok || error)
       throw new Error(
         'The routing service is unavailable. Try again later; your saved routes are safe.',
       );
-    }
     return data;
   } catch (error) {
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
@@ -92,7 +98,7 @@ export async function requestJson(
   }
 }
 
-export class MapboxRoutingService implements RoutingProvider {
+export class OpenRouteServiceRoutingService implements RoutingProvider {
   private cache = new Map<string, { time: number; result: RoutingResult }>();
   private async calculate(
     coordinates: Coordinate[],
@@ -102,21 +108,27 @@ export class MapboxRoutingService implements RoutingProvider {
     if (!coordinates.every(validCoordinate))
       throw new Error('Route locations must contain valid longitude and latitude.');
     if (!(activity in profiles)) throw new Error('Invalid route activity.');
-    const coordinatesPath = coordinates.map((c) => c.slice(0, 2).join(',')).join(';');
-    const cacheKey = JSON.stringify([activity, coordinatesPath]);
-    const cached = this.cache.get(cacheKey);
+    const locations = coordinates.map((coordinate) => coordinate.slice(0, 2));
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
+    const cacheKey = JSON.stringify([activity, locations, openRouteServiceApiKey()]);
+    const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.time < 300_000) return structuredClone(cached.result);
     const data = object(
       await requestJson(
-        `/directions/v5/mapbox/${profiles[activity]}/${coordinatesPath}?geometries=geojson&overview=full&steps=false`,
-        { method: 'GET' },
+        `/openrouteservice/v2/directions/${profiles[activity]}/geojson`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ coordinates: locations, instructions: false, elevation: false }),
+        },
         signal,
       ),
     );
-    if (!Array.isArray(data.routes) || !data.routes.length)
+    if (data.type !== 'FeatureCollection' || !Array.isArray(data.features))
+      throw new Error('The service returned an invalid response.');
+    if (!data.features.length)
       throw new NoRouteError('No route was returned. Try a different location.');
-    const route = object(data.routes[0]);
+    const route = object(data.features[0]);
+    if (route.type !== 'Feature') throw new Error('The service returned an invalid response.');
     const geometry = object(route.geometry);
     if (
       geometry.type !== 'LineString' ||
@@ -125,7 +137,7 @@ export class MapboxRoutingService implements RoutingProvider {
       !geometry.coordinates.every(validCoordinate)
     )
       throw new Error('The service returned invalid route geometry.');
-    const summary = route;
+    const summary = object(object(route.properties).summary);
     if (
       typeof summary.duration !== 'number' ||
       !Number.isFinite(summary.duration) ||
@@ -168,7 +180,7 @@ export class MapboxRoutingService implements RoutingProvider {
     if (!validCoordinate(start.coordinate))
       throw new Error('Route locations must contain valid longitude and latitude.');
     const results: RoutingResult[] = [];
-    // Directions has no target-length loop API. Bound the search to six routed candidates.
+    // Keep the existing loop search bounded to six routed candidates.
     for (const bearing of [30, 210]) {
       let radius = distance / 3;
       let best: RoutingResult | undefined;
@@ -210,4 +222,4 @@ export class MapboxRoutingService implements RoutingProvider {
     return results;
   }
 }
-export const routingProvider = new MapboxRoutingService();
+export const routingProvider = new OpenRouteServiceRoutingService();

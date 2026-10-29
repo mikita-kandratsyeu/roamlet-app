@@ -5,6 +5,8 @@ let forbiddenRequests: string[] = [];
 test.beforeEach(async ({ page }) => {
   forbiddenRequests = [];
   await page.route('**/*.mapbox.com/**', (route) => route.abort());
+  await page.route('https://api.openrouteservice.org/**', (route) => route.abort());
+  await page.route('https://api.heigit.org/**', (route) => route.abort());
   await page.route('**/*.openfreemap.org/**', (route) =>
     route.fulfill({
       json: {
@@ -18,7 +20,12 @@ test.beforeEach(async ({ page }) => {
   );
   page.on('request', (request) => {
     const url = new URL(request.url());
-    if (url.hostname === 'mapbox.com' || url.hostname.endsWith('.mapbox.com')) {
+    if (
+      url.hostname === 'api.openrouteservice.org' ||
+      url.hostname === 'api.heigit.org' ||
+      url.hostname === 'mapbox.com' ||
+      url.hostname.endsWith('.mapbox.com')
+    ) {
       forbiddenRequests.push(url.hostname);
     } else if (url.pathname.startsWith('/api/')) {
       forbiddenRequests.push(url.pathname);
@@ -90,7 +97,7 @@ test('production shell keeps saved routes and GPX export available offline, with
   expect(cached.every((url) => url.startsWith('http://127.0.0.1:4175/'))).toBe(true);
   await context.setOffline(false);
 });
-test('missing routing token keeps the map usable but never substitutes a fake route', async ({
+test('missing routing key keeps the map usable but never substitutes a fake route', async ({
   page,
 }) => {
   await page.goto('/');
@@ -104,10 +111,10 @@ test('missing routing token keeps the map usable but never substitutes a fake ro
     await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
-  await expect(page.getByRole('alert')).toContainText('VITE_MAPBOX_ACCESS_TOKEN');
+  await expect(page.getByRole('alert')).toContainText('VITE_ORS_API_KEY');
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
 });
-test('manual drawing calculates and exports offline without a routing token', async ({
+test('manual drawing calculates and exports offline without a routing key', async ({
   page,
   context,
 }) => {
@@ -128,6 +135,7 @@ test('manual drawing calculates and exports offline without a routing token', as
     const xml = await readFile((await (await downloaded).path())!, 'utf8');
     expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
     expect(xml).not.toContain('Routing by Mapbox');
+    expect(xml).not.toContain('Routing by openrouteservice');
   } finally {
     await context.setOffline(false);
   }

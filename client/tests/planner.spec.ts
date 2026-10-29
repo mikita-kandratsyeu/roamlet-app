@@ -7,11 +7,11 @@ const coordinates = [
   [11.411, 47.271, 610],
 ];
 const fixture = {
-  code: 'Ok',
-  routes: [
+  type: 'FeatureCollection',
+  features: [
     {
-      distance: 640,
-      duration: 240,
+      type: 'Feature',
+      properties: { summary: { distance: 640, duration: 240 } },
       geometry: { type: 'LineString', coordinates: coordinates.map((point) => point.slice(0, 2)) },
     },
   ],
@@ -59,7 +59,18 @@ test.beforeEach(async ({ page }) => {
   );
   await page.route('https://*.mapbox.com/**', (route) => route.abort());
   // Fixtures are confined to browser tests. Production never substitutes geometry.
-  await page.route('**/directions/v5/mapbox/**', (route) => route.fulfill({ json: fixture }));
+  await page.route('https://api.heigit.org/openrouteservice/**', (route) => route.abort());
+  await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) => {
+    const request = route.request();
+    expect(request.method()).toBe('POST');
+    expect(request.headers()).toMatchObject({
+      accept: 'application/json',
+      'content-type': 'application/json',
+      authorization: 'test-only-not-a-real-ors-key',
+    });
+    expect(request.postDataJSON()).toMatchObject({ instructions: false, elevation: false });
+    return route.fulfill({ json: fixture });
+  });
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
@@ -69,7 +80,7 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
 }) => {
   const directions: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/directions/v5/')) directions.push(request.url());
+    if (request.url().includes('/v2/directions/')) directions.push(request.url());
   });
   const tool = page.getByRole('button', { name: 'Manual drawing', exact: true });
   await expect(tool).toHaveCount(1);
@@ -90,6 +101,7 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   const xml = await readFile((await (await download).path())!, 'utf8');
   expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
   expect(xml).not.toContain('Routing by Mapbox');
+  expect(xml).not.toContain('Routing by openrouteservice');
   await canvas.focus();
   await page.keyboard.press('Control+z');
   await expect(page.locator('.waypoint-marker')).toHaveCount(1);
@@ -128,7 +140,7 @@ test('manual controls keep logical order and remain reachable at 320px in Russia
 test('manual routes retain exact points when saved, reopened and edited', async ({ page }) => {
   const directions: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/directions/v5/')) directions.push(request.url());
+    if (request.url().includes('/v2/directions/')) directions.push(request.url());
   });
   await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
   await addPoint(page, '47.2692, 11.4041');
@@ -300,12 +312,23 @@ test('coordinate input replaces paid search; hiking and service failures are hon
   await expect(page.getByRole('alert')).toContainText('Enter coordinates');
   await addPoint(page, '47.2692, 11.4041');
   await page.getByRole('radio', { name: 'Hiking', exact: true }).click();
-  const request = page.waitForRequest('**/directions/v5/mapbox/walking/**');
+  const request = page.waitForRequest(
+    'https://api.heigit.org/openrouteservice/v2/directions/foot-hiking/geojson',
+  );
   await addPoint(page, '47.271, 11.411');
-  await request;
+  const hikingRequest = await request;
+  expect(hikingRequest.method()).toBe('POST');
+  expect(hikingRequest.postDataJSON()).toEqual({
+    coordinates: [
+      [11.4041, 47.2692],
+      [11.411, 47.271],
+    ],
+    instructions: false,
+    elevation: false,
+  });
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
-  await page.route('**/directions/v5/mapbox/**', (route) =>
-    route.fulfill({ status: 429, json: { message: 'quota' } }),
+  await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) =>
+    route.fulfill({ status: 429, json: { error: { message: 'quota' } } }),
   );
   await addPoint(page, '47.28, 11.42');
   await expect(page.getByRole('alert')).toContainText('quota');
@@ -317,23 +340,38 @@ test('round trips route intermediate points with bounded search; responsive cont
 }, testInfo) => {
   await page.getByRole('radio', { name: 'Round trip', exact: true }).click();
   await addPoint(page, '47.2692, 11.4041');
-  await page.route('**/directions/v5/mapbox/**', async (route) => {
-    const url = new URL(route.request().url());
-    const points = url.pathname.split('/').at(-1)!.split(';');
-    expect(route.request().method()).toBe('GET');
-    expect(url.searchParams.has('options')).toBe(false);
-    expect(points).toHaveLength(4);
-    expect(points[0]).toEqual(points[3]);
-    const loop = [coordinates[0], coordinates[1], coordinates[2], coordinates[0]];
-    await route.fulfill({
-      json: {
-        ...fixture,
-        routes: [{ ...fixture.routes[0], geometry: { type: 'LineString', coordinates: loop } }],
-      },
-    });
-  });
+  let attempts = 0;
+  await page.route(
+    'https://api.heigit.org/openrouteservice/v2/directions/*/geojson',
+    async (route) => {
+      attempts += 1;
+      const points = route.request().postDataJSON().coordinates;
+      expect(route.request().method()).toBe('POST');
+      expect(route.request().postDataJSON()).toEqual({
+        coordinates: points,
+        instructions: false,
+        elevation: false,
+      });
+      expect(points).toHaveLength(4);
+      expect(points[0]).toEqual(points[3]);
+      const loop = [coordinates[0], coordinates[1], coordinates[2], coordinates[0]];
+      await route.fulfill({
+        json: {
+          ...fixture,
+          features: [
+            {
+              ...fixture.features[0],
+              geometry: { type: 'LineString', coordinates: loop.map((point) => point.slice(0, 2)) },
+            },
+          ],
+        },
+      });
+    },
+  );
   await page.getByRole('button', { name: 'Find round trips' }).click();
   await expect(page.getByRole('button', { name: /Option 1/ })).toBeVisible();
+  expect(attempts).toBeGreaterThan(0);
+  expect(attempts).toBeLessThanOrEqual(6);
   await expect(page.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
   if (testInfo.project.name === 'mobile') {
     await page.locator('.mobile-sheet-toggle').click();

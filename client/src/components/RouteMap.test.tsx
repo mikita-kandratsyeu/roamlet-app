@@ -118,7 +118,7 @@ const mockStorage = () => {
 };
 beforeEach(() => {
   mockStorage();
-  vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'pk.test-only-not-a-real-token');
+  vi.stubEnv('VITE_ORS_API_KEY', 'test-only-not-a-real-ors-key');
   vi.stubEnv('VITE_MAP_STYLE', '');
   vi.clearAllMocks();
   mocks.theme = 'light';
@@ -284,10 +284,10 @@ it('shows persistent configuration UI for an unsupported map style', () => {
   expect(screen.queryByRole('button', { name: 'Dismiss map notice' })).not.toBeInTheDocument();
 });
 
-it.each(['', 'sk.test-only-not-a-real-token'])(
-  'initializes the map independently of routing token %s',
-  (token) => {
-    vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', token);
+it.each(['', 'test-only-not-a-real-ors-key'])(
+  'initializes the map independently of routing key %s',
+  (key) => {
+    vi.stubEnv('VITE_ORS_API_KEY', key);
     render(<RouteMap {...props} />);
     expect(mocks.options).toHaveBeenCalledTimes(1);
     expect(mocks.options.mock.calls[0][0]).not.toHaveProperty('accessToken');

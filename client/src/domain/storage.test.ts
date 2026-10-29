@@ -41,7 +41,7 @@ afterAll(async () => {
 });
 
 describe('route persistence', () => {
-  it('upgrades old libraries by deleting retired-provider snapshots, retaining Mapbox and GPX', async () => {
+  it('upgrades old libraries while retaining ORS, legacy Mapbox, GPX and manual snapshots', async () => {
     const name = 'roamlet-retired-provider-test';
     const old = new Dexie(name);
     old.version(1).stores({ routes: 'id, updatedAt, createdAt' });
@@ -49,6 +49,8 @@ describe('route persistence', () => {
       { ...fixture(), id: 'retired', source: 'retired-provider' },
       { ...fixture(), id: 'map', source: 'mapbox' },
       { ...fixture(), id: 'gpx', source: 'gpx' },
+      { ...fixture(), id: 'ors', source: 'openrouteservice' },
+      { ...fixture(), id: 'manual', source: 'manual' },
     ]);
     old.close();
     const upgraded = new RouteDatabase(name);
@@ -56,13 +58,15 @@ describe('route persistence', () => {
       await upgraded.open();
       expect((await upgraded.routes.toArray()).map((route) => route.id).sort()).toEqual([
         'gpx',
+        'manual',
         'map',
+        'ors',
       ]);
     } finally {
       await upgraded.delete();
     }
   });
-  it.each(['mapbox', 'gpx', 'manual'] as const)(
+  it.each(['openrouteservice', 'mapbox', 'gpx', 'manual'] as const)(
     'preserves %s snapshots without changing their source',
     async (source) => {
       const route = { ...fixture(), source };
