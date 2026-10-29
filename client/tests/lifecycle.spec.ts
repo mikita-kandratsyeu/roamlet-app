@@ -41,6 +41,31 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
 
+test('export mini-map fits the route and keeps GPX download available without a basemap', async ({ page }) => {
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'segments.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from(gpx),
+  });
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export route', exact: true });
+  const preview = dialog.getByRole('figure', { name: 'Route map preview' });
+  await expect(preview.locator('.export-route-map-canvas')).toHaveClass(/is-ready/);
+  await expect(preview.locator('canvas')).not.toHaveAttribute('tabindex');
+  await expect(dialog.getByRole('textbox', { name: 'File name' })).toBeFocused();
+  const bounds = await preview.boundingBox();
+  const dialogBounds = await dialog.boundingBox();
+  expect(bounds!.width).toBeLessThan(dialogBounds!.width);
+  expect(bounds!.height).toBe(180);
+  await page.keyboard.press('Escape');
+  await page.route('**/__fixtures__/map-style.json', (route) => route.abort());
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  await expect(preview.getByRole('img', { name: 'Route outline' })).toBeVisible();
+  const pending = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Download GPX', exact: true }).click();
+  const xml = await readFile((await (await pending).path())!, 'utf8');
+  expect(xml.match(/<trkseg>/g)).toHaveLength(2);
+  expect(xml.match(/<trkpt\s/g)).toHaveLength(4);
+});
+
 test('manual edits undo and redo, retain native text undo, and recover after reload', async ({
   page,
 }) => {

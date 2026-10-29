@@ -1084,10 +1084,22 @@
 }
 .route-library .library-comparison-selection button {
   max-width: 100%;
+  min-width: 44px;
   min-height: 44px;
   height: auto;
+  padding: 10px 12px;
+  gap: 10px;
   white-space: normal;
+  text-align: start;
+}
+.route-library .library-comparison-route-name {
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+.route-library .library-comparison-selection button svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 .route-library .library-route[data-comparable='true'] {
   grid-template-rows: auto minmax(0, 1fr) auto;

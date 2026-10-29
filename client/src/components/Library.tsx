@@ -34,6 +34,7 @@ import {
   Star,
   SlidersHorizontal,
   ArrowLeft,
+  X,
 } from 'lucide-react';
 
 import type { PlannedRoute } from '../domain/types';
@@ -618,9 +619,12 @@ export function Library({
             <Notification
               title={t('Notification')}
               variant="warning"
-              message={t('{{count}} invalid saved routes were hidden and retained on this device.', {
-                count: invalidCount,
-              })}
+              message={t(
+                '{{count}} invalid saved routes were hidden and retained on this device.',
+                {
+                  count: invalidCount,
+                },
+              )}
             />
           )}
           {error && (
@@ -652,7 +656,8 @@ export function Library({
                         aria-label={t('Remove {{name}} from comparison', { name: route.name })}
                         onClick={() => toggleComparison(route.id)}
                       >
-                        {route.name} <span aria-hidden="true">×</span>
+                        <span className="library-comparison-route-name">{route.name}</span>
+                        <X className="size-5" aria-hidden="true" />
                       </Button>
                     </li>
                   ))}

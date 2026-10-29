@@ -6,6 +6,10 @@ import { ExportDialog } from './ExportDialog';
 import type { PlannedRoute } from '../domain/types';
 import i18n from '../i18n';
 
+vi.mock('./ExportRouteMap', () => ({
+  ExportRouteMap: () => <figure aria-label="Route map preview" />,
+}));
+
 const route: PlannedRoute = {
   id: 'route',
   name: 'Forest walk',
@@ -33,6 +37,7 @@ describe('ExportDialog', () => {
     render(<ExportDialog route={route} onDownload={onDownload} onClose={vi.fn()} />);
     expect(screen.getByRole('dialog', { name: 'Export route' })).toBeVisible();
     expect(screen.getByText('Forest walk')).toBeVisible();
+    expect(screen.getByRole('figure', { name: 'Route map preview' })).toBeVisible();
     expect(screen.getByText('12.4 km')).toBeVisible();
     expect(screen.getByRole('textbox', { name: 'File name' })).toHaveValue('Forest walk.gpx');
     expect(screen.getByRole('textbox', { name: 'File name' })).toHaveFocus();

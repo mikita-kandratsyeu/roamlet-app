@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, ExternalLink } from 'lucide-react';
 import { Dialog } from './Dialog';
+import { ExportRouteMap } from './ExportRouteMap';
 import { Notification } from './Notification';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -56,6 +57,7 @@ export function ExportDialog({
         <p className="export-route-summary">
           <strong>{route.name || t('Untitled adventure')}</strong>
         </p>
+        <ExportRouteMap segments={route.segments} />
         <dl className="export-route-details">
           {details.map(([label, value]) => (
             <div key={label}>

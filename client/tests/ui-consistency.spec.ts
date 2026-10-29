@@ -702,6 +702,56 @@ test('reset confirmation uses shared action spacing and restores focus', async (
   await expect(menu).toBeFocused();
 });
 
+test('comparison selection keeps a clear remove icon and touch target with long route names', async ({
+  page,
+}, testInfo) => {
+  const name = 'Тест (копия) (копия) (копия) (копия)';
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'selection.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(
+      `<gpx version="1.1"><trk><name>${name}</name><trkseg><trkpt lat="47.26" lon="11.4"/><trkpt lat="47.27" lon="11.41"/></trkseg></trk></gpx>`,
+    ),
+  });
+  await page.getByRole('button', { name: 'Save route', exact: true }).click();
+  await page.getByRole('button', { name: 'Save to library', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'My routes', exact: true }).click();
+  const feedback = page.locator('[data-sonner-toast][data-type="success"]');
+  if (await feedback.count()) {
+    await feedback.getByRole('button', { name: 'Dismiss notification', exact: true }).click();
+    await expect(feedback).toHaveCount(0);
+  }
+  const select = page.getByRole('checkbox', { name: `Select ${name} for comparison`, exact: true });
+  await select.check();
+  const remove = page.getByRole('button', { name: `Remove ${name} from comparison`, exact: true });
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await remove.scrollIntoViewIfNeeded();
+    const box = (await remove.boundingBox())!;
+    const icon = remove.locator('svg');
+    const iconBox = (await icon.boundingBox())!;
+    const textBox = (await remove.locator('.library-comparison-route-name').boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    expect(iconBox.width).toBe(20);
+    expect(iconBox.height).toBe(20);
+    expect(textBox.x + textBox.width + 8).toBeLessThanOrEqual(iconBox.x);
+    expect(iconBox.y + iconBox.height / 2).toBeCloseTo(box.y + box.height / 2, 0);
+    await expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(await remove.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: testInfo.outputPath(`comparison-selection-${width}.png`) });
+  }
+  await remove.focus();
+  await remove.press('Enter');
+  await expect(select).not.toBeChecked();
+  await expect(page.getByRole('list', { name: 'Selected routes', exact: true })).toHaveCount(0);
+});
+
 test('library controls share application styling in Russian, light and dark, without narrow-screen overflow', async ({
   page,
 }, testInfo) => {

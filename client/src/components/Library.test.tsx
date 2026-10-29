@@ -370,7 +370,9 @@ it('previews backup counts with safe copy default and imports only after confirm
   await waitFor(() =>
     expect(importBackup).toHaveBeenCalledWith(expect.objectContaining({ version: 1 }), 'copy'),
   );
-  expect((await screen.findByText('Imported 2 routes; skipped 0.')).closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'success');
+  expect(
+    (await screen.findByText('Imported 2 routes; skipped 0.')).closest('[data-sonner-toast]'),
+  ).toHaveAttribute('data-type', 'success');
   expect(onOpen).not.toHaveBeenCalled();
 });
 
@@ -691,7 +693,12 @@ it('retains hidden selections and filters on compare and allows removing hidden 
   expect(onCompare).toHaveBeenCalledWith([woodland, alpine]);
   expect(search).toHaveValue('nowhere');
   expect(loadPreferences().library.query).toBe('nowhere');
-  fireEvent.click(screen.getByRole('button', { name: 'Remove Woodland walk from comparison' }));
+  const remove = screen.getByRole('button', { name: 'Remove Woodland walk from comparison' });
+  const icon = remove.querySelector('svg')!;
+  expect(icon).toHaveAttribute('aria-hidden', 'true');
+  expect(icon).toHaveClass('size-5');
+  expect(remove.querySelector('.library-comparison-route-name')).toHaveTextContent('Woodland walk');
+  fireEvent.click(icon);
   expect(screen.getByRole('button', { name: 'Compare routes' })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
   expect(screen.queryByRole('list', { name: 'Selected routes' })).not.toBeInTheDocument();
