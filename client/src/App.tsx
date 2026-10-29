@@ -174,8 +174,10 @@ export default function App() {
     writingPreferences.current = false;
   }, [activity, planningMode, targetKm, speeds, stopsMinutes, panelHidden, collapsed]);
   useEffect(() => {
-    const apply = () => {
+    const apply = (event: Event) => {
       if (writingPreferences.current) return;
+      const detail = (event as CustomEvent<{ reset?: boolean; patch?: Record<string, unknown> }>).detail;
+      if (detail?.patch && !detail.reset && !Object.keys(detail.patch).some(key => ['activity', 'planningMode', 'targetKm', 'speeds', 'stopsMinutes', 'panelHidden', 'collapsed'].includes(key))) return;
       const next = loadPreferences();
       applyingPreferences.current = true;
       if (!dirty && !result) { editor.routingAllowed.current = false; setActivity(next.activity); }

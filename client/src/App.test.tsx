@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import App from './App';
 import { routeDb } from './domain/storage';
+import * as storage from './domain/storage';
 import { checkRoutingConfiguration } from './services/routing';
 import i18n, { detectLanguage, LANGUAGE_KEY } from './i18n';
 const provider = vi.hoisted(() => ({ calculateRoute: vi.fn(), calculateAlternatives: vi.fn() }));
@@ -628,6 +629,22 @@ describe('route planner interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
     await waitFor(async () => expect(await routeDb.table('drafts').count()).toBe(0));
     expect(await routeDb.routes.count()).toBe(0);
+  });
+  it('does not delete new edits made while a library save is awaiting completion', async () => {
+    let finish!: () => void;
+    const save = vi.spyOn(storage, 'saveRoute').mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    render(<App />);
+    await plan();
+    fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), { target: { value: 'Saving' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save to library' }));
+    await waitFor(() => expect(save).toHaveBeenCalledOnce());
+    fireEvent.change(screen.getByLabelText('Latitude, longitude'), { target: { value: '47.28, 11.42' } });
+    fireEvent.click(screen.getByLabelText('Add coordinates'));
+    await act(async () => finish());
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    await waitFor(async () => expect((await routeDb.table('drafts').get('current'))?.snapshot.waypoints).toHaveLength(3));
+    expect(save.mock.calls[0][0].waypoints).toHaveLength(2);
   });
   it('keeps personal time changes separate from provider statistics and routing', async () => {
     render(<App />);

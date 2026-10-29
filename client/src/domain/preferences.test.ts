@@ -2,7 +2,15 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import i18n, { LANGUAGE_KEY } from '../i18n';
 import { THEME_STORAGE_KEY } from '../theme';
 import { MAP_VIEW_KEY } from './mapView';
-import { DEFAULT_PREFERENCES, loadPreferences, savePreferences, resetPreferences, PREFERENCES_KEY, PREFERENCES_CHANGE_EVENT, PREFERENCES_ERROR_EVENT } from './preferences';
+import {
+  DEFAULT_PREFERENCES,
+  loadPreferences,
+  savePreferences,
+  resetPreferences,
+  PREFERENCES_KEY,
+  PREFERENCES_CHANGE_EVENT,
+  PREFERENCES_ERROR_EVENT,
+} from './preferences';
 
 let storage: Map<string, string>;
 let changed: ReturnType<typeof vi.fn>;
@@ -14,7 +22,8 @@ beforeEach(() => {
     setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
     removeItem: vi.fn((key: string) => storage.delete(key)),
   });
-  changed = vi.fn(); failed = vi.fn();
+  changed = vi.fn();
+  failed = vi.fn();
   window.addEventListener(PREFERENCES_CHANGE_EVENT, changed);
   window.addEventListener(PREFERENCES_ERROR_EVENT, failed);
 });
@@ -36,7 +45,9 @@ it('exports isolated defaults and merges the existing language/theme/camera stor
   expect(DEFAULT_PREFERENCES.library.query).toBe('');
 });
 it('saves validated patches in a versioned envelope without redundant legacy stores or URLs', () => {
-  expect(savePreferences({ targetKm: 34, speeds: { cycling: 22, hiking: 4 }, style: 'custom' })).toBe(true);
+  expect(
+    savePreferences({ targetKm: 34, speeds: { cycling: 22, hiking: 4 }, style: 'custom' }),
+  ).toBe(true);
   expect(savePreferences({ panelHidden: true })).toBe(true);
   expect(loadPreferences()).toMatchObject({ targetKm: 34, panelHidden: true, style: 'custom' });
   const record = JSON.parse(storage.get(PREFERENCES_KEY)!);
@@ -56,8 +67,11 @@ it('delegates theme/language/camera saves to their existing keys and syncs curre
   expect(i18n.language).toBe('ru');
 });
 it.each([
-  { targetKm: 0 }, { targetKm: Infinity }, { stopsMinutes: -1 },
-  { speeds: { cycling: NaN, hiking: 5 } }, { panelHidden: 'true' },
+  { targetKm: 0 },
+  { targetKm: Infinity },
+  { stopsMinutes: -1 },
+  { speeds: { cycling: NaN, hiking: 5 } },
+  { panelHidden: 'true' },
   { style: 'https://secret.invalid/style?key=secret' },
   { library: { ...DEFAULT_PREFERENCES.library, sort: 'invalid' } },
   { library: { ...DEFAULT_PREFERENCES.library, minKm: 'invalid' } },
@@ -68,9 +82,18 @@ it.each([
   expect(failed).toHaveBeenCalled();
   expect(changed).not.toHaveBeenCalled();
 });
-it.each(['{', JSON.stringify({ version: 2, preferences: {} }), JSON.stringify({ version: 1, preferences: null }), JSON.stringify({ version: 1, preferences: { targetKm: -5 } })])('loads safe defaults and reports malformed or unsupported storage: %s', (raw) => {
+it.each([
+  '{',
+  JSON.stringify({ version: 2, preferences: {} }),
+  JSON.stringify({ version: 1, preferences: null }),
+  JSON.stringify({ version: 1, preferences: { targetKm: -5 } }),
+])('loads safe defaults and reports malformed or unsupported storage: %s', (raw) => {
   storage.set(PREFERENCES_KEY, raw);
-  expect(loadPreferences()).toMatchObject({ activity: 'cycling', targetKm: 20, speeds: { cycling: 18, hiking: 5 } });
+  expect(loadPreferences()).toMatchObject({
+    activity: 'cycling',
+    targetKm: 20,
+    speeds: { cycling: 18, hiking: 5 },
+  });
   expect(failed).toHaveBeenCalled();
 });
 it('reports invalid legacy values without overwriting them', () => {
@@ -82,12 +105,20 @@ it('reports invalid legacy values without overwriting them', () => {
   expect(storage.get(MAP_VIEW_KEY)).toBe('{');
 });
 it('resets only preferences and legacy keys, including current language without recreating its key', () => {
-  savePreferences({ language: 'ru', theme: 'dark', targetKm: 42, camera: DEFAULT_PREFERENCES.camera });
+  savePreferences({
+    language: 'ru',
+    theme: 'dark',
+    targetKm: 42,
+    camera: DEFAULT_PREFERENCES.camera,
+  });
   storage.set('roamlet:draft:v1', 'draft');
   storage.set('routes', 'routes');
   changed.mockClear();
   expect(resetPreferences()).toBe(true);
-  expect([...storage.entries()]).toEqual([['roamlet:draft:v1', 'draft'], ['routes', 'routes']]);
+  expect([...storage.entries()]).toEqual([
+    ['roamlet:draft:v1', 'draft'],
+    ['routes', 'routes'],
+  ]);
   expect(i18n.language).toBe('en');
   expect(changed).toHaveBeenCalledOnce();
 });

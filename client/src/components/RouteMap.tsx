@@ -1,11 +1,18 @@
 import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView } from '../domain/mapView';
-import { loadPreferences, savePreferences, PREFERENCES_KEY, PREFERENCES_CHANGE_EVENT, type MapStyle } from '../domain/preferences';
+import {
+  loadPreferences,
+  savePreferences,
+  PREFERENCES_KEY,
+  PREFERENCES_CHANGE_EVENT,
+  type MapStyle,
+  type PreferencesChangeDetail,
+} from '../domain/preferences';
 import { routeInsertion } from '../domain/routeInsertion';
 import {
   mapTiles,
@@ -86,17 +93,32 @@ export function RouteMap(props: Props) {
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mapError, setMapError] = useState('');
+  const [mapAttempt, setMapAttempt] = useState(0);
   const [configurationError, setConfigurationError] = useState(false);
   const configuredStyle = import.meta.env.VITE_MAP_STYLE?.trim() || DEFAULT_MAP_STYLE;
-  const styleUrl = (symbol: MapStyle) => symbol === 'bright' ? BRIGHT_MAP_STYLE : symbol === 'custom' ? configuredStyle : DEFAULT_MAP_STYLE;
+  const styleUrl = useCallback((symbol: MapStyle) =>
+    symbol === 'bright'
+      ? BRIGHT_MAP_STYLE
+      : symbol === 'custom'
+        ? configuredStyle
+        : DEFAULT_MAP_STYLE, [configuredStyle]);
   const [preferenceWarning, setPreferenceWarning] = useState('');
   const initialStyle = useRef<{ url: string; saved: boolean; missing: boolean } | null>(null);
   if (!initialStyle.current) {
     const preferences = loadPreferences();
     let saved = false;
-    try { saved = !!localStorage.getItem(PREFERENCES_KEY); } catch { /* Defaults remain usable without storage. */ }
-    const missing = saved && preferences.style === 'custom' && configuredStyle === DEFAULT_MAP_STYLE;
-    initialStyle.current = { url: missing ? DEFAULT_MAP_STYLE : saved ? styleUrl(preferences.style) : configuredStyle, saved, missing };
+    try {
+      saved = !!localStorage.getItem(PREFERENCES_KEY);
+    } catch {
+      /* Defaults remain usable without storage. */
+    }
+    const missing =
+      saved && preferences.style === 'custom' && configuredStyle === DEFAULT_MAP_STYLE;
+    initialStyle.current = {
+      url: missing ? DEFAULT_MAP_STYLE : saved ? styleUrl(preferences.style) : configuredStyle,
+      saved,
+      missing,
+    };
   }
   const [style, setStyle] = useState(initialStyle.current.url);
   const activeStyle = useRef(style);
@@ -170,7 +192,8 @@ export function RouteMap(props: Props) {
     setMapError('');
     setPreferenceWarning('');
     fallbackUsed.current = true;
-    const symbol: MapStyle = next === DEFAULT_MAP_STYLE ? 'standard' : next === BRIGHT_MAP_STYLE ? 'bright' : 'custom';
+    const symbol: MapStyle =
+      next === DEFAULT_MAP_STYLE ? 'standard' : next === BRIGHT_MAP_STYLE ? 'bright' : 'custom';
     savePreferences({ style: symbol });
     map.current?.setStyle(next);
   }
@@ -187,7 +210,7 @@ export function RouteMap(props: Props) {
     if (!container.current) return;
     let tiles: ReturnType<typeof mapTiles>;
     try {
-      tiles = mapTiles({ VITE_MAP_STYLE: initialStyle.current!.url });
+      tiles = mapTiles({ VITE_MAP_STYLE: activeStyle.current });
       if (initialStyle.current!.missing) setPreferenceWarning(savedStyleWarning);
     } catch (error) {
       if (initialStyle.current!.saved) {
@@ -202,7 +225,8 @@ export function RouteMap(props: Props) {
         return;
       }
     }
-    if (initialStyle.current!.missing || fallbackUsed.current) savePreferences({ style: 'standard' });
+    if (initialStyle.current!.missing || fallbackUsed.current)
+      savePreferences({ style: 'standard' });
     let instance: maplibregl.Map;
     try {
       instance = new maplibregl.Map({
@@ -218,6 +242,7 @@ export function RouteMap(props: Props) {
         style: tiles.style,
       });
     } catch {
+      setLoading(false);
       setMapError(
         'This browser cannot render the interactive map. Enable WebGL or try another browser. GPX and saved routes remain available.',
       );
@@ -230,10 +255,20 @@ export function RouteMap(props: Props) {
       const center = instance.getCenter().wrap();
       const camera = {
         center: [center.lng, center.lat] as [number, number],
-        zoom: instance.getZoom(), bearing: instance.getBearing(), pitch: instance.getPitch(),
+        zoom: instance.getZoom(),
+        bearing: instance.getBearing(),
+        pitch: instance.getPitch(),
       };
       lastCamera.current = JSON.stringify(camera);
-      const saved = savePreferences({ camera, style: activeStyle.current === DEFAULT_MAP_STYLE ? 'standard' : activeStyle.current === BRIGHT_MAP_STYLE ? 'bright' : 'custom' });
+      const saved = savePreferences({
+        camera,
+        style:
+          activeStyle.current === DEFAULT_MAP_STYLE
+            ? 'standard'
+            : activeStyle.current === BRIGHT_MAP_STYLE
+              ? 'bright'
+              : 'custom',
+      });
       if (!saved && !storageWarningShown) {
         storageWarningShown = true;
         setMapError(
@@ -241,19 +276,34 @@ export function RouteMap(props: Props) {
         );
       }
     };
-    instance.on('dragstart', () => { suppressClickUntil.current = Infinity; });
-    instance.on('dragend', () => { suppressClickUntil.current = Date.now() + 250; });
-    const preferencesChanged = () => {
+    instance.on('dragstart', () => {
+      suppressClickUntil.current = Infinity;
+    });
+    instance.on('dragend', () => {
+      suppressClickUntil.current = Date.now() + 250;
+    });
+    const preferencesChanged = (event: Event) => {
+      const detail = (event as CustomEvent<PreferencesChangeDetail>).detail;
+      if (detail?.reset) {
+        setPreferenceWarning('');
+        setMapError('');
+      }
       const preferences = loadPreferences();
       const next = styleUrl(preferences.style);
-      if (next !== activeStyle.current) {
+      if (
+        (!detail || detail.reset || detail.patch?.style !== undefined) &&
+        next !== activeStyle.current
+      ) {
         activeStyle.current = next;
         setStyle(next);
         setReady(false);
         instance.setStyle(next);
       }
       const camera = JSON.stringify(preferences.camera);
-      if (camera !== lastCamera.current) {
+      if (
+        (!detail || detail.reset || detail.patch?.camera !== undefined) &&
+        camera !== lastCamera.current
+      ) {
         lastCamera.current = camera;
         instance.jumpTo(preferences.camera);
       }
@@ -282,7 +332,9 @@ export function RouteMap(props: Props) {
           layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
         instance.addLayer({
-          id: 'route-hit', type: 'line', source: 'route',
+          id: 'route-hit',
+          type: 'line',
+          source: 'route',
           paint: { 'line-width': 28, 'line-opacity': 0 },
           layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
@@ -298,7 +350,12 @@ export function RouteMap(props: Props) {
       setMapError('');
     };
     const fallbackSavedStyle = () => {
-      if (!initialStyle.current!.saved || activeStyle.current === DEFAULT_MAP_STYLE || fallbackUsed.current) return false;
+      if (
+        !initialStyle.current!.saved ||
+        activeStyle.current === DEFAULT_MAP_STYLE ||
+        fallbackUsed.current
+      )
+        return false;
       fallbackUsed.current = true;
       activeStyle.current = DEFAULT_MAP_STYLE;
       setStyle(DEFAULT_MAP_STYLE);
@@ -310,7 +367,8 @@ export function RouteMap(props: Props) {
     };
     const timeout = window.setTimeout(() => {
       setLoading(false);
-      if (!fallbackSavedStyle()) setMapError('The map took too long to load. Check your connection and reload the page.');
+      if (!fallbackSavedStyle())
+        setMapError('The map took too long to load. Check your connection and reload the page.');
     }, 30000);
     instance.on('load', () => {
       installRouteLayers();
@@ -328,9 +386,19 @@ export function RouteMap(props: Props) {
     });
     instance.on('click', (event) => {
       const current = latest.current;
-      if (!current.editable || Date.now() < suppressClickUntil.current || (event.originalEvent?.target instanceof Element && event.originalEvent.target.closest('.waypoint-marker'))) return;
+      if (
+        !current.editable ||
+        Date.now() < suppressClickUntil.current ||
+        (event.originalEvent?.target instanceof Element &&
+          event.originalEvent.target.closest('.waypoint-marker'))
+      )
+        return;
       const coordinate: Coordinate = [event.lngLat.lng, event.lngLat.lat];
-      if (current.onInsert && event.point && instance.queryRenderedFeatures(event.point, { layers: ['route-hit'] }).length) {
+      if (
+        current.onInsert &&
+        event.point &&
+        instance.queryRenderedFeatures(event.point, { layers: ['route-hit'] }).length
+      ) {
         const insertion = routeInsertion(coordinate, current.segments, current.waypoints);
         if (insertion) current.onInsert(insertion.coordinate, insertion.index);
         return;
@@ -350,7 +418,7 @@ export function RouteMap(props: Props) {
       instance.remove();
       map.current = null;
     };
-  }, []);
+  }, [mapAttempt]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const dark = resolvedTheme === 'dark';
@@ -389,7 +457,9 @@ export function RouteMap(props: Props) {
       const marker = new maplibregl.Marker({ element, draggable: props.editable })
         .setLngLat([point.coordinate[0], point.coordinate[1]])
         .addTo(map.current!);
-      marker.on('dragstart', () => { suppressClickUntil.current = Infinity; });
+      marker.on('dragstart', () => {
+        suppressClickUntil.current = Infinity;
+      });
       marker.on('dragend', () => {
         suppressClickUntil.current = Date.now() + 250;
         if (!latest.current.editable) return;
@@ -436,7 +506,13 @@ export function RouteMap(props: Props) {
       if (!editable || !(event.ctrlKey || event.metaKey)) return;
       const key = event.key.toLowerCase();
       const redo = (key === 'z' && event.shiftKey) || key === 'y';
-      const action = redo ? (canRedo !== false ? onRedo : undefined) : key === 'z' && canUndo !== false ? onUndo : undefined;
+      const action = redo
+        ? canRedo !== false
+          ? onRedo
+          : undefined
+        : key === 'z' && canUndo !== false
+          ? onUndo
+          : undefined;
       if (action) {
         event.preventDefault();
         event.stopPropagation();
@@ -492,15 +568,29 @@ export function RouteMap(props: Props) {
       {(mapError || preferenceWarning) && (
         <Alert className="map-warning" role="status">
           <span>{translateMessage(mapError || preferenceWarning)}</span>
-          {mapError && !configurationError && map.current && (
-            <Button variant="outline" onClick={() => { setMapError(''); setReady(false); map.current?.setStyle(activeStyle.current); }}>
+          {mapError && !configurationError && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMapError('');
+                setReady(false);
+                if (map.current) map.current.setStyle(activeStyle.current);
+                else {
+                  setLoading(true);
+                  setMapAttempt((attempt) => attempt + 1);
+                }
+              }}
+            >
               {t('Retry map')}
             </Button>
           )}
           {!configurationError && (
             <Button
               variant="ghost"
-              onClick={() => { setMapError(''); setPreferenceWarning(''); }}
+              onClick={() => {
+                setMapError('');
+                setPreferenceWarning('');
+              }}
               aria-label={t('Dismiss map notice')}
             >
               <X size={16} />
@@ -598,8 +688,12 @@ export function RouteMap(props: Props) {
             className="map-control map-undo-tool"
             variant="outline"
             size="icon"
-            aria-label={t(props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo')}
-            title={t(props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo')}
+            aria-label={t(
+              props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo',
+            )}
+            title={t(
+              props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo',
+            )}
             disabled={!props.onUndo || props.canUndo === false}
             onClick={props.onUndo}
           >
@@ -607,7 +701,15 @@ export function RouteMap(props: Props) {
           </Button>
         )}
         {props.editable && (props.onRedo || props.canRedo !== undefined) && (
-          <Button className="map-control map-redo-tool" variant="outline" size="icon" aria-label={t('Redo')} title={t('Redo')} disabled={!props.onRedo || props.canRedo === false} onClick={props.onRedo}>
+          <Button
+            className="map-control map-redo-tool"
+            variant="outline"
+            size="icon"
+            aria-label={t('Redo')}
+            title={t('Redo')}
+            disabled={!props.onRedo || props.canRedo === false}
+            onClick={props.onRedo}
+          >
             <Redo2 size={18} aria-hidden="true" />
           </Button>
         )}

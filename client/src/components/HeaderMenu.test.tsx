@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, cleanup, waitFor } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { HeaderMenu } from './HeaderMenu';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider, THEME_STORAGE_KEY } from '../theme';
@@ -7,7 +7,15 @@ import { useRef, useState } from 'react';
 import { Dialog } from './Dialog';
 import { savePreferences, loadPreferences, PREFERENCES_KEY } from '../domain/preferences';
 
-afterEach(cleanup);
+beforeEach(() => {
+  const values = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+  });
+});
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 function setup() {
   const actions = { onNewRoute: vi.fn(), onLibrary: vi.fn(), onHelp: vi.fn() };
@@ -267,13 +275,19 @@ it('requires local confirmation before resetting settings and leaves routes and 
     expect(document.documentElement).not.toHaveClass('dark');
     expect(loadPreferences().panelHidden).toBe(false);
     await waitFor(() => expect(trigger).toHaveFocus());
-  } finally { vi.unstubAllGlobals(); }
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
 it('notifies about unavailable preference storage and keeps reset confirmation open on failure', async () => {
   vi.stubGlobal('localStorage', {
     getItem: () => null,
-    setItem: () => { throw new Error('denied'); },
-    removeItem: () => { throw new Error('denied'); },
+    setItem: () => {
+      throw new Error('denied');
+    },
+    removeItem: () => {
+      throw new Error('denied');
+    },
   });
   try {
     const { user, trigger } = setup();
@@ -282,5 +296,7 @@ it('notifies about unavailable preference storage and keeps reset confirmation o
     await user.click(screen.getByRole('button', { name: 'Reset settings' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('Settings could not be loaded or saved.');
-  } finally { vi.unstubAllGlobals(); }
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

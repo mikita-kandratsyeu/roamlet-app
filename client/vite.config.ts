@@ -1,15 +1,17 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 export default defineConfig({
   plugins: [react(), tailwindcss(), {
     name: 'versioned-offline-shell',
     apply: 'build',
-    generateBundle(_, bundle) {
-      const revision = createHash('sha256').update(Object.keys(bundle).sort().join('|')).digest('hex').slice(0, 16);
+    async generateBundle(_, bundle) {
+      const fsModuleName = 'node:fs';
+      const { readFileSync } = await import(fsModuleName) as { readFileSync(path: URL, encoding: string): string };
       const worker = readFileSync(new URL('./public/sw.js', import.meta.url), 'utf8');
+      const assets = Object.entries(bundle).sort(([a], [b]) => a.localeCompare(b)).map(([name, file]) => name + (file.type === 'asset' && typeof file.source === 'string' ? file.source : '')).join('|');
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(worker + assets));
+      const revision = Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('').slice(0, 16);
       this.emitFile({ type: 'asset', fileName: 'sw.js', source: worker.replace('__BUILD_REVISION__', revision) });
     },
   }],

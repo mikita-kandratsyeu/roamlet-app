@@ -87,7 +87,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   function setTheme(value: Theme) {
     updateTheme(value);
     applyTheme(value === 'system' ? systemTheme() : value);
-    if (saveTheme(value)) window.dispatchEvent(new Event('roamlet-preferences-change'));
+    if (saveTheme(value))
+      window.dispatchEvent(
+        new CustomEvent('roamlet-preferences-change', { detail: { patch: { theme: value } } }),
+      );
   }
 
   return (

@@ -262,7 +262,10 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
             {t('System theme follows OS settings. Language and theme are saved locally.')}
           </p>
           <DropdownMenuSeparator className="header-menu-separator" />
-          <DropdownMenuItem className="header-menu-item" onSelect={() => activate(() => setResetOpen(true))}>
+          <DropdownMenuItem
+            className="header-menu-item"
+            onSelect={() => activate(() => setResetOpen(true))}
+          >
             {t('Reset settings')}
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -279,15 +282,43 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
       </DropdownMenu>
       {preferencesError && !resetOpen && (
         <div role="alert">
-          {t('Settings could not be loaded or saved. Safe defaults are used when needed. Your routes and drafts are unchanged.')}
-          <Button variant="ghost" onClick={() => setPreferencesError(false)}>{t('Dismiss settings notice')}</Button>
+          {t(
+            'Settings could not be loaded or saved. Safe defaults are used when needed. Your routes and drafts are unchanged.',
+          )}
+          <Button variant="ghost" onClick={() => setPreferencesError(false)}>
+            {t('Dismiss settings notice')}
+          </Button>
         </div>
       )}
       {resetOpen && (
-        <Dialog title={t('Reset settings')} description={t('Reset planning, library, language, theme and map settings? Saved routes and drafts will not be deleted.')} onClose={() => setResetOpen(false)} initialFocusRef={cancelReset}>
-          {preferencesError && <p role="alert">{t('Settings could not be loaded or saved. Safe defaults are used when needed. Your routes and drafts are unchanged.')}</p>}
-          <Button ref={cancelReset} variant="outline" onClick={() => setResetOpen(false)}>{t('Cancel')}</Button>
-          <Button onClick={() => { if (resetPreferences()) { setPreferencesError(false); setResetOpen(false); } }}>{t('Reset settings')}</Button>
+        <Dialog
+          title={t('Reset settings')}
+          description={t(
+            'Reset planning, library, language, theme and map settings? Saved routes and drafts will not be deleted.',
+          )}
+          onClose={() => setResetOpen(false)}
+          initialFocusRef={cancelReset}
+        >
+          {preferencesError && (
+            <p role="alert">
+              {t(
+                'Settings could not be loaded or saved. Safe defaults are used when needed. Your routes and drafts are unchanged.',
+              )}
+            </p>
+          )}
+          <Button ref={cancelReset} variant="outline" onClick={() => setResetOpen(false)}>
+            {t('Cancel')}
+          </Button>
+          <Button
+            onClick={() => {
+              if (resetPreferences()) {
+                setPreferencesError(false);
+                setResetOpen(false);
+              }
+            }}
+          >
+            {t('Reset settings')}
+          </Button>
         </Dialog>
       )}
     </div>

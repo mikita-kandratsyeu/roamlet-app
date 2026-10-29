@@ -62,7 +62,11 @@ function synchronizeLanguage(language: string) {
       );
   }
   if (!skipLanguagePersistence && saveLanguage(normalized)) {
-    window.dispatchEvent(new Event('roamlet-preferences-change'));
+    window.dispatchEvent(
+      new CustomEvent('roamlet-preferences-change', {
+        detail: { patch: { language: normalized } },
+      }),
+    );
   }
 }
 i18n.on('languageChanged', synchronizeLanguage);

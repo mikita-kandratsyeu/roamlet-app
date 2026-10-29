@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   approximateMapView,
+  defaultMapView,
   initialMapView,
   MAP_VIEW_KEY,
   saveMapView,
@@ -77,4 +78,15 @@ describe('last local view', () => {
     expect(validMapView({ center: [0, 0], zoom: 3 })).toBe(false);
     expect(saveMapView({ ...stored, zoom: NaN })).toBe(false);
   });
+});
+
+it('provides a fresh reset camera independent of the existing saved view', () => {
+  saveMapView(stored);
+  expect(initialMapView()).toEqual(stored);
+  const reset = defaultMapView();
+  expect(validMapView(reset)).toBe(true);
+  expect(reset).not.toEqual(stored);
+  reset.center[0] = 179;
+  expect(defaultMapView().center[0]).not.toBe(179);
+  expect(initialMapView()).toEqual(stored);
 });
