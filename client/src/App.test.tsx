@@ -279,28 +279,48 @@ describe('route planner interactions', () => {
     expect(document.querySelector('.offline-planner-notice')).toBeNull();
     expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeEnabled();
   });
-  it('shows exact missing-key guidance and hosted ORS setup without requiring a key for the map', async () => {
-    vi.mocked(checkRoutingConfiguration).mockResolvedValue(false);
-    render(<App />);
-    expect(
-      await screen.findByText(
-        'Configure ORS_API_KEY on the server. GPX and saved routes remain available.',
-      ),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Setup help' }));
-    const help = screen.getByRole('dialog');
-    expect(within(help).getAllByRole('link', { name: 'OpenRouteService' })[0]).toHaveAttribute(
-      'href',
-      'https://account.heigit.org/signup',
-    );
-    expect(help).toHaveTextContent('ORS_API_KEY');
-    expect(help).toHaveTextContent('never sent to the browser');
-    expect(help).toHaveTextContent('Vercel Firewall');
-  });
+  it.each(['en', 'ru'])(
+    'shows product help and accurate data credits without deployment instructions (%s)',
+    async (language) => {
+      await i18n.changeLanguage(language);
+      vi.mocked(checkRoutingConfiguration).mockResolvedValue(false);
+      render(<App />);
+      expect(
+        await screen.findByText(
+          i18n.t('Configure ORS_API_KEY on the server. GPX and saved routes remain available.'),
+        ),
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('Setup') }));
+      const help = screen.getByRole('dialog');
+      expect(within(help).getByRole('link', { name: 'OpenRouteService' })).toHaveAttribute(
+        'href',
+        'https://openrouteservice.org/',
+      );
+      expect(within(help).getByRole('link', { name: 'OpenFreeMap' })).toHaveAttribute(
+        'href',
+        'https://openfreemap.org/',
+      );
+      expect(within(help).getByRole('link', { name: 'OpenMapTiles' })).toHaveAttribute(
+        'href',
+        'https://openmaptiles.org/',
+      );
+      expect(within(help).getByRole('link', { name: 'ODbL' })).toHaveAttribute(
+        'href',
+        'https://opendatacommons.org/licenses/odbl/1-0/',
+      );
+      expect(help).not.toHaveTextContent(
+        /ORS_API_KEY|Vercel|Firewall|cycling-regular|foot-hiking|18 km\/h|18 км\/ч/,
+      );
+      expect(within(help).queryByRole('link', { name: /signup/i })).not.toBeInTheDocument();
+      expect(help).toHaveTextContent(i18n.t('Standard map: OpenStreetMap. Light map:'));
+      expect(help).toHaveTextContent(i18n.t('Online requests and your data'));
+      expect(help).toHaveTextContent(i18n.t('Planning routes'));
+    },
+  );
   it.each([
     [
       'The routing request was rejected. Check the OpenRouteService API key and account permissions.',
-      'Запрос маршрута отклонён. Проверьте API-ключ OpenRouteService и права аккаунта.',
+      'Не удалось выполнить автоматический расчёт. Попробуйте позже или нарисуйте маршрут вручную.',
     ],
     [
       'The routing request exceeds the service limits. Try fewer points or a shorter route.',
@@ -311,7 +331,7 @@ describe('route planner interactions', () => {
     render(<App />);
     addCoordinate('47.26, 11.4');
     addCoordinate('47.27, 11.41');
-    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+    expect(await screen.findByRole('alert')).toHaveTextContent(i18n.t(message));
     selectLanguage('Русский');
     expect(screen.getByRole('alert')).toHaveTextContent(russian);
     await act(async () => {

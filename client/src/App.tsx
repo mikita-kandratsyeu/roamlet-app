@@ -2145,15 +2145,15 @@ export default function App() {
       {helpOpen && !libraryOpen && (
         <Dialog title={t('A few helpful things')} onClose={() => setHelpOpen(false)}>
           <div className="help-content">
-            <h3>{t('Routing setup')}</h3>
+            <h3>{t('Planning routes')}</h3>
             <p>
-              {t('For deployment administrators: create a key at')}{' '}
-              <a href="https://account.heigit.org/signup" target="_blank" rel="noreferrer">
-                OpenRouteService
-              </a>
-              {t('. Set')} <code>ORS_API_KEY</code>{' '}
               {t(
-                'in the server environment and restart the local server or redeploy Vercel. The key stays on the server and is never sent to the browser. Never commit actual keys. Configure Vercel Firewall rate limits and monitor account quotas before public deployment. Maps do not need an ORS key.',
+                'Choose cycling or hiking and add points on the map or enter coordinates. Automatic routing follows roads and paths using OpenRouteService and needs internet. No separate map or routing account is needed.',
+              )}
+            </p>
+            <p>
+              {t(
+                'If automatic routing is unavailable, try again later, draw a route manually, or open a saved route. Manual drawing connects points with straight lines; it does not check roads or access.',
               )}
             </p>
             <h3>{t('Your route, your device')}</h3>
@@ -2189,12 +2189,12 @@ export default function App() {
             <h3>{t('Real data, honest limits')}</h3>
             <p>
               {t(
-                'Cycling and hiking use OpenRouteService cycling-regular and foot-hiking profiles. Check access and trail conditions. Moving time is an estimate. Loops use intermediate points and may differ from the target distance. Elevation is shown only from imported GPX files with complete height data.',
+                'Routes are planning suggestions, not a guarantee of access or safety. Check signs, access restrictions, weather and current trail conditions before travelling. Round trips may differ from the requested distance.',
               )}
             </p>
             <p>
               {t(
-                'Manual routes connect your points directly without Directions. Time is estimated at 18 km/h cycling or 5 km/h hiking; roads, access and terrain are not checked.',
+                'Travel times are approximate and depend on your pace, stops and conditions. Elevation is shown only when complete height data is available from an imported GPX or a supported automatic route. Heights may be estimates, and missing values are not filled in.',
               )}
             </p>
             <h3>{t('Data & attribution')}</h3>
@@ -2203,17 +2203,44 @@ export default function App() {
               <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
                 {t('OpenStreetMap contributors')}
               </a>{' '}
-              {t(
-                '(ODbL). Basemaps are provided by OpenFreeMap using OpenMapTiles data. No map regions are downloaded for offline use. Routing ©',
-              )}{' '}
+              {' · '}
+              <a
+                href="https://opendatacommons.org/licenses/odbl/1-0/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                ODbL
+              </a>
+            </p>
+            <p>
+              {t('Standard map: OpenStreetMap. Light map:')}{' '}
+              <a href="https://openfreemap.org/" target="_blank" rel="noreferrer">
+                OpenFreeMap
+              </a>
+              {' · '}
+              <a href="https://openmaptiles.org/" target="_blank" rel="noreferrer">
+                OpenMapTiles
+              </a>
+              {'. '}
+              {t('Custom maps may use other providers; their credits appear on the map.')}
+            </p>
+            <p>
+              {t('Routing by')}{' '}
               <a href="https://openrouteservice.org/" target="_blank" rel="noreferrer">
                 OpenRouteService
               </a>
-              {t(', with OSM data.')}
-            </p>
-            <p className="fine-print">
+              {' / '}
+              <a href="https://heigit.org/" target="_blank" rel="noreferrer">
+                HeiGIT
+              </a>
               {t(
-                'Map requests go directly to the configured map provider (OpenFreeMap by default); route points go to hosted OpenRouteService using your API key. Your saved local library is not uploaded. Saved routes and GPX work offline after the app shell is cached; basemaps require internet. Check provider terms before publishing stored routes or GPX exports.',
+                ', based on OpenStreetMap data. Data licenses and provider terms apply; exporting a file does not grant additional rights to the underlying data.',
+              )}
+            </p>
+            <h3>{t('Online requests and your data')}</h3>
+            <p>
+              {t(
+                'Loading a map sends requests directly to its providers, which receive your IP address and the requested map area. When you calculate an automatic route, its points are sent through the Roamlet server to OpenRouteService. Manual calculations and GPX processing run on your device; your saved library is not automatically uploaded or synced.',
               )}
             </p>
           </div>

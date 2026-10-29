@@ -78,14 +78,18 @@ test.beforeEach(async ({ page }) => {
 });
 test('imports GPX from the planner without a duplicate map action', async ({ page }) => {
   const sheet = page.locator('.mobile-sheet-toggle');
-  if (await sheet.isVisible() && await sheet.getAttribute('aria-expanded') === 'false')
+  if ((await sheet.isVisible()) && (await sheet.getAttribute('aria-expanded')) === 'false')
     await sheet.click();
   await expect(page.getByRole('button', { name: 'Import GPX on map' })).toHaveCount(0);
-  const importer = page.locator('.planner-footer').getByRole('button', { name: 'Import GPX', exact: true });
+  const importer = page
+    .locator('.planner-footer')
+    .getByRole('button', { name: 'Import GPX', exact: true });
   await expect(importer).toBeVisible();
   const chooser = page.waitForEvent('filechooser');
   await importer.click();
-  await (await chooser).setFiles({
+  await (
+    await chooser
+  ).setFiles({
     name: 'planner-import.gpx',
     mimeType: 'application/gpx+xml',
     buffer: Buffer.from(gpx),
@@ -94,10 +98,14 @@ test('imports GPX from the planner without a duplicate map action', async ({ pag
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
 });
 
-test('export summary shows route metrics and GPX counts without overflowing small screens', async ({ page }, testInfo) => {
-  await page.setViewportSize(testInfo.project.name === 'mobile'
-    ? { width: 320, height: 740 }
-    : { width: 1440, height: 1000 });
+test('export summary shows route metrics and GPX counts without overflowing small screens', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 740 }
+      : { width: 1440, height: 1000 },
+  );
   await page.getByLabel('Import GPX file').setInputFiles({
     name: 'export-details.gpx',
     mimeType: 'application/gpx+xml',
@@ -106,35 +114,53 @@ test('export summary shows route metrics and GPX counts without overflowing smal
   await expect(page.locator('.stat-card')).toHaveCount(6);
   for (const language of ['en', 'ru']) {
     await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
-    await page.getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' })
+      .click();
     await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
     const dialog = page.getByRole('dialog', { name: /^(Export route|Экспорт маршрута)$/ });
     const summary = dialog.locator('.export-route-overview');
     await expect(summary.locator('dt')).toHaveCount(8);
-    const value = (label: string) => summary.locator('dt').filter({ hasText: label }).locator('xpath=following-sibling::dd');
+    const value = (label: string) =>
+      summary.locator('dt').filter({ hasText: label }).locator('xpath=following-sibling::dd');
     await expect(value(language === 'ru' ? 'Точки трека' : 'Track points')).toHaveText('4');
     await expect(value(language === 'ru' ? 'Участки GPX' : 'GPX segments')).toHaveText('2');
     await expect(value(language === 'ru' ? 'Путевые точки' : 'Waypoints')).toHaveText('1');
-    await expect(value(language === 'ru' ? 'Набор высоты' : 'Elevation gain')).toHaveText(language === 'ru' ? '20 м' : '20 m');
+    await expect(value(language === 'ru' ? 'Набор высоты' : 'Elevation gain')).toHaveText(
+      language === 'ru' ? '20 м' : '20 m',
+    );
     await expect(dialog.getByRole('textbox')).toBeFocused();
     await summary.scrollIntoViewIfNeeded();
-    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
     for (const cell of await summary.locator('.export-route-details > div').all()) {
       const box = (await cell.boundingBox())!;
       expect(box.x).toBeGreaterThanOrEqual(0);
       expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     }
     await page.screenshot({ path: testInfo.outputPath(`export-details-${language}.png`) });
-    await expect(dialog.getByRole('button', { name: /^(Download GPX|Скачать GPX)$/ })).toBeEnabled();
-    const strava = dialog.locator('summary').filter({ hasText: language === 'ru' ? 'Как импортировать в Strava' : 'How to import into Strava' });
+    await expect(
+      dialog.getByRole('button', { name: /^(Download GPX|Скачать GPX)$/ }),
+    ).toBeEnabled();
+    const strava = dialog.locator('summary').filter({
+      hasText: language === 'ru' ? 'Как импортировать в Strava' : 'How to import into Strava',
+    });
     await expect(strava.locator('..')).not.toHaveAttribute('open');
     await strava.click();
     await expect(strava.locator('..')).toHaveAttribute('open');
-    const instructions = dialog.getByRole('link', { name: language === 'ru' ? 'Инструкция по импорту в Strava' : 'Strava import instructions' });
-    await expect(instructions).toHaveAttribute('href', 'https://support.strava.com/en-us/articles/15402061-how-do-i-create-a-route-from-a-gpx-file');
+    const instructions = dialog.getByRole('link', {
+      name: language === 'ru' ? 'Инструкция по импорту в Strava' : 'Strava import instructions',
+    });
+    await expect(instructions).toHaveAttribute(
+      'href',
+      'https://support.strava.com/en-us/articles/15402061-how-do-i-create-a-route-from-a-gpx-file',
+    );
     await expect(instructions).toHaveAttribute('rel', 'noopener noreferrer');
     await instructions.scrollIntoViewIfNeeded();
-    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
     await page.screenshot({ path: testInfo.outputPath(`export-strava-${language}.png`) });
     await dialog.press('Escape');
     await expect(dialog).toHaveCount(0);
@@ -427,9 +453,7 @@ test('edits names, duplicates, filters and confirms deletion', async ({ page }) 
   await page.getByRole('button', { name: 'Duplicate River route', exact: true }).click();
   await expect(page.locator('.library-route')).toHaveCount(2);
   await page.getByRole('textbox', { name: 'Search saved routes' }).fill('not found');
-  await expect(
-    page.getByText('No matching routes. Try another name or clear the search.'),
-  ).toBeVisible();
+  await expect(page.getByText('No matching routes', { exact: true })).toBeVisible();
   await page.getByRole('textbox', { name: 'Search saved routes' }).clear();
   await page.getByRole('button', { name: 'Delete River route', exact: true }).click();
   await expect(page.getByText(/This cannot be undone/)).toBeVisible();
@@ -457,9 +481,7 @@ test('coordinate input replaces paid search; hiking and service failures are hon
   await expect(page.getByText('Enter a number, for example 47.26.')).toBeVisible();
   await addPoint(page, '47.2692, 11.4041');
   await page.getByRole('radio', { name: 'Hiking', exact: true }).click();
-  const request = page.waitForRequest(
-    '**/api/route',
-  );
+  const request = page.waitForRequest('**/api/route');
   await addPoint(page, '47.271, 11.411');
   const hikingRequest = await request;
   expect(hikingRequest.method()).toBe('POST');
@@ -477,7 +499,9 @@ test('coordinate input replaces paid search; hiking and service failures are hon
     route.fulfill({ status: 429, json: { error: { message: 'quota' } } }),
   );
   await addPoint(page, '47.28, 11.42');
-  await expect(page.getByRole('alert')).toContainText('quota');
+  await expect(page.getByRole('alert')).toContainText(
+    'The routing service has reached its request limit. Try again later or draw a route manually.',
+  );
   await expect(page.getByRole('button', { name: 'Export' })).toBeDisabled();
   expect(paidRequests).toEqual([]);
 });
@@ -487,34 +511,31 @@ test('round trips route intermediate points with bounded search; responsive cont
   await page.getByRole('radio', { name: 'Round trip', exact: true }).click();
   await addPoint(page, '47.2692, 11.4041');
   let attempts = 0;
-  await page.route(
-    '**/api/route',
-    async (route) => {
-      attempts += 1;
-      const points = route.request().postDataJSON().coordinates;
-      expect(route.request().method()).toBe('POST');
-      expect(route.request().postDataJSON()).toEqual({
-        profile: 'cycling-regular',
-        coordinates: points,
-        instructions: false,
-        elevation: true,
-      });
-      expect(points).toHaveLength(4);
-      expect(points[0]).toEqual(points[3]);
-      const loop = [coordinates[0], coordinates[1], coordinates[2], coordinates[0]];
-      await route.fulfill({
-        json: {
-          ...fixture,
-          features: [
-            {
-              ...fixture.features[0],
-              geometry: { type: 'LineString', coordinates: loop.map((point) => point.slice(0, 2)) },
-            },
-          ],
-        },
-      });
-    },
-  );
+  await page.route('**/api/route', async (route) => {
+    attempts += 1;
+    const points = route.request().postDataJSON().coordinates;
+    expect(route.request().method()).toBe('POST');
+    expect(route.request().postDataJSON()).toEqual({
+      profile: 'cycling-regular',
+      coordinates: points,
+      instructions: false,
+      elevation: true,
+    });
+    expect(points).toHaveLength(4);
+    expect(points[0]).toEqual(points[3]);
+    const loop = [coordinates[0], coordinates[1], coordinates[2], coordinates[0]];
+    await route.fulfill({
+      json: {
+        ...fixture,
+        features: [
+          {
+            ...fixture.features[0],
+            geometry: { type: 'LineString', coordinates: loop.map((point) => point.slice(0, 2)) },
+          },
+        ],
+      },
+    });
+  });
   await page.getByRole('button', { name: 'Find round trips' }).click();
   await expect(page.getByRole('button', { name: /Option 1/ })).toBeVisible();
   expect(attempts).toBeGreaterThan(0);
@@ -1060,16 +1081,20 @@ for (const hidden of [false, true]) {
           )
           .toEqual([]);
         if (width > 700) {
-          const spacing = await page.locator('.map-region').evaluate((element) =>
-            Number.parseFloat(getComputedStyle(element).getPropertyValue('--space')),
-          );
-          await expect.poll(async () => {
-            const picker = (await page.locator('.map-style-picker').boundingBox())!;
-            return Math.round(picker.x + picker.width);
-          }).toBe(width - spacing);
+          const spacing = await page
+            .locator('.map-region')
+            .evaluate((element) =>
+              Number.parseFloat(getComputedStyle(element).getPropertyValue('--space')),
+            );
+          await expect
+            .poll(async () => {
+              const picker = (await page.locator('.map-style-picker').boundingBox())!;
+              return Math.round(picker.x + picker.width);
+            })
+            .toBe(width - spacing);
           const picker = (await page.locator('.map-style-picker').boundingBox())!;
           expect(picker.y).toBeGreaterThan(height / 2);
-          if (width > 1024 && await page.locator('#map-elevation-root').isVisible()) {
+          if (width > 1024 && (await page.locator('#map-elevation-root').isVisible())) {
             const elevation = (await page.locator('#map-elevation-root').boundingBox())!;
             expect(elevation.x + elevation.width).toBeCloseTo(width - spacing, 0);
           }
@@ -1079,11 +1104,13 @@ for (const hidden of [false, true]) {
             expect(planner.y - workspace.y).toBeCloseTo(spacing, 0);
           }
         } else if (await page.locator('.planner-reopen').isVisible()) {
-          await expect.poll(async () => {
-            const picker = (await page.locator('.map-style-picker').boundingBox())!;
-            const reopen = (await page.locator('.planner-reopen').boundingBox())!;
-            return picker.y - reopen.y - reopen.height;
-          }).toBeGreaterThanOrEqual(8);
+          await expect
+            .poll(async () => {
+              const picker = (await page.locator('.map-style-picker').boundingBox())!;
+              const reopen = (await page.locator('.planner-reopen').boundingBox())!;
+              return picker.y - reopen.y - reopen.height;
+            })
+            .toBeGreaterThanOrEqual(8);
         }
         await page.screenshot({ path: testInfo.outputPath(`map-style-${width}-${withRoute}.png`) });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

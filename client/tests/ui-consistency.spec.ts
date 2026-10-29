@@ -850,3 +850,84 @@ test('manual discovery and backup guidance share the existing design in both lan
     }
   }
 });
+
+test('product help and no-results recovery are translated without deployment instructions', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 800 }
+      : { width: 1440, height: 1000 },
+  );
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'example.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(
+      '<gpx version="1.1"><metadata><name>Example route</name></metadata><trk><trkseg><trkpt lat="47.26" lon="11.4"/><trkpt lat="47.27" lon="11.41"/></trkseg></trk></gpx>',
+    ),
+  });
+  await page.getByRole('button', { name: 'Save route', exact: true }).click();
+  await page.getByRole('button', { name: 'Save to library', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English', exact: true })
+      .click();
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page.locator('.header-menu-theme-option').nth(1).click();
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page
+      .getByRole('menuitem', { name: /^(Help and data sources|Помощь и источники данных)$/ })
+      .click();
+    const help = page.getByRole('dialog');
+    await expect(help).toBeVisible();
+    await expect(help).toHaveCSS('opacity', '1');
+    await expect(help).not.toContainText(/ORS_API_KEY|Vercel|Firewall|cycling-regular|foot-hiking/);
+    await expect(
+      help.getByRole('heading', {
+        name: language === 'ru' ? 'Планирование маршрутов' : 'Planning routes',
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(help.getByRole('link', { name: 'ODbL', exact: true })).toHaveAttribute(
+      'href',
+      'https://opendatacommons.org/licenses/odbl/1-0/',
+    );
+    await page.screenshot({ path: testInfo.outputPath(`product-help-${language}.png`) });
+    await help
+      .getByRole('heading', {
+        name: language === 'ru' ? 'Онлайн-запросы и ваши данные' : 'Online requests and your data',
+        exact: true,
+      })
+      .scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`product-help-data-${language}.png`) });
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page.getByRole('menuitem', { name: /^(My routes|Мои маршруты)$/ }).click();
+    const search = page.getByRole('textbox', {
+      name: language === 'ru' ? 'Поиск сохранённых маршрутов' : 'Search saved routes',
+      exact: true,
+    });
+    await search.fill('no-such-route');
+    const empty = page.locator('.library-no-match');
+    await expect(empty.getByRole('heading')).toHaveText(
+      language === 'ru' ? 'Маршруты не найдены' : 'No matching routes',
+    );
+    await expect(empty).not.toContainText(
+      language === 'ru' ? /Try another|Clear search|Change your search/ : /Маршруты не найдены/,
+    );
+    const reset = empty.getByRole('button', {
+      name: language === 'ru' ? 'Сбросить поиск и фильтры' : 'Reset search and filters',
+      exact: true,
+    });
+    await reset.scrollIntoViewIfNeeded();
+    await expect(reset).toBeInViewport();
+    await page.screenshot({ path: testInfo.outputPath(`no-results-${language}.png`) });
+    await reset.click();
+    await expect(search).toHaveValue('');
+    await expect(search).toBeFocused();
+    await expect(page.locator('.library-route')).toHaveCount(1);
+    await page.getByRole('button', { name: /^(Back to map|Назад к карте)$/ }).click();
+  }
+});

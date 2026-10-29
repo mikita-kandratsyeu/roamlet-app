@@ -1,9 +1,39 @@
 import { afterEach, expect, it, vi } from 'vitest';
+import ts from 'typescript';
 import i18n, { detectLanguage, formatNumber, LANGUAGE_KEY, translateMessage } from './i18n';
 import { formatDistance, formatDuration } from './components/Statistics';
 import { importGpx } from './domain/gpx';
 import english from './locales/en.json';
 import russian from './locales/ru.json';
+
+it('has translations for every literal UI translation key instead of silently falling back to English', () => {
+  const missing: string[] = [];
+  const sources = import.meta.glob<string>(['./**/*.ts', './**/*.tsx', '!./**/*.test.*'], {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  });
+  expect(Object.keys(sources).length).toBeGreaterThan(0);
+  for (const [path, text] of Object.entries(sources)) {
+    const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true);
+    function visit(node: ts.Node) {
+      if (
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === 't' &&
+        node.arguments[0] &&
+        ts.isStringLiteral(node.arguments[0])
+      ) {
+        const key = node.arguments[0].text;
+        if (!Object.hasOwn(english, key) || !Object.hasOwn(russian, key))
+          missing.push(`${path}: ${key}`);
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(source);
+  }
+  expect(missing).toEqual([]);
+});
 
 it('loads complete JSON dictionaries with matching keys and interpolation placeholders', async () => {
   expect(Object.keys(russian).sort()).toEqual(Object.keys(english).sort());

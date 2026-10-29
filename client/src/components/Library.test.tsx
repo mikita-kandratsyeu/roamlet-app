@@ -127,7 +127,7 @@ it('searches names and descriptions, displays matches and clears no-match search
   expect(routeNames()).toHaveLength(1);
   fireEvent.change(search, { target: { value: 'nowhere' } });
   expect(screen.getByText(i18next.t('No routes match your search.'))).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Reset search and filters' }));
   expect(search).toHaveValue('');
   expect(search).toHaveFocus();
   expect(routeNames()).toHaveLength(2);

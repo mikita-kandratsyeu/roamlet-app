@@ -665,7 +665,7 @@ export function Library({
                   searchInput.current?.focus();
                 }}
               >
-                {t('Clear search')}
+                {t('Reset search and filters')}
               </Button>
             </div>
           ) : (
