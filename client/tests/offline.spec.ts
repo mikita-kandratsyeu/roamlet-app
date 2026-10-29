@@ -357,6 +357,14 @@ test('offline reload restores an unsaved draft and exposes library backup withou
   }
 });
 
+test('first installation does not offer an app update or report a draft saving error', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await expect(page.getByRole('button', { name: 'Update app', exact: true })).toHaveCount(0);
+  await expect(page.getByText('The update could not save your draft. Please retry; the app has not reloaded.', { exact: true })).toHaveCount(0);
+});
+
 test('confirming a waiting update saves the current draft before reloading', async ({ page }) => {
   const workerName = `__update-test-${crypto.randomUUID()}.js`;
   const workerPath = resolve('dist', workerName);

@@ -420,38 +420,53 @@
   margin-bottom: 1px;
 }
 .waypoint-tools {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 12px;
 }
-.add-stop {
-  width: auto;
+.waypoint-tools:empty {
+  display: none;
+}
+.waypoint-tools > button {
+  width: 100%;
+  min-width: 0;
   min-height: 44px;
   height: auto;
-  padding: 0 12px;
-  font-size: var(--font-size-control);
-  color: var(--foreground);
-}
-.add-stop-empty {
-  width: 100%;
   justify-content: center;
-  border: 1px solid var(--border);
-  background: var(--surface);
-}
-.reverse-stops {
-  min-height: 44px;
   gap: 8px;
-  padding: 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--foreground);
   font-size: var(--font-size-control);
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
-.clear-stops {
-  min-width: 44px;
-  height: 44px;
+.waypoint-tools > button > svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
 }
-.clear-stops-label {
-  display: none;
+.waypoint-tools > button > span {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+}
+.waypoint-tools > button:hover:not(:disabled) {
+  background: var(--muted);
+}
+.waypoint-tools .add-stop,
+.waypoint-tools:not(:has(.reverse-stops)) .clear-stops {
+  grid-column: 1 / -1;
+}
+.waypoint-tools .clear-stops {
+  color: var(--destructive);
 }
 .calculate-action {
   margin-top: 10px;
@@ -1122,44 +1137,6 @@
     width: 44px;
     min-width: 44px;
     height: 44px;
-  }
-  .waypoint-tools {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-  .waypoint-tools .add-stop {
-    grid-column: 1 / -1;
-    width: 100%;
-    min-height: 44px;
-    justify-content: center;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface);
-  }
-  .waypoint-tools :is(.reverse-stops, .clear-stops) {
-    width: 100%;
-    min-height: 44px;
-    height: auto;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    gap: 8px;
-    white-space: normal;
-    font-size: var(--font-size-control);
-  }
-  .waypoint-tools :is(.reverse-stops, .clear-stops) > svg {
-    flex-shrink: 0;
-  }
-  .waypoint-tools:not(:has(.reverse-stops)) .clear-stops {
-    grid-column: 1 / -1;
-  }
-  .waypoint-tools .clear-stops {
-    color: var(--destructive);
-  }
-  .reverse-stops span,
-  .clear-stops-label {
-    display: inline;
   }
   .stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

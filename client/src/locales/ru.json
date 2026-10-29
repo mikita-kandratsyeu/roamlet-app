@@ -1,4 +1,5 @@
 {
+  "Route stop actions": "Действия с точками маршрута",
   "Route stops": "Точки маршрута",
   "≥{{length}} m · ≥{{ascent}} m gain": "≥{{length}} м · набор ≥{{ascent}} м",
   "How climbs are detected": "Как определяются подъёмы",
@@ -517,6 +518,7 @@
   "Your draft will be saved before reloading.": "Перед перезагрузкой черновик будет сохранён.",
   "Reload app": "Перезагрузить приложение",
   "The update could not save your draft. Please retry; the app has not reloaded.": "Не удалось сохранить черновик перед обновлением. Повторите попытку; приложение не перезагружалось.",
+  "Your draft was saved, but the update could not be activated. Please retry or reload the page.": "Черновик сохранён, но не удалось активировать обновление. Повторите попытку или перезагрузите страницу.",
   "This panel could not be loaded. Try again when online.": "Не удалось загрузить панель. Повторите попытку при подключении к сети.",
   "Retry panel": "Загрузить панель снова",
   "Loading panel…": "Загрузка панели…",

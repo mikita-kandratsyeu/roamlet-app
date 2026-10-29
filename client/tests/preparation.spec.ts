@@ -6,6 +6,56 @@ async function addPoint(page: Page, coordinate: string) {
   await page.getByRole('textbox', { name: 'Longitude', exact: true }).fill(longitude);
   await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
 }
+async function checkStopActions(page: Page) {
+  const actions = page.locator('.waypoint-tools');
+  const buttons = actions.locator(':scope > button');
+  for (const button of await buttons.all()) {
+    await button.scrollIntoViewIfNeeded();
+    await expect(button).toHaveAttribute('data-variant', 'outline');
+    await expect(button.locator('span')).toBeVisible();
+  }
+  const layout = await actions.evaluate((group) => {
+    const bounds = group.getBoundingClientRect();
+    return Array.from(group.querySelectorAll<HTMLButtonElement>(':scope > button')).map(
+      (button) => {
+        const box = button.getBoundingClientRect();
+        return {
+          kind: button.classList.contains('add-stop')
+            ? 'add'
+            : button.classList.contains('reverse-stops')
+              ? 'reverse'
+              : 'clear',
+          width: box.width,
+          height: box.height,
+          top: box.top,
+          bottom: box.bottom,
+          left: box.left - bounds.left,
+          right: bounds.right - box.right,
+          groupWidth: bounds.width,
+          overflow: button.scrollWidth > button.clientWidth,
+        };
+      },
+    );
+  });
+  for (const button of layout) {
+    expect(button.width).toBeGreaterThanOrEqual(44);
+    expect(button.height).toBeGreaterThanOrEqual(44);
+    expect(button.left).toBeGreaterThanOrEqual(-1);
+    expect(button.right).toBeGreaterThanOrEqual(-1);
+    expect(button.overflow).toBe(false);
+  }
+  const add = layout.find((button) => button.kind === 'add');
+  const reverse = layout.find((button) => button.kind === 'reverse');
+  const clear = layout.find((button) => button.kind === 'clear');
+  if (add) expect(Math.abs(add.width - add.groupWidth)).toBeLessThanOrEqual(1);
+  if (reverse && clear) {
+    expect(Math.abs(reverse.width - clear.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(reverse.height - clear.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(reverse.top - clear.top)).toBeLessThanOrEqual(1);
+    if (add) expect(reverse.top - add.bottom).toBeGreaterThanOrEqual(8);
+  } else if (clear) expect(Math.abs(clear.width - clear.groupWidth)).toBeLessThanOrEqual(1);
+}
+
 async function save(page: Page, name: string) {
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('textbox', { name: 'Route name', exact: true }).fill(name);
@@ -166,4 +216,41 @@ test('disclosure arrows align and mobile route actions have labels and 44px targ
   await expect(actions.locator('.reverse-stops span')).toBeVisible();
   await expect(actions.locator('.clear-stops-label')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+});
+
+test('stop actions keep one layout for empty, single, loop, manual and localized narrow planners', async ({
+  page,
+  context,
+}) => {
+  const actions = page.locator('.waypoint-tools');
+  await checkStopActions(page);
+  await actions.getByRole('button', { name: 'Clear stops', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Clear stops', exact: true }).click();
+  await expect(actions.locator('button')).toHaveCount(1);
+  await checkStopActions(page);
+  await addPoint(page, '47.26, 11.4');
+  await expect(actions.locator('button')).toHaveCount(2);
+  await checkStopActions(page);
+  await addPoint(page, '47.27, 11.41');
+  await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
+  await checkStopActions(page);
+  await page.getByRole('radio', { name: 'Round trip', exact: true }).click();
+  await page.getByRole('button', { name: 'Switch to round trip', exact: true }).click();
+  await expect(actions.locator('button')).toHaveCount(1);
+  await checkStopActions(page);
+  await actions.getByRole('button', { name: 'Clear stops', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Clear stops', exact: true }).click();
+  await expect(actions).toBeHidden();
+  await page.getByRole('radio', { name: 'Point to point', exact: true }).click();
+  await page.getByRole('button', { name: 'Draw a route manually', exact: true }).click();
+  await addPoint(page, '47.26, 11.4');
+  await addPoint(page, '47.27, 11.41');
+  await checkStopActions(page);
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
+  for (const width of [320, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await checkStopActions(page);
+  }
 });

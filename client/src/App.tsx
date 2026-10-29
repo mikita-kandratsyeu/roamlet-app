@@ -1127,7 +1127,9 @@ export default function App() {
             title={t('Notification')}
             variant="error"
             message={t(
-              'The update could not save your draft. Please retry; the app has not reloaded.',
+              update.failed === 'save-failed'
+                ? 'The update could not save your draft. Please retry; the app has not reloaded.'
+                : 'Your draft was saved, but the update could not be activated. Please retry or reload the page.',
             )}
           />
         )}
@@ -1601,35 +1603,35 @@ export default function App() {
                         )}
                       </p>
                     )}
-                  <div className="waypoint-tools">
+                  <div className="waypoint-tools" role="group" aria-label={t('Route stop actions')}>
                     {planningMode !== 'loop' && waypoints.length < stopLimit && (
                       <Button
-                        variant={waypoints.length ? 'ghost' : 'outline'}
-                        className={`add-stop ${!waypoints.length ? 'add-stop-empty' : ''}`}
+                        variant="outline"
+                        className="add-stop"
                         onClick={() => {
                           setSearchTarget(null);
                           searchInput.current?.focus();
                         }}
                       >
-                        <Plus size={18} />
-                        {t('Add a stop')}
+                        <Plus size={18} aria-hidden="true" />
+                        <span>{t('Add a stop')}</span>
                       </Button>
                     )}
                     {planningMode !== 'loop' && waypoints.length > 1 && (
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         className="reverse-stops"
                         aria-label={t('Reverse')}
                         onClick={() => changeWaypoints(reverseWaypoints(waypoints))}
                       >
-                        <ArrowDownUp size={18} />
+                        <ArrowDownUp size={18} aria-hidden="true" />
                         <span>{t('Reverse')}</span>
                       </Button>
                     )}
                     {!!waypoints.length && (
                       <Button
-                        variant="ghost"
-                        className="icon-button clear-stops"
+                        variant="outline"
+                        className="clear-stops"
                         aria-label={t('Clear stops')}
                         title={t('Clear stops')}
                         onClick={() =>

@@ -1,4 +1,5 @@
 {
+  "Route stop actions": "Route stop actions",
   "Route stops": "Route stops",
   "≥{{length}} m · ≥{{ascent}} m gain": "≥{{length}} m · ≥{{ascent}} m gain",
   "How climbs are detected": "How climbs are detected",
@@ -517,6 +518,7 @@
   "Your draft will be saved before reloading.": "Your draft will be saved before reloading.",
   "Reload app": "Reload app",
   "The update could not save your draft. Please retry; the app has not reloaded.": "The update could not save your draft. Please retry; the app has not reloaded.",
+  "Your draft was saved, but the update could not be activated. Please retry or reload the page.": "Your draft was saved, but the update could not be activated. Please retry or reload the page.",
   "This panel could not be loaded. Try again when online.": "This panel could not be loaded. Try again when online.",
   "Retry panel": "Retry panel",
   "Loading panel…": "Loading panel…",

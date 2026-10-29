@@ -639,6 +639,20 @@ describe('route planner interactions', () => {
     expect(provider.calculateAlternatives).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps labelled outline actions at the automatic stop limit', () => {
+    render(<App />);
+    for (let index = 0; index < 25; index++) addCoordinate(`47.${2600 + index}, 11.4`);
+    const actions = within(screen.getByRole('group', { name: 'Route stop actions' }));
+    expect(actions.queryByRole('button', { name: 'Add a stop' })).not.toBeInTheDocument();
+    expect(actions.getAllByRole('button')).toHaveLength(2);
+    for (const label of ['Reverse', 'Clear stops']) {
+      const button = actions.getByRole('button', { name: label });
+      expect(button).toHaveAttribute('data-variant', 'outline');
+      expect(button.querySelector('span')).toHaveTextContent(label);
+      expect(button).not.toHaveClass('icon-button');
+    }
+  });
+
   it('supports more than 25 manual points without silently dropping them in automatic mode', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
