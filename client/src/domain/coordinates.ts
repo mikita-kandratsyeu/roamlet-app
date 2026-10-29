@@ -27,6 +27,9 @@ export function coordinatePair(value: string): [string, string] | null {
   // A lone decimal-comma number belongs to one field, not two integer coordinates.
   if (decimal.test(text)) return null;
   const number = '[+-]?(?:\\d+(?:[.,]\\d+)?|[.,]\\d+)';
-  const match = text.match(new RegExp(`^(${number})(?:\\s*;\\s*|\\s+|\\s*,\\s*)(${number})$`));
+  const dotNumber = '[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)';
+  const match =
+    text.match(new RegExp(`^(${number})(?:\\s*;\\s*|\\s+)(${number})$`)) ??
+    text.match(new RegExp(`^(${dotNumber})\\s*,\\s*(${dotNumber})$`));
   return match ? [match[1], match[2]] : null;
 }

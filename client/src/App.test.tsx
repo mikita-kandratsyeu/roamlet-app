@@ -497,9 +497,9 @@ describe('route planner interactions', () => {
   it('updates an already displayed error and confirmation when the language changes', async () => {
     render(<App />);
     addCoordinate('999, 20');
-    expect(screen.getByRole('alert')).toHaveTextContent('latitude');
+    expect(screen.getByRole('alert')).toHaveTextContent('Latitude must be between −90 and 90.');
     selectLanguage('Русский');
-    expect(screen.getByRole('alert')).toHaveTextContent('широту');
+    expect(screen.getByRole('alert')).toHaveTextContent('Широта должна быть от −90 до 90.');
     selectLanguage('English');
     await plan();
     fireEvent.click(screen.getByRole('button', { name: 'New route' }));
@@ -661,7 +661,7 @@ describe('route planner interactions', () => {
   it('validates coordinate bounds without calling a service', () => {
     render(<App />);
     addCoordinate('999, 20');
-    expect(screen.getByRole('alert')).toHaveTextContent('latitude');
+    expect(screen.getByRole('alert')).toHaveTextContent('Latitude must be between −90 and 90.');
     expect(provider.calculateRoute).not.toHaveBeenCalled();
   });
   it('requires confirmation before discarding an unsaved route', async () => {

@@ -11,7 +11,9 @@ function setup(replacing = false) {
   const ref = createRef<CoordinateInputHandle>();
   render(<CoordinateInput ref={ref} replacing={replacing} onAdd={onAdd} />);
   return {
-    onAdd, ref, user: userEvent.setup(),
+    onAdd,
+    ref,
+    user: userEvent.setup(),
     latitude: screen.getByRole('textbox', { name: 'Latitude' }),
     longitude: screen.getByRole('textbox', { name: 'Longitude' }),
   };
@@ -27,16 +29,19 @@ it('labels both fields and supports signed decimal commas and Enter from either 
   expect(latitude).not.toHaveAttribute('aria-invalid', 'true');
 });
 
-it.each(['Latitude', 'Longitude'])('distributes pasted coordinate pairs from %s without adding a stop', async (name) => {
-  const { latitude, longitude, user, onAdd } = setup();
-  await user.click(screen.getByRole('textbox', { name }));
-  await user.paste('47.26, 11.4');
-  expect(latitude).toHaveValue('47.26');
-  expect(longitude).toHaveValue('11.4');
-  expect(onAdd).not.toHaveBeenCalled();
-  await user.keyboard('{Enter}');
-  expect(onAdd).toHaveBeenCalledWith([11.4, 47.26]);
-});
+it.each(['Latitude', 'Longitude'])(
+  'distributes pasted coordinate pairs from %s without adding a stop',
+  async (name) => {
+    const { latitude, longitude, user, onAdd } = setup();
+    await user.click(screen.getByRole('textbox', { name }));
+    await user.paste('47.26, 11.4');
+    expect(latitude).toHaveValue('47.26');
+    expect(longitude).toHaveValue('11.4');
+    expect(onAdd).not.toHaveBeenCalled();
+    await user.keyboard('{Enter}');
+    expect(onAdd).toHaveBeenCalledWith([11.4, 47.26]);
+  },
+);
 
 it('keeps a pasted single decimal-comma value in one field', async () => {
   const { latitude, longitude, user } = setup();
@@ -86,7 +91,9 @@ it('exposes reset/focus for App route lifecycle and clears errors after successf
 it('shows a replacement action instead of adding another stop', async () => {
   const { latitude, longitude, user, onAdd } = setup(true);
   expect(screen.getByRole('form', { name: 'Replace stop coordinates' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Replace stop coordinates' })).toHaveTextContent('Replace');
+  expect(screen.getByRole('button', { name: 'Replace stop coordinates' })).toHaveTextContent(
+    'Replace',
+  );
   fireEvent.change(latitude, { target: { value: '47.26 11.4' } });
   expect(longitude).toHaveValue('11.4');
   await user.click(screen.getByRole('button', { name: 'Replace stop coordinates' }));
@@ -94,7 +101,11 @@ it('shows a replacement action instead of adding another stop', async () => {
 });
 
 it('inherits offline automatic-routing fieldset disabling', () => {
-  render(<fieldset disabled><CoordinateInput replacing={false} onAdd={vi.fn()} /></fieldset>);
+  render(
+    <fieldset disabled>
+      <CoordinateInput replacing={false} onAdd={vi.fn()} />
+    </fieldset>,
+  );
   expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeDisabled();
   expect(screen.getByRole('textbox', { name: 'Longitude' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Add coordinates' })).toBeDisabled();

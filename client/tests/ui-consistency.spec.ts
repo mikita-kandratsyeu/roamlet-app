@@ -89,6 +89,83 @@ test('theme icons stay in one accessible row on narrow and desktop screens', asy
   }
 });
 
+test('coordinate fields support pair paste, inline correction and aligned mobile actions', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 900 }
+      : { width: 1440, height: 1000 },
+  );
+  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  for (const language of ['en', 'ru']) {
+    if (language === 'ru') {
+      await page.getByRole('button', { name: 'Menu', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: 'Dark', exact: true }).click();
+      await page.getByRole('button', { name: 'Menu', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
+    }
+    const latitude = page.getByRole('textbox', {
+      name: language === 'ru' ? 'Широта' : 'Latitude',
+      exact: true,
+    });
+    const longitude = page.getByRole('textbox', {
+      name: language === 'ru' ? 'Долгота' : 'Longitude',
+      exact: true,
+    });
+    const add = page.getByRole('button', {
+      name: language === 'ru' ? 'Добавить координаты' : 'Add coordinates',
+      exact: true,
+    });
+    await latitude.scrollIntoViewIfNeeded();
+    const latBox = (await latitude.boundingBox())!;
+    const lonBox = (await longitude.boundingBox())!;
+    const addBox = (await add.boundingBox())!;
+    expect(latBox.y).toBeCloseTo(lonBox.y, 1);
+    expect(latBox.width).toBeCloseTo(lonBox.width, 1);
+    for (const input of [latitude, longitude]) {
+      await expect(input).toHaveCSS('height', '44px');
+      await expect(input).toHaveCSS('font-size', '16px');
+    }
+    if (testInfo.project.name === 'mobile') {
+      expect(addBox.y).toBeGreaterThanOrEqual(latBox.y + latBox.height);
+      expect(addBox.x).toBeCloseTo(latBox.x, 1);
+      expect(addBox.width).toBeCloseTo(lonBox.x + lonBox.width - latBox.x, 1);
+    } else expect(addBox.y).toBeCloseTo(latBox.y, 1);
+    await expect(page.locator('.coordinate-help')).toBeVisible();
+    const count = await page.locator('.waypoint-marker').count();
+    await latitude.fill('91');
+    await longitude.fill('11.4');
+    await longitude.press('Enter');
+    await expect(latitude).toHaveAttribute('aria-invalid', 'true');
+    await expect(latitude).toBeFocused();
+    await expect(page.locator('.coordinate-error')).toContainText(
+      language === 'ru' ? 'Широта должна быть' : 'Latitude must be',
+    );
+    await expect(page.locator('.waypoint-marker')).toHaveCount(count);
+    await expect(longitude).toHaveValue('11.4');
+    await longitude.evaluate((input) => {
+      const data = new DataTransfer();
+      data.setData('text/plain', '47,26; 11,4');
+      input.dispatchEvent(
+        new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
+      );
+    });
+    await expect(latitude).toHaveValue('47,26');
+    await expect(longitude).toHaveValue('11,4');
+    await expect(page.locator('.coordinate-error')).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`coordinate-entry-${language}.png`) });
+    await longitude.press('Enter');
+    await expect(page.locator('.waypoint-marker')).toHaveCount(count + 1);
+    await expect(latitude).toHaveValue('');
+    await expect(longitude).toHaveValue('');
+    await expect(latitude).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  }
+});
+
 test('history controls exist only on the map', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Undo', exact: true })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Redo', exact: true })).toHaveCount(1);

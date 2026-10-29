@@ -4,7 +4,12 @@ import { Plus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { coordinateError, coordinatePair, coordinateValue, type CoordinateField } from '../domain/coordinates';
+import {
+  coordinateError,
+  coordinatePair,
+  coordinateValue,
+  type CoordinateField,
+} from '../domain/coordinates';
 import type { Coordinate } from '../domain/types';
 
 export interface CoordinateInputHandle {
@@ -24,14 +29,21 @@ export function CoordinateInput({ ref, replacing, onAdd }: Props) {
   const latitudeInput = useRef<HTMLInputElement>(null);
   const longitudeInput = useRef<HTMLInputElement>(null);
   const [values, setValues] = useState({ latitude: '', longitude: '' });
-  const [errors, setErrors] = useState<Record<CoordinateField, string | null>>({ latitude: null, longitude: null });
-  useImperativeHandle(ref, () => ({
-    focus: () => latitudeInput.current?.focus(),
-    clear: () => {
-      setValues({ latitude: '', longitude: '' });
-      setErrors({ latitude: null, longitude: null });
-    },
-  }), []);
+  const [errors, setErrors] = useState<Record<CoordinateField, string | null>>({
+    latitude: null,
+    longitude: null,
+  });
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus: () => latitudeInput.current?.focus(),
+      clear: () => {
+        setValues({ latitude: '', longitude: '' });
+        setErrors({ latitude: null, longitude: null });
+      },
+    }),
+    [],
+  );
 
   function change(field: CoordinateField, value: string) {
     const pair = coordinatePair(value);
@@ -67,7 +79,9 @@ export function CoordinateInput({ ref, replacing, onAdd }: Props) {
       {replacing && <p className="coordinate-replacing">{t('Replace stop coordinates')}</p>}
       {(['latitude', 'longitude'] as const).map((field) => (
         <div className="coordinate-field" key={field}>
-          <Label htmlFor={`${id}-${field}`}>{t(field === 'latitude' ? 'Latitude' : 'Longitude')}</Label>
+          <Label htmlFor={`${id}-${field}`}>
+            {t(field === 'latitude' ? 'Latitude' : 'Longitude')}
+          </Label>
           <Input
             ref={field === 'latitude' ? latitudeInput : longitudeInput}
             id={`${id}-${field}`}
@@ -85,7 +99,10 @@ export function CoordinateInput({ ref, replacing, onAdd }: Props) {
             onChange={(event) => change(field, event.target.value)}
             onBlur={() => {
               if (values[field].trim()) {
-                setErrors((current) => ({ ...current, [field]: coordinateError(values[field], field) }));
+                setErrors((current) => ({
+                  ...current,
+                  [field]: coordinateError(values[field], field),
+                }));
               }
             }}
             onPaste={(event) => {

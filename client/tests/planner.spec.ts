@@ -309,7 +309,10 @@ test('coordinate input replaces paid search; hiking and service failures are hon
   });
   await page.getByRole('textbox', { name: 'Latitude' }).fill('Innsbruck');
   await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'Latitude' })).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByRole('textbox', { name: 'Latitude' })).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
   await expect(page.getByText('Enter a number, for example 47.26.')).toBeVisible();
   await addPoint(page, '47.2692, 11.4041');
   await page.getByRole('radio', { name: 'Hiking', exact: true }).click();
