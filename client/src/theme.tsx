@@ -32,7 +32,6 @@ export function saveTheme(theme: Theme): boolean {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
     return true;
   } catch {
-    window.dispatchEvent(new Event('roamlet-preferences-error'));
     return false;
   }
 }
@@ -91,6 +90,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       window.dispatchEvent(
         new CustomEvent('roamlet-preferences-change', { detail: { patch: { theme: value } } }),
       );
+    else window.dispatchEvent(new Event('roamlet-preferences-error'));
   }
 
   return (

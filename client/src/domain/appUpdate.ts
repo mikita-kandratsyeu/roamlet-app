@@ -6,8 +6,9 @@ export function watchUpdates(registration: ServiceWorkerRegistration) {
     registration.installing?.addEventListener('statechange', announce);
   });
 }
-export async function activateUpdate(registration: ServiceWorkerRegistration, flush: () => Promise<boolean>): Promise<boolean> {
+export async function activateUpdate(registration: ServiceWorkerRegistration, flush: () => Promise<boolean>, onActivate?: () => void): Promise<boolean> {
   if (!await flush() || !registration.waiting) return false;
+  onActivate?.();
   registration.waiting.postMessage({ type: 'SKIP_WAITING' });
   return true;
 }

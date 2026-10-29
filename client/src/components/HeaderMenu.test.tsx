@@ -15,7 +15,10 @@ beforeEach(() => {
     removeItem: (key: string) => values.delete(key),
   });
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 function setup() {
   const actions = { onNewRoute: vi.fn(), onLibrary: vi.fn(), onHelp: vi.fn() };

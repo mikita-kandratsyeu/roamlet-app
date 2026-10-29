@@ -17,7 +17,7 @@ import { DraftPrompt } from './components/DraftPrompt';
 import { initialEditor, newIdentity } from './domain/editorSnapshot';
 import { draftWriter, loadDraft, type DraftRecord } from './domain/drafts';
 import { loadPreferences, savePreferences } from './domain/preferences';
-import { OptionalPanel, optionalLazy } from './components/OptionalPanel';
+import { optionalLazy } from './components/OptionalPanel';
 import { formatDistance, formatDuration } from './domain/format';
 import { useAppUpdate } from './hooks/useAppUpdate';
 const Statistics = optionalLazy<{ route: PlannedRoute | null; emptyHint?: string; speedKmh?: number; stopsMinutes?: number }>(() => import('./components/Statistics').then(m => ({ default: m.Statistics })));
@@ -387,6 +387,7 @@ export default function App() {
     return result
       ? {
           ...result,
+          ...editor.snapshot.routeMetadata,
           name: name.trim() || i18n.t('Untitled adventure'),
           description: description.trim(),
           activity,
@@ -403,9 +404,9 @@ export default function App() {
       await saveRoute(route);
       if (latestSnapshot.current === savedSnapshot) {
         setDirty(false);
-        editor.setSavedRouteId(route.id);
         void writer.clear();
       }
+      if (latestSnapshot.current.identity.id === savedSnapshot.identity.id) editor.setSavedRouteId(route.id);
       setSaveOpen(false);
       setNotice({
         text: 'Route saved on this device. Your next adventure is ready.',
@@ -1191,7 +1192,7 @@ export default function App() {
               speed={speeds[activity]} stops={stopsMinutes}
               onSpeed={value => { setSpeeds(previous => ({ ...previous, [activity]: value })); if (waypoints.length || result) setDirty(true); }}
               onStops={value => { setStopsMinutes(value); if (waypoints.length || result) setDirty(true); }} />
-            {result ? <OptionalPanel><Statistics
+            {result ? <Statistics
               route={result}
               speedKmh={speeds[activity]}
               stopsMinutes={stopsMinutes}
@@ -1200,7 +1201,7 @@ export default function App() {
                   ? t('Choose a start and find round trips to see route details.')
                   : undefined
               }
-            /></OptionalPanel> : <section className="statistics statistics-empty" aria-label={t('Route statistics')}><Info size={18} aria-hidden="true" /><p>{planningMode === 'loop' ? t('Choose a start and find round trips to see their distance and time.') : t('Add two stops to see distance and time.')}</p></section>}
+            /> : <section className="statistics statistics-empty" aria-label={t('Route statistics')}><Info size={18} aria-hidden="true" /><p>{planningMode === 'loop' ? t('Choose a start and find round trips to see their distance and time.') : t('Add two stops to see distance and time.')}</p></section>}
           </div>
           <footer className={`planner-footer ${canUseRoute ? 'route-ready' : ''}`}>
             <div className="route-actions">
@@ -1293,13 +1294,13 @@ export default function App() {
         }}
       />
       {libraryOpen && (
-        <OptionalPanel><Library
+        <Library
           onClose={() => setLibraryOpen(false)}
           onOpen={(route) => {
             setLibraryOpen(false);
             guard(() => openRoute(route));
           }}
-        /></OptionalPanel>
+        />
       )}
       {draft && <DraftPrompt onDelete={() => { void writer.clear().then(ok => { if (ok) setDraft(null); }); }} onRestore={() => {
         request.current?.abort(); setBusy(false); editor.reset(draft.snapshot); setDirty(true); setDraft(null);

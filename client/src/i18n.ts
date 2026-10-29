@@ -38,7 +38,6 @@ export function saveLanguage(language: 'en' | 'ru'): boolean {
     localStorage.setItem(LANGUAGE_KEY, language);
     return true;
   } catch {
-    window.dispatchEvent(new Event('roamlet-preferences-error'));
     return false;
   }
 }
@@ -61,12 +60,14 @@ function synchronizeLanguage(language: string) {
         i18n.t('Plan cycling and hiking routes. Save them on your device. Import and export GPX.'),
       );
   }
-  if (!skipLanguagePersistence && saveLanguage(normalized)) {
-    window.dispatchEvent(
-      new CustomEvent('roamlet-preferences-change', {
-        detail: { patch: { language: normalized } },
-      }),
-    );
+  if (!skipLanguagePersistence) {
+    if (saveLanguage(normalized)) {
+      window.dispatchEvent(
+        new CustomEvent('roamlet-preferences-change', {
+          detail: { patch: { language: normalized } },
+        }),
+      );
+    } else window.dispatchEvent(new Event('roamlet-preferences-error'));
   }
 }
 i18n.on('languageChanged', synchronizeLanguage);

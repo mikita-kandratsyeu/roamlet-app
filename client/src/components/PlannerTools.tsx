@@ -9,7 +9,7 @@ export function PlannerTools({ canUndo, canRedo, onUndo, onRedo, speed, stops, o
   const { t } = useTranslation();
   return <>
     <div className="button-row"><Button variant="outline" disabled={!canUndo} onClick={onUndo}>{t('Undo')}</Button><Button variant="outline" disabled={!canRedo} onClick={onRedo}>{t('Redo')}</Button></div>
-    <div className="time-settings">
+    <div className="time-settings grid grid-cols-2 items-center gap-2 py-3">
       <Label htmlFor="personal-speed">{t('Personal speed (km/h)')}</Label>
       <Input id="personal-speed" type="number" min="0.1" step="0.1" value={speed} onChange={event => {
         const n = Number(event.target.value); if (event.target.value && Number.isFinite(n) && n > 0) onSpeed(n);

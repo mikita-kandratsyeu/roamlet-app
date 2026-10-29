@@ -767,3 +767,25 @@ it('ignores line insertion after map pan, marker drag and for read-only GPX snap
   act(click);
   expect(onInsert).not.toHaveBeenCalled();
 });
+
+it('preserves the configured style during unrelated planner/theme changes', () => {
+  vi.stubEnv('VITE_MAP_STYLE', '/custom-style.json');
+  render(<RouteMap {...props} />);
+  act(() => {
+    savePreferences({ targetKm: 30, theme: 'dark' });
+  });
+  expect(mocks.setStyle).not.toHaveBeenCalled();
+  expect(screen.getByRole('combobox', { name: 'Map style' })).toHaveValue('/custom-style.json');
+});
+it('allows explicit retry after map construction fails without reviving an endless loader', () => {
+  mocks.options.mockImplementationOnce(() => {
+    throw new Error('WebGL unavailable');
+  });
+  render(<RouteMap {...props} />);
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Retry map' }));
+  expect(mocks.options).toHaveBeenCalledTimes(2);
+  act(() => mocks.handlers.get('load')?.());
+  expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+});
