@@ -14,6 +14,9 @@ vi.mock('./services/routing', () => ({
   checkRoutingConfiguration: vi.fn().mockResolvedValue(true),
   routingProvider: provider,
 }));
+vi.mock('./components/ExportRouteMap', () => ({
+  ExportRouteMap: () => <figure aria-label="Route map preview" />,
+}));
 vi.mock('./components/RouteMap', () => ({
   RouteMap: ({
     segments,

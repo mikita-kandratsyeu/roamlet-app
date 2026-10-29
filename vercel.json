@@ -5,8 +5,8 @@
   "buildCommand": "node .yarn/releases/yarn-4.18.1.cjs build",
   "outputDirectory": "client/dist",
   "functions": {
-    "api/route.mjs": { "maxDuration": 30 },
-    "api/routing-config.mjs": { "maxDuration": 10 }
+    "api/route.mjs": { "maxDuration": 60 },
+    "api/routing-config.mjs": { "maxDuration": 30 }
   },
   "headers": [
     {
