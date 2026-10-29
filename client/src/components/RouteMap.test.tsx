@@ -1,4 +1,5 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MAP_VIEW_KEY, defaultMapView } from '../domain/mapView';
 import {
@@ -732,6 +733,33 @@ it('keeps GPX import accessible from the shared map toolbar', () => {
   expect(onImport).toHaveBeenCalledOnce();
 });
 
+it('keeps two primary mobile controls and exposes secondary tools in a dismissible panel', async () => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(max-width: 700px)',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  const user = userEvent.setup();
+  const toggle = vi.fn();
+  render(<RouteMap {...props} onToggleManualDrawing={toggle} />);
+  act(() => mocks.handlers.get('load')!());
+  const controls = screen.getByRole('group', { name: 'Map controls' });
+  expect(within(controls).getAllByRole('button')).toHaveLength(3);
+  expect(screen.queryByRole('button', { name: 'Zoom in' })).not.toBeInTheDocument();
+  const trigger = screen.getByRole('button', { name: 'More map tools' });
+  await user.click(trigger);
+  const panel = screen.getByRole('dialog', { name: 'Map controls' });
+  await user.click(within(panel).getByRole('button', { name: 'Zoom in' }));
+  expect(mocks.zoomIn).toHaveBeenCalledOnce();
+  await user.click(within(panel).getByRole('button', { name: 'Reset north' }));
+  expect(mocks.ease).toHaveBeenCalledWith(expect.objectContaining({ bearing: 0 }));
+  await user.click(within(panel).getByRole('button', { name: 'Manual drawing' }));
+  expect(toggle).toHaveBeenCalledOnce();
+  await user.keyboard('{Escape}');
+  expect(screen.queryByRole('dialog', { name: 'Map controls' })).not.toBeInTheDocument();
+  expect(trigger).toHaveFocus();
+});
+
 it('uses accessible shadcn buttons for zooming after the map loads', () => {
   render(<RouteMap {...props} />);
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
@@ -743,7 +771,9 @@ it('uses accessible shadcn buttons for zooming after the map loads', () => {
 });
 
 it('disables map camera animation when reduced motion is requested', () => {
-  vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(prefers-reduced-motion: reduce)',
+  }));
   render(
     <RouteMap
       {...props}

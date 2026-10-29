@@ -131,6 +131,48 @@ test('back to map stays a themed navigation control on narrow and desktop screen
   }
 });
 
+test('compact map controls keep three touch targets and all tools available', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  const controls = page.getByRole('group', { name: 'Map controls' });
+  await expect(controls.getByRole('button')).toHaveCount(3);
+  await expect(controls.getByRole('button', { name: 'Use my location' })).toBeVisible();
+  await expect(controls.getByRole('button', { name: 'Fit route' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
+  await expect(page.locator('.map-bottom-toolbar .map-issue')).not.toBeVisible();
+  const box = (await controls.boundingBox())!;
+  expect(box.width).toBeLessThanOrEqual(154);
+  expect(box.height).toBe(54);
+  for (const button of await controls.getByRole('button').all()) {
+    const target = (await button.boundingBox())!;
+    expect(target.width).toBeGreaterThanOrEqual(44);
+    expect(target.height).toBeGreaterThanOrEqual(44);
+  }
+  const trigger = page.getByRole('button', { name: 'More map tools' });
+  await trigger.click();
+  const panel = page.getByRole('dialog', { name: 'Map controls' });
+  await expect(panel).toBeInViewport();
+  for (const name of ['Reset north', 'Zoom in', 'Zoom out', 'Manual drawing', 'Undo', 'Redo']) {
+    const tool = panel.getByRole('button', { name, exact: true });
+    await expect(tool).toBeVisible();
+    await expect(tool).toHaveCSS('border-top-width', '0px');
+    await expect(tool).toHaveCSS('box-shadow', 'none');
+  }
+  const report = panel.getByRole('link', { name: 'Report a map issue ↗' });
+  await expect(report).toBeVisible();
+  await expect(report).toHaveCSS('border-radius', '0px');
+  await expect(report).toHaveCSS('border-top-width', '1px');
+  await panel.getByRole('button', { name: 'Zoom in' }).click();
+  await page.screenshot({ path: testInfo.outputPath('compact-map-tools.png') });
+  await panel.press('Escape');
+  await expect(panel).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(panel).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'More map tools' })).toHaveCount(0);
+  await expect(controls.getByRole('button', { name: 'Zoom in' })).toBeVisible();
+});
+
 test('coordinate fields support pair paste, inline correction and aligned mobile actions', async ({
   page,
 }, testInfo) => {

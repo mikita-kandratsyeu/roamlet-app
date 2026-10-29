@@ -115,7 +115,7 @@
   min-width: 44px;
   min-height: 44px;
 }
-.map-tools-panel .map-control,
+.map-tools-panel button.map-control,
 .map-tools-panel > a {
   display: flex;
   align-items: center;
@@ -133,6 +133,10 @@
   white-space: normal;
   text-align: left;
   font-size: var(--font-size-control);
+  font-weight: 400;
+}
+.map-tools-panel button.map-control > svg {
+  color: var(--muted-foreground);
 }
 .map-tools-panel .map-compass {
   width: 20px;
@@ -143,12 +147,16 @@
   background: var(--accent);
   color: var(--accent-foreground);
 }
-.map-tools-panel .map-manual-tool[aria-pressed='true'] {
+.map-tools-panel button.map-manual-tool[aria-pressed='true'] {
   background: var(--primary);
   color: var(--primary-foreground);
 }
+.map-tools-panel button.map-manual-tool[aria-pressed='true'] > svg {
+  color: inherit;
+}
 .map-tools-panel > a {
   border-top: 1px solid var(--border);
+  border-radius: 0;
   color: var(--muted-foreground);
   font-size: var(--font-size-helper);
 }
@@ -156,11 +164,23 @@
   .workspace .map-region .map-extra-controls {
     gap: 4px;
     flex-wrap: nowrap;
-  }
-  .map-extra-controls .map-control {
-    margin: 0;
+    padding: 4px;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-surface);
+  }
+  .workspace .map-region .map-extra-controls .map-control {
+    margin: 0;
+    border: 0;
+    border-radius: calc(var(--radius) - 2px);
+    background: transparent;
+    color: var(--foreground);
+  }
+  .workspace .map-region .map-extra-controls .map-control:hover:not(:disabled),
+  .workspace .map-region .map-extra-controls .map-tools-trigger[data-state='open'] {
+    background: var(--accent);
+    color: var(--accent-foreground);
   }
   .map-bottom-trailing .map-issue {
     display: none;
