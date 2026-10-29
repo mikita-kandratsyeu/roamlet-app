@@ -1,7 +1,8 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MAP_VIEW_KEY, defaultMapView } from '../domain/mapView';
-import { PREFERENCES_KEY, savePreferences, resetPreferences } from '../domain/preferences';
+import { PREFERENCES_KEY, loadPreferences, savePreferences, resetPreferences } from '../domain/preferences';
+import { BRIGHT_MAP_STYLE } from '../domain/mapTiles';
 import { RouteMap } from './RouteMap';
 import i18n from '../i18n';
 const mocks = vi.hoisted(() => ({
@@ -326,19 +327,56 @@ it('orders Standard before Light and uses distinct map and sun icons', () => {
   }
 });
 
-it('places a custom style last, gives it a layers icon and preserves its selection', () => {
-  vi.stubEnv('VITE_MAP_STYLE', '/custom-style.json');
+it.each(['standard', 'custom'] as const)(
+  'uses the configured provider as Standard for saved %s preferences without a Custom option',
+  (style) => {
+    vi.stubEnv('VITE_MAP_STYLE', '/custom-style.json');
+    savePreferences({ style });
+    render(<RouteMap {...props} />);
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Standard',
+      'Light',
+    ]);
+    expect(screen.getAllByRole('radio').map((item) => item.textContent)).toEqual([
+      'Standard',
+      'Light',
+    ]);
+    expect(screen.getByRole('combobox', { name: 'Map style' })).toHaveValue('/custom-style.json');
+    expect(screen.getByRole('radio', { name: 'Standard' })).toHaveAttribute('data-state', 'on');
+    expect(screen.getByRole('radio', { name: 'Standard' }).querySelector('svg')).toHaveClass(
+      'lucide-map',
+    );
+    act(() => mocks.handlers.get('load')?.());
+    fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
+    expect(mocks.setStyle).toHaveBeenLastCalledWith(BRIGHT_MAP_STYLE);
+    fireEvent.click(screen.getByRole('radio', { name: 'Standard' }));
+    expect(mocks.setStyle).toHaveBeenLastCalledWith('/custom-style.json');
+    expect(loadPreferences().style).toBe('standard');
+  },
+);
+
+it('keeps both options distinct when the configured provider is Bright', () => {
+  vi.stubEnv('VITE_MAP_STYLE', BRIGHT_MAP_STYLE);
   render(<RouteMap {...props} />);
-  expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
-    'Standard',
-    'Light',
-    'Custom',
+  expect(screen.getAllByRole('option').map((option) => option.getAttribute('value'))).toEqual([
+    '/osm-standard.json',
+    BRIGHT_MAP_STYLE,
   ]);
-  expect(screen.getByRole('combobox', { name: 'Map style' })).toHaveValue('/custom-style.json');
-  expect(screen.getByRole('radio', { name: 'Custom' })).toHaveAttribute('data-state', 'on');
-  expect(screen.getByRole('radio', { name: 'Custom' }).querySelector('svg')).toHaveClass(
-    'lucide-layers',
+  expect(screen.getByRole('radio', { name: 'Light' })).toHaveAttribute('data-state', 'on');
+});
+
+it('shows the Standard selection after an invalid saved provider falls back to OSM', () => {
+  vi.stubEnv('VITE_MAP_STYLE', 'invalid-style');
+  savePreferences({ style: 'custom' });
+  render(<RouteMap {...props} />);
+  expect(mocks.options).toHaveBeenCalledWith(
+    expect.objectContaining({ style: '/osm-standard.json' }),
   );
+  expect(screen.getByRole('combobox', { name: 'Map style' })).toHaveValue('/osm-standard.json');
+  expect(screen.getByRole('radio', { name: 'Standard' })).toHaveAttribute('data-state', 'on');
+  expect(
+    screen.getByText('The saved map style is unavailable. The standard map is being used.'),
+  ).toBeInTheDocument();
 });
 
 it('uses the configured MapLibre style and source attribution without Mapbox credentials', () => {

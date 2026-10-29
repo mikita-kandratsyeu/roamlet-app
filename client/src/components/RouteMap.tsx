@@ -103,14 +103,15 @@ export function RouteMap(props: Props) {
   const [mapAttempt, setMapAttempt] = useState(0);
   const [configurationError, setConfigurationError] = useState(false);
   const configuredStyle = import.meta.env.VITE_MAP_STYLE?.trim() || DEFAULT_MAP_STYLE;
+  const standardStyle = configuredStyle === BRIGHT_MAP_STYLE ? DEFAULT_MAP_STYLE : configuredStyle;
   const styleUrl = useCallback(
     (symbol: MapStyle) =>
       symbol === 'bright'
         ? BRIGHT_MAP_STYLE
         : symbol === 'custom'
           ? configuredStyle
-          : DEFAULT_MAP_STYLE,
-    [configuredStyle],
+          : standardStyle,
+    [configuredStyle, standardStyle],
   );
   const [preferenceWarning, setPreferenceWarning] = useState('');
   const initialStyle = useRef<{ url: string; saved: boolean; missing: boolean } | null>(null);
@@ -207,17 +208,18 @@ export function RouteMap(props: Props) {
     setMapError('');
     setPreferenceWarning('');
     fallbackUsed.current = true;
-    const symbol: MapStyle =
-      next === DEFAULT_MAP_STYLE ? 'standard' : next === BRIGHT_MAP_STYLE ? 'bright' : 'custom';
+    const symbol: MapStyle = next === BRIGHT_MAP_STYLE ? 'bright' : 'standard';
     savePreferences({ style: symbol });
     map.current?.setStyle(next);
   }
   const styles = [
-    { value: DEFAULT_MAP_STYLE, label: t('Standard map'), icon: MapIcon },
+    {
+      value: style === DEFAULT_MAP_STYLE ? DEFAULT_MAP_STYLE : standardStyle,
+      label: t('Standard map'),
+      icon: MapIcon,
+    },
     { value: BRIGHT_MAP_STYLE, label: t('Light map'), icon: Sun },
   ];
-  if (!styles.some((item) => item.value === configuredStyle))
-    styles.push({ value: configuredStyle, label: t('Custom map'), icon: Layers });
   useEffect(() => {
     latest.current = props;
   });
@@ -282,12 +284,7 @@ export function RouteMap(props: Props) {
       lastCamera.current = JSON.stringify(camera);
       const saved = savePreferences({
         camera,
-        style:
-          activeStyle.current === DEFAULT_MAP_STYLE
-            ? 'standard'
-            : activeStyle.current === BRIGHT_MAP_STYLE
-              ? 'bright'
-              : 'custom',
+        style: activeStyle.current === BRIGHT_MAP_STYLE ? 'bright' : 'standard',
       });
       if (!saved && !storageWarningShown) {
         storageWarningShown = true;
