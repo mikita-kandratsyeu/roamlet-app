@@ -19,7 +19,14 @@ export function Toaster(props: ToasterProps) {
       theme={resolvedTheme}
       className="toaster group"
       position="bottom-right"
+      offset={{
+        left: 'max(24px, env(safe-area-inset-left))',
+        right: 'max(24px, env(safe-area-inset-right))',
+        top: 'max(24px, env(safe-area-inset-top))',
+        bottom: 'max(24px, env(safe-area-inset-bottom))',
+      }}
       mobileOffset={{
+        top: 'max(16px, env(safe-area-inset-top))',
         left: 'max(16px, env(safe-area-inset-left))',
         right: 'max(16px, env(safe-area-inset-right))',
         bottom: 'max(16px, env(safe-area-inset-bottom))',
@@ -35,7 +42,7 @@ export function Toaster(props: ToasterProps) {
       }}
       style={
         {
-          '--width': '400px',
+          '--width': 'min(400px, calc(100vw - var(--offset-left) - var(--offset-right)))',
           '--normal-bg': 'var(--popover)',
           '--normal-text': 'var(--popover-foreground)',
           '--normal-border': 'var(--border)',

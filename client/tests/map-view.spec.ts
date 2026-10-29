@@ -38,12 +38,12 @@ test('uses timezone region first, restores last local view, and fits an imported
   await page.goto('/');
   await expect(page.locator('.mapboxgl-ctrl-logo')).toHaveCount(0);
   await expect(page.locator('.maplibregl-ctrl-attrib')).toBeVisible();
-  await expect(page.locator('.map-issue')).toHaveAttribute(
-    'href',
-    'https://www.openstreetmap.org/',
-  );
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+  await page.getByRole('button', { name: 'More map tools', exact: true }).click();
+  const feedbackLink = page.getByRole('link', { name: 'Report a map issue ↗', exact: true });
+  await expect(feedbackLink).toHaveAttribute('href', 'https://www.openstreetmap.org/');
   const logo = await page.locator('.maplibregl-ctrl-attrib').boundingBox();
-  const feedback = await page.locator('.map-issue').boundingBox();
+  const feedback = await feedbackLink.boundingBox();
   expect(
     logo &&
       feedback &&
@@ -52,6 +52,7 @@ test('uses timezone region first, restores last local view, and fits an imported
         logo.x + logo.width <= feedback.x ||
         feedback.x + feedback.width <= logo.x),
   ).toBe(true);
+  await page.getByRole('button', { name: 'Close map tools', exact: true }).click();
   await clickMapTool(page, 'Zoom in');
   await expect
     .poll(() =>
@@ -112,7 +113,7 @@ test('loads the Standard OSM raster style and preserves waypoints when switching
   await page.addInitScript(() => {
     localStorage.setItem(
       'roamlet:preferences:v1',
-      JSON.stringify({ style: 'standard', theme: 'light', panelHidden: true }),
+      JSON.stringify({ version: 1, preferences: { style: 'standard', panelHidden: true } }),
     );
   });
   const tileImage = await page.evaluate(() => {
@@ -123,6 +124,9 @@ test('loads the Standard OSM raster style and preserves waypoints when switching
     context.fillRect(0, 0, 256, 256);
     return canvas.toDataURL('image/png').split(',')[1];
   });
+  await page.route('**/__fixtures__/map-style.json', (route) =>
+    route.fulfill({ path: 'public/osm-standard.json', contentType: 'application/json' }),
+  );
   await page.route('https://tile.openstreetmap.org/**', (route) => {
     const headers = route.request().headers();
     tileRequests.push({ referer: headers.referer, cacheControl: headers['cache-control'] });
@@ -151,8 +155,10 @@ test('loads the Standard OSM raster style and preserves waypoints when switching
     }),
   );
   await page.goto('/');
-  const picker = page.locator('select.map-style-select');
-  await expect(picker).toHaveValue('/osm-standard.json');
+  const picker = page.getByRole('radiogroup', { name: 'Map style', exact: true });
+  const standard = picker.getByRole('radio', { name: 'Standard', exact: true });
+  await expect(standard).toBeChecked();
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
   await expect(page.locator('.maplibregl-ctrl-attrib')).toContainText('OpenStreetMap');
   await expect(page.locator('.maplibregl-ctrl-attrib')).toBeVisible();
   await expect.poll(() => tileRequests.length).toBeGreaterThan(0);
@@ -165,11 +171,11 @@ test('loads the Standard OSM raster style and preserves waypoints when switching
   expect(bounds).not.toBeNull();
   await canvas.click({ position: { x: bounds!.width * 0.6, y: bounds!.height * 0.4 } });
   await expect(page.locator('.maplibregl-marker')).toHaveCount(1);
-  await picker.selectOption('https://tiles.openfreemap.org/styles/bright', { force: true });
+  await picker.getByRole('radio', { name: 'Light', exact: true }).click();
   await expect(page.locator('.maplibregl-ctrl-attrib')).toContainText('Synthetic Light map');
-  await picker.selectOption('/osm-standard.json', { force: true });
+  await standard.click();
   await expect(page.locator('.maplibregl-ctrl-attrib')).toContainText('OpenStreetMap');
   await expect(page.locator('.maplibregl-marker')).toHaveCount(1);
-  await expect(page.locator('.map-warning')).toHaveCount(0);
+  await expect(page.locator('[data-sonner-toast][data-type="warning"]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

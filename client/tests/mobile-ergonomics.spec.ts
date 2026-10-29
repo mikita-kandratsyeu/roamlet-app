@@ -193,7 +193,9 @@ test('visible drag handles use 44px targets, retain 14px icons and still reorder
     expect(icon.width).toBe(14);
     expect(icon.height).toBe(14);
   }
-  await stops.first().scrollIntoViewIfNeeded();
+  await stops.last().scrollIntoViewIfNeeded();
+  await reachable(stops.first().locator('.stop-grip'));
+  await reachable(stops.last().locator('.stop-grip'));
   const from = (await stops.first().locator('.stop-grip').boundingBox())!;
   const to = (await stops.last().locator('.stop-grip').boundingBox())!;
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);

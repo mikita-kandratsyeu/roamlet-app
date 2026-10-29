@@ -38,6 +38,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://api.heigit.org/**', (route) => route.abort());
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
 
 test('manual edits undo and redo, retain native text undo, and recover after reload', async ({
@@ -209,7 +210,9 @@ test('invalid backup does not change the library or editor', async ({ page }) =>
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({ version: 999, routes: [] })),
   });
-  await expect(page.locator('.library-screen').getByRole('alert')).toBeVisible();
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Unsupported library backup version.' }),
+  ).toBeVisible();
   await expect(page.locator('.library-route')).toHaveCount(0);
   await page.keyboard.press('Escape');
   expect(await readDownload(page, 'Export')).toBe(before);
@@ -278,7 +281,8 @@ test('language, appearance and map view persist without automatic geolocation', 
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
-  await expect(page.getByRole('button', { name: 'Приблизить', exact: true })).toBeEnabled();
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+  await expect(await mapTool(page, 'Приблизить')).toBeEnabled();
   const restored = await page.evaluate(() =>
     JSON.parse(localStorage.getItem('roamlet:map-view:v1')!),
   );

@@ -130,7 +130,11 @@ test('schedule edits persist and do not reroute; arrivals cross midnight', async
   await save(page, 'Night ride');
   await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
   await page.getByRole('button', { name: /^Night ride Cycling/ }).click();
-  await page.locator('.planner-details > summary').filter({ hasText: 'Route schedule' }).click();
+  await expect(page.locator('.library-screen')).toHaveCount(0);
+  await expect(page.locator('.planner-heading h1')).toHaveText('Night ride');
+  const scheduleDetails = page.locator('.planner-details').filter({ hasText: 'Route schedule' });
+  if ((await scheduleDetails.getAttribute('open')) === null) await scheduleDetails.locator('summary').first().click();
+  await expect(scheduleDetails).toHaveAttribute('open');
   await expect(departure).toHaveValue('2026-10-29T23:59');
   await expect(pause).toHaveValue('10');
   await page.waitForTimeout(500);

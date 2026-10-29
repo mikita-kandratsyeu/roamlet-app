@@ -1198,13 +1198,15 @@ export default function App() {
             >
               <span className="sheet-identity">
                 <strong>{name || t('New route')}</strong>
-                <small>
-                  {result
-                    ? formatDistance(result.stats.distance) +
-                      ' · ' +
-                      formatDuration(result.stats.duration)
-                    : t('Start with two points on the map')}
-                </small>
+                {(result || collapsed) && (
+                  <small>
+                    {result
+                      ? formatDistance(result.stats.distance) +
+                        ' · ' +
+                        formatDuration(result.stats.duration)
+                      : t('Start with two points on the map')}
+                  </small>
+                )}
               </span>
             </Button>
             <div className="planner-scroll">

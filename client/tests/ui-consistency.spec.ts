@@ -1,4 +1,4 @@
-import { clickMapTool } from './mapControls';
+import { clickMapTool, mapTool } from './mapControls';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
@@ -17,6 +17,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://api.heigit.org/**', (route) => route.abort());
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
 
 test('theme icons stay in one accessible row on narrow and desktop screens', async ({
@@ -427,6 +428,7 @@ test('coordinate fields support pair paste, inline correction and aligned mobile
 });
 
 test('history controls exist only on the map', async ({ page }) => {
+  await mapTool(page, 'Undo');
   await expect(page.getByRole('button', { name: 'Undo', exact: true })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Redo', exact: true })).toHaveCount(1);
   await expect(page.locator('.planner').getByRole('button', { name: /^(Undo|Redo)$/ })).toHaveCount(
@@ -730,7 +732,10 @@ test('library controls share application styling in Russian, light and dark, wit
     screen.getByRole('button', { name: 'Восстановить из копии', exact: true }),
   ).toBeVisible();
   await expect(screen.getByLabel('Файл для импорта библиотеки', { exact: true })).not.toBeVisible();
-  await expect(screen.getByRole('checkbox')).toHaveCount(0);
+  await expect(
+    screen.getByRole('checkbox', { name: 'Выбрать Weekend ride для сравнения', exact: true }),
+  ).toHaveCount(1);
+  await expect(screen.getByRole('checkbox')).toHaveCount(1);
   await expect(screen.getByRole('button', { name: 'Только избранное', exact: true })).toBeVisible();
   await expect(screen.getByText('Сначала обновлённые', { exact: true })).toBeVisible();
   expect(await screen.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -933,4 +938,163 @@ test('product help and no-results recovery are translated without deployment ins
     await expect(page.locator('.library-route')).toHaveCount(1);
     await page.getByRole('button', { name: /^(Back to map|Назад к карте)$/ }).click();
   }
+});
+
+test('empty mobile planner shows its guidance once and keeps a useful collapsed summary', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  const sheet = page.locator('.mobile-sheet-toggle');
+  await expect(sheet).toHaveAttribute('aria-expanded', 'true');
+  await expect(sheet.locator('small')).toHaveCount(0);
+  await expect(page.locator('.planner-route-status')).toHaveText(
+    'Start with two points on the map',
+  );
+  await sheet.click();
+  await expect(sheet.locator('small')).toHaveText('Start with two points on the map');
+  await expect(page.locator('.planner-route-status')).not.toBeVisible();
+  await sheet.click();
+  await expect(sheet.locator('small')).toHaveCount(0);
+  await expect(page.locator('.planner-route-status')).toBeVisible();
+});
+
+test('notifications fit narrow, landscape and wide screens with an inset square dismiss button', async ({
+  page,
+}, testInfo) => {
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
+  await page.getByLabel('Импорт файла GPX').setInputFiles({
+    name: 'invalid.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from('invalid GPX'),
+  });
+  const toast = page.locator('[data-sonner-toast][data-type="error"]');
+  await expect(toast).toBeVisible();
+  await toast.locator('.notification-message').evaluate((element) => {
+    element.textContent =
+      'Не удалось сохранить маршрут в этом браузере на этом устройстве. ' +
+      'ОченьДлинноеНазваниеМаршрутаБезПробелов'.repeat(2);
+  });
+  for (const viewport of [
+    { width: 320, height: 360 },
+    { width: 390, height: 740 },
+    { width: 600, height: 375 },
+    { width: 601, height: 375 },
+    { width: 844, height: 390 },
+    { width: 1920, height: 1080 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const close = toast.getByRole('button', { name: 'Закрыть уведомление', exact: true });
+    await expect(close).toHaveCSS('transform', 'none');
+    await expect
+      .poll(async () => {
+        const rect = (await toast.boundingBox())!;
+        return rect.y >= 16 && rect.y + rect.height <= viewport.height - 16;
+      })
+      .toBe(true);
+    const box = (await toast.boundingBox())!;
+    const closeBox = (await close.boundingBox())!;
+    const contentBox = (await toast.locator('[data-content]').boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(16);
+    expect(box.y).toBeGreaterThanOrEqual(16);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width - 16);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height - 16);
+    expect(box.width).toBeLessThanOrEqual(400);
+    expect(closeBox.width).toBe(44);
+    expect(closeBox.height).toBe(44);
+    expect(closeBox.x).toBeGreaterThan(box.x);
+    expect(closeBox.y).toBeGreaterThan(box.y);
+    expect(closeBox.x + closeBox.width).toBeLessThan(box.x + box.width);
+    expect(closeBox.y + closeBox.height).toBeLessThan(box.y + box.height);
+    expect(contentBox.x + contentBox.width).toBeLessThanOrEqual(closeBox.x);
+    expect(await toast.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
+    const iconBox = (await toast.locator('[data-icon]').boundingBox())!;
+    const titleBox = (await toast.locator('[data-title]').boundingBox())!;
+    expect(iconBox.y).toBeGreaterThanOrEqual(titleBox.y);
+    expect(iconBox.y + iconBox.height).toBeLessThanOrEqual(titleBox.y + titleBox.height);
+    await expect
+      .poll(() =>
+        close.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          return element.contains(
+            document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2),
+          );
+        }),
+      )
+      .toBe(true);
+    if (viewport.width === 320 || viewport.width === 1920) {
+      await page.screenshot({ path: testInfo.outputPath(`notification-${viewport.width}.png`) });
+    }
+  }
+  const close = toast.getByRole('button', { name: 'Закрыть уведомление', exact: true });
+  await close.focus();
+  await close.press('Enter');
+  await expect(toast).toHaveCount(0);
+});
+
+test('success notifications stay below dialogs without hiding actionable errors', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 740 }
+      : { width: 1440, height: 1000 },
+  );
+  const importer = page.getByLabel('Import GPX file');
+  const toaster = page.locator('[data-sonner-toaster]');
+  await importer.setInputFiles({
+    name: 'invalid.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from('invalid GPX'),
+  });
+  await expect(page.locator('[data-sonner-toast][data-type="error"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Help and data sources', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(toaster).toHaveCSS('z-index', '100');
+  await page.getByRole('dialog').press('Escape');
+  await importer.setInputFiles({
+    name: 'valid.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(
+      '<gpx version="1.1"><trk><trkseg><trkpt lat="47.26" lon="11.4"/><trkpt lat="47.27" lon="11.41"/></trkseg></trk></gpx>',
+    ),
+  });
+  const success = page.locator('[data-sonner-toast][data-type="success"]');
+  await expect(success).toBeVisible();
+  await expect(success).toHaveCSS('pointer-events', 'none');
+  await expect(
+    success.getByRole('button', { name: 'Dismiss notification', exact: true }),
+  ).toHaveCSS('pointer-events', 'auto');
+  const exportButton = page.getByRole('button', { name: 'Export', exact: true });
+  await expect
+    .poll(() =>
+      exportButton.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        return hit !== null && element.contains(hit);
+      }),
+    )
+    .toBe(true);
+  await exportButton.click();
+  const dialog = page.getByRole('dialog', { name: 'Export route', exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(toaster).toHaveCSS('z-index', '40');
+  const downloadButton = dialog.getByRole('button', { name: 'Download GPX', exact: true });
+  await downloadButton.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() =>
+      downloadButton.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        return hit !== null && element.contains(hit);
+      }),
+    )
+    .toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('export-notification-layering.png') });
+  const download = page.waitForEvent('download');
+  await downloadButton.click();
+  expect((await download).suggestedFilename()).toMatch(/\.gpx$/);
 });

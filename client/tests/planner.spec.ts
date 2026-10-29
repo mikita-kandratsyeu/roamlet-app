@@ -275,11 +275,13 @@ test('manual controls keep logical order and remain reachable at 320px in Russia
   await page.getByRole('menuitemradio', { name: 'Dark', exact: true }).click();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
-  const tool = page.getByRole('button', { name: 'Ручное рисование', exact: true });
+  const tool = await mapTool(page, 'Ручное рисование');
   await expect(tool).toHaveAttribute('aria-pressed', 'true');
   await expect(tool).toHaveCSS('background-color', 'rgb(155, 197, 167)');
   const controls = page.getByRole('group', { name: 'Управление картой', exact: true });
-  const buttons = controls.locator('button');
+  await expect(controls.getByRole('button')).toHaveCount(3);
+  const panel = page.getByRole('dialog', { name: 'Управление картой', exact: true });
+  const buttons = panel.getByRole('button');
   await expect(buttons).toHaveCount(7);
   for (const button of await buttons.all()) {
     await expect(button).toBeVisible();
@@ -619,9 +621,9 @@ test('header supports desktop creation and an accessible compact menu', async ({
   const check = await selectedLanguage.locator('.preference-check').boundingBox();
   expect(Math.abs(row!.x + row!.width - check!.x - check!.width - 12)).toBeLessThan(1);
   await expect(preferences.locator('.header-menu-note')).toHaveCount(2);
-  await expect(preferences.locator('.header-menu-action-item').first()).toHaveCSS(
+  await expect(preferences.getByRole('menuitem', { name: 'Reset settings', exact: true })).toHaveCSS(
     'justify-content',
-    'center',
+    'normal',
   );
   await page.keyboard.press('End');
   await expect(page.getByRole('menuitem', { name: 'Help and data sources' })).toBeFocused();
@@ -767,15 +769,20 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await page.keyboard.press('Escape');
   await expect(menu).toBeFocused();
   const zoom = await mapTool(page, 'Zoom in');
+  await page.keyboard.press('Tab');
   await zoom.focus();
   await expect(zoom).toHaveCSS('outline-width', '2px');
   await expect(zoom).toHaveCSS('outline-offset', '-2px');
   await expect(zoom).toHaveCSS('box-shadow', 'none');
+  const tools = page.getByRole('dialog', { name: 'Map controls', exact: true });
+  if (await tools.isVisible()) await tools.press('Escape');
   await page.locator('.maplibregl-canvas').focus();
   await expect(page.locator('.maplibregl-canvas')).toHaveCSS('outline-width', '2px');
   await expect(page.locator('.maplibregl-canvas')).toHaveCSS('outline-offset', '-3px');
   await page.emulateMedia({ forcedColors: 'active' });
   await expect(page.locator(':root')).toHaveCSS('--focus-ring', 'Highlight');
+  await mapTool(page, 'Zoom in');
+  await page.keyboard.press('Tab');
   await zoom.focus();
   await expect(zoom).toHaveCSS('outline-style', 'solid');
 });
@@ -871,7 +878,8 @@ test('planner disclosure rows have uniform spacing and chevrons', async ({ page 
   const sheet = page.locator('.mobile-sheet-toggle');
   if ((await sheet.isVisible()) && (await sheet.getAttribute('aria-expanded')) === 'false')
     await sheet.click();
-  await page.locator('.elevation-box > summary').click();
+  const elevation = page.locator('.elevation-box');
+  if ((await elevation.getAttribute('open')) !== null) await elevation.locator('summary').click();
   const rows = page.locator('.planner-scroll > .personal-time-section, .planner-scroll > .planner-details, .planner-scroll > .statistics > .time-explanation, .planner-scroll > .statistics > .elevation-box');
   await expect(rows).toHaveCount(5);
   for (const row of await rows.all()) {
@@ -902,6 +910,8 @@ test('route overview precedes collapsed details and settings survive disclosure 
   const sheet = page.locator('.mobile-sheet-toggle');
   if ((await sheet.isVisible()) && (await sheet.getAttribute('aria-expanded')) === 'false')
     await sheet.click();
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
+  await page.getByRole('radio', { name: 'Cycling', exact: true }).click();
   const statistics = page.locator('.planner .statistics');
   const settings = page.locator('.personal-time-section');
   await expect(statistics).toBeVisible();
@@ -1087,8 +1097,11 @@ test('dragging a stop handle reorders real stops and recalculates the route', as
   await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
   const stops = page.locator('.waypoint-list > li');
   await expect(stops).toHaveCount(3);
+  await stops.last().scrollIntoViewIfNeeded();
+  await stops.first().locator('.stop-grip').scrollIntoViewIfNeeded();
+  await expect(stops.last().locator('.stop-name')).toBeInViewport();
   const first = await stops.nth(0).locator('.stop-name').innerText();
-  const handle = await stops.nth(0).locator('.stop-grip svg').boundingBox();
+  const handle = await stops.nth(0).locator('.stop-grip').boundingBox();
   const destination = await stops.nth(2).locator('.stop-name').boundingBox();
   await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + handle!.height / 2);
   await page.mouse.down();

@@ -56,6 +56,7 @@ test.beforeEach(async ({ page }) => {
   );
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
 
 test('personal adjustments change the range without routing or replacing provider statistics', async ({
@@ -79,6 +80,10 @@ test('personal adjustments change the range without routing or replacing provide
   const original = await statistics.innerText();
   await choose(page, 'Surface', 'Rough surface');
   await expect.poll(() => statistics.innerText()).not.toBe(original);
+  const speed = page.getByLabel('Personal speed (km/h)', { exact: true });
+  await speed.fill('12');
+  await speed.press('Enter');
+  await expect(speed).toHaveValue('12');
   const rough = await statistics.innerText();
   await choose(page, 'Fitness level', 'Trained');
   await expect.poll(() => statistics.innerText()).not.toBe(rough);
@@ -119,6 +124,8 @@ test('hiking pace and climb allowance preserve split GPX tracks and original hei
       '<gpx version="1.1"><metadata><name>Mountain split</name></metadata><trk><trkseg><trkpt lat="47.26" lon="11.4"><ele>100</ele></trkpt><trkpt lat="47.27" lon="11.41"><ele>400</ele></trkpt></trkseg><trkseg><trkpt lat="48" lon="12"><ele>500</ele></trkpt><trkpt lat="48.01" lon="12.01"><ele>800</ele></trkpt></trkseg></trk></gpx>',
     ),
   });
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
+  await page.locator('.personal-time-section > summary').click();
   const pace = page.getByLabel('Walking pace (min/km)', { exact: true });
   await expect(pace).toBeVisible();
   const statistics = page.getByRole('region', { name: 'Route statistics', exact: true });

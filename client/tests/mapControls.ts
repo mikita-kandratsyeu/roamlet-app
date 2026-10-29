@@ -1,6 +1,10 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 export async function mapTool(page: Page, name: string) {
+  const compact = await page.evaluate(() => matchMedia('(max-width: 700px)').matches);
+  await expect
+    .poll(async () => (await page.locator('.map-extra-controls button').count()) === 3)
+    .toBe(compact);
   const tool = page.getByRole('button', { name, exact: true });
   if (!(await tool.isVisible())) {
     await page.getByRole('button', { name: /^(More map tools|Другие инструменты карты)$/ }).click();

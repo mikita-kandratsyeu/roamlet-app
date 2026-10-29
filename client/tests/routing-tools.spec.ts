@@ -105,6 +105,7 @@ test('planner choices share translated accessible menus and remain inside the vi
   const alternatives = page.getByRole('button', { name: 'Найти альтернативы', exact: true });
   await expect(alternatives).toBeDisabled();
   await expect(page.locator('#point-alternatives-help')).toHaveText(/переключите участок/);
+  await page.locator('.personal-time-section > summary').click();
   const surface = page.getByRole('button', { name: 'Покрытие', exact: true });
   await surface.click();
   await expect(page.getByRole('menu')).toHaveClass(/planner-choice-menu/);
@@ -122,7 +123,7 @@ test('planner choices share translated accessible menus and remain inside the vi
   await expect(page.locator('.planner')).toBeVisible();
   expect(errors).toEqual([]);
   await page.screenshot({
-    path: `/Users/Mikita_Kandratsyeu1/.copilot/session-state/39c6be71-a7dc-4e0f-a0f5-e2fac6eb8700/files/routing-ui-${info.project.name}.png`,
+    path: info.outputPath('routing-ui.png'),
   });
 });
 
@@ -153,7 +154,7 @@ test('recalculation notice has readable width and disabled alternatives explain 
   await addPoint(page, '52.02, 30.02');
   await started;
   const note = page.locator('.planner-route-status');
-  const description = note.locator('[data-slot="alert-description"]');
+  const description = note.locator('.planner-route-status-copy p');
   await expect(description).toContainText('Во время пересчёта показан предыдущий маршрут');
   const bounds = (await description.boundingBox())!;
   expect(bounds.width).toBeGreaterThan(180);
@@ -167,7 +168,10 @@ test('recalculation notice has readable width and disabled alternatives explain 
   expect(alternatives.y - (primary.y + primary.height)).toBeGreaterThanOrEqual(7);
   release();
   await expect(page.getByRole('button', { name: 'Сохранить маршрут', exact: true })).toBeEnabled();
-  await expect(note).toHaveCount(0);
+  await expect(note).toHaveCount(1);
+  await expect(note).toHaveAttribute('role', 'status');
+  await expect(note).toContainText('Несохранённые изменения');
+  await expect(note).not.toHaveClass(/is-calculating|is-stale|is-error/);
   await expect(elevationProfile).not.toHaveAttribute('open');
 });
 
@@ -177,15 +181,15 @@ test('routing errors keep text, recovery actions and dismissal separate', async 
     route.fulfill({ status: 429, json: { error: { message: 'quota' } } }),
   );
   await addPoint(page, '52.02, 30.02');
-  const notice = page.locator('[data-sonner-toast][data-type="error"]');
+  const notice = page.locator('.planner-route-status.is-error');
   await expect(notice).toBeVisible();
-  const description = (await notice.locator('.notification-message').boundingBox())!;
-  const heading = (await notice.locator('[data-title]').boundingBox())!;
-  expect(description.width).toBeGreaterThan(200);
-  expect(description.y).toBeGreaterThanOrEqual(heading.y + heading.height);
+  await expect(notice).toHaveAttribute('role', 'alert');
+  const description = (await notice.locator('.planner-route-status-copy').boundingBox())!;
   const card = (await notice.boundingBox())!;
-  const buttons = notice.locator('.notification-actions button');
-  await expect(buttons).toHaveCount(3);
+  expect(description.width).toBeGreaterThan(200);
+  expect(description.y).toBeGreaterThanOrEqual(card.y);
+  const buttons = notice.locator('.planner-route-status-actions button');
+  await expect(buttons).toHaveCount(4);
   const bounds = await buttons.evaluateAll((elements) =>
     elements.map((element) => {
       const rect = element.getBoundingClientRect();
@@ -213,5 +217,6 @@ test('routing errors keep text, recovery actions and dismissal separate', async 
   await expect(page.locator('.map-annotation-status')).toHaveCount(0);
   await notice.getByRole('button', { name: 'Закрыть уведомление', exact: true }).click();
   await expect(notice).toHaveCount(0);
+  await expect(page.locator('.planner-route-status')).toHaveAttribute('role', 'status');
   await expect(page.getByRole('button', { name: 'Экспорт', exact: true })).toBeDisabled();
 });

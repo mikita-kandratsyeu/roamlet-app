@@ -281,7 +281,8 @@ test('missing routing key keeps the map usable but never substitutes a fake rout
     await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
-  await expect(page.getByRole('alert')).toContainText('ORS_API_KEY');
+  await expect(page.getByRole('alert')).toContainText('Automatic routing is currently unavailable.');
+  await expect(page.getByRole('alert').getByRole('button', { name: 'Use manual drawing', exact: true })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Export' })).toBeDisabled();
 });
 test('manual drawing calculates and exports offline without a routing key', async ({

@@ -22,6 +22,8 @@
     "test:client": "yarn workspace @roamlet/client test",
     "test:e2e": "yarn workspace @roamlet/client test:e2e",
     "test:offline": "yarn workspace @roamlet/client test:offline",
+    "test:layout": "node --test client/src/components/*.layout.test.mjs",
+    "test:regression": "yarn lint && yarn typecheck && yarn test && yarn test:layout && yarn build && yarn test:e2e --output=test-results/e2e && yarn test:offline --output=test-results/offline",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check"
