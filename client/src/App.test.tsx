@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, cleanup, within } from '@testi
 import App from './App';
 import { routeDb } from './domain/storage';
 import * as storage from './domain/storage';
+import { exportGpx, importGpx } from './domain/gpx';
 import { checkRoutingConfiguration } from './services/routing';
 import i18n, { detectLanguage, LANGUAGE_KEY } from './i18n';
 const provider = vi.hoisted(() => ({
@@ -214,6 +215,47 @@ describe('route preparation features', () => {
   });
 });
 
+describe('GPX file selection', () => {
+  it.each([
+    ['Новый маршрут.gpx', 'application/gpx+xml'],
+    ['Новый маршрут.gpx', ''],
+    ['Новый маршрут.gpx 2', 'application/octet-stream'],
+  ])('imports exported XML from %s with MIME type %s', async (name, type) => {
+    const route = importGpx(
+      '<gpx><metadata><name>Новый маршрут</name><desc/></metadata><wpt lat="47.26" lon="11.4"/><wpt lat="47.27" lon="11.41"/><trk><trkseg><trkpt lat="47.26" lon="11.4"><ele>100</ele></trkpt><trkpt lat="47.27" lon="11.41"><ele>150</ele></trkpt></trkseg></trk></gpx>',
+    );
+    route.source = 'openrouteservice';
+    const xml = exportGpx(route);
+    const file = Object.assign(new File([xml], name, { type }), { text: async () => xml });
+    render(<App />);
+    const input = screen.getByLabelText('Import GPX file');
+    expect(input).not.toHaveAttribute('accept');
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() =>
+      expect(screen.getByTestId('map')).toHaveAttribute(
+        'data-geometry',
+        JSON.stringify(route.segments),
+      ),
+    );
+    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+  });
+
+  it('still rejects non-GPX content without replacing the current geometry', async () => {
+    render(<App />);
+    await plan();
+    const geometry = screen.getByTestId('map').getAttribute('data-geometry');
+    const file = Object.assign(new File(['<other/>'], 'other.xml', { type: 'text/xml' }), {
+      text: async () => '<other/>',
+    });
+    fireEvent.change(screen.getByLabelText('Import GPX file'), { target: { files: [file] } });
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      i18n.t('Invalid GPX: expected a gpx root element.'),
+    );
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', geometry!);
+  });
+});
+
 describe('route export', () => {
   it('opens the export dialog before downloading and keeps the original route name', async () => {
     const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:test-export');
@@ -246,6 +288,7 @@ describe('route export', () => {
       reader.readAsText(blob);
     });
     expect(xml).toContain('<name>Untitled route</name>');
+    expect(importGpx(xml).segments).toEqual(JSON.parse(geometryBefore!));
     expect(xml).not.toContain('Weekend');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByTestId('map').getAttribute('data-geometry')).toBe(geometryBefore);

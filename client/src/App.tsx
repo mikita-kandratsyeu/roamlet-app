@@ -2080,11 +2080,11 @@ export default function App() {
             onError={(text) => fail(text, 'map')}
           />
         </main>
+        {/* iOS may not recognize GPX file types; validate the selected file's XML instead. */}
         <Input
           ref={fileInput}
           hidden
           type="file"
-          accept=".gpx,application/gpx+xml,application/xml,text/xml"
           aria-label={t('Import GPX file')}
           onChange={(event) => {
             void handleFile(event.target.files?.[0]);
