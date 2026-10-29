@@ -7,6 +7,7 @@ export default defineConfig({
     'lifecycle.spec.ts',
     'ui-consistency.spec.ts',
     'time-model.spec.ts',
+    'preparation.spec.ts',
     'routing-tools.spec.ts',
     'mobile-ergonomics.spec.ts',
   ],

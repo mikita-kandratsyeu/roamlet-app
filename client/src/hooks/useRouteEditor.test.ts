@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { editorReducer, useRouteEditor, type EditorHistory } from './useRouteEditor';
-import { initialEditor } from '../domain/editorSnapshot';
+import { initialEditor, withEditorSchedule } from '../domain/editorSnapshot';
+import { isRouteResultCurrent, routingInputKey } from '../domain/editorRouting';
 import type { PlannedRoute, Waypoint } from '../domain/types';
 describe('editor history', () => {
   it('bounds history to fifty geometry actions and clears redo after another edit', () => {
@@ -102,4 +103,75 @@ it('personal changes preserve ready snapshot geometry, routing permission and hi
   expect(result.current.surface).toBe('rough');
   expect(result.current.fitness).toBe('trained');
   expect(result.current.result).toEqual(ready);
+});
+
+it('edits generated loop waypoint pauses without turning them into routing input pins', () => {
+  const initial = initialEditor();
+  initial.planningMode = 'loop';
+  initial.mode = 'snapshot';
+  initial.waypoints = [{ id: 'start', name: 'Start', coordinate: [0, 0] }];
+  initial.result = { ...initial.identity, name: '', description: '', activity: 'cycling',
+    source: 'openrouteservice', updatedAt: initial.identity.createdAt,
+    segments: [[[0, 0], [0.01, 0], [0, 0]]], stats: { distance: 2224, duration: 600 },
+    waypoints: [{ id: 'start', name: 'Start', coordinate: [0, 0] },
+      { id: 'generated', name: 'Loop stop', coordinate: [0.01, 0] }] };
+  const { result } = renderHook(() => useRouteEditor(initial));
+  const routingPoints = result.current.routingSnapshot.waypoints;
+  const geometry = result.current.result!.segments;
+  act(() => result.current.setWaypointPause('generated', 20));
+  expect(result.current.scheduleWaypoints[1].pauseMinutes).toBe(20);
+  expect(result.current.waypoints).toHaveLength(1);
+  expect(result.current.routingSnapshot.waypoints).toBe(routingPoints);
+  expect(withEditorSchedule(result.current.result!, result.current.snapshot).waypoints[1].pauseMinutes).toBe(20);
+  act(() => result.current.undo());
+  expect(result.current.scheduleWaypoints[1].pauseMinutes).toBeUndefined();
+  expect(result.current.result!.segments).toBe(geometry);
+  act(() => result.current.redo());
+  expect(result.current.scheduleWaypoints[1].pauseMinutes).toBe(20);
+  expect(result.current.result!.segments).toBe(geometry);
+});
+
+it('edits schedule atomically with undo/redo while keeping routing inputs, permission and geometry stable', () => {
+  const initial = initialEditor();
+  initial.waypoints = [
+    { id: 'a', name: 'Start', coordinate: [0, 0] },
+    { id: 'b', name: 'Finish', coordinate: [0.01, 0] },
+  ];
+  const ready: PlannedRoute = { ...initial.identity, name: '', description: '', activity: 'cycling',
+    waypoints: initial.waypoints, segments: [initial.waypoints.map((point) => point.coordinate)],
+    stats: { distance: 1112, duration: 300 }, source: 'manual', updatedAt: initial.identity.createdAt };
+  initial.planningMode = 'manual';
+  initial.result = ready;
+  const { result } = renderHook(() => useRouteEditor(initial));
+  const key = routingInputKey(initial);
+  const routingPoints = result.current.routingSnapshot.waypoints;
+  result.current.routingAllowed.current = true;
+  act(() => result.current.setDepartureLocal('2026-10-29T23:30'));
+  act(() => result.current.setWaypointPause('a', 15));
+  expect(result.current.departureLocal).toBe('2026-10-29T23:30');
+  expect(result.current.waypoints[0].pauseMinutes).toBe(15);
+  expect(result.current.result).toBe(ready);
+  expect(result.current.result!.segments).toBe(ready.segments);
+  expect(result.current.routingSnapshot.waypoints).toBe(routingPoints);
+  expect(result.current.routingAllowed.current).toBe(true);
+  expect(result.current.routeStale).toBe(false);
+  expect(routingInputKey(result.current.snapshot)).toBe(key);
+  expect(isRouteResultCurrent(result.current.snapshot)).toBe(true);
+  expect(withEditorSchedule(ready, result.current.snapshot).waypoints[0].pauseMinutes).toBe(15);
+  act(() => result.current.undo());
+  expect(result.current.waypoints[0].pauseMinutes).toBeUndefined();
+  expect(result.current.departureLocal).toBe('2026-10-29T23:30');
+  act(() => result.current.undo());
+  expect(result.current.departureLocal).toBeUndefined();
+  act(() => result.current.redo());
+  act(() => result.current.redo());
+  expect(result.current.waypoints[0].pauseMinutes).toBe(15);
+  act(() => result.current.undo());
+  act(() => result.current.setDepartureLocal('2026-10-30T08:00'));
+  expect(result.current.canRedo).toBe(false);
+  act(() => result.current.setWaypointPause('missing', 10));
+  expect(result.current.waypoints).toHaveLength(2);
+  act(() => result.current.reset(result.current.snapshot));
+  expect(result.current.departureLocal).toBe('2026-10-30T08:00');
+  expect(result.current.canUndo).toBe(false);
 });

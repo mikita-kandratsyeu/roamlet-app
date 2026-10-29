@@ -1,5 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { Toaster } from './ui/sonner';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
+import { Dialog } from './Dialog';
+import { RouteComparison } from './RouteComparison';
 import i18next from 'i18next';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { PlannedRoute } from '../domain/types';
@@ -40,6 +44,7 @@ const woodland = route('b', 'Woodland walk', 2000, '2026-02-01T12:00:00Z');
 
 beforeEach(() => {
   vi.resetAllMocks();
+  render(<Toaster />);
   const storage = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => storage.get(key) ?? null,
@@ -57,10 +62,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function openLibrary() {
+async function openLibrary(onCompare?: (routes: PlannedRoute[]) => void) {
   const onClose = vi.fn();
   const onOpen = vi.fn();
-  render(<Library onClose={onClose} onOpen={onOpen} />);
+  render(<Library onClose={onClose} onOpen={onOpen} onCompare={onCompare} />);
   await screen.findByRole('button', { name: /Alpine loop Cycling/ });
   return { onClose, onOpen };
 }
@@ -365,7 +370,7 @@ it('previews backup counts with safe copy default and imports only after confirm
   await waitFor(() =>
     expect(importBackup).toHaveBeenCalledWith(expect.objectContaining({ version: 1 }), 'copy'),
   );
-  expect(await screen.findByText('Imported 2 routes; skipped 0.')).toHaveClass('library-message');
+  expect((await screen.findByText('Imported 2 routes; skipped 0.')).closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'success');
   expect(onOpen).not.toHaveBeenCalled();
 });
 
@@ -635,4 +640,134 @@ it('explains local-only storage and the scope of a library backup beside the act
   );
   expect(within(group).getByRole('button', { name: 'Download backup' })).toBeEnabled();
   expect(within(group).getByRole('button', { name: 'Restore from backup' })).toBeEnabled();
+});
+
+it('keeps comparison optional for existing library consumers', async () => {
+  await openLibrary();
+  expect(screen.queryByRole('checkbox', { name: /for comparison/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Compare routes' })).not.toBeInTheDocument();
+});
+
+it('selects 2–3 routes using keyboard-accessible checkboxes and enforces the maximum', async () => {
+  const user = userEvent.setup();
+  const third = route('c', 'River path', 3000, alpine.updatedAt);
+  const fourth = route('d', 'Coastal path', 4000, alpine.updatedAt);
+  vi.mocked(listRoutes).mockResolvedValue([alpine, woodland, third, fourth]);
+  const onCompare = vi.fn();
+  const { onOpen } = await openLibrary(onCompare);
+  const compare = screen.getByRole('button', { name: 'Compare routes' });
+  expect(compare).toBeDisabled();
+  const select = (name: string) =>
+    screen.getByRole('checkbox', { name: `Select ${name} for comparison` });
+  select(alpine.name).focus();
+  await user.keyboard(' ');
+  expect(select(alpine.name)).toBeChecked();
+  expect(compare).toBeDisabled();
+  await user.click(select(woodland.name));
+  expect(compare).toBeEnabled();
+  await user.click(select(third.name));
+  expect(select(fourth.name)).toBeDisabled();
+  expect(select(alpine.name)).toBeEnabled();
+  await user.click(compare);
+  expect(onCompare).toHaveBeenCalledWith([alpine, woodland, third]);
+  expect(onOpen).not.toHaveBeenCalled();
+  expect(saveRoute).not.toHaveBeenCalled();
+  expect(select(alpine.name)).toBeChecked();
+  await user.click(select(woodland.name));
+  expect(select(fourth.name)).toBeEnabled();
+  await user.click(select(third.name));
+  expect(compare).toBeDisabled();
+});
+
+it('retains hidden selections and filters on compare and allows removing hidden routes', async () => {
+  const onCompare = vi.fn();
+  await openLibrary(onCompare);
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select Woodland walk for comparison' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alpine loop for comparison' }));
+  const search = screen.getByRole('textbox', { name: 'Search saved routes' });
+  fireEvent.change(search, { target: { value: 'nowhere' } });
+  expect(screen.getByText(/Some selected routes are hidden by filters/)).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Compare routes' }));
+  expect(onCompare).toHaveBeenCalledWith([woodland, alpine]);
+  expect(search).toHaveValue('nowhere');
+  expect(loadPreferences().library.query).toBe('nowhere');
+  fireEvent.click(screen.getByRole('button', { name: 'Remove Woodland walk from comparison' }));
+  expect(screen.getByRole('button', { name: 'Compare routes' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+  expect(screen.queryByRole('list', { name: 'Selected routes' })).not.toBeInTheDocument();
+  expect(search).toHaveValue('nowhere');
+});
+
+it('clears comparison on Escape before exiting while keeping route opening available', async () => {
+  const { onClose, onOpen } = await openLibrary(vi.fn());
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alpine loop for comparison' }));
+  fireEvent.keyDown(screen.getByRole('region', { name: 'Saved routes' }), { key: 'Escape' });
+  expect(onClose).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole('checkbox', { name: 'Select Alpine loop for comparison' }),
+  ).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: /Alpine loop Cycling/ }));
+  expect(onOpen).toHaveBeenCalledWith(alpine);
+  fireEvent.keyDown(screen.getByRole('region', { name: 'Saved routes' }), { key: 'Escape' });
+  expect(onClose).toHaveBeenCalledOnce();
+});
+
+it('compares current saved edits and drops routes deleted after selection', async () => {
+  const onCompare = vi.fn();
+  await openLibrary(onCompare);
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alpine loop for comparison' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select Woodland walk for comparison' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Alpine loop' }));
+  const updated = { ...alpine, name: 'Updated loop' };
+  vi.mocked(listRoutes).mockResolvedValue([updated, woodland]);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
+    target: { value: updated.name },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'Compare routes' }));
+  expect(onCompare).toHaveBeenCalledWith([updated, woodland]);
+  fireEvent.click(screen.getByRole('button', { name: 'Delete Updated loop' }));
+  vi.mocked(listRoutes).mockResolvedValue([woodland]);
+  fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Delete route' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.getByRole('button', { name: 'Compare routes' })).toBeDisabled();
+  expect(
+    screen.queryByRole('button', { name: 'Remove Updated loop from comparison' }),
+  ).not.toBeInTheDocument();
+});
+
+it('preserves filters and selection and restores compare focus after a parent dialog closes', async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  function Parent() {
+    const [comparison, setComparison] = useState<PlannedRoute[] | null>(null);
+    return (
+      <>
+        <Library onClose={onClose} onOpen={vi.fn()} onCompare={setComparison} />
+        {comparison && (
+          <Dialog title="Compare saved routes" wide onClose={() => setComparison(null)}>
+            <RouteComparison routes={comparison} />
+          </Dialog>
+        )}
+      </>
+    );
+  }
+  render(<Parent />);
+  await screen.findByRole('checkbox', { name: 'Select Alpine loop for comparison' });
+  await user.click(screen.getByRole('checkbox', { name: 'Select Alpine loop for comparison' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Select Woodland walk for comparison' }));
+  await user.type(screen.getByRole('textbox', { name: 'Search saved routes' }), 'Alpine');
+  await user.click(screen.getByRole('button', { name: 'Compare routes' }));
+  const dialog = screen.getByRole('dialog', { name: 'Compare saved routes' });
+  expect(within(dialog).getByRole('table', { name: 'Saved route comparison' })).toBeVisible();
+  await user.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(onClose).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Compare routes' })).toHaveFocus();
+  expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveValue('Alpine');
+  expect(screen.getByRole('checkbox', { name: 'Select Alpine loop for comparison' })).toBeChecked();
+  expect(
+    within(screen.getByRole('list', { name: 'Selected routes' })).getAllByRole('listitem'),
+  ).toHaveLength(2);
 });

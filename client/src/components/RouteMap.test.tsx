@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { Toaster } from './ui/sonner';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MAP_VIEW_KEY, defaultMapView } from '../domain/mapView';
@@ -165,6 +166,7 @@ const mockStorage = () => {
 };
 beforeEach(() => {
   mockStorage();
+  render(<Toaster />);
   vi.stubEnv('VITE_ORS_API_KEY', 'test-only-not-a-real-ors-key');
   vi.stubEnv('VITE_MAP_STYLE', '');
   vi.clearAllMocks();
@@ -253,17 +255,18 @@ it('shows a global loader until the map loads, not just until its style loads', 
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
   expect(container.inert).toBeFalsy();
 });
-it('unblocks the application on errors and never leaves an endless loader', () => {
+it('unblocks the application on errors and never leaves an endless loader', async () => {
   render(<RouteMap {...props} />);
   act(() => mocks.handlers.get('error')?.());
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Dismiss map notice' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Dismiss notification' }));
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
 });
 it('releases the global loader after a map loading timeout', () => {
   vi.useFakeTimers();
   render(<RouteMap {...props} />);
   act(() => vi.advanceTimersByTime(30000));
+  act(() => vi.advanceTimersByTime(1));
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
   expect(
     screen.getByText('The map took too long to load. Check your connection and reload the page.'),
@@ -379,7 +382,7 @@ it('keeps both options distinct when the configured provider is Bright', () => {
   expect(screen.getByRole('radio', { name: 'Light' })).toHaveAttribute('data-state', 'on');
 });
 
-it('shows the Standard selection after an invalid saved provider falls back to OSM', () => {
+it('shows the Standard selection after an invalid saved provider falls back to OSM', async () => {
   vi.stubEnv('VITE_MAP_STYLE', 'invalid-style');
   savePreferences({ style: 'custom' });
   render(<RouteMap {...props} />);
@@ -389,7 +392,7 @@ it('shows the Standard selection after an invalid saved provider falls back to O
   expect(screen.queryByRole('combobox', { name: 'Map style' })).not.toBeInTheDocument();
   expect(screen.getByRole('radio', { name: 'Standard' })).toHaveAttribute('data-state', 'on');
   expect(
-    screen.getByText('The saved map style is unavailable. The standard map is being used.'),
+    await screen.findByText('The saved map style is unavailable. The standard map is being used.'),
   ).toBeInTheDocument();
 });
 
@@ -405,15 +408,15 @@ it('uses the configured MapLibre style and source attribution without Mapbox cre
   expect(mocks.control).toHaveBeenCalledWith(expect.anything(), 'bottom-right');
 });
 
-it('shows persistent configuration UI for an unsupported map style', () => {
+it('shows persistent configuration UI for an unsupported map style', async () => {
   vi.stubEnv('VITE_MAP_STYLE', 'mapbox://styles/mapbox/outdoors-v12');
   render(<RouteMap {...props} />);
   expect(mocks.options).not.toHaveBeenCalled();
-  expect(screen.getByRole('status')).toHaveTextContent('VITE_MAP_STYLE');
-  expect(screen.getByRole('status')).toHaveTextContent('Offline basemaps are not supported');
+  expect(await screen.findByRole('alert')).toHaveTextContent('VITE_MAP_STYLE');
+  expect(screen.getByRole('alert')).toHaveTextContent('Offline basemaps are not supported');
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Use my location' })).toBeDisabled();
-  expect(screen.queryByRole('button', { name: 'Dismiss map notice' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Dismiss notification' })).not.toBeInTheDocument();
 });
 
 it.each(['', 'test-only-not-a-real-ors-key'])(
@@ -699,18 +702,18 @@ it('switches map controls and existing warnings without recreating or refitting 
   expect(screen.getByRole('button', { name: 'Моё местоположение' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Показать весь маршрут' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Приблизить' })).toHaveAttribute('title', 'Приблизить');
-  expect(screen.getByRole('status')).toHaveTextContent('Часть карты не загрузилась');
+  expect(await screen.findByText(/Часть карты не загрузилась/)).toBeInTheDocument();
   expect(mocks.options).toHaveBeenCalledTimes(1);
   expect(mocks.remove).not.toHaveBeenCalled();
   expect(mocks.fit).toHaveBeenCalledTimes(fitCalls);
 });
-it('keeps working and shows a nonfatal notice when local storage is blocked', () => {
+it('keeps working and shows a nonfatal notice when local storage is blocked', async () => {
   vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
     throw new DOMException('Blocked');
   });
   render(<RouteMap {...props} />);
   act(() => mocks.handlers.get('moveend')!());
-  expect(screen.getByRole('status')).toHaveTextContent('The map view could not be saved');
+  expect(await screen.findByRole('alert')).toHaveTextContent('The map view could not be saved');
 });
 
 it('updates route colors without touching the vector basemap or recreating or refitting the map', () => {
@@ -836,30 +839,30 @@ it('initializes saved symbolic style and camera before constructing the map', ()
   );
   expect(localStorage.getItem(PREFERENCES_KEY)).not.toContain('https://');
 });
-it('falls back once for an unavailable saved style, warns and retains manual retry', () => {
+it('falls back once for an unavailable saved style, warns and retains manual retry', async () => {
   savePreferences({ style: 'bright' });
   render(<RouteMap {...props} />);
   act(() => mocks.handlers.get('error')?.());
   expect(mocks.setStyle).toHaveBeenCalledTimes(1);
   expect(mocks.setStyle).toHaveBeenLastCalledWith('/osm-standard.json');
-  expect(screen.getByRole('status')).toHaveTextContent(
+  expect(await screen.findByRole('alert')).toHaveTextContent(
     'The saved map style is unavailable. The standard map is being used.',
   );
   act(() => mocks.handlers.get('style.load')?.());
-  expect(screen.getByRole('status')).toBeInTheDocument();
+  expect(screen.getByRole('alert')).toBeInTheDocument();
   act(() => mocks.handlers.get('error')?.());
   expect(mocks.setStyle).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole('button', { name: 'Retry map' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Retry map' }));
   expect(mocks.setStyle).toHaveBeenCalledTimes(2);
 });
-it('uses standard with a warning when the saved custom style is no longer configured', () => {
+it('uses standard with a warning when the saved custom style is no longer configured', async () => {
   savePreferences({ style: 'custom' });
   render(<RouteMap {...props} />);
   expect(mocks.options).toHaveBeenCalledWith(
     expect.objectContaining({ style: '/osm-standard.json' }),
   );
   expect(
-    screen.getByText('The saved map style is unavailable. The standard map is being used.'),
+    await screen.findByText('The saved map style is unavailable. The standard map is being used.'),
   ).toBeInTheDocument();
 });
 it('resets the current camera and style without mutating route geometry', () => {
@@ -980,13 +983,13 @@ it('preserves the configured style during unrelated planner/theme changes', () =
   expect(screen.getByRole('radio', { name: 'Standard' })).toHaveAttribute('data-state', 'on');
   expect(mocks.options).toHaveBeenCalledWith(expect.objectContaining({ style: '/custom-style.json' }));
 });
-it('allows explicit retry after map construction fails without reviving an endless loader', () => {
+it('allows explicit retry after map construction fails without reviving an endless loader', async () => {
   mocks.options.mockImplementationOnce(() => {
     throw new Error('WebGL unavailable');
   });
   render(<RouteMap {...props} />);
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Retry map' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Retry map' }));
   expect(mocks.options).toHaveBeenCalledTimes(2);
   act(() => mocks.handlers.get('load')?.());
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
@@ -1156,6 +1159,47 @@ it('renders isolated direct, inactive alternative and elevation geometry without
   expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-opacity', 1);
   expect(mocks.fly).not.toHaveBeenCalled();
   expect(mocks.fit).not.toHaveBeenCalled();
+});
+
+it('preserves comparison colors and disconnected segments across style changes', () => {
+  const layers = [
+    { segments: annotationSegments, color: '#2563eb' },
+    { segments: [[[10, 0], [10.02, 0]], [[12, 0], [12.01, 0]]] as [number, number][][], color: '#c2410c', dashed: true },
+  ];
+  const options = { ...props, editable: false, segments: layers.flatMap((layer) => layer.segments), comparisonLayers: layers, comparisonMode: true, fitToken: 1 };
+  const { rerender } = render(<RouteMap {...options} />);
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: 'Map style' })).not.toBeInTheDocument();
+  act(() => mocks.handlers.get('load')?.());
+  const expected = {
+    type: 'FeatureCollection',
+    features: layers.flatMap((layer) => layer.segments.map((coordinates) => ({
+      type: 'Feature', properties: { color: layer.color, direct: layer.dashed ?? false },
+      geometry: { type: 'LineString', coordinates },
+    }))),
+  };
+  expect(mocks.extraData.get('route-comparison')).toHaveBeenLastCalledWith(expected);
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-opacity', 0);
+  expect(mocks.paint).toHaveBeenCalledWith('route-directions', 'text-opacity', 0);
+  expect(mocks.fit).toHaveBeenCalledTimes(1);
+  act(() => mocks.handlers.get('style.load')?.());
+  expect(mocks.extraData.get('route-comparison')).toHaveBeenLastCalledWith(expected);
+  rerender(<RouteMap {...options} comparisonLayers={[]} />);
+  expect(mocks.extraData.get('route-comparison')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  expect(props.onAdd).not.toHaveBeenCalled();
+});
+
+it('highlights climbs without moving the map and clears stale highlights', () => {
+  const options = { ...props, segments: annotationSegments, highlightSegments: annotationSegments };
+  const { rerender } = render(<RouteMap {...options} />);
+  act(() => mocks.handlers.get('load')?.());
+  expect(mocks.extraData.get('route-highlight')).toHaveBeenLastCalledWith(expect.objectContaining({ features: [expect.objectContaining({ geometry: { type: 'LineString', coordinates: annotationSegments[0] } })] }));
+  act(() => mocks.handlers.get('style.load')?.());
+  expect(mocks.extraData.get('route-highlight')).toHaveBeenLastCalledWith(expect.objectContaining({ features: [expect.anything()] }));
+  rerender(<RouteMap {...options} routeStale />);
+  expect(mocks.extraData.get('route-highlight')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  expect(mocks.fit).not.toHaveBeenCalled();
+  expect(mocks.fly).not.toHaveBeenCalled();
 });
 
 it('installs a metric scale and updates the north indicator on rotation', () => {

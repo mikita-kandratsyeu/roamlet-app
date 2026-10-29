@@ -9,6 +9,7 @@ import { isRouteResultCurrent } from './editorRouting';
 import { validateRoute } from './routeValidation';
 import { calculateStats } from './stats';
 import { isFitness, isSurface, type Fitness, type Surface } from './time';
+import { validDepartureLocal, validPauseMinutes } from './schedule';
 
 export interface EditorSnapshot {
   identity: { id: string; createdAt: string };
@@ -27,6 +28,7 @@ export interface EditorSnapshot {
   description: string;
   speeds: Record<Activity, number>;
   stopsMinutes: number;
+  departureLocal?: string;
   fitness: Fitness;
   surface: Surface;
 }
@@ -75,6 +77,7 @@ export function validateSnapshot(value: unknown): asserts value is EditorSnapsho
     ![s.speeds.cycling, s.speeds.hiking].every((n) => Number.isFinite(n) && n > 0) ||
     !Number.isFinite(s.stopsMinutes) ||
     s.stopsMinutes < 0 ||
+    (s.departureLocal !== undefined && !validDepartureLocal(s.departureLocal)) ||
     (s.fitness !== undefined && !isFitness(s.fitness)) ||
     (s.surface !== undefined && !isSurface(s.surface)) ||
     (s.routingOptions !== undefined && !validRoutingOptions(s.routingOptions)) ||
@@ -99,13 +102,37 @@ export function validateSnapshot(value: unknown): asserts value is EditorSnapsho
       !p.id.trim() ||
       ids.has(p.id) ||
       typeof p.name !== 'string' ||
-      !validLegMode(p.legMode)
+      !validLegMode(p.legMode) ||
+      (p.pauseMinutes !== undefined && !validPauseMinutes(p.pauseMinutes))
     )
       throw new Error('Invalid draft points.');
     ids.add(p.id);
     calculateStats([[p.coordinate]], s.activity);
   }
   if (s.result !== null) validateRoute(s.result);
+}
+
+/** Overlay timing at save/export/render time, never mutate or invalidate retained geometry.
+ * Router responses may contain old (or no) pause metadata; the editor is authoritative by ID.
+ */
+export function withEditorSchedule(
+  route: PlannedRoute,
+  snapshot: Pick<EditorSnapshot, 'departureLocal' | 'waypoints'>,
+): PlannedRoute {
+  const points = new Map(snapshot.waypoints.map((point) => [point.id, point]));
+  const { departureLocal: _departure, ...rest } = route;
+  void _departure;
+  return {
+    ...rest,
+    ...(snapshot.departureLocal === undefined ? {} : { departureLocal: snapshot.departureLocal }),
+    waypoints: route.waypoints.map((point) => {
+      const edited = points.get(point.id);
+      if (!edited) return point;
+      const { pauseMinutes: _pause, ...rest } = point;
+      void _pause;
+      return { ...rest, ...(edited.pauseMinutes === undefined ? {} : { pauseMinutes: edited.pauseMinutes }) };
+    }),
+  };
 }
 
 export function migrateSnapshot(value: unknown): EditorSnapshot {

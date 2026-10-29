@@ -1,19 +1,74 @@
 import { useMemo, useReducer, useRef } from 'react';
 import type { SetStateAction } from 'react';
-import { initialEditor, migrateSnapshot, type EditorSnapshot } from '../domain/editorSnapshot';
+import { initialEditor, migrateSnapshot, withEditorSchedule, type EditorSnapshot } from '../domain/editorSnapshot';
 import { normalizeRoutingOptions } from '../domain/routingOptions';
+import { validDepartureLocal, validPauseMinutes } from '../domain/schedule';
+import type { Waypoint } from '../domain/types';
 
 export interface EditorHistory {
   present: EditorSnapshot;
   past: EditorSnapshot[];
   future: EditorSnapshot[];
+  pastTiming?: boolean[];
+  futureTiming?: boolean[];
+}
+function timingFlags(entries: EditorSnapshot[], flags?: boolean[]): boolean[] {
+  return flags ?? entries.map(() => false);
+}
+function restoreTiming(present: EditorSnapshot, target: EditorSnapshot): EditorSnapshot {
+  const points = new Map(target.waypoints.map((point) => [point.id, point]));
+  const resultPoints = new Map(target.result?.waypoints.map((point) => [point.id, point]));
+  const resultChanged = present.result?.waypoints.some((point) =>
+    resultPoints.has(point.id) && resultPoints.get(point.id)!.pauseMinutes !== point.pauseMinutes);
+  const result = resultChanged && present.result
+    ? withEditorSchedule(present.result, {
+      departureLocal: present.result.departureLocal, waypoints: target.result?.waypoints ?? [],
+    }) : present.result;
+  return { ...present, result, departureLocal: target.departureLocal,
+    waypoints: present.waypoints.map((point) => {
+      const saved = points.get(point.id);
+      if (!saved || saved.pauseMinutes === point.pauseMinutes) return point;
+      const { pauseMinutes: _pause, ...rest } = point;
+      void _pause;
+      return { ...rest, ...(saved.pauseMinutes === undefined ? {} : { pauseMinutes: saved.pauseMinutes }) };
+    }),
+  };
 }
 type Action =
   | { type: 'patch'; key: keyof EditorSnapshot; value: unknown }
+  | { type: 'departure'; value: string | undefined }
+  | { type: 'pause'; id: string; value: number | undefined }
   | { type: 'checkpoint' }
   | { type: 'undo' | 'redo' }
   | { type: 'reset'; snapshot: EditorSnapshot };
 export function editorReducer(state: EditorHistory, action: Action): EditorHistory {
+  if (action.type === 'departure' || action.type === 'pause') {
+    let present: EditorSnapshot;
+    if (action.type === 'departure') {
+      if (action.value !== undefined && !validDepartureLocal(action.value))
+        throw new Error('Invalid local departure.');
+      if (state.present.departureLocal === action.value) return state;
+      present = { ...state.present, departureLocal: action.value };
+    } else {
+      if (action.value !== undefined && !validPauseMinutes(action.value))
+        throw new Error('Invalid waypoint pause.');
+      const editorPoint = state.present.waypoints.find((point) => point.id === action.id);
+      const point = editorPoint ?? state.present.result?.waypoints.find((point) => point.id === action.id);
+      if (!point || point.pauseMinutes === action.value) return state;
+      const update = (point: Waypoint) => {
+        if (point.id !== action.id) return point;
+        const { pauseMinutes: _pause, ...rest } = point;
+        void _pause;
+        return { ...rest, ...(action.value === undefined ? {} : { pauseMinutes: action.value }) };
+      };
+      present = editorPoint
+        ? { ...state.present, waypoints: state.present.waypoints.map(update) }
+        : { ...state.present, result: { ...state.present.result!,
+          waypoints: state.present.result!.waypoints.map(update) } };
+    }
+    return { present, past: [...state.past, structuredClone(state.present)].slice(-50), future: [],
+      pastTiming: [...timingFlags(state.past, state.pastTiming), true].slice(-50), futureTiming: [] };
+  }
   if (action.type === 'patch') {
     const previous = state.present[action.key];
     const value = typeof action.value === 'function' ? action.value(previous) : action.value;
@@ -24,20 +79,30 @@ export function editorReducer(state: EditorHistory, action: Action): EditorHisto
       ...state,
       past: [...state.past, structuredClone(state.present)].slice(-50),
       future: [],
+      pastTiming: [...timingFlags(state.past, state.pastTiming), false].slice(-50),
+      futureTiming: [],
     };
   if (action.type === 'reset')
     return { present: structuredClone(migrateSnapshot(action.snapshot)), past: [], future: [] };
   if (action.type === 'undo' && state.past.length)
     return {
-      present: state.past.at(-1)!,
+      present: state.pastTiming?.at(-1)
+        ? restoreTiming(state.present, state.past.at(-1)!) : state.past.at(-1)!,
       past: state.past.slice(0, -1),
       future: [structuredClone(state.present), ...state.future].slice(0, 50),
+      pastTiming: timingFlags(state.past, state.pastTiming).slice(0, -1),
+      futureTiming: [state.pastTiming?.at(-1) ?? false,
+        ...timingFlags(state.future, state.futureTiming)].slice(0, 50),
     };
   if (action.type === 'redo' && state.future.length)
     return {
-      present: state.future[0],
+      present: state.futureTiming?.[0]
+        ? restoreTiming(state.present, state.future[0]) : state.future[0],
       past: [...state.past, structuredClone(state.present)].slice(-50),
       future: state.future.slice(1),
+      pastTiming: [...timingFlags(state.past, state.pastTiming),
+        state.futureTiming?.[0] ?? false].slice(-50),
+      futureTiming: timingFlags(state.future, state.futureTiming).slice(1),
     };
   return state;
 }
@@ -47,6 +112,20 @@ export function useRouteEditor(initial: EditorSnapshot = initialEditor()) {
   const routingOptions = useMemo(
     () => normalizeRoutingOptions(history.present.routingOptions),
     [history.present.routingOptions],
+  );
+  // usePointRouting depends on waypoint identity as well as its geometry key. Supply this
+  // snapshot to routing so a pause edit cannot abort/restart an in-flight calculation.
+  const routingWaypointsKey = JSON.stringify(history.present.waypoints.map((point) => {
+    const { pauseMinutes: _pause, ...rest } = point;
+    void _pause;
+    return rest;
+  }));
+  const routingWaypoints = useMemo<Waypoint[]>(
+    () => JSON.parse(routingWaypointsKey) as Waypoint[], [routingWaypointsKey],
+  );
+  const routingSnapshot = useMemo(
+    () => ({ ...history.present, waypoints: routingWaypoints }),
+    [history.present, routingWaypoints],
   );
   const setters = useMemo(() => {
     function setter<K extends keyof EditorSnapshot>(key: K) {
@@ -66,6 +145,8 @@ export function useRouteEditor(initial: EditorSnapshot = initialEditor()) {
       setDescription: setter('description'),
       setSpeeds: setter('speeds'),
       setStopsMinutes: setter('stopsMinutes'),
+      setDepartureLocal: (value: string | undefined) => dispatch({ type: 'departure', value }),
+      setWaypointPause: (id: string, value: number | undefined) => dispatch({ type: 'pause', id, value }),
       setFitness: setter('fitness'),
       setSurface: setter('surface'),
       setSavedRouteId: setter('savedRouteId'),
@@ -78,16 +159,21 @@ export function useRouteEditor(initial: EditorSnapshot = initialEditor()) {
     routingOptions,
     routeStale: history.present.routeStale ?? false,
     snapshot: history.present,
+    scheduleWaypoints: history.present.result && history.present.planningMode === 'loop'
+      ? withEditorSchedule(history.present.result, history.present).waypoints : history.present.waypoints,
+    routingSnapshot,
     routingAllowed,
     canUndo: history.past.length > 0,
     canRedo: history.future.length > 0,
+    undoChangesGeometry: history.pastTiming?.at(-1) !== true,
+    redoChangesGeometry: history.futureTiming?.[0] !== true,
     checkpoint: () => dispatch({ type: 'checkpoint' }),
     undo: () => {
-      routingAllowed.current = false;
+      if (history.pastTiming?.at(-1) !== true) routingAllowed.current = false;
       dispatch({ type: 'undo' });
     },
     redo: () => {
-      routingAllowed.current = false;
+      if (history.futureTiming?.[0] !== true) routingAllowed.current = false;
       dispatch({ type: 'redo' });
     },
     reset: (snapshot: EditorSnapshot) => {

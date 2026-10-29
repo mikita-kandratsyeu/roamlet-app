@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, cleanup, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { HeaderMenu } from './HeaderMenu';
+import { Toaster } from './ui/sonner';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider, THEME_STORAGE_KEY } from '../theme';
 import { useRef, useState } from 'react';
@@ -8,6 +9,7 @@ import { Dialog } from './Dialog';
 import { savePreferences, loadPreferences, PREFERENCES_KEY } from '../domain/preferences';
 
 beforeEach(() => {
+  render(<Toaster />);
   const values = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => values.get(key) ?? null,

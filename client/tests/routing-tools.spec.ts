@@ -44,7 +44,7 @@ test.beforeEach(async ({ page }) => {
     return route.fulfill({ json: fixture });
   });
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Приблизить', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Моё местоположение', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
 
@@ -177,14 +177,14 @@ test('routing errors keep text, recovery actions and dismissal separate', async 
     route.fulfill({ status: 429, json: { error: { message: 'quota' } } }),
   );
   await addPoint(page, '52.02, 30.02');
-  const notice = page.locator('.planner-notice.error');
+  const notice = page.locator('[data-sonner-toast][data-type="error"]');
   await expect(notice).toBeVisible();
-  const description = (await notice.locator('.planner-notice-description').boundingBox())!;
-  const heading = (await notice.locator('.planner-notice-heading').boundingBox())!;
+  const description = (await notice.locator('.notification-message').boundingBox())!;
+  const heading = (await notice.locator('[data-title]').boundingBox())!;
   expect(description.width).toBeGreaterThan(200);
   expect(description.y).toBeGreaterThanOrEqual(heading.y + heading.height);
   const card = (await notice.boundingBox())!;
-  const buttons = notice.locator('.planner-notice-actions button');
+  const buttons = notice.locator('.notification-actions button');
   await expect(buttons).toHaveCount(3);
   const bounds = await buttons.evaluateAll((elements) =>
     elements.map((element) => {

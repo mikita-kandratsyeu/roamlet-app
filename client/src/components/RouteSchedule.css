@@ -1,0 +1,28 @@
+.route-schedule {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.route-schedule-departure,
+.route-schedule-pause { display: grid; gap: 6px; min-width: 0; }
+.route-schedule input { min-width: 0; max-width: 100%; }
+.route-schedule [role="alert"] { color: var(--destructive); font-size: var(--font-size-helper, 12px); }
+.route-schedule-notice { margin: 0; font-size: var(--font-size-label, 13px); color: var(--muted-foreground); }
+.route-schedule-list { display: grid; gap: 12px; padding: 0; margin: 0; list-style: none; }
+.route-schedule-list > li { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+.route-schedule-list h4 { margin: 0; font-size: var(--font-size-label, 13px); overflow-wrap: anywhere; }
+.route-schedule-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.route-schedule-times dt { color: var(--muted-foreground); font-size: var(--font-size-label, 13px); }
+.route-schedule-times dd { margin: 4px 0 0; font-size: var(--font-size-control, 14px); font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.route-schedule-day { display: block; color: var(--muted-foreground); font-size: var(--font-size-helper, 12px); font-weight: 400; }
+.route-schedule-pause { max-width: 160px; }
+.route-schedule-finish { margin: 0; font-size: var(--font-size-label, 13px); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.route-schedule-explanation { border-top: 1px solid var(--border); padding-top: 8px; }
+.route-schedule-explanation > summary { font-size: var(--font-size-label, 13px); font-weight: 500; color: var(--muted-foreground); }
+.route-schedule-explanation-body { display: grid; gap: 8px; padding-top: 8px; }
+.route-schedule-explanation-body p { margin: 0; }
+@media (max-width: 380px) {
+  .route-schedule-times { grid-template-columns: minmax(0, 1fr); }
+}

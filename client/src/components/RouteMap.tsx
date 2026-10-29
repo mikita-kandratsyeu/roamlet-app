@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import { waypointKind } from './waypointStyle';
 import { useTheme } from '../theme';
-import { Alert, AlertDescription } from './ui/alert';
+import { Notification } from './Notification';
 import { MapLoader } from './MapLoader';
 import i18n, { formatNumber, translateMessage } from '../i18n';
 
@@ -53,10 +53,11 @@ const mapMotionDuration = () =>
 
 function mapFitPadding(container: HTMLElement | null) {
   const region = container?.parentElement;
+  const screen = container?.closest('.editor-screen');
   return mapPadding({
     viewport: container?.getBoundingClientRect(),
-    planner: document.getElementById('route-planner')?.getBoundingClientRect(),
-    elevation: document.getElementById('map-elevation-root')?.getBoundingClientRect(),
+    planner: screen?.querySelector('#route-planner')?.getBoundingClientRect(),
+    elevation: screen?.querySelector('#map-elevation-root')?.getBoundingClientRect(),
     stylePicker: region?.querySelector<HTMLElement>('.map-style-picker')?.getBoundingClientRect(),
     controls: region?.querySelector<HTMLElement>('.map-extra-controls')?.getBoundingClientRect(),
     compactPlanner: window.innerWidth <= 1024,
@@ -92,6 +93,9 @@ interface Props {
   alternativeSegments?: Coordinate[][][];
   selectedAlternativeIndex?: number;
   elevationCoordinate?: Coordinate | null;
+  highlightSegments?: Coordinate[][];
+  comparisonLayers?: { segments: Coordinate[][]; color: string; dashed?: boolean }[];
+  comparisonMode?: boolean;
   routeStale?: boolean;
 }
 export function RouteMap(props: Props) {
@@ -320,6 +324,7 @@ export function RouteMap(props: Props) {
     let moved = false;
     let storageWarningShown = false;
     const persistView = () => {
+      if (latest.current.comparisonMode) return;
       const center = instance.getCenter().wrap();
       const camera = {
         center: [center.lng, center.lat] as [number, number],
@@ -364,6 +369,7 @@ export function RouteMap(props: Props) {
       }
       const camera = JSON.stringify(preferences.camera);
       if (
+        !latest.current.comparisonMode &&
         (!detail || detail.reset || detail.patch?.camera !== undefined) &&
         camera !== lastCamera.current
       ) {
@@ -438,8 +444,42 @@ export function RouteMap(props: Props) {
         'route-annotations',
         'route-insertion',
         'route-elevation',
+        'route-highlight',
+        'route-comparison',
       ]) {
         if (!instance.getSource(id)) instance.addSource(id, { type: 'geojson', data: empty });
+      }
+      if (!instance.getLayer?.('route-comparison-line')) {
+        instance.addLayer({
+          id: 'route-comparison-casing',
+          type: 'line',
+          source: 'route-comparison',
+          paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.85 },
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+        });
+        instance.addLayer({
+          id: 'route-comparison-line',
+          type: 'line',
+          source: 'route-comparison',
+          filter: ['!=', ['get', 'direct'], true],
+          paint: { 'line-color': ['get', 'color'], 'line-width': 4 },
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+        });
+        instance.addLayer({
+          id: 'route-comparison-direct-line',
+          type: 'line',
+          source: 'route-comparison',
+          filter: ['==', ['get', 'direct'], true],
+          paint: { 'line-color': ['get', 'color'], 'line-width': 4, 'line-dasharray': [2, 2] },
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+        });
+        instance.addLayer({
+          id: 'route-highlight-line',
+          type: 'line',
+          source: 'route-highlight',
+          paint: { 'line-color': '#ab43c0', 'line-width': 8, 'line-opacity': 0.85 },
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+        });
       }
       if (!instance.getLayer?.('route-alternatives-line')) {
         instance.addLayer(
@@ -655,7 +695,18 @@ export function RouteMap(props: Props) {
     update('route-annotations', routeAnnotations(props.segments, zoom));
     update('route-insertion', pointFeature(insertionPreview));
     update('route-elevation', pointFeature(props.elevationCoordinate));
-    const opacity = props.routeStale ? 0.4 : 1;
+    update('route-highlight', lineFeatures(props.routeStale ? [] : (props.highlightSegments ?? [])));
+    update('route-comparison', {
+      type: 'FeatureCollection',
+      features: (props.comparisonLayers ?? []).flatMap(({ segments, color, dashed }) =>
+        segments.filter((segment) => segment.length >= 2).map((coordinates) => ({
+          type: 'Feature' as const,
+          properties: { color, direct: dashed ?? false },
+          geometry: { type: 'LineString' as const, coordinates },
+        })),
+      ),
+    });
+    const opacity = props.comparisonMode ? 0 : props.routeStale ? 0.4 : 1;
     instance.setPaintProperty('route-line', 'line-opacity', opacity);
     instance.setPaintProperty('route-casing', 'line-opacity', opacity * 0.95);
     instance.setPaintProperty('route-direct-line', 'line-opacity', opacity);
@@ -668,6 +719,9 @@ export function RouteMap(props: Props) {
     props.alternativeSegments,
     props.selectedAlternativeIndex,
     props.elevationCoordinate,
+    props.highlightSegments,
+    props.comparisonLayers,
+    props.comparisonMode,
     props.routeStale,
     props.segments,
     zoom,
@@ -1037,29 +1091,16 @@ export function RouteMap(props: Props) {
         </span>
       )}
       {(mapError || preferenceWarning) && (
-        <Alert className="map-warning map-notice" role="status">
-          <div className="map-notice-heading">
-            <MapIcon size={18} aria-hidden="true" />
-            <strong>{t(mapError ? 'Map error' : 'Notification')}</strong>
-            {!configurationError && (
-              <Button
-                variant="ghost"
-                className="map-notice-dismiss"
-                onClick={() => {
-                  setMapError('');
-                  setPreferenceWarning('');
-                }}
-                aria-label={t('Dismiss map notice')}
-              >
-                <X size={16} aria-hidden="true" />
-              </Button>
-            )}
-          </div>
-          <AlertDescription className="map-notice-description">
-            {translateMessage(mapError || preferenceWarning)}
-          </AlertDescription>
-          {mapError && !configurationError && (
-            <div className="map-notice-actions">
+        <Notification
+          title={t(mapError ? 'Map error' : 'Notification')}
+          message={translateMessage(mapError || preferenceWarning)}
+          variant={mapError ? 'error' : 'warning'}
+          dismissible={!configurationError}
+          onDismiss={() => {
+            setMapError('');
+            setPreferenceWarning('');
+          }}
+          actions={mapError && !configurationError && (
             <Button
               variant="outline"
               onClick={() => {
@@ -1074,12 +1115,16 @@ export function RouteMap(props: Props) {
             >
               {t('Retry map')}
             </Button>
-            </div>
           )}
-        </Alert>
+        />
       )}
-      {loading && !mapError && <MapLoader />}
-      <ToggleGroup
+      {loading && !mapError && (props.comparisonMode ? (
+        <div className="comparison-map-loading" role="status">
+          <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />
+          <span>{t('Loading your map…')}</span>
+        </div>
+      ) : <MapLoader />)}
+      {!props.comparisonMode && <ToggleGroup
         type="single"
         className="map-style-picker map-top-label"
         aria-label={t('Map style')}
@@ -1098,7 +1143,7 @@ export function RouteMap(props: Props) {
             <item.icon size={20} aria-hidden="true" />
           </ToggleGroupItem>
         ))}
-      </ToggleGroup>
+      </ToggleGroup>}
 
       <div className="map-extra-controls" role="group" aria-label={t('Map controls')}>
         {!compactControls && navigationControls}

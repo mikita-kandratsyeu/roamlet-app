@@ -1,6 +1,7 @@
 import type { PlannedRoute } from './types';
 import { validRoutingOptions } from './routingOptions';
 import { validLegMode } from './waypointLegs';
+import { validDepartureLocal, validPauseMinutes } from './schedule';
 
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -50,6 +51,7 @@ export function validateRoute(value: unknown): asserts value is PlannedRoute {
     !Array.isArray(value.waypoints) ||
     !validTimestamp(value.createdAt) ||
     !validTimestamp(value.updatedAt) ||
+    (value.departureLocal !== undefined && !validDepartureLocal(value.departureLocal)) ||
     (value.routingOptions !== undefined && !validRoutingOptions(value.routingOptions)) ||
     (value.routingInputKey !== undefined && !text(value.routingInputKey)) ||
     (value.elevationSource !== undefined && value.elevationSource !== 'openrouteservice') ||
@@ -73,7 +75,8 @@ export function validateRoute(value: unknown): asserts value is PlannedRoute {
       ids.has(waypoint.id) ||
       !text(waypoint.name) ||
       !coordinate(waypoint.coordinate) ||
-      !validLegMode(waypoint.legMode)
+      !validLegMode(waypoint.legMode) ||
+      (waypoint.pauseMinutes !== undefined && !validPauseMinutes(waypoint.pauseMinutes))
     )
       throw new Error('Invalid route waypoint.');
     ids.add(waypoint.id);

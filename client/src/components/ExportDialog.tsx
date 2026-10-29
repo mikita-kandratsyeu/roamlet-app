@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, ExternalLink } from 'lucide-react';
 import { Dialog } from './Dialog';
+import { Notification } from './Notification';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -98,9 +99,12 @@ export function ExportDialog({
           </p>
         </div>
         {error && (
-          <p role="alert" className="error-inline">
-            {translateMessage(error)}
-          </p>
+          <Notification
+            title={t('Notification')}
+            variant="error"
+            message={translateMessage(error)}
+            onDismiss={() => setError(null)}
+          />
         )}
         <Button type="submit" className="primary export-download" disabled={!filename.trim()}>
           <Download size={17} aria-hidden="true" />

@@ -30,6 +30,9 @@ vi.mock('./components/RouteMap', () => ({
     onReplaceWaypoint,
     routeStale,
     directSegments,
+    comparisonLayers,
+    comparisonMode,
+    highlightSegments,
   }: {
     segments: unknown[];
     manualDrawing?: boolean;
@@ -45,6 +48,9 @@ vi.mock('./components/RouteMap', () => ({
     onReplaceWaypoint?: (id: string) => void;
     routeStale?: boolean;
     directSegments?: unknown[];
+    comparisonLayers?: unknown[];
+    comparisonMode?: boolean;
+    highlightSegments?: unknown[];
   }) => (
     <div
       data-testid="map"
@@ -54,6 +60,9 @@ vi.mock('./components/RouteMap', () => ({
       data-selected={selectedWaypointId ?? ''}
       data-stale={routeStale}
       data-direct={JSON.stringify(directSegments ?? [])}
+      data-comparison={comparisonMode}
+      data-comparison-layers={JSON.stringify(comparisonLayers ?? [])}
+      data-highlight={JSON.stringify(highlightSegments ?? [])}
     >
       Map
       <button aria-pressed={manualDrawing} onClick={onToggleManualDrawing}>
@@ -77,7 +86,7 @@ vi.mock('./components/RouteMap', () => ({
     </div>
   ),
 }));
-const geometry = [
+const geometry: [number, number, number][] = [
   [11.4, 47.26, 600],
   [11.405, 47.265, 630],
   [11.41, 47.27, 615],
@@ -137,6 +146,52 @@ function setOnline(online: boolean) {
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(online);
   act(() => window.dispatchEvent(new Event(online ? 'online' : 'offline')));
 }
+
+describe('route preparation features', () => {
+  it('compares saved routes without losing the current unsaved editor or making routing requests', async () => {
+    const now = new Date().toISOString();
+    await routeDb.routes.bulkAdd(['Lake', 'Forest'].map((name, index) => ({
+      id: `comparison-${index}`, name, description: '', activity: 'hiking' as const,
+      segments: [geometry], waypoints: [], stats: { distance: 1342, duration: 1000 },
+      source: 'gpx' as const, createdAt: now, updatedAt: now,
+    })));
+    render(<App />);
+    await plan();
+    const editorMap = screen.getByTestId('map');
+    const before = editorMap.getAttribute('data-geometry');
+    const requests = provider.calculateRoute.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'My routes' }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Lake for comparison' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Forest for comparison' }));
+    const compare = screen.getByRole('button', { name: 'Compare routes' });
+    compare.focus();
+    fireEvent.click(compare);
+    const dialog = screen.getByRole('dialog', { name: 'Compare saved routes' });
+    expect(within(dialog).getByRole('table', { name: 'Saved route comparison' })).toBeInTheDocument();
+    expect(within(dialog).getByTestId('map')).toHaveAttribute('data-comparison', 'true');
+    expect(editorMap).toHaveAttribute('data-geometry', before!);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close dialog' }));
+    await waitFor(() => expect(compare).toHaveFocus());
+    fireEvent.click(screen.getByRole('button', { name: 'Back to map' }));
+    expect(screen.getByTestId('map')).toBe(editorMap);
+    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
+    expect(provider.calculateRoute).toHaveBeenCalledTimes(requests);
+  });
+
+  it('highlights imported climbs and clears the highlight when opening another route', async () => {
+    render(<App />);
+    const xml = '<gpx version="1.1"><metadata><name>Climb</name></metadata><trk><trkseg><trkpt lat="47.26" lon="11.4"><ele>100</ele></trkpt><trkpt lat="47.27" lon="11.41"><ele>150</ele></trkpt></trkseg></trk></gpx>';
+    const file = Object.assign(new File([xml], 'climb.gpx', { type: 'application/gpx+xml' }), { text: async () => xml });
+    fireEvent.change(screen.getByLabelText('Import GPX file'), { target: { files: [file] } });
+    const climb = await within(await screen.findByRole('region', { name: 'Climb analysis' })).findByRole('button', { name: /Climb 1/ });
+    fireEvent.click(climb);
+    expect(screen.getByTestId('map').getAttribute('data-highlight')).not.toBe('[]');
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'New route' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+    expect(screen.getByTestId('map')).toHaveAttribute('data-highlight', '[]');
+  });
+});
 
 describe('route export', () => {
   it('opens the export dialog before downloading and keeps the original route name', async () => {
@@ -333,7 +388,7 @@ describe('route planner interactions', () => {
     addCoordinate('47.27, 11.41');
     expect(await screen.findByRole('alert')).toHaveTextContent(i18n.t(message));
     selectLanguage('Русский');
-    expect(screen.getByRole('alert')).toHaveTextContent(russian);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(russian));
     await act(async () => {
       await i18n.changeLanguage('en');
     });
@@ -568,12 +623,12 @@ describe('route planner interactions', () => {
     expect(provider.calculateAlternatives).toHaveBeenCalledTimes(1);
   });
 
-  it('supports more than 25 manual points without silently dropping them in automatic mode', () => {
+  it('supports more than 25 manual points without silently dropping them in automatic mode', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
     for (let i = 0; i < 26; i++) addCoordinate(`47.${2600 + i}, 11.4`);
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Automatic routing supports up to 25');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Automatic routing supports up to 25');
     expect(screen.getByRole('button', { name: 'Manual drawing' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -650,7 +705,7 @@ describe('route planner interactions', () => {
     expect(screen.getAllByText('1,3 км').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить в библиотеку' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByRole('status')).toHaveTextContent('Маршрут сохранён');
+    expect(await screen.findByText(/Маршрут сохранён/)).toBeInTheDocument();
     expect(provider.calculateRoute).toHaveBeenCalledTimes(1);
     cleanup();
     render(<App />);
@@ -739,7 +794,8 @@ describe('route planner interactions', () => {
   it('reorders stops by dragging while retaining the keyboard alternative', async () => {
     render(<App />);
     await plan();
-    const items = screen.getAllByRole('listitem');
+    const stops = () => within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem');
+    const items = stops();
     const originalOrder = items.map((item) => item.getAttribute('data-stop-id'));
     fireEvent.dragStart(items[0].querySelector('[draggable]')!, {
       dataTransfer: { setData: vi.fn(), effectAllowed: 'move' },
@@ -750,19 +806,13 @@ describe('route planner interactions', () => {
     expect(screen.getByRole('button', { name: 'Move stop 1 down' })).toBeEnabled();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
-    expect(
-      screen.getAllByRole('listitem').map((item) => item.getAttribute('data-stop-id')),
-    ).toEqual(originalOrder);
+    expect(stops().map((item) => item.getAttribute('data-stop-id'))).toEqual(originalOrder);
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
-    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(stops()).toHaveLength(1);
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
-    expect(
-      screen.getAllByRole('listitem').map((item) => item.getAttribute('data-stop-id')),
-    ).toEqual(originalOrder);
+    expect(stops().map((item) => item.getAttribute('data-stop-id'))).toEqual(originalOrder);
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
-    expect(
-      screen.getAllByRole('listitem').map((item) => item.getAttribute('data-stop-id')),
-    ).toEqual([...originalOrder].reverse());
+    expect(stops().map((item) => item.getAttribute('data-stop-id'))).toEqual([...originalOrder].reverse());
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(provider.calculateRoute).toHaveBeenCalledTimes(2);
   });
@@ -780,11 +830,11 @@ describe('route planner interactions', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Round trip' }));
     expect(screen.getByRole('dialog', { name: 'Switch to a round trip?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem')).toHaveLength(2);
     expect(screen.getByRole('radio', { name: 'Point to point' })).toBeChecked();
     fireEvent.click(screen.getByRole('radio', { name: 'Round trip' }));
     fireEvent.click(screen.getByRole('button', { name: 'Switch to round trip' }));
-    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
   });
   it('plans, saves, opens its library and reopens a persistent route', async () => {

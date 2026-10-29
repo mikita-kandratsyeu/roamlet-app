@@ -94,7 +94,7 @@ it('shows personal movement and total while retaining the original duration esti
   expect(screen.getByText('42 min–1 h 30 min')).toBeInTheDocument();
   expect(screen.getByText('57 min–1 h 45 min')).toBeInTheDocument();
   expect(
-    screen.getByText('Heuristic planning range, not a confidence interval or guarantee.'),
+    screen.getByText('The range is a rough planning estimate, not a statistical confidence interval or a guarantee.'),
   ).toBeInTheDocument();
   expect(
     screen.getByText(
@@ -253,7 +253,7 @@ it('uses the larger provider estimate as an explicit planning reference even for
   expect(screen.getByText('1 h 15 min')).toBeInTheDocument();
   expect(
     screen.getByText(
-      'Planning reference uses the larger of provider and personal moving estimates, plus stops once. Not a guarantee.',
+      'Planning reference takes the longer moving estimate (provider or personal), then adds stops once.',
     ),
   ).toBeInTheDocument();
   expect(snapshot.stats.duration).toBe(3600);

@@ -1,0 +1,51 @@
+.planner-disclosure > summary.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  cursor: pointer;
+  font-size: var(--font-size-control, 14px);
+  font-weight: 550;
+  color: var(--foreground);
+}
+.planner-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.planner-disclosure > summary::after {
+  content: none;
+}
+.planner-disclosure > summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.planner-disclosure .disclosure-toggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  margin-left: auto;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+}
+.planner-disclosure .disclosure-toggle > svg {
+  width: 18px;
+  height: 18px;
+}
+.planner-disclosure[open] > summary .disclosure-toggle > svg {
+  transform: rotate(180deg);
+}
+.planner-disclosure > summary:hover .disclosure-toggle {
+  background: var(--muted);
+  color: var(--foreground);
+}
+@media (max-width: 700px) {
+  .planner-disclosure > summary.section-heading {
+    min-height: 44px;
+  }
+}

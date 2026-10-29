@@ -1,0 +1,73 @@
+.time-explanation {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.time-explanation > summary {
+  cursor: pointer;
+  font-size: var(--font-size-label, 13px);
+  font-weight: 600;
+  color: var(--muted-foreground);
+  min-height: 36px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
+  line-height: 1.5;
+}
+.time-explanation > summary::-webkit-details-marker {
+  display: none;
+}
+.time-explanation-toggle {
+  flex-shrink: 0;
+}
+.time-explanation[open] .time-explanation-toggle {
+  transform: rotate(180deg);
+}
+.time-explanation > summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.time-explanation-body {
+  display: grid;
+  gap: 10px;
+  padding: 8px 0 4px;
+}
+.time-explanation-body h3 {
+  margin: 0;
+  font-size: var(--font-size-label, 13px);
+  font-weight: 600;
+}
+.time-inputs {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--font-size-label, 13px);
+}
+.time-inputs > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.time-inputs dt {
+  color: var(--muted-foreground);
+}
+.time-inputs dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.time-explanation-body .fine-print {
+  margin: 0;
+}
+.time-limitations {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted-foreground);
+  font-size: var(--font-size-supporting, 12px);
+  line-height: 1.55;
+}

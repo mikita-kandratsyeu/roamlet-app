@@ -13,6 +13,8 @@ export interface Waypoint {
   coordinate: Coordinate;
   /** Mode of the outgoing leg; omitted means automatic, the last waypoint is ignored. */
   legMode?: LegMode;
+  /** Pause after arrival, in whole minutes (0–10080); omitted means zero. */
+  pauseMinutes?: number;
 }
 export interface RouteStats {
   distance: number;
@@ -27,6 +29,8 @@ export interface PlannedRoute {
   favorite?: boolean;
   tags?: string[];
   activity: Activity;
+  /** Floating local calendar time YYYY-MM-DDTHH:mm, without timezone/DST conversion. */
+  departureLocal?: string;
   segments: Coordinate[][];
   waypoints: Waypoint[];
   stats: RouteStats;

@@ -1,0 +1,46 @@
+[data-sonner-toaster] {
+  z-index: 100;
+}
+
+[data-sonner-toast].roamlet-toast {
+  font-family: inherit;
+  font-size: var(--font-size-control);
+  padding: 20px;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+[data-sonner-toast].roamlet-toast [data-content] {
+  flex: 1;
+  min-width: 0;
+}
+
+[data-sonner-toast].roamlet-toast .roamlet-toast-description {
+  color: var(--popover-foreground);
+  font-size: inherit;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+[data-sonner-toast].roamlet-toast [data-title] {
+  font-size: inherit;
+}
+
+[data-sonner-toast].roamlet-toast [data-close-button] {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+
+.notification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.notification-actions button {
+  min-height: 44px;
+  white-space: normal;
+  max-width: 100%;
+}

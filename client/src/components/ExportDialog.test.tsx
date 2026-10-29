@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Toaster } from './ui/sonner';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ExportDialog } from './ExportDialog';
@@ -23,6 +24,7 @@ const route: PlannedRoute = {
   source: 'gpx',
 };
 
+beforeEach(() => render(<Toaster />));
 afterEach(() => cleanup());
 
 describe('ExportDialog', () => {
@@ -102,7 +104,7 @@ describe('ExportDialog', () => {
     expect(route.name).toBe('Forest walk');
   });
 
-  it('blocks empty names and displays export errors while keeping the dialog open', () => {
+  it('blocks empty names and displays export errors while keeping the dialog open', async () => {
     const onDownload = vi.fn().mockImplementation(() => {
       throw new Error('Cannot export an empty GPX route.');
     });
@@ -114,7 +116,7 @@ describe('ExportDialog', () => {
     expect(onDownload).not.toHaveBeenCalled();
     fireEvent.change(input, { target: { value: 'route' } });
     fireEvent.click(screen.getByRole('button', { name: 'Download GPX' }));
-    expect(screen.getByRole('alert')).toHaveTextContent(
+    expect(await screen.findByRole('alert')).toHaveTextContent(
       i18n.t('Cannot export an empty GPX route.'),
     );
     expect(screen.getByRole('dialog')).toBeVisible();

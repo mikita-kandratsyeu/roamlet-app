@@ -450,6 +450,9 @@
   min-width: 44px;
   height: 44px;
 }
+.clear-stops-label {
+  display: none;
+}
 .calculate-action {
   margin-top: 10px;
 }
@@ -1120,8 +1123,43 @@
     min-width: 44px;
     height: 44px;
   }
-  .reverse-stops span {
-    display: none;
+  .waypoint-tools {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .waypoint-tools .add-stop {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+  .waypoint-tools :is(.reverse-stops, .clear-stops) {
+    width: 100%;
+    min-height: 44px;
+    height: auto;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    gap: 8px;
+    white-space: normal;
+    font-size: var(--font-size-control);
+  }
+  .waypoint-tools :is(.reverse-stops, .clear-stops) > svg {
+    flex-shrink: 0;
+  }
+  .waypoint-tools:not(:has(.reverse-stops)) .clear-stops {
+    grid-column: 1 / -1;
+  }
+  .waypoint-tools .clear-stops {
+    color: var(--destructive);
+  }
+  .reverse-stops span,
+  .clear-stops-label {
+    display: inline;
   }
   .stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

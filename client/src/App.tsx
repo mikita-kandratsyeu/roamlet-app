@@ -1,4 +1,6 @@
 import { Button } from './components/ui/button';
+import { Toaster } from './components/ui/sonner';
+import { Notification } from './components/Notification';
 import { Input } from './components/ui/input';
 import { Textarea } from './components/ui/textarea';
 import { Label } from './components/ui/label';
@@ -16,10 +18,15 @@ import { PlannerTools } from './components/PlannerTools';
 import { PlannerChoice } from './components/PlannerChoice';
 import { CoordinateInput, type CoordinateInputHandle } from './components/CoordinateInput';
 import { DraftPrompt } from './components/DraftPrompt';
-import { initialEditor, newIdentity } from './domain/editorSnapshot';
+import { initialEditor, newIdentity, withEditorSchedule } from './domain/editorSnapshot';
+import { estimatePersonalTime } from './domain/time';
 import { draftWriter, loadDraft, type DraftRecord } from './domain/drafts';
 import { loadPreferences, savePreferences } from './domain/preferences';
 import { Library } from './components/Library';
+import { RouteComparison, ROUTE_COMPARISON_COLORS } from './components/RouteComparison';
+import { ClimbAnalysis } from './components/ClimbAnalysis';
+import { RouteSchedule } from './components/RouteSchedule';
+import './components/ComparisonMap.css';
 import { Statistics } from './components/Statistics';
 import { formatDistance, formatDuration } from './domain/format';
 import { useAppUpdate } from './hooks/useAppUpdate';
@@ -46,7 +53,6 @@ import {
   Ruler,
   Library as LibraryIcon,
   WifiOff,
-  TriangleAlert,
 } from 'lucide-react';
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
 import { importGpx, exportGpx } from './domain/gpx';
@@ -212,6 +218,21 @@ export default function App() {
       setSelectedWaypointId(null);
   }, [waypoints, selectedWaypointId]);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [comparisonRoutes, setComparisonRoutes] = useState<PlannedRoute[]>([]);
+  const [comparisonError, setComparisonError] = useState('');
+  const [climbSegments, setClimbSegments] = useState<Coordinate[][]>([]);
+  const comparisonLayers = useMemo(
+    () => comparisonRoutes.flatMap((route, index) => {
+      const direct = route.source === 'manual' ? route.segments : (route.directSegments ?? []);
+      const directKeys = new Set(direct.map((segment) => JSON.stringify(segment)));
+      return [
+        { segments: route.segments.filter((segment) => !directKeys.has(JSON.stringify(segment))), color: ROUTE_COMPARISON_COLORS[index] },
+        { segments: direct, color: ROUTE_COMPARISON_COLORS[index], dashed: true },
+      ];
+    }),
+    [comparisonRoutes],
+  );
+  const comparisonSegments = useMemo(() => comparisonRoutes.flatMap((route) => route.segments), [comparisonRoutes]);
   const libraryTrigger = useRef<HTMLButtonElement>(null);
   const libraryReturnFocus = useRef<HTMLElement | null>(null);
   const libraryWasOpen = useRef(false);
@@ -418,6 +439,12 @@ export default function App() {
   ]);
   function travelHistory(direction: 'undo' | 'redo') {
     if (direction === 'undo' ? !editor.canUndo : !editor.canRedo) return;
+    const changesGeometry = direction === 'undo' ? editor.undoChangesGeometry : editor.redoChangesGeometry;
+    if (!changesGeometry) {
+      editor[direction]();
+      setDirty(true);
+      return;
+    }
     request.current?.abort();
     setBusy(false);
     setAlternatives([]);
@@ -452,7 +479,7 @@ export default function App() {
   }, [online]);
 
   usePointRouting({
-    snapshot: editor.snapshot,
+    snapshot: editor.routingSnapshot,
     revision: routeRevision,
     online,
     allowed: editor.routingAllowed,
@@ -639,6 +666,7 @@ export default function App() {
       savedRouteId: route.id,
       routeMetadata: { favorite: route.favorite, tags: route.tags },
       result: route,
+      departureLocal: route.departureLocal,
       routeStale: false,
       routingOptions: route.routingOptions ?? DEFAULT_ROUTING_OPTIONS,
       waypoints: route.waypoints,
@@ -662,7 +690,7 @@ export default function App() {
   function currentRoute(): PlannedRoute | null {
     return result && isRouteResultCurrent(editor.snapshot) && !routeStale && !busy
       ? {
-          ...result,
+          ...withEditorSchedule(result, editor.snapshot),
           ...editor.snapshot.routeMetadata,
           name: name.trim() || i18n.t('Untitled adventure'),
           description: description.trim(),
@@ -929,6 +957,53 @@ export default function App() {
         void handleFile(event.dataTransfer.files[0]);
       }}
     >
+      <Toaster />
+      {notice && (
+        <Notification
+          title={t(notice.kind === 'map' ? 'Map error' : notice.kind === 'routing' ? 'Routing error' : 'Notification')}
+          message={translateMessage(notice.text)}
+          variant={notice.error ? 'error' : 'success'}
+          onDismiss={() => setNotice(null)}
+          actions={notice.kind && (
+            <>
+              {notice.kind === 'routing' && (
+                <Button
+                  variant="outline"
+                  disabled={!online || busy}
+                  onClick={() => {
+                    if (planningMode === 'loop') void generateLoops();
+                    else {
+                      editor.routingAllowed.current = true;
+                      setRouteStale(true);
+                      setRouteRevision((revision) => revision + 1);
+                    }
+                  }}
+                >
+                  {t('Retry routing')}
+                </Button>
+              )}
+              {notice.kind === 'map' && (
+                <Button
+                  variant="outline"
+                  disabled={!online}
+                  onClick={() => {
+                    setMapRetryToken((value) => value + 1);
+                    setNotice(null);
+                  }}
+                >
+                  {t('Retry map')}
+                </Button>
+              )}
+              <Button variant="ghost" onClick={openLibrary}>{t('Open library')}</Button>
+              {notice.kind === 'routing' && (
+                <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
+                  {t('Use manual drawing')}
+                </Button>
+              )}
+            </>
+          )}
+        />
+      )}
       <div
         className="editor-screen"
         aria-hidden={libraryOpen || undefined}
@@ -1006,45 +1081,51 @@ export default function App() {
           </Alert>
         )}
         {update.available && (
-          <Alert className="app-status-banner" role="status">
-            <span>{t('An app update is ready.')}</span>
-            <Button
-              disabled={update.installing}
-              onClick={() =>
-                setConfirmation({
-                  title: 'Update app?',
-                  text: 'Your draft will be saved before reloading.',
-                  label: 'Reload app',
-                  action: () => {
-                    void update.apply();
-                  },
-                })
-              }
-            >
-              {t('Update app')}
-            </Button>
-          </Alert>
+          <Notification
+            title={t('Notification')}
+            message={t('An app update is ready.')}
+            duration={Infinity}
+            actions={
+              <Button
+                disabled={update.installing}
+                onClick={() =>
+                  setConfirmation({
+                    title: 'Update app?',
+                    text: 'Your draft will be saved before reloading.',
+                    label: 'Reload app',
+                    action: () => { void update.apply(); },
+                  })
+                }
+              >
+                {t('Update app')}
+              </Button>
+            }
+          />
         )}
         {update.failed && (
-          <Alert className="app-status-banner" role="alert">
-            {t('The update could not save your draft. Please retry; the app has not reloaded.')}
-          </Alert>
+          <Notification
+            title={t('Notification')}
+            variant="error"
+            message={t('The update could not save your draft. Please retry; the app has not reloaded.')}
+          />
         )}
         {draftError && (
-          <Alert className="app-status-banner" role="alert">
-            <span>
-              {t('The draft could not be loaded or saved. Your routes and settings are unchanged.')}
-            </span>
-            <Button
-              onClick={() => {
-                void writer.clear().then((ok) => {
-                  if (ok) setDraftError(false);
-                });
-              }}
-            >
-              {t('Delete draft')}
-            </Button>
-          </Alert>
+          <Notification
+            title={t('Notification')}
+            variant="error"
+            message={t('The draft could not be loaded or saved. Your routes and settings are unchanged.')}
+            actions={
+              <Button
+                onClick={() => {
+                  void writer.clear().then((ok) => {
+                    if (ok) setDraftError(false);
+                  });
+                }}
+              >
+                {t('Delete draft')}
+              </Button>
+            }
+          />
         )}
         <main
           className={`workspace ${!online ? 'workspace-offline' : ''} ${collapsed ? 'panel-collapsed' : ''} ${panelHidden ? 'desktop-panel-hidden' : ''}`}
@@ -1298,7 +1379,7 @@ export default function App() {
                       </div>
                     </Card>
                   ) : (
-                    <ol className="waypoint-list">
+                    <ol className="waypoint-list" aria-label={t('Route stops')}>
                       {waypoints.map((point, index) => (
                         <li
                           key={point.id}
@@ -1536,7 +1617,8 @@ export default function App() {
                           })
                         }
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={18} aria-hidden="true" />
+                        <span className="clear-stops-label">{t('Clear stops')}</span>
                       </Button>
                     )}
                   </div>
@@ -1723,85 +1805,6 @@ export default function App() {
                   {t('route…')}
                 </p>
               )}
-              {notice && (
-                <Alert
-                  variant={notice.error ? 'destructive' : 'default'}
-                  className={`notice planner-notice ${notice.error ? 'error' : 'success'}`}
-                  role={notice.error ? 'alert' : 'status'}
-                >
-                  <div className="planner-notice-heading">
-                    {notice.error ? (
-                      <TriangleAlert size={18} aria-hidden="true" />
-                    ) : (
-                      <Info size={18} aria-hidden="true" />
-                    )}
-                    <strong>
-                      {t(
-                        notice.kind === 'map'
-                          ? 'Map error'
-                          : notice.kind === 'routing'
-                            ? 'Routing error'
-                            : 'Notification',
-                      )}
-                    </strong>
-                    <Button
-                      variant="ghost"
-                      className="planner-notice-dismiss"
-                      aria-label={t('Dismiss notification')}
-                      onClick={() => setNotice(null)}
-                    >
-                      <X size={16} aria-hidden="true" />
-                    </Button>
-                  </div>
-                  <AlertDescription className="planner-notice-description">
-                    {translateMessage(notice.text)}
-                  </AlertDescription>
-                  {notice.kind && (
-                    <div className="planner-notice-actions">
-                      {notice.kind === 'routing' && (
-                        <Button
-                          variant="outline"
-                          className="planner-notice-retry"
-                          disabled={!online || busy}
-                          onClick={() => {
-                            if (planningMode === 'loop') void generateLoops();
-                            else {
-                              editor.routingAllowed.current = true;
-                              setRouteStale(true);
-                              setRouteRevision((revision) => revision + 1);
-                            }
-                          }}
-                        >
-                          {t('Retry routing')}
-                        </Button>
-                      )}
-                      {notice.kind === 'map' && (
-                        <Button
-                          variant="outline"
-                          className="planner-notice-retry"
-                          disabled={!online}
-                          onClick={() => {
-                            setMapRetryToken((value) => value + 1);
-                            setNotice(null);
-                          }}
-                        >
-                          {t('Retry map')}
-                        </Button>
-                      )}
-                      {notice.kind && (
-                        <Button variant="ghost" onClick={openLibrary}>
-                          {t('Open library')}
-                        </Button>
-                      )}
-                      {notice.kind === 'routing' && (
-                        <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
-                          {t('Use manual drawing')}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </Alert>
-              )}
               {online &&
                 planningMode !== 'manual' &&
                 (routingConfigured === false || configurationUnavailable) &&
@@ -1855,6 +1858,7 @@ export default function App() {
                   {t('Route details will update after a successful calculation.')}
                 </p>
               ) : result ? (
+                <>
                 <Statistics
                   route={result}
                   mapAvailable={online}
@@ -1871,6 +1875,18 @@ export default function App() {
                       : undefined
                   }
                 />
+                <ClimbAnalysis route={result} onHighlight={setClimbSegments} />
+                <RouteSchedule
+                  route={result}
+                  waypoints={editor.scheduleWaypoints}
+                  departureLocal={editor.departureLocal}
+                  movingSeconds={estimatePersonalTime(result, { speedKmh: speeds[activity], stopsMinutes, fitness, surface })?.moving ?? null}
+                  geometryCurrent={canUseRoute}
+                  contextKey={editor.identity.id}
+                  onDepartureLocal={(value) => { editor.setDepartureLocal(value); setDirty(true); }}
+                  onWaypointPause={(id, value) => { editor.setWaypointPause(id, value); setDirty(true); }}
+                />
+                </>
               ) : (
                 <section className="statistics statistics-empty" aria-label={t('Route statistics')}>
                   <Info size={18} aria-hidden="true" />
@@ -1938,6 +1954,7 @@ export default function App() {
                 changeWaypoints(reorderWaypoints(waypoints, waypoints.indexOf(point), 0));
             }}
             elevationCoordinate={elevationCoordinate}
+            highlightSegments={climbSegments}
             routeStale={routeStale}
             directSegments={result?.source === 'manual' ? result.segments : result?.directSegments}
             alternativeSegments={alternatives.map((alternative) => alternative.segments)}
@@ -2014,11 +2031,43 @@ export default function App() {
       {libraryOpen && (
         <Library
           onClose={closeLibrary}
+          onCompare={(routes) => {
+            setComparisonError('');
+            setComparisonRoutes(routes);
+          }}
           onOpen={(route) => {
             setLibraryOpen(false);
             guard(() => openRoute(route));
           }}
         />
+      )}
+      {comparisonRoutes.length >= 2 && (
+        <Dialog title={t('Compare saved routes')} wide onClose={() => setComparisonRoutes([])}>
+          <div className="comparison-map">
+            <RouteMap
+              online={online}
+              segments={comparisonSegments}
+              comparisonLayers={comparisonLayers}
+              comparisonMode
+              waypoints={[]}
+              editable={false}
+              plannerHidden
+              fitToken={1}
+              onAdd={() => {}}
+              onMove={() => {}}
+              onError={setComparisonError}
+            />
+          </div>
+          {comparisonError && (
+            <Notification
+              title={t('Map error')}
+              variant="error"
+              message={translateMessage(comparisonError)}
+              onDismiss={() => setComparisonError('')}
+            />
+          )}
+          <RouteComparison routes={comparisonRoutes} />
+        </Dialog>
       )}
       {draft && !libraryOpen && (
         <DraftPrompt
@@ -2089,11 +2138,6 @@ export default function App() {
                 }}
               />
             </Label>
-            {notice?.error && (
-              <p role="alert" className="error-inline">
-                {translateMessage(notice.text)}
-              </p>
-            )}
             <div className="button-row">
               <Button
                 variant="outline"

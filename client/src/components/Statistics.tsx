@@ -7,6 +7,8 @@ import { ChevronDown, Info } from 'lucide-react';
 import type { Coordinate, PlannedRoute } from '../domain/types';
 import { elevationSamples } from '../domain/stats';
 import { elevationChartSamples } from './elevationChartSamples';
+import './TimeExplanation.css';
+import './disclosures.css';
 import { formatNumber } from '../i18n';
 import { formatDistance, formatDuration } from '../domain/format';
 import {
@@ -135,7 +137,7 @@ export function Statistics({
     onElevationHover?.(active ? (sample?.coordinate ?? null) : null);
   };
   const elevationProfile = showElevation ? (
-    <details className="elevation-box" open={profileOpen}>
+    <details className="elevation-box planner-disclosure" open={profileOpen}>
       <summary
         className="section-heading"
         aria-expanded={profileOpen}
@@ -171,7 +173,7 @@ export function Statistics({
             ))}
           </svg>
         )}
-        <span className="elevation-toggle" aria-hidden="true">
+        <span className="elevation-toggle disclosure-toggle" aria-hidden="true">
           <ChevronDown size={18} />
         </span>
       </summary>
@@ -348,11 +350,13 @@ export function Statistics({
         )}
       </dl>
       <p className="fine-print">
-        {route.source === 'manual'
-          ? t('Moving time estimated at {{speed}} km/h, excluding stops.', {
-              speed: route.activity === 'cycling' ? 18 : 5,
-            })
-          : t('Time is an estimate, excluding stops.')}
+        {personal
+          ? t('Original time excludes stops; personal total includes them.')
+          : route.source === 'manual'
+            ? t('Moving time estimated at {{speed}} km/h, excluding stops.', {
+                speed: route.activity === 'cycling' ? 18 : 5,
+              })
+            : t('Time is an estimate, excluding stops.')}
         <span className="sr-only">
           {route.source === 'gpx'
             ? t('Imported GPX')
@@ -373,51 +377,35 @@ export function Statistics({
         </p>
       )}
       {personal && (
-        <div className="personal-time-assumptions">
-          <p className="fine-print">
-            {t('Heuristic planning range, not a confidence interval or guarantee.')}
-          </p>
-          {provider && (
-            <p className="fine-print">
-              {t(
-                'Planning reference uses the larger of provider and personal moving estimates, plus stops once. Not a guarantee.',
+        <details className="personal-time-assumptions time-explanation planner-disclosure">
+          <summary className="section-heading">
+            <span>{t('How time is estimated')}</span>
+            <span className="disclosure-toggle" aria-hidden="true"><ChevronDown size={18} /></span>
+          </summary>
+          <div className="time-explanation-body">
+            <h3>{t('Calculation inputs')}</h3>
+            <dl className="time-inputs">
+              <div><dt>{t('Flat-ground speed')}</dt><dd>{t('{{speed}} km/h', { speed: formatNumber(speedKmh!, { maximumFractionDigits: 2 }) })}</dd></div>
+              <div><dt>{t('Surface adjustment')}</dt><dd>×{formatNumber(personal.surfaceFactor, { maximumFractionDigits: 2 })}</dd></div>
+              <div><dt>{t('Stops, added once')}</dt><dd>{t('{{minutes}} min', { minutes: formatNumber(stopsMinutes) })}</dd></div>
+              {personal.ascentMetres !== null && (
+                <div><dt>{t('Climbing allowance')}</dt><dd>{t('{{minutes}} min', { minutes: formatNumber(personal.climbSeconds / 60, { maximumFractionDigits: 1 }) })}</dd></div>
               )}
-            </p>
-          )}
-          <p className="fine-print">
-            {t(
-              'Flat-ground speed {{speed}} km/h; surface factor ×{{factor}}; stops {{stops}} min added once.',
-              {
-                speed: formatNumber(speedKmh!, { maximumFractionDigits: 2 }),
-                factor: formatNumber(personal.surfaceFactor, { maximumFractionDigits: 2 }),
-                stops: formatNumber(stopsMinutes),
-              },
+            </dl>
+            {personal.ascentMetres !== null && (
+              <p className="fine-print">{t('Climbing uses {{ascent}} m ascent after 3 m noise filtering. Descents do not reduce time.', { ascent: formatNumber(Math.round(personal.ascentMetres)) })}</p>
             )}
-          </p>
-          {personal.ascentMetres !== null && (
-            <p className="fine-print">
-              {t(
-                route.elevationSource === 'openrouteservice'
-                  ? 'Route ascent {{ascent}} m after 3 m noise filtering; climb allowance {{minutes}} min. No downhill bonus.'
-                  : 'GPX ascent {{ascent}} m after 3 m noise filtering; climb allowance {{minutes}} min. No downhill bonus.',
-                {
-                  ascent: formatNumber(Math.round(personal.ascentMetres)),
-                  minutes: formatNumber(personal.climbSeconds / 60, { maximumFractionDigits: 1 }),
-                },
-              )}
-            </p>
-          )}
-          {personal.warnings.map((warning) => (
-            <p className="fine-print" key={warning}>
-              {t(warningLabels[warning])}
-            </p>
-          ))}
-          <p className="fine-print">
-            {t(
-              'Weather, wind, load and access are not inferred. Original route statistics remain unchanged.',
+            {provider && (
+              <p className="fine-print">{t('Planning reference takes the longer moving estimate (provider or personal), then adds stops once.')}</p>
             )}
-          </p>
-        </div>
+            <h3>{t('Estimate limitations')}</h3>
+            <ul className="time-limitations">
+              <li>{t('The range is a rough planning estimate, not a statistical confidence interval or a guarantee.')}</li>
+              {personal.warnings.map((warning) => <li key={warning}>{t(warningLabels[warning])}</li>)}
+              <li>{t('Weather, wind, load and access are not inferred. Original route statistics remain unchanged.')}</li>
+            </ul>
+          </div>
+        </details>
       )}
       {speedKmh !== undefined && !personal && (
         <p className="fine-print" role="status">

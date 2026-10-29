@@ -1,4 +1,5 @@
 import { Button } from './ui/button';
+import { Notification } from './Notification';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -104,12 +105,33 @@ function LibraryChoice({
 export function Library({
   onClose,
   onOpen,
+  onCompare,
 }: {
   onClose: () => void;
   onOpen: (route: PlannedRoute) => void;
+  onCompare?: (routes: PlannedRoute[]) => void;
 }) {
   const { t } = useTranslation();
   const [routes, setRoutes] = useState<PlannedRoute[]>([]);
+  const [comparisonIds, setComparisonIds] = useState<string[]>([]);
+  const comparisonHelpId = useId();
+  // Resolve from the full library, not filtered cards, so edits and hidden selections stay current.
+  const comparisonRoutes = comparisonIds.flatMap((id) => {
+    const route = routes.find((route) => route.id === id);
+    return route ? [route] : [];
+  });
+  useEffect(() => {
+    setComparisonIds((ids) => ids.filter((id) => routes.some((route) => route.id === id)));
+  }, [routes]);
+  function toggleComparison(id: string) {
+    setComparisonIds((ids) =>
+      ids.includes(id)
+        ? ids.filter((selected) => selected !== id)
+        : ids.length < 3
+          ? [...ids, id]
+          : ids,
+    );
+  }
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -139,7 +161,7 @@ export function Library({
   const [invalidCount, setInvalidCount] = useState(0);
   const [backup, setBackup] = useState<RouteBackup | null>(null);
   const [conflictMode, setConflictMode] = useState<ConflictMode>('copy');
-  const [importResult, setImportResult] = useState('');
+  const [importResult, setImportResult] = useState<{ count: number; skipped: number } | null>(null);
   const [tags, setTags] = useState('');
   const [favorite, setFavorite] = useState(false);
   const hasFilters = !!(
@@ -309,7 +331,8 @@ export function Library({
           !document.querySelector('[role="menu"]')
         ) {
           event.preventDefault();
-          onClose();
+          if (onCompare && comparisonIds.length) setComparisonIds([]);
+          else onClose();
         }
       }}
     >
@@ -433,7 +456,7 @@ export function Library({
                 setBusy(true);
                 setError('');
                 setBackup(null);
-                setImportResult('');
+                setImportResult(null);
                 try {
                   setBackup(await readBackupFile(file));
                   setConflictMode('copy');
@@ -537,11 +560,6 @@ export function Library({
                   className="library-import-preview"
                   aria-label={t('Library import preview')}
                 >
-                  {error && (
-                    <p className="error-inline" role="alert">
-                      {translateMessage(error)}
-                    </p>
-                  )}
                   <p>{t('{{count}} routes to import', { count: backup.routes.length })}</p>
                   <p>
                     {t('{{count}} conflicting routes', {
@@ -576,12 +594,7 @@ export function Library({
                       onClick={() =>
                         void mutate(async () => {
                           const result = await importBackup(backup, conflictMode);
-                          setImportResult(
-                            t('Imported {{count}} routes; skipped {{skipped}}.', {
-                              count: result.imported,
-                              skipped: result.skipped,
-                            }),
-                          );
+                          setImportResult({ count: result.imported, skipped: result.skipped });
                           setBackup(null);
                         }, 'import')
                       }
@@ -594,16 +607,76 @@ export function Library({
             </Dialog>
           )}
           {importResult && (
-            <p className="library-message" role="status">
-              {importResult}
-            </p>
+            <Notification
+              title={t('Notification')}
+              variant="success"
+              message={t('Imported {{count}} routes; skipped {{skipped}}.', importResult)}
+              onDismiss={() => setImportResult(null)}
+            />
           )}
           {invalidCount > 0 && (
-            <p className="library-message library-message-warning" role="alert">
-              {t('{{count}} invalid saved routes were hidden and retained on this device.', {
+            <Notification
+              title={t('Notification')}
+              variant="warning"
+              message={t('{{count}} invalid saved routes were hidden and retained on this device.', {
                 count: invalidCount,
               })}
-            </p>
+            />
+          )}
+          {error && (
+            <Notification
+              title={t('Notification')}
+              variant="error"
+              message={translateMessage(error)}
+              onDismiss={() => setError('')}
+            />
+          )}
+          {onCompare && !loading && !loadFailed && routes.length > 0 && (
+            <section className="library-comparison" aria-label={t('Compare saved routes')}>
+              <p id={comparisonHelpId} aria-live="polite" aria-atomic="true">
+                {t('Select 2–3 routes to compare. {{count}} selected.', {
+                  count: comparisonRoutes.length,
+                })}
+                {comparisonRoutes.some(
+                  (route) => !filtered.some((visible) => visible.id === route.id),
+                ) && ` ${t('Some selected routes are hidden by filters.')}`}
+              </p>
+              {comparisonRoutes.length > 0 && (
+                <ul className="library-comparison-selection" aria-label={t('Selected routes')}>
+                  {comparisonRoutes.map((route) => (
+                    <li key={route.id}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy || !!editing || !!deleting || !!backup}
+                        aria-label={t('Remove {{name}} from comparison', { name: route.name })}
+                        onClick={() => toggleComparison(route.id)}
+                      >
+                        {route.name} <span aria-hidden="true">×</span>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="library-comparison-actions">
+                <Button
+                  disabled={
+                    busy || !!editing || !!deleting || !!backup || comparisonRoutes.length < 2
+                  }
+                  aria-describedby={comparisonHelpId}
+                  onClick={() => onCompare(comparisonRoutes)}
+                >
+                  {t('Compare routes')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={busy || !!editing || !!deleting || !!backup || !comparisonRoutes.length}
+                  onClick={() => setComparisonIds([])}
+                >
+                  {t('Clear selection')}
+                </Button>
+              </div>
+            </section>
           )}
           {!loading && !loadFailed && (
             <div className="library-summary" role="status">
@@ -625,11 +698,6 @@ export function Library({
             <p className="library-progress" role="status">
               <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
               {t('Updating your library…')}
-            </p>
-          )}
-          {error && !editing && !deleting && !backup && (
-            <p className="error-inline" role="alert">
-              {translateMessage(error)}
             </p>
           )}
           {loading ? (
@@ -675,7 +743,25 @@ export function Library({
                   className="library-route"
                   key={route.id}
                   data-selected={editing?.id === route.id || deleting?.id === route.id || undefined}
+                  data-comparable={!!onCompare || undefined}
+                  data-comparison-selected={comparisonIds.includes(route.id) || undefined}
                 >
+                  {onCompare && (
+                    <label className="library-comparison-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={comparisonIds.includes(route.id)}
+                        disabled={
+                          busy ||
+                          (!comparisonIds.includes(route.id) && comparisonRoutes.length >= 3)
+                        }
+                        aria-label={t('Select {{name}} for comparison', { name: route.name })}
+                        aria-describedby={comparisonHelpId}
+                        onChange={() => toggleComparison(route.id)}
+                      />
+                      <span>{t('Select for comparison')}</span>
+                    </label>
+                  )}
                   <span className="library-activity-icon">
                     <svg className="library-thumbnail" viewBox="0 0 64 64" aria-hidden="true">
                       {thumbnailPaths(route.segments).map((path, index) => (
@@ -873,11 +959,6 @@ export function Library({
                     <Pencil size={18} aria-hidden="true" />
                     <h3 id={editTitleId}>{t('Edit route details')}</h3>
                   </div>
-                  {error && (
-                    <p className="error-inline" role="alert">
-                      {translateMessage(error)}
-                    </p>
-                  )}
                   <Label>
                     {t('Route name')}
                     <Input
@@ -961,11 +1042,6 @@ export function Library({
                     <Trash2 size={18} aria-hidden="true" />
                     <h3 id={deleteTitleId}>{t('Delete route')}</h3>
                   </div>
-                  {error && (
-                    <p className="error-inline" role="alert">
-                      {translateMessage(error)}
-                    </p>
-                  )}
                   <p>
                     {t('Delete')} <strong>{deleting.name}</strong>{' '}
                     {t('from this device? This cannot be undone.')}

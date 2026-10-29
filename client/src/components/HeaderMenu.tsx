@@ -14,6 +14,7 @@ import {
 } from './ui/dropdown-menu';
 import { isTheme, useTheme } from '../theme';
 import { Dialog } from './Dialog';
+import { Notification } from './Notification';
 import { loadPreferences, resetPreferences, PREFERENCES_ERROR_EVENT } from '../domain/preferences';
 
 interface Props {
@@ -290,15 +291,15 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
           </p>
         </DropdownMenuContent>
       </DropdownMenu>
-      {preferencesError && !resetOpen && (
-        <div role="alert">
-          {t(
+      {preferencesError && (
+        <Notification
+          title={t('Notification')}
+          variant="error"
+          message={t(
             'Settings could not be loaded or saved. Safe defaults are used when needed. Your routes and drafts are unchanged.',
           )}
-          <Button variant="ghost" onClick={() => setPreferencesError(false)}>
-            {t('Dismiss settings notice')}
-          </Button>
-        </div>
+          onDismiss={() => setPreferencesError(false)}
+        />
       )}
       {resetOpen && (
         <Dialog
@@ -309,13 +310,6 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
           onClose={() => setResetOpen(false)}
           initialFocusRef={cancelReset}
         >
-          {preferencesError && (
-            <p role="alert">
-              {t(
-                'Settings could not be loaded or saved. Safe defaults are used when needed. Your routes and drafts are unchanged.',
-              )}
-            </p>
-          )}
           <div className="button-row dialog-actions">
             <Button ref={cancelReset} variant="outline" onClick={() => setResetOpen(false)}>
               {t('Cancel')}
