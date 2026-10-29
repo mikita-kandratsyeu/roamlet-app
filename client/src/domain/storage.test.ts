@@ -131,6 +131,50 @@ describe('route persistence', () => {
     });
     spy.mockRestore();
     await routeDb.routes.put({ ...fixture(), stats: { distance: NaN, duration: 0 } });
-    await expect(listRoutes()).rejects.toThrow(/Unable to load/);
+    const diagnostic = vi.fn();
+    expect(await listRoutes(diagnostic)).toEqual([]);
+    expect(diagnostic).toHaveBeenCalledWith(1);
+    expect(await routeDb.routes.count()).toBe(1);
   });
+});
+
+it('upgrades v2 non-destructively with safe defaults and an independent drafts table', async () => {
+  const name = 'roamlet-v3-upgrade-test';
+  const old = new Dexie(name);
+  old.version(2).stores({ routes: 'id, updatedAt, createdAt' });
+  await old
+    .table('routes')
+    .bulkPut([
+      fixture(),
+      { ...fixture(), id: 'invalid', tags: 123 },
+      { ...fixture(), id: 'favorite', favorite: true, tags: ['forest'] },
+    ]);
+  old.close();
+  const upgraded = new RouteDatabase(name);
+  try {
+    await upgraded.open();
+    expect(await upgraded.routes.count()).toBe(3);
+    expect(await upgraded.routes.get('original')).toMatchObject({ favorite: false, tags: [] });
+    expect(await upgraded.routes.get('favorite')).toMatchObject({
+      favorite: true,
+      tags: ['forest'],
+    });
+    expect((await upgraded.routes.get('invalid'))?.tags).toBe(123);
+    await upgraded.table('drafts').put({ id: 'current', version: 1 });
+    expect(await upgraded.table('drafts').get('current')).toEqual({ id: 'current', version: 1 });
+  } finally {
+    await upgraded.delete();
+  }
+});
+
+it('isolates malformed records while returning valid snapshots and retaining every record', async () => {
+  await routeDb.routes.bulkPut([
+    fixture(),
+    { ...fixture(), id: 'invalid', segments: [null] } as unknown as PlannedRoute,
+    { ...fixture(), id: 'unindexed', updatedAt: undefined } as unknown as PlannedRoute,
+  ]);
+  const diagnostic = vi.fn();
+  expect(await listRoutes(diagnostic)).toEqual([{ ...fixture(), favorite: false, tags: [] }]);
+  expect(diagnostic).toHaveBeenCalledWith(2);
+  expect(await routeDb.routes.count()).toBe(3);
 });

@@ -1,12 +1,17 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { MAP_VIEW_KEY } from '../domain/mapView';
+import { MAP_VIEW_KEY, defaultMapView } from '../domain/mapView';
+import { PREFERENCES_KEY, savePreferences, resetPreferences } from '../domain/preferences';
 import { RouteMap } from './RouteMap';
 import i18n from '../i18n';
 const mocks = vi.hoisted(() => ({
   options: vi.fn(),
   canvas: null as HTMLCanvasElement | null,
-  handlers: new Map<string, (event?: { lngLat: { lng: number; lat: number } }) => void>(),
+  handlers: new Map<string, (event?: { lngLat: { lng: number; lat: number }; point?: { x: number; y: number }; originalEvent?: MouseEvent }) => void>(),
+  query: vi.fn<() => unknown[]>(() => []),
+  layer: vi.fn(),
+  sourceInstalled: false,
+  jump: vi.fn(),
   markerOptions: vi.fn(),
   markerPosition: vi.fn(),
   zoom: 10,
@@ -24,7 +29,10 @@ const mocks = vi.hoisted(() => ({
   setStyle: vi.fn(),
   theme: 'light',
 }));
-vi.mock('../theme', () => ({ useTheme: () => ({ resolvedTheme: mocks.theme }) }));
+vi.mock('../theme', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../theme')>()),
+  useTheme: () => ({ resolvedTheme: mocks.theme }),
+}));
 vi.mock('maplibre-gl', () => ({
   default: {
     Map: class {
@@ -40,11 +48,13 @@ vi.mock('maplibre-gl', () => ({
       getCanvas() {
         return this.canvas;
       }
-      addSource() {}
-      addLayer() {}
+      addSource() { mocks.sourceInstalled = true; }
+      addLayer = mocks.layer;
+      queryRenderedFeatures = mocks.query;
+      jumpTo = mocks.jump;
       resize() {}
       getSource() {
-        return { setData: mocks.data };
+        return mocks.sourceInstalled ? { setData: mocks.data } : undefined;
       }
       getCenter() {
         return { wrap: () => ({ lng: 12, lat: 48 }) };
@@ -113,6 +123,7 @@ const mockStorage = () => {
     setItem: (key: string, value: string) => {
       values.set(key, value);
     },
+    removeItem: (key: string) => values.delete(key),
     clear: () => values.clear(),
   });
 };
@@ -122,6 +133,8 @@ beforeEach(() => {
   vi.stubEnv('VITE_MAP_STYLE', '');
   vi.clearAllMocks();
   mocks.theme = 'light';
+  mocks.query.mockReturnValue([]);
+  mocks.sourceInstalled = false;
   mocks.zoom = 10;
   mocks.handlers.clear();
   mocks.markerDrag.length = 0;
@@ -601,4 +614,87 @@ it('disables map camera animation when reduced motion is requested', () => {
     expect.anything(),
     expect.objectContaining({ duration: 0 }),
   );
+});
+
+it('initializes saved symbolic style and camera before constructing the map', () => {
+  const camera = { center: [8, 46] as [number, number], zoom: 7, bearing: 12, pitch: 20 };
+  savePreferences({ style: 'bright', camera });
+  render(<RouteMap {...props} />);
+  expect(mocks.options).toHaveBeenCalledWith(expect.objectContaining({ ...camera, style: 'https://tiles.openfreemap.org/styles/bright' }));
+  expect(localStorage.getItem(PREFERENCES_KEY)).not.toContain('https://');
+});
+it('falls back once for an unavailable saved style, warns and retains manual retry', () => {
+  savePreferences({ style: 'bright' });
+  render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('error')?.());
+  expect(mocks.setStyle).toHaveBeenCalledTimes(1);
+  expect(mocks.setStyle).toHaveBeenLastCalledWith('https://tiles.openfreemap.org/styles/liberty');
+  expect(screen.getByRole('status')).toHaveTextContent('The saved map style is unavailable. The standard map is being used.');
+  act(() => mocks.handlers.get('style.load')?.());
+  expect(screen.getByRole('status')).toBeInTheDocument();
+  act(() => mocks.handlers.get('error')?.());
+  expect(mocks.setStyle).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Retry map' }));
+  expect(mocks.setStyle).toHaveBeenCalledTimes(2);
+});
+it('uses standard with a warning when the saved custom style is no longer configured', () => {
+  savePreferences({ style: 'custom' });
+  render(<RouteMap {...props} />);
+  expect(mocks.options).toHaveBeenCalledWith(expect.objectContaining({ style: 'https://tiles.openfreemap.org/styles/liberty' }));
+  expect(screen.getByText('The saved map style is unavailable. The standard map is being used.')).toBeInTheDocument();
+});
+it('resets the current camera and style without mutating route geometry', () => {
+  savePreferences({ style: 'bright', camera: { center: [8, 46], zoom: 7, bearing: 0, pitch: 0 } });
+  render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')?.());
+  act(() => { expect(resetPreferences()).toBe(true); });
+  expect(mocks.setStyle).toHaveBeenLastCalledWith('https://tiles.openfreemap.org/styles/liberty');
+  expect(mocks.jump).toHaveBeenLastCalledWith(defaultMapView());
+  expect(props.onAdd).not.toHaveBeenCalled();
+  expect(props.onMove).not.toHaveBeenCalled();
+});
+it('supports history undo/redo in all editable modes, including disabled history and canvas shortcuts', () => {
+  const undo = vi.fn(), redo = vi.fn();
+  const view = render(<RouteMap {...props} onUndo={undo} onRedo={redo} canUndo canRedo />);
+  act(() => mocks.handlers.get('load')?.());
+  fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
+  fireEvent.keyDown(mocks.canvas!, { key: 'z', ctrlKey: true });
+  fireEvent.keyDown(mocks.canvas!, { key: 'z', metaKey: true, shiftKey: true });
+  expect(undo).toHaveBeenCalledTimes(2);
+  expect(redo).toHaveBeenCalledTimes(2);
+  view.rerender(<RouteMap {...props} onUndo={undo} onRedo={redo} canUndo={false} canRedo={false} />);
+  expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled();
+  fireEvent.keyDown(mocks.canvas!, { key: 'z', ctrlKey: true });
+  expect(undo).toHaveBeenCalledTimes(2);
+});
+it('uses a wide transparent line hit target and inserts between the correct route stops', () => {
+  const onInsert = vi.fn();
+  const segments: [number, number][][] = [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0.1]]];
+  const waypoints = [[0, 0], [1, 1], [0, 0.1]].map((coordinate, index) => ({ id: String(index), name: String(index), coordinate: coordinate as [number, number] }));
+  render(<RouteMap {...props} segments={segments} waypoints={waypoints} onInsert={onInsert} />);
+  act(() => mocks.handlers.get('load')?.());
+  expect(mocks.layer).toHaveBeenCalledWith(expect.objectContaining({ id: 'route-hit', paint: { 'line-width': 28, 'line-opacity': 0 } }));
+  mocks.query.mockReturnValue([{}]);
+  act(() => mocks.handlers.get('click')?.({ lngLat: { lng: 0, lat: 0.5 }, point: { x: 10, y: 10 } }));
+  expect(onInsert).toHaveBeenCalledWith([0, 0.5], 2);
+  expect(props.onAdd).not.toHaveBeenCalled();
+});
+it('ignores line insertion after map pan, marker drag and for read-only GPX snapshots', () => {
+  const onInsert = vi.fn();
+  const segments: [number, number][][] = [[[0, 0], [1, 0]]];
+  const waypoints = [{ id: 'start', name: 'Start', coordinate: [0, 0] as [number, number] }, { id: 'end', name: 'End', coordinate: [1, 0] as [number, number] }];
+  const view = render(<RouteMap {...props} segments={segments} waypoints={waypoints} onInsert={onInsert} />);
+  act(() => mocks.handlers.get('load')?.());
+  mocks.query.mockReturnValue([{}]);
+  const click = () => mocks.handlers.get('click')?.({ lngLat: { lng: 0.5, lat: 0 }, point: { x: 10, y: 10 } });
+  act(() => { mocks.handlers.get('dragstart')?.(); click(); mocks.handlers.get('dragend')?.(); click(); });
+  act(() => { mocks.markerDrag[0](); click(); });
+  expect(onInsert).not.toHaveBeenCalled();
+  expect(props.onAdd).not.toHaveBeenCalled();
+  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 1000);
+  view.rerender(<RouteMap {...props} segments={segments} waypoints={waypoints} onInsert={onInsert} editable={false} />);
+  act(click);
+  expect(onInsert).not.toHaveBeenCalled();
 });

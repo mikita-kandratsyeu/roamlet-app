@@ -5,6 +5,14 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { PlannedRoute } from '../domain/types';
 import { deleteRoute, duplicateRoute, listRoutes, saveRoute } from '../domain/storage';
 import { Library } from './Library';
+import { exportBackup, importBackup } from '../domain/backup';
+import { loadPreferences, savePreferences } from '../domain/preferences';
+import { thumbnailPaths } from './routeThumbnail';
+
+vi.mock('../domain/backup', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../domain/backup')>()),
+  importBackup: vi.fn(),
+}));
 
 vi.mock('../domain/storage', () => ({
   listRoutes: vi.fn(),
@@ -32,11 +40,22 @@ const woodland = route('b', 'Woodland walk', 2000, '2026-02-01T12:00:00Z');
 
 beforeEach(() => {
   vi.resetAllMocks();
+  const storage = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => storage.set(key, value),
+    removeItem: (key: string) => storage.delete(key),
+    clear: () => storage.clear(),
+  });
   vi.mocked(listRoutes).mockResolvedValue([alpine, woodland]);
   vi.mocked(saveRoute).mockResolvedValue(undefined);
   vi.mocked(deleteRoute).mockResolvedValue(undefined);
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 async function openLibrary() {
   const onClose = vi.fn();
@@ -114,23 +133,25 @@ it('searches names and descriptions, displays matches and clears no-match search
   expect(routeNames()).toHaveLength(2);
 });
 
-it('keeps an empty library limited to the close button and search field without fake creation controls', async () => {
+it('offers backup import for an empty library without fake route creation controls', async () => {
   vi.mocked(listRoutes).mockResolvedValue([]);
   render(<Library onClose={() => {}} onOpen={() => {}} />);
   await screen.findByText(i18next.t('Your next adventure belongs here'));
   expect(screen.queryByRole('button', { name: /Sort routes:/ })).not.toBeInTheDocument();
-  expect(screen.getAllByRole('button')).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Export library' })).toBeDisabled();
+  expect(screen.getByLabelText('Import library file')).toBeEnabled();
   expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
   expect(screen.getByRole('status')).toHaveTextContent('Saved routes 0');
   const rectangles = vi
     .spyOn(HTMLElement.prototype, 'getClientRects')
     .mockReturnValue([new DOMRect(0, 0, 10, 10)] as unknown as DOMRectList);
-  const search = screen.getByRole('textbox', { name: 'Search saved routes' });
+  const file = screen.getByLabelText('Import library file');
   const close = screen.getByRole('button', { name: 'Close dialog' });
-  fireEvent.keyDown(search, { key: 'Tab' });
+  file.focus();
+  fireEvent.keyDown(file, { key: 'Tab' });
   expect(close).toHaveFocus();
   fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
-  expect(search).toHaveFocus();
+  expect(screen.getByLabelText('Import library file')).toHaveFocus();
   rectangles.mockRestore();
 });
 
@@ -240,4 +261,169 @@ it('keeps failed edits available with an error and returns focus to the name fie
   await screen.findByRole('alert');
   await waitFor(() => expect(screen.getByRole('textbox', { name: 'Route name' })).toHaveFocus());
   expect(screen.getByRole('button', { name: 'Save changes' })).not.toBeDisabled();
+});
+
+it('combines activity, favorite, tag, distance, search and sort filters and resets every filter', async () => {
+  vi.mocked(listRoutes).mockResolvedValue([
+    { ...alpine, favorite: true, tags: ['mountain'] },
+    { ...woodland, tags: ['forest'] },
+  ]);
+  await openLibrary();
+  fireEvent.change(screen.getByRole('combobox', { name: 'Activity' }), {
+    target: { value: 'cycling' },
+  });
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Favorites only' }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Filter by tag' }), {
+    target: { value: 'mountain' },
+  });
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Minimum length (km)' }), {
+    target: { value: '7' },
+  });
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Maximum length (km)' }), {
+    target: { value: '9' },
+  });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search saved routes' }), {
+    target: { value: 'mountain' },
+  });
+  expect(routeNames()).toHaveLength(1);
+  expect(routeNames()[0]).toContain('Alpine');
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Maximum length (km)' }), {
+    target: { value: '3' },
+  });
+  expect(screen.getByText(i18next.t('No routes match your search.'))).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
+  expect(routeNames()).toHaveLength(2);
+  expect(loadPreferences().library).toEqual({
+    sort: 'updated',
+    query: '',
+    activity: 'all',
+    favoriteOnly: false,
+    tag: '',
+    minKm: '',
+    maxKm: '',
+  });
+});
+
+it('loads library filters lazily from preferences and persists changes across reopening', async () => {
+  savePreferences({
+    library: {
+      sort: 'name',
+      query: 'Alpine',
+      activity: 'all',
+      favoriteOnly: false,
+      tag: '',
+      minKm: '',
+      maxKm: '',
+    },
+  });
+  render(<Library onClose={() => {}} onOpen={() => {}} />);
+  await screen.findByRole('button', { name: /Alpine loop Cycling/ });
+  expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveValue('Alpine');
+  expect(routeNames()).toHaveLength(1);
+  cleanup();
+  render(<Library onClose={() => {}} onOpen={() => {}} />);
+  await screen.findByRole('button', { name: /Alpine loop Cycling/ });
+  expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveValue('Alpine');
+});
+
+it('edits favorite and trimmed deduplicated tags and toggles favorites without opening the editor', async () => {
+  const { onOpen } = await openLibrary();
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Alpine loop' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Tags' }), {
+    target: { value: ' forest, weekend, forest, ' },
+  });
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Favorite' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  await waitFor(() =>
+    expect(screen.queryByRole('textbox', { name: 'Tags' })).not.toBeInTheDocument(),
+  );
+  expect(saveRoute).toHaveBeenCalledWith(
+    expect.objectContaining({ favorite: true, tags: ['forest', 'weekend'] }),
+  );
+  fireEvent.click(screen.getAllByRole('button', { name: 'Add to favorites' })[0]);
+  await waitFor(() => expect(saveRoute).toHaveBeenCalledTimes(2));
+  expect(onOpen).not.toHaveBeenCalled();
+});
+
+it('previews backup counts with safe copy default and imports only after confirmation without changing the editor', async () => {
+  const { onOpen } = await openLibrary();
+  vi.mocked(importBackup).mockResolvedValue({ imported: 2, skipped: 0, copied: 2, replaced: 0 });
+  const file = new File([exportBackup([alpine, woodland])], 'library.json', {
+    type: 'application/json',
+  });
+  fireEvent.change(screen.getByLabelText('Import library file'), { target: { files: [file] } });
+  const preview = await screen.findByRole('region', { name: 'Library import preview' });
+  expect(preview).toHaveTextContent('2 routes to import');
+  expect(preview).toHaveTextContent('2 conflicting routes');
+  expect(screen.getByRole('combobox', { name: 'Conflicting routes' })).toHaveValue('copy');
+  expect(importBackup).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Import routes' }));
+  await waitFor(() =>
+    expect(importBackup).toHaveBeenCalledWith(expect.objectContaining({ version: 1 }), 'copy'),
+  );
+  await screen.findByText('Imported 2 routes; skipped 0.');
+  expect(onOpen).not.toHaveBeenCalled();
+});
+
+it('allows choosing replacement, cancelling previews and reports malformed files without importing', async () => {
+  await openLibrary();
+  const input = screen.getByLabelText('Import library file');
+  fireEvent.change(input, {
+    target: { files: [new File([exportBackup([alpine])], 'library.json')] },
+  });
+  await screen.findByRole('region', { name: 'Library import preview' });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Conflicting routes' }), {
+    target: { value: 'replace' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel import' }));
+  expect(importBackup).not.toHaveBeenCalled();
+  fireEvent.change(input, { target: { files: [new File(['{'], 'bad.json')] } });
+  expect(await screen.findByRole('alert')).toHaveTextContent('Invalid library backup JSON.');
+  expect(screen.queryByRole('region', { name: 'Library import preview' })).not.toBeInTheDocument();
+});
+
+it('downloads a versioned JSON library export using a revoked local Blob URL', async () => {
+  await openLibrary();
+  const create = vi.fn(() => 'blob:library');
+  const revoke = vi.fn();
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke }));
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  fireEvent.click(screen.getByRole('button', { name: 'Export library' }));
+  expect(create).toHaveBeenCalledWith(expect.any(Blob));
+  expect(click).toHaveBeenCalledOnce();
+  await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:library'));
+  click.mockRestore();
+  vi.unstubAllGlobals();
+});
+
+it('announces isolated invalid records while keeping the valid library available', async () => {
+  vi.mocked(listRoutes).mockImplementation(async (onInvalid) => {
+    onInvalid?.(2);
+    return [alpine];
+  });
+  render(<Library onClose={() => {}} onOpen={() => {}} />);
+  await screen.findByRole('button', { name: /Alpine loop Cycling/ });
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    '2 invalid saved routes were hidden and retained on this device.',
+  );
+});
+
+it('generates finite bounded local thumbnails with separate GPX segment paths', () => {
+  const paths = thumbnailPaths([
+    [
+      [0, 0],
+      [1, 1],
+    ],
+    [
+      [9, 9],
+      [10, 10],
+    ],
+  ]);
+  expect(paths).toHaveLength(2);
+  expect(paths.every((path) => path.startsWith('M') && !path.includes('NaN'))).toBe(true);
+  expect(thumbnailPaths([])).toEqual([]);
+  expect(thumbnailPaths([[[1, 1]]])[0]).not.toContain('Infinity');
+  expect(
+    thumbnailPaths([Array.from({ length: 100000 }, (_, i) => [i / 1000, 1])])[0].split(' '),
+  ).toHaveLength(200);
 });

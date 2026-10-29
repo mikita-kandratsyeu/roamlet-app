@@ -31,6 +31,24 @@ void i18n.use(initReactI18next).init({
   initImmediate: false,
   showSupportNotice: false,
 });
+let skipLanguagePersistence = false;
+export function saveLanguage(language: 'en' | 'ru'): boolean {
+  if (language !== 'en' && language !== 'ru') return false;
+  try {
+    localStorage.setItem(LANGUAGE_KEY, language);
+    return true;
+  } catch {
+    window.dispatchEvent(new Event('roamlet-preferences-error'));
+    return false;
+  }
+}
+window.addEventListener('roamlet-preferences-change', () => {
+  const language = detectLanguage();
+  if (language === i18n.language) return;
+  skipLanguagePersistence = true;
+  void i18n.changeLanguage(language);
+  skipLanguagePersistence = false;
+});
 function synchronizeLanguage(language: string) {
   const normalized = language.startsWith('ru') ? 'ru' : 'en';
   if (typeof document !== 'undefined') {
@@ -43,10 +61,8 @@ function synchronizeLanguage(language: string) {
         i18n.t('Plan cycling and hiking routes. Save them on your device. Import and export GPX.'),
       );
   }
-  try {
-    localStorage.setItem(LANGUAGE_KEY, normalized);
-  } catch {
-    /* Language switching also works without persistence. */
+  if (!skipLanguagePersistence && saveLanguage(normalized)) {
+    window.dispatchEvent(new Event('roamlet-preferences-change'));
   }
 }
 i18n.on('languageChanged', synchronizeLanguage);

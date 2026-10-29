@@ -151,6 +151,9 @@ export function initialMapView(): MapView {
   } catch {
     /* Storage may be blocked or an older saved view may be malformed. */
   }
+  return defaultMapView();
+}
+export function defaultMapView(): MapView {
   let timeZone = '';
   try {
     timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';

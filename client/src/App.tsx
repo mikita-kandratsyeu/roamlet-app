@@ -10,6 +10,18 @@ import { Card } from './components/ui/card';
 import { waypointKind } from './components/waypointStyle';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouteEditor } from './hooks/useRouteEditor';
+import { usePointRouting } from './hooks/usePointRouting';
+import { PlannerTools } from './components/PlannerTools';
+import { DraftPrompt } from './components/DraftPrompt';
+import { initialEditor, newIdentity } from './domain/editorSnapshot';
+import { draftWriter, loadDraft, type DraftRecord } from './domain/drafts';
+import { loadPreferences, savePreferences } from './domain/preferences';
+import { OptionalPanel, optionalLazy } from './components/OptionalPanel';
+import { formatDistance, formatDuration } from './domain/format';
+import { useAppUpdate } from './hooks/useAppUpdate';
+const Statistics = optionalLazy<{ route: PlannedRoute | null; emptyHint?: string; speedKmh?: number; stopsMinutes?: number }>(() => import('./components/Statistics').then(m => ({ default: m.Statistics })));
+const Library = optionalLazy<{ onClose: () => void; onOpen: (route: PlannedRoute) => void }>(() => import('./components/Library').then(m => ({ default: m.Library })));
 import {
   MapPinPlus,
   Plus,
@@ -38,22 +50,16 @@ import {
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
 import { importGpx, exportGpx, gpxFilename } from './domain/gpx';
 import { calculateStats } from './domain/stats';
-import { manualRoute, MANUAL_STOP_LIMIT } from './domain/manualRoute';
+import { MANUAL_STOP_LIMIT } from './domain/manualRoute';
 type PlanningMode = 'point' | 'loop' | 'manual';
 import { saveRoute } from './domain/storage';
 import { checkRoutingConfiguration, routingProvider } from './services/routing';
 import { RouteMap } from './components/RouteMap';
-import { Statistics, formatDistance, formatDuration } from './components/Statistics';
 import { Dialog } from './components/Dialog';
-import { Library } from './components/Library';
 import { HeaderMenu } from './components/HeaderMenu';
 import i18n, { formatNumber, translateMessage } from './i18n';
 
 const emptySegments: Coordinate[][] = [];
-const identity = (): { id: string; createdAt: string } => ({
-  id: crypto.randomUUID(),
-  createdAt: new Date().toISOString(),
-});
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 interface Confirmation {
@@ -65,7 +71,11 @@ interface Confirmation {
 
 export default function App() {
   const { t } = useTranslation();
-  const [panelHidden, setPanelHidden] = useState(false);
+  const [preferences] = useState(loadPreferences);
+  const [editorInitial] = useState(() => ({ ...initialEditor(), activity: preferences.activity, planningMode: preferences.planningMode, targetKm: preferences.targetKm, speeds: preferences.speeds, stopsMinutes: preferences.stopsMinutes }));
+  const editor = useRouteEditor(editorInitial);
+  const { activity, setActivity, waypoints, setWaypoints, result, setResult, mode, setMode, planningMode, setPlanningMode, name, setName, description, setDescription, targetKm, setTargetKm, speeds, setSpeeds, stopsMinutes, setStopsMinutes } = editor;
+  const [panelHidden, setPanelHidden] = useState(preferences.panelHidden);
   const hidePlannerButton = useRef<HTMLButtonElement>(null);
   const showPlannerButton = useRef<HTMLButtonElement>(null);
   const plannerFocusRequested = useRef(false);
@@ -74,15 +84,8 @@ export default function App() {
     plannerFocusRequested.current = false;
     (panelHidden ? showPlannerButton : hidePlannerButton).current?.focus({ preventScroll: true });
   }, [panelHidden]);
-  const [activity, setActivity] = useState<Activity>('cycling');
-  const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
-  const [result, setResult] = useState<PlannedRoute | null>(null);
-  const [mode, setMode] = useState<'manual' | 'snapshot'>('manual');
-  const [planningMode, setPlanningMode] = useState<PlanningMode>('point');
   const automaticMode = useRef<'point' | 'loop'>('point');
   const stopLimit = planningMode === 'manual' ? MANUAL_STOP_LIMIT : 25;
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [routeRevision, setRouteRevision] = useState(0);
@@ -115,75 +118,107 @@ export default function App() {
   const [routingConfigured, setRoutingConfigured] = useState<boolean | null>(null);
   const [configurationUnavailable, setConfigurationUnavailable] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
+  const [notice, setNotice] = useState<{ text: string; error: boolean; kind?: 'routing' | 'map' } | null>(null);
+  const [mapRetryToken, setMapRetryToken] = useState(0);
   const [query, setQuery] = useState('');
   const [searchTarget, setSearchTarget] = useState<string | null>(null);
   const [fitToken, setFitToken] = useState(0);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(preferences.collapsed);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
-  const [targetKm, setTargetKm] = useState(20);
   const [alternatives, setAlternatives] = useState<RoutingResult[]>([]);
   const [selectedAlternative, setSelectedAlternative] = useState(-1);
-  const routeIdentity = useRef(identity());
+  const routeIdentity = { current: editor.identity };
   const fileInput = useRef<HTMLInputElement>(null);
   const routeNameInput = useRef<HTMLInputElement>(null);
   const confirmationCancel = useRef<HTMLButtonElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const request = useRef<AbortController | null>(null);
-  const fail = (text: string) => setNotice({ text, error: true });
-
+  const fail = (text: string, kind?: 'routing' | 'map') => setNotice({ text, error: true, kind });
+  const [draft, setDraft] = useState<DraftRecord | null>(null);
+  const [draftChecked, setDraftChecked] = useState(false);
+  const [draftError, setDraftError] = useState(false);
+  const [writer] = useState(() => draftWriter(() => setDraftError(true)));
+  const latestSnapshot = useRef(editor.snapshot);
+  latestSnapshot.current = editor.snapshot;
+  const update = useAppUpdate(writer.flush);
+  const [online, setOnline] = useState(navigator.onLine);
   useEffect(() => {
-    if (mode !== 'manual' || planningMode === 'loop' || waypoints.length < 2) return;
-    if (planningMode === 'manual') {
-      setBusy(false);
-      setResult({
-        ...routeIdentity.current,
-        name: i18n.t('Untitled adventure'),
-        description: '',
-        activity,
-        waypoints,
-        ...manualRoute(waypoints, activity),
-        updatedAt: new Date().toISOString(),
-        source: 'manual',
-      });
-      return;
-    }
-    const controller = new AbortController();
-    request.current = controller;
-    setBusy(true);
-    setNotice(null);
-    setResult(null);
-    const timer = setTimeout(() => {
-      routingProvider
-        .calculateRoute(waypoints, activity, controller.signal)
-        .then((calculated) => {
-          if (controller.signal.aborted) return;
-          setResult({
-            ...routeIdentity.current,
-            name: i18n.t('Untitled adventure'),
-            description: '',
-            activity,
-            waypoints,
-            ...calculated,
-            updatedAt: new Date().toISOString(),
-            source: 'openrouteservice',
-          });
-        })
-        .catch((error) => {
-          if (!controller.signal.aborted) setNotice({ text: errorMessage(error), error: true });
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setBusy(false);
-        });
-    }, 350);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
+    let active = true;
+    loadDraft().then(value => { if (active) { setDraft(value); setDraftChecked(true); } }).catch(() => {
+      if (active) { setDraftError(true); setDraftChecked(true); }
+    });
+    return () => { active = false; };
+  }, []);
+  useEffect(() => {
+    if (draftChecked && !draft && dirty) writer.schedule(editor.snapshot);
+  }, [draftChecked, draft, dirty, editor.snapshot, writer]);
+  useEffect(() => {
+    const flush = () => { if (document.visibilityState === 'hidden') void writer.flush(); };
+    document.addEventListener('visibilitychange', flush);
+    return () => { document.removeEventListener('visibilitychange', flush); writer.cancel(); };
+  }, [writer]);
+  const writingPreferences = useRef(false);
+  const applyingPreferences = useRef(false);
+  const previousSettings = useRef({ activity, planningMode, targetKm, speeds, stopsMinutes, panelHidden, collapsed });
+  useEffect(() => {
+    const current = { activity, planningMode, targetKm, speeds, stopsMinutes, panelHidden, collapsed };
+    const patch = Object.fromEntries(Object.entries(current).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(previousSettings.current[key as keyof typeof current])));
+    previousSettings.current = current;
+    if (applyingPreferences.current) { applyingPreferences.current = false; return; }
+    if (!Object.keys(patch).length) return;
+    writingPreferences.current = true;
+    savePreferences(patch);
+    writingPreferences.current = false;
+  }, [activity, planningMode, targetKm, speeds, stopsMinutes, panelHidden, collapsed]);
+  useEffect(() => {
+    const apply = () => {
+      if (writingPreferences.current) return;
+      const next = loadPreferences();
+      applyingPreferences.current = true;
+      if (!dirty && !result) { editor.routingAllowed.current = false; setActivity(next.activity); }
+      setSpeeds(next.speeds);
+      setStopsMinutes(next.stopsMinutes);
+      setPanelHidden(next.panelHidden);
+      setCollapsed(next.collapsed);
+      setTargetKm(next.targetKm);
+      if (!dirty && !result && mode !== 'snapshot') setPlanningMode(next.planningMode);
     };
-  }, [activity, waypoints, mode, planningMode, routeRevision]);
+    const connection = () => setOnline(navigator.onLine);
+    window.addEventListener('roamlet-preferences-change', apply);
+    window.addEventListener('online', connection);
+    window.addEventListener('offline', connection);
+    return () => {
+      window.removeEventListener('roamlet-preferences-change', apply);
+      window.removeEventListener('online', connection);
+      window.removeEventListener('offline', connection);
+    };
+  }, [mode, dirty, result, setActivity, setSpeeds, setStopsMinutes, setTargetKm, setPlanningMode, editor.routingAllowed]);
+  function travelHistory(direction: 'undo' | 'redo') {
+    if (direction === 'undo' ? !editor.canUndo : !editor.canRedo) return;
+    request.current?.abort();
+    setBusy(false);
+    setAlternatives([]);
+    setSelectedAlternative(-1);
+    editor[direction]();
+    setDirty(true);
+  }
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select'))) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !event.altKey) {
+        event.preventDefault();
+        travelHistory(event.shiftKey ? 'redo' : 'undo');
+      }
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  });
+
+  usePointRouting({ snapshot: editor.snapshot, revision: routeRevision, allowed: editor.routingAllowed, request, setBusy, setResult, setNotice });
   useEffect(() => {
     const controller = new AbortController();
     checkRoutingConfiguration(controller.signal)
@@ -213,6 +248,8 @@ export default function App() {
   }, [dirty]);
 
   function invalidate() {
+    editor.checkpoint();
+    editor.routingAllowed.current = true;
     request.current?.abort();
     setBusy(false);
     setResult(null);
@@ -309,30 +346,32 @@ export default function App() {
     else action();
   }
   function newRoute() {
-    invalidate();
+    request.current?.abort();
+    setBusy(false);
+    void writer.clear();
+    setDraft(null);
+    const defaults = loadPreferences();
+    editor.reset({ ...initialEditor(), identity: newIdentity(), activity: defaults.activity, planningMode: defaults.planningMode, targetKm: defaults.targetKm, speeds: defaults.speeds, stopsMinutes: defaults.stopsMinutes });
+    setAlternatives([]);
+    setSelectedAlternative(-1);
+    setNotice(null);
     setPanelHidden(false);
     setCollapsed(false);
-    routeIdentity.current = identity();
-    setWaypoints([]);
-    setName('');
-    setDescription('');
-    setMode('manual');
-    setPlanningMode('point');
-    automaticMode.current = 'point';
+    automaticMode.current = defaults.planningMode === 'loop' ? 'loop' : 'point';
     setDirty(false);
     setQuery('');
     setSearchTarget(null);
   }
   function openRoute(route: PlannedRoute) {
-    invalidate();
-    routeIdentity.current = { id: route.id, createdAt: route.createdAt };
-    setResult(route);
-    setWaypoints(route.waypoints);
-    setName(route.name);
-    setDescription(route.description);
-    setActivity(route.activity);
-    setMode('snapshot');
-    setPlanningMode(route.source === 'manual' ? 'manual' : 'point');
+    request.current?.abort();
+    setBusy(false);
+    void writer.clear();
+    setDraft(null);
+    editor.reset({ ...editor.snapshot, identity: { id: route.id, createdAt: route.createdAt }, savedRouteId: route.id, routeMetadata: { favorite: route.favorite, tags: route.tags },
+      result: route, waypoints: route.waypoints, name: route.name, description: route.description,
+      activity: route.activity, mode: 'snapshot', planningMode: route.source === 'manual' ? 'manual' : 'point' });
+    setAlternatives([]);
+    setSelectedAlternative(-1);
     automaticMode.current = 'point';
     setDirty(false);
     setLibraryOpen(false);
@@ -356,10 +395,15 @@ export default function App() {
   async function doSave() {
     const route = currentRoute();
     if (!route || !name.trim()) return;
+    const savedSnapshot = editor.snapshot;
     setSaving(true);
     try {
       await saveRoute(route);
-      setDirty(false);
+      if (latestSnapshot.current === savedSnapshot) {
+        setDirty(false);
+        editor.setSavedRouteId(route.id);
+        void writer.clear();
+      }
       setSaveOpen(false);
       setNotice({
         text: 'Route saved on this device. Your next adventure is ready.',
@@ -402,6 +446,7 @@ export default function App() {
       const route = importGpx(await file.text());
       guard(() => {
         openRoute(route);
+        editor.setSavedRouteId(null);
         setDirty(true);
         setNotice({
           text: 'GPX imported. Original points and track segments are preserved. Save it to keep it on this device.',
@@ -436,6 +481,7 @@ export default function App() {
   function changeActivity(next: Activity) {
     if (next === activity) return;
     if (mode === 'snapshot' && (result?.source === 'gpx' || result?.source === 'manual')) {
+      editor.checkpoint();
       setActivity(next);
       setResult({ ...result, activity: next, stats: calculateStats(result.segments, next) });
       setDirty(true);
@@ -517,12 +563,13 @@ export default function App() {
         selectAlternative(found[0], 0);
       }
     } catch (error) {
-      if (!controller.signal.aborted) fail(errorMessage(error));
+      if (!controller.signal.aborted) fail(errorMessage(error), 'routing');
     } finally {
       if (!controller.signal.aborted) setBusy(false);
     }
   }
   function selectAlternative(calculated: RoutingResult, index: number) {
+    if (index !== 0 || result) editor.checkpoint();
     const coordinates = calculated.segments[0];
     const stops = [0, 0.25, 0.5, 0.75, 1].map((fraction, i) => ({
       id: crypto.randomUUID(),
@@ -610,6 +657,10 @@ export default function App() {
           />
         </nav>
       </header>
+      {!online && <Alert role="status"><span>{t('Offline: saved routes, GPX and manual drawing remain available. Routing and basemaps need internet.')}</span><Button variant="ghost" onClick={() => setLibraryOpen(true)}>{t('My routes')}</Button><Button variant="ghost" onClick={() => changePlanningMode('manual')}>{t('Use manual drawing')}</Button></Alert>}
+      {update.available && <Alert role="status"><span>{t('An app update is ready.')}</span><Button disabled={update.installing} onClick={() => setConfirmation({ title: 'Update app?', text: 'Your draft will be saved before reloading.', label: 'Reload app', action: () => { void update.apply(); } })}>{t('Update app')}</Button></Alert>}
+      {update.failed && <Alert role="alert">{t('The update could not save your draft. Please retry; the app has not reloaded.')}</Alert>}
+      {draftError && <Alert role="alert"><span>{t('The draft could not be loaded or saved. Your routes and settings are unchanged.')}</span><Button onClick={() => { void writer.clear().then(ok => { if (ok) setDraftError(false); }); }}>{t('Delete draft')}</Button></Alert>}
       <main
         className={`workspace ${collapsed ? 'panel-collapsed' : ''} ${panelHidden ? 'desktop-panel-hidden' : ''}`}
       >
@@ -990,7 +1041,7 @@ export default function App() {
                     <Button
                       className="primary full-width"
                       disabled={busy || waypoints.length < 2}
-                      onClick={() => setRouteRevision((revision) => revision + 1)}
+                      onClick={() => { editor.routingAllowed.current = true; editor.checkpoint(); setDirty(true); setRouteRevision((revision) => revision + 1); }}
                     >
                       {busy ? <LoaderCircle size={17} className="spin" /> : <RouteIcon size={17} />}
                       {busy
@@ -1098,7 +1149,14 @@ export default function App() {
                 className={`notice ${notice.error ? 'error' : 'success'}`}
                 role={notice.error ? 'alert' : 'status'}
               >
-                <span>{translateMessage(notice.text)}</span>
+                <span>{notice.kind && <strong>{t(notice.kind === 'map' ? 'Map error' : 'Routing error')}: </strong>}{translateMessage(notice.text)}</span>
+                {notice.kind === 'routing' && <Button variant="ghost" onClick={() => {
+                  if (planningMode === 'loop') void generateLoops();
+                  else { editor.routingAllowed.current = true; setRouteRevision(revision => revision + 1); }
+                }}>{t('Retry routing')}</Button>}
+                {notice.kind === 'map' && <Button variant="ghost" onClick={() => { setMapRetryToken(value => value + 1); setNotice(null); }}>{t('Retry map')}</Button>}
+                {notice.kind && <Button variant="ghost" onClick={() => setLibraryOpen(true)}>{t('Open library')}</Button>}
+                {notice.kind === 'routing' && <Button variant="ghost" onClick={() => changePlanningMode('manual')}>{t('Use manual drawing')}</Button>}
                 <Button
                   variant="ghost"
                   aria-label={t('Dismiss notification')}
@@ -1127,14 +1185,20 @@ export default function App() {
                   </Button>
                 </div>
               )}
-            <Statistics
+            <PlannerTools canUndo={editor.canUndo} canRedo={editor.canRedo} onUndo={() => travelHistory('undo')} onRedo={() => travelHistory('redo')}
+              speed={speeds[activity]} stops={stopsMinutes}
+              onSpeed={value => { setSpeeds(previous => ({ ...previous, [activity]: value })); if (waypoints.length || result) setDirty(true); }}
+              onStops={value => { setStopsMinutes(value); if (waypoints.length || result) setDirty(true); }} />
+            {result ? <OptionalPanel><Statistics
               route={result}
+              speedKmh={speeds[activity]}
+              stopsMinutes={stopsMinutes}
               emptyHint={
                 planningMode === 'loop'
                   ? t('Choose a start and find round trips to see route details.')
                   : undefined
               }
-            />
+            /></OptionalPanel> : <section className="statistics statistics-empty" aria-label={t('Route statistics')}><Info size={18} aria-hidden="true" /><p>{planningMode === 'loop' ? t('Choose a start and find round trips to see their distance and time.') : t('Add two stops to see distance and time.')}</p></section>}
           </div>
           <footer className={`planner-footer ${canUseRoute ? 'route-ready' : ''}`}>
             <div className="route-actions">
@@ -1172,6 +1236,7 @@ export default function App() {
         </aside>
         <div id="map-elevation-root" />
         <RouteMap
+          key={mapRetryToken}
           plannerHidden={panelHidden}
           onImport={() => fileInput.current?.click()}
           segments={result?.segments || emptySegments}
@@ -1186,11 +1251,16 @@ export default function App() {
                 ? editSnapshot
                 : undefined
           }
-          onUndo={
-            mode === 'manual' && planningMode === 'manual' && waypoints.length
-              ? () => changeWaypoints(waypoints.slice(0, -1))
-              : undefined
-          }
+          onUndo={() => travelHistory('undo')}
+          onRedo={() => travelHistory('redo')}
+          canUndo={editor.canUndo}
+          canRedo={editor.canRedo}
+          onInsert={mode === 'manual' && planningMode !== 'loop' ? (coordinate, index) => {
+            if (waypoints.length >= stopLimit) { fail(planningMode === 'manual' ? 'A manual route supports up to 1,000 points. Remove a point before adding another.' : 'A route supports up to 25 stops. Remove a stop before adding another.'); return; }
+            const next = [...waypoints];
+            next.splice(Math.max(0, Math.min(index, next.length)), 0, { id: crypto.randomUUID(), name: `${coordinate[1].toFixed(5)}, ${coordinate[0].toFixed(5)}`, coordinate });
+            changeWaypoints(next);
+          } : undefined}
           fitToken={fitToken}
           onAdd={(coordinate) => addLocation(coordinate)}
           onMove={(id, coordinate) =>
@@ -1206,7 +1276,7 @@ export default function App() {
               ),
             )
           }
-          onError={fail}
+          onError={text => fail(text, 'map')}
         />
       </main>
       <Input
@@ -1221,14 +1291,18 @@ export default function App() {
         }}
       />
       {libraryOpen && (
-        <Library
+        <OptionalPanel><Library
           onClose={() => setLibraryOpen(false)}
           onOpen={(route) => {
             setLibraryOpen(false);
             guard(() => openRoute(route));
           }}
-        />
+        /></OptionalPanel>
       )}
+      {draft && <DraftPrompt onDelete={() => { void writer.clear().then(ok => { if (ok) setDraft(null); }); }} onRestore={() => {
+        request.current?.abort(); setBusy(false); editor.reset(draft.snapshot); setDirty(true); setDraft(null);
+        setAlternatives([]); setSelectedAlternative(-1); setFitToken(token => token + 1);
+      }} />}
       {saveOpen && (
         <Dialog
           title={t('Save your adventure')}

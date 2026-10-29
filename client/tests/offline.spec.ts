@@ -141,6 +141,48 @@ test('manual drawing calculates and exports offline without a routing key', asyn
   }
 });
 
+test('offline reload restores an unsaved draft and exposes library backup without network', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/');
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
+    await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+    await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
+  }
+  await page.waitForTimeout(1200);
+  await context.setOffline(true);
+  try {
+    await page.unroute('**/*.openfreemap.org/**');
+    await page.reload();
+    await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: 'Save route', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Route name' }).fill('Offline draft');
+    await page.getByRole('button', { name: 'Save to library', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'My routes', exact: true }).click();
+    const pending = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export library', exact: true }).click();
+    const json = await readFile((await (await pending).path())!, 'utf8');
+    expect(JSON.parse(json).routes).toHaveLength(1);
+    await page.getByLabel('Import library file').setInputFiles({
+      name: 'offline-library.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(json),
+    });
+    await page.getByRole('button', { name: 'Import routes', exact: true }).click();
+    await expect(page.locator('.library-route')).toHaveCount(2);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
 test('waypoint-only GPX remains usable and cannot crash route conversion', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('Import GPX file').setInputFiles({

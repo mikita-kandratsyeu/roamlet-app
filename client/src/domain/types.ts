@@ -15,6 +15,8 @@ export interface PlannedRoute {
   id: string;
   name: string;
   description: string;
+  favorite?: boolean;
+  tags?: string[];
   activity: Activity;
   segments: Coordinate[][];
   waypoints: Waypoint[];

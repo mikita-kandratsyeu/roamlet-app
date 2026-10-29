@@ -17,12 +17,23 @@ function systemTheme(): ResolvedTheme {
   }
 }
 
-function storedTheme(): Theme {
+export function storedTheme(): Theme {
   try {
     const value = localStorage.getItem(THEME_STORAGE_KEY);
     return isTheme(value) ? value : 'system';
   } catch {
     return 'system';
+  }
+}
+
+export function saveTheme(theme: Theme): boolean {
+  if (!isTheme(theme)) return false;
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    return true;
+  } catch {
+    window.dispatchEvent(new Event('roamlet-preferences-error'));
+    return false;
   }
 }
 
@@ -62,8 +73,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         updateTheme(isTheme(event.newValue) ? event.newValue : 'system');
       }
     };
+    const preferences = () => updateTheme(storedTheme());
+    window.addEventListener('roamlet-preferences-change', preferences);
     window.addEventListener('storage', sync);
     return () => {
+      window.removeEventListener('roamlet-preferences-change', preferences);
       if (media?.removeEventListener) media.removeEventListener('change', change);
       else media?.removeListener(change);
       window.removeEventListener('storage', sync);
@@ -73,11 +87,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   function setTheme(value: Theme) {
     updateTheme(value);
     applyTheme(value === 'system' ? systemTheme() : value);
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, value);
-    } catch {
-      // Theme selection remains usable when persistence is unavailable.
-    }
+    if (saveTheme(value)) window.dispatchEvent(new Event('roamlet-preferences-change'));
   }
 
   return (

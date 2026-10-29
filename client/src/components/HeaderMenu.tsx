@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { isTheme, useTheme } from '../theme';
+import { Dialog } from './Dialog';
+import { loadPreferences, resetPreferences, PREFERENCES_ERROR_EVENT } from '../domain/preferences';
 
 interface Props {
   onNewRoute: () => void;
@@ -24,6 +26,17 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [preferencesError, setPreferencesError] = useState(false);
+  const cancelReset = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const failed = () => setPreferencesError(true);
+    window.addEventListener(PREFERENCES_ERROR_EVENT, failed);
+    loadPreferences();
+    return () => {
+      window.removeEventListener(PREFERENCES_ERROR_EVENT, failed);
+    };
+  }, []);
   const [keyboardNavigation, setKeyboardNavigation] = useState(false);
   const [compact, setCompact] = useState(false);
   useEffect(() => {
@@ -249,6 +262,9 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
             {t('System theme follows OS settings. Language and theme are saved locally.')}
           </p>
           <DropdownMenuSeparator className="header-menu-separator" />
+          <DropdownMenuItem className="header-menu-item" onSelect={() => activate(() => setResetOpen(true))}>
+            {t('Reset settings')}
+          </DropdownMenuItem>
           <DropdownMenuItem
             className="header-menu-item header-menu-action-item"
             onSelect={() => activate(onHelp)}
@@ -261,6 +277,19 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
           </p>
         </DropdownMenuContent>
       </DropdownMenu>
+      {preferencesError && !resetOpen && (
+        <div role="alert">
+          {t('Settings could not be loaded or saved. Safe defaults are used when needed. Your routes and drafts are unchanged.')}
+          <Button variant="ghost" onClick={() => setPreferencesError(false)}>{t('Dismiss settings notice')}</Button>
+        </div>
+      )}
+      {resetOpen && (
+        <Dialog title={t('Reset settings')} description={t('Reset planning, library, language, theme and map settings? Saved routes and drafts will not be deleted.')} onClose={() => setResetOpen(false)} initialFocusRef={cancelReset}>
+          {preferencesError && <p role="alert">{t('Settings could not be loaded or saved. Safe defaults are used when needed. Your routes and drafts are unchanged.')}</p>}
+          <Button ref={cancelReset} variant="outline" onClick={() => setResetOpen(false)}>{t('Cancel')}</Button>
+          <Button onClick={() => { if (resetPreferences()) { setPreferencesError(false); setResetOpen(false); } }}>{t('Reset settings')}</Button>
+        </Dialog>
+      )}
     </div>
   );
 }

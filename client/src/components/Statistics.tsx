@@ -6,21 +6,20 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from './ui/chart';
 import { ChevronDown, Info } from 'lucide-react';
 import type { PlannedRoute } from '../domain/types';
 import { elevationSamples } from '../domain/stats';
-import i18n, { formatNumber } from '../i18n';
-export const formatDistance = (metres: number) =>
-  `${formatNumber(metres / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${i18n.t('km')}`;
-export function formatDuration(seconds: number) {
-  const minutes = Math.round(seconds / 60);
-  return minutes >= 60
-    ? `${formatNumber(Math.floor(minutes / 60))} ${i18n.t('h')} ${formatNumber(minutes % 60)} ${i18n.t('min')}`
-    : `${formatNumber(minutes)} ${i18n.t('min')}`;
-}
+import { formatNumber } from '../i18n';
+import { formatDistance, formatDuration } from '../domain/format';
+import { estimateTime } from '../domain/time';
+export { formatDistance, formatDuration } from '../domain/format';
 export function Statistics({
   route,
   emptyHint,
+  speedKmh,
+  stopsMinutes = 0,
 }: {
   route: PlannedRoute | null;
   emptyHint?: string;
+  speedKmh?: number;
+  stopsMinutes?: number;
 }) {
   const { t } = useTranslation();
   const [elevationTarget, setElevationTarget] = useState<HTMLElement | null>(null);
@@ -146,6 +145,7 @@ export function Statistics({
         <p>{emptyHint || t('Add two stops to see distance and time.')}</p>
       </section>
     );
+  const personal = speedKmh === undefined ? null : estimateTime(route.stats.distance, speedKmh, stopsMinutes);
   return (
     <section className="statistics" aria-label={t('Route statistics')}>
       <dl className="stat-grid">
@@ -154,9 +154,13 @@ export function Statistics({
           <dd>{formatDistance(route.stats.distance)}</dd>
         </div>
         <div className="stat-card">
-          <dt>{t('Est. moving time')}</dt>
+          <dt>{t(speedKmh === undefined ? 'Est. moving time' : 'Original time estimate')}</dt>
           <dd>{formatDuration(route.stats.duration)}</dd>
         </div>
+        {personal && <>
+          <div className="stat-card"><dt>{t('Personal moving time')}</dt><dd>{formatDuration(personal.moving)}</dd></div>
+          <div className="stat-card"><dt>{t('Total time with stops')}</dt><dd>{formatDuration(personal.total)}</dd></div>
+        </>}
         {showElevation && (
           <>
             <div className="stat-card">

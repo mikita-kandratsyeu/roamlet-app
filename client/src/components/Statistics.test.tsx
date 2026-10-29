@@ -52,6 +52,17 @@ it.each(['openrouteservice', 'mapbox'] as const)(
   },
 );
 
+it('shows personal movement and total while retaining the original duration estimate', () => {
+  const snapshot = route([[[11, 47], [11.01, 47.01]]]);
+  snapshot.stats = { distance: 18000, duration: 1800 };
+  render(<Statistics route={snapshot} speedKmh={18} stopsMinutes={15} />);
+  expect(screen.getByText('Original time estimate')).toBeInTheDocument();
+  expect(screen.getByText('30 min')).toBeInTheDocument();
+  expect(screen.getByText('1 h 0 min')).toBeInTheDocument();
+  expect(screen.getByText('1 h 15 min')).toBeInTheDocument();
+  expect(snapshot.stats.duration).toBe(1800);
+});
+
 for (const desktop of [false, true]) {
   it(`hides unavailable profiles and removes them after changing routes (desktop: ${desktop})`, () => {
     vi.stubGlobal('matchMedia', (query: string) => ({

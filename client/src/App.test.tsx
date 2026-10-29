@@ -52,6 +52,9 @@ const geometry = [
 beforeEach(async () => {
   cleanup();
   await routeDb.routes.clear();
+  await routeDb.table('drafts').clear();
+  const values = new Map<string, string>();
+  vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value), removeItem: (key: string) => values.delete(key), clear: () => values.clear() });
   vi.clearAllMocks();
   vi.mocked(checkRoutingConfiguration).mockResolvedValue(true);
   HTMLDialogElement.prototype.showModal = function () {
@@ -170,7 +173,10 @@ describe('route planner interactions', () => {
       ]),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Undo last point' }));
-    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeDisabled();
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify([[[11.5, 47.3], [11.41, 47.27]]]));
+    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify([[[11.41, 47.27], [11.5, 47.3]]]));
     addCoordinate('47.28, 11.42');
     fireEvent.click(screen.getByRole('radio', { name: 'Hiking' }));
     expect(provider.calculateRoute).not.toHaveBeenCalled();
@@ -328,7 +334,7 @@ describe('route planner interactions', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
-    expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
+    expect(await screen.findByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
     const edit = await screen.findByRole('button', { name: 'Edit Focus trip' });
     fireEvent.click(edit);
     expect(screen.getByRole('textbox', { name: 'Route name' })).toHaveFocus();
@@ -496,8 +502,8 @@ describe('route planner interactions', () => {
   it('plans, saves, opens its library and reopens a persistent route', async () => {
     render(<App />);
     await plan();
-    expect(screen.getAllByText('1.3 km').length).toBeGreaterThan(0);
-    expect(screen.getByText('OpenRouteService')).toBeInTheDocument();
+    expect((await screen.findAllByText('1.3 km')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('OpenRouteService')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
       target: { value: 'River escape' },
@@ -581,5 +587,61 @@ describe('route planner interactions', () => {
     expect(within(dialog).getByText(/cannot be undone/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Delete route' }));
     await waitFor(async () => expect(await routeDb.routes.count()).toBe(1));
+  });
+  it('undoes and redoes ready geometry without issuing a third request and ignores native text undo', async () => {
+    render(<App />);
+    await plan();
+    const original = screen.getByTestId('map').getAttribute('data-geometry');
+    provider.calculateRoute.mockResolvedValueOnce({ segments: [[[11.4, 47.26], [11.42, 47.28]]], stats: { distance: 2000, duration: 500 } });
+    addCoordinate('47.28, 11.42');
+    await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', original!);
+    fireEvent.keyDown(window, { key: 'z', metaKey: true, shiftKey: true });
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify([[[11.4, 47.26], [11.42, 47.28]]]));
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Latitude, longitude' }), { key: 'z', ctrlKey: true });
+    await new Promise(resolve => setTimeout(resolve, 400));
+    expect(provider.calculateRoute).toHaveBeenCalledTimes(2);
+  });
+  it('stores and restores the unfinished editor and time parameters without routing', async () => {
+    const { unmount } = render(<App />);
+    await plan();
+    fireEvent.change(screen.getByLabelText('Personal speed (km/h)'), { target: { value: '12' } });
+    fireEvent.change(screen.getByLabelText('Stops (minutes)'), { target: { value: '20' } });
+    await waitFor(async () => expect(await routeDb.table('drafts').count()).toBe(1));
+    unmount();
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore draft' }));
+    expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
+    expect(screen.getByLabelText('Personal speed (km/h)')).toHaveValue(12);
+    expect(screen.getByLabelText('Stops (minutes)')).toHaveValue(20);
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+    await new Promise(resolve => setTimeout(resolve, 400));
+    expect(provider.calculateRoute).toHaveBeenCalledTimes(1);
+  });
+  it('warns about corrupt drafts without blocking the planner and deletes only drafts', async () => {
+    await routeDb.table('drafts').put({ id: 'current', version: 999 });
+    render(<App />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('draft could not');
+    expect(screen.getByRole('textbox', { name: 'Latitude, longitude' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
+    await waitFor(async () => expect(await routeDb.table('drafts').count()).toBe(0));
+    expect(await routeDb.routes.count()).toBe(0);
+  });
+  it('keeps personal time changes separate from provider statistics and routing', async () => {
+    render(<App />);
+    await plan();
+    fireEvent.change(screen.getByLabelText('Personal speed (km/h)'), { target: { value: '6' } });
+    fireEvent.change(screen.getByLabelText('Stops (minutes)'), { target: { value: '10' } });
+    expect(await screen.findByText('Total time with stops')).toBeInTheDocument();
+    expect(screen.getByText('Original time estimate')).toBeInTheDocument();
+    expect(provider.calculateRoute).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), { target: { value: 'Timed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save to library' }));
+    await waitFor(async () => expect(await routeDb.routes.count()).toBe(1));
+    expect((await routeDb.routes.toArray())[0].stats.duration).toBe(480);
+    await waitFor(async () => expect(await routeDb.table('drafts').count()).toBe(0));
   });
 });

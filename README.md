@@ -2,12 +2,9 @@
 
 An account-free, local-first cycling and hiking route planner.
 
-## Implementation plan
+## Local-first workflows
 
-1. Create a strict React/TypeScript/Vite foundation and responsive map-first interface.
-2. Integrate MapLibre GL JS (maplibre-gl 5.x) with OpenFreeMap basemaps, browser-direct hosted OpenRouteService cycling/hiking directions, coordinate/map waypoint input, application-generated loops, and local manual straight-line planning.
-3. Preserve actual geometry through GPX import/export and IndexedDB route management.
-4. Add useful failure states, an offline app shell, accessibility, tests, and provider/license documentation.
+Roamlet keeps routes, preferences and the current unsaved draft on this device. No account, backend, analytics or cloud synchronization is required. Automatic routes and loops still use the existing OpenRouteService integration; manual drawing, GPX and library operations remain local.
 
 Automatic routing uses hosted OpenRouteService (ORS) directly from the browser. MapLibre GL JS with OpenFreeMap supplies basemaps; manual straight-line planning remains local and independent of ORS and its API key. No backend, proxy, external draw plugin or offline basemaps are added. Manual geometry uses the existing MapLibre GeoJSON rendering and statistics pipeline. See service-dependent limitations below.
 
@@ -88,6 +85,35 @@ ESLint checks code quality; Prettier handles consistent formatting. `eslint-conf
 - Responsive desktop panel and mobile collapsible sheet, keyboard-focusable shadcn controls, Radix modal focus handling, persisted light/dark/system themes, useful loading/error states.
 - Installable manifest and production service-worker app shell. Saved routes, GPX export and manual calculations work offline after the initial online visit; basemaps still require online resources, and automatic Directions routing and loop discovery require network access.
 
+## Saving, recovery and history
+
+- The library and a single current draft are separate IndexedDB records. Debounced draft autosaving retains ordered stops, mode/activity, names, description, current geometry/statistics/source, editable state, route identity and current personal time settings. Loading and request controllers are not serialized. Pending changes are also flushed when the page becomes hidden; closing a tab cannot guarantee an asynchronous write completes.
+- On startup, a draft offers **Restore draft** or **Delete draft**. Recovery does not reroute a ready snapshot, including GPX tracks with disconnected segments and heights. Saving a route or discarding the current work clears its associated draft; late writes/deletes must not replace newer work. Storage errors are reported without disabling the editor.
+- Preferences are independent of drafts: map style and camera, language, light/dark/system appearance, activity/mode, loop target, per-activity speeds, stops, planner panels, library search/filters/sort. Camera saves after movement ends, not on animation frames. Existing theme/language/camera storage remains compatible. **Reset settings** requires confirmation and does not delete drafts or library routes.
+- Opening a chosen route fits that route; draft recovery restores the editor; ordinary startup uses the last preferences/camera, then existing regional defaults on first use. Geolocation is only requested by the location button. System appearance continues following the OS. Renders and route recalculation do not repeatedly reposition the camera.
+- Undo/Redo keeps up to **50 changes** during the current session: adding, deleting, moving, reordering and reversing stops, and geometry-replacing mode changes. A marker drag is one action. New edits clear redo; opening another route or restoring a draft clears session history. Use buttons or **Ctrl/Cmd+Z** and **Ctrl/Cmd+Shift+Z**; text fields retain their native undo. Ready snapshot geometry is restored without a redundant routing request.
+- Click an editable route line to insert a stop in route order. Saved/imported snapshots still require explicit conversion before geometry is replaced; disconnected GPX segments are never implicitly joined. Automatic routes support 25 stops, manual drawing 1,000 points.
+
+Browser storage is not a permanent backup: eviction, private browsing and clearing site data can remove local work. Export important routes and library backups regularly.
+
+## Library backup and organization
+
+Library routes support favorites, tags, search, activity/favorite/tag/length filters and the existing sorting choices. Filters combine and persist locally; **Reset filters** clears them. Geometry thumbnails are local SVG paths and never connect separate GPX segments. Malformed records are reported and skipped in the displayed list, not automatically deleted; valid records remain usable.
+
+**Export library** downloads JSON with the envelope `{ "version": 1, "exportedAt": "<ISO timestamp>", "routes": [...] }`. Each route contains its supported metadata, geometry segments, heights, original statistics, favorites and tags. Missing older `favorite` and `tags` values default to `false` and `[]`. It excludes the draft, preferences and API keys. GPX remains the separate single-route exchange format.
+
+**Import library** validates the document and previews its route count before confirmation. Conflicting IDs can be skipped, replaced, or imported as copies (the default); copies receive fresh route and waypoint identifiers. Import is one IndexedDB transaction: invalid data or a storage failure must not leave partial records. Importing the library does not change the open editor.
+
+Backup bounds: **20 MiB per file**, **1,000 routes**, **100,000 points per route**, and **500,000 points overall**. Coordinates, dates, route statistics and the format version are validated. Unsupported versions are rejected. GPX keeps its separate 10 MiB/100,000-point limits.
+
+## Personal time estimates and offline updates
+
+Select a positive finite speed in km/h separately for cycling and hiking, plus nonnegative total stop minutes. Movement time is distance divided by speed; total time adds stops. These are estimates, not validated travel times. Automatic routes keep the provider estimate separately; personal preferences never overwrite original provider statistics, GPX geometry or elevations and never trigger routing.
+
+After the first production online visit, the local editor, draft/settings, library, backups, GPX and manual calculations remain available offline. Maps and automatic routing still require their providers; network availability alone does not establish provider availability. Failures offer local actions without automatically changing planning mode. Only same-origin shell/assets are cached, not third-party maps or routing APIs.
+
+A waiting service-worker update is announced. Updating requires confirmation and a successful draft flush before activation/reload; a storage failure prevents a silent reload. Save/export important work before changing versions. Library/statistics load separately and their failure must not disable the editor or map.
+
 ## Configuration and providers
 
 | Variable           | Meaning                                                                                                                                                                   |
@@ -120,9 +146,9 @@ Yarn has one application workspace, `client/`. Root scripts delegate development
 - `client/src/App.tsx`: editor/workflow state and browser-visible API-key configuration handling.
 - `client/public/sw.js`: static production app shell only; excludes all third-party map/routing requests.
 
-IndexedDB version 2 cleanup removes unsupported retired sources, not supported snapshots. Supported sources are `openrouteservice`, legacy `mapbox`, `gpx` and `manual`; saving, duplicating and reopening retains each source and exact geometry. New ORS exports credit openrouteservice and OpenStreetMap contributors; legacy Mapbox exports retain Mapbox/OSM attribution. Manual/GPX exports make no routing-provider claim. No provider data is relabeled as ODbL-licensed.
+IndexedDB version 3 adds favorites/tags and a separate draft store without deleting supported routes. The earlier version 2 cleanup removed unsupported retired sources, not supported snapshots. Supported sources are `openrouteservice`, legacy `mapbox`, `gpx` and `manual`; saving, duplicating and reopening retains each source and exact geometry. New ORS exports credit openrouteservice and OpenStreetMap contributors; legacy Mapbox exports retain Mapbox/OSM attribution. Manual/GPX exports make no routing-provider claim. No provider data is relabeled as ODbL-licensed.
 
-Saved ORS/legacy Mapbox/GPX and imported routes open as snapshots and are never silently rerouted. Manual routes reopen directly editable and recalculate direct segments locally. Coordinates use `[longitude, latitude, elevation?]`, distances metres and durations seconds. GPX files are bounded to 10 MiB/100,000 points; segment boundaries and standalone waypoints are preserved. HTTPS or localhost is required for the service worker.
+Saved and imported routes open as snapshots and are never silently rerouted. Editing a manual snapshot is explicit and recalculates direct segments locally; converting GPX or online snapshots requires confirmation before replacing geometry. Coordinates use `[longitude, latitude, elevation?]`, distances metres and durations seconds. GPX files are bounded to 10 MiB/100,000 points; segment boundaries and standalone waypoints are preserved. HTTPS or localhost is required for the service worker.
 
 ## Known limitations
 

@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { ThemeProvider, THEME_STORAGE_KEY } from '../theme';
 import { useRef, useState } from 'react';
 import { Dialog } from './Dialog';
+import { savePreferences, loadPreferences, PREFERENCES_KEY } from '../domain/preferences';
 
 afterEach(cleanup);
 
@@ -235,4 +236,51 @@ it('does not steal focus from a dialog opened by a menu action and restores its 
   await user.keyboard('{Escape}');
   await waitFor(() => expect(trigger).toHaveFocus());
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+it('requires local confirmation before resetting settings and leaves routes and drafts intact', async () => {
+  const values = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+  });
+  try {
+    savePreferences({ targetKm: 37, theme: 'dark', panelHidden: true });
+    values.set('routes', 'saved routes');
+    values.set('draft', 'draft');
+    const { user, trigger } = setup();
+    await user.click(trigger);
+    await user.click(screen.getByRole('menuitem', { name: 'Reset settings' }));
+    expect(screen.getByRole('dialog', { name: 'Reset settings' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus());
+    expect(loadPreferences().targetKm).toBe(37);
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(loadPreferences().targetKm).toBe(37);
+    await user.click(trigger);
+    await user.click(screen.getByRole('menuitem', { name: 'Reset settings' }));
+    await user.click(screen.getByRole('button', { name: 'Reset settings' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(values.has(PREFERENCES_KEY)).toBe(false);
+    expect(values.get('routes')).toBe('saved routes');
+    expect(values.get('draft')).toBe('draft');
+    expect(document.documentElement).not.toHaveClass('dark');
+    expect(loadPreferences().panelHidden).toBe(false);
+    await waitFor(() => expect(trigger).toHaveFocus());
+  } finally { vi.unstubAllGlobals(); }
+});
+it('notifies about unavailable preference storage and keeps reset confirmation open on failure', async () => {
+  vi.stubGlobal('localStorage', {
+    getItem: () => null,
+    setItem: () => { throw new Error('denied'); },
+    removeItem: () => { throw new Error('denied'); },
+  });
+  try {
+    const { user, trigger } = setup();
+    await user.click(trigger);
+    await user.click(screen.getByRole('menuitem', { name: 'Reset settings' }));
+    await user.click(screen.getByRole('button', { name: 'Reset settings' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Settings could not be loaded or saved.');
+  } finally { vi.unstubAllGlobals(); }
 });

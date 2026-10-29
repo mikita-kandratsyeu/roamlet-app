@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
-  testMatch: ['planner.spec.ts', 'map-view.spec.ts'],
+  testMatch: ['planner.spec.ts', 'map-view.spec.ts', 'lifecycle.spec.ts'],
   fullyParallel: false,
   workers: 1,
   timeout: 30_000,

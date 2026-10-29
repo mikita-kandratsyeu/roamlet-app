@@ -1,6 +1,7 @@
 import i18n from '../i18n';
 import Dexie, { type Table } from 'dexie';
-import { calculateStats } from './stats';
+import { validateRoute, withRouteDefaults } from './routeValidation';
+export { validateRoute } from './routeValidation';
 import type { PlannedRoute } from './types';
 
 export class RouteDatabase extends Dexie {
@@ -19,64 +20,40 @@ export class RouteDatabase extends Dexie {
           )
           .delete();
       });
+    this.version(3)
+      .stores({ routes: 'id, updatedAt, createdAt', drafts: 'id' })
+      .upgrade(async (transaction) => {
+        await transaction
+          .table('routes')
+          .toCollection()
+          .modify((route) => {
+            if (route.favorite === undefined) route.favorite = false;
+            if (route.tags === undefined) route.tags = [];
+          });
+      });
   }
 }
 export const routeDb = new RouteDatabase();
 
-function validateRoute(route: PlannedRoute): void {
-  if (
-    !route ||
-    typeof route.id !== 'string' ||
-    !route.id.trim() ||
-    typeof route.name !== 'string' ||
-    typeof route.description !== 'string' ||
-    !Array.isArray(route.segments) ||
-    !route.segments.every(Array.isArray) ||
-    !Array.isArray(route.waypoints) ||
-    !['gpx', 'openrouteservice', 'mapbox', 'manual'].includes(route.source) ||
-    typeof route.createdAt !== 'string' ||
-    !Number.isFinite(Date.parse(route.createdAt)) ||
-    typeof route.updatedAt !== 'string' ||
-    !Number.isFinite(Date.parse(route.updatedAt))
-  ) {
-    throw new Error('Invalid route data.');
-  }
-  calculateStats(route.segments, route.activity);
-  const ids = new Set<string>();
-  for (const waypoint of route.waypoints) {
-    if (
-      !waypoint ||
-      typeof waypoint.id !== 'string' ||
-      !waypoint.id.trim() ||
-      ids.has(waypoint.id) ||
-      typeof waypoint.name !== 'string'
-    )
-      throw new Error('Invalid route waypoint.');
-    ids.add(waypoint.id);
-    calculateStats([[waypoint.coordinate]], route.activity);
-  }
-  if (
-    !route.stats ||
-    !Number.isFinite(route.stats.distance) ||
-    route.stats.distance < 0 ||
-    !Number.isFinite(route.stats.duration) ||
-    route.stats.duration < 0 ||
-    [route.stats.ascent, route.stats.descent].some(
-      (value) => value !== undefined && (!Number.isFinite(value) || value < 0),
-    )
-  ) {
-    throw new Error('Invalid route statistics.');
-  }
-}
 function failure(action: string, cause: unknown): Error {
   return new Error(`Unable to ${action} route data.`, { cause });
 }
 
-export async function listRoutes(): Promise<PlannedRoute[]> {
+export async function listRoutes(onInvalid?: (count: number) => void): Promise<PlannedRoute[]> {
   try {
-    const routes = await routeDb.routes.orderBy('updatedAt').reverse().toArray();
-    routes.forEach(validateRoute);
-    return routes;
+    const routes = await routeDb.routes.toArray();
+    const valid: PlannedRoute[] = [];
+    let invalid = 0;
+    for (const route of routes) {
+      try {
+        validateRoute(route);
+        valid.push(withRouteDefaults(route));
+      } catch {
+        invalid++;
+      }
+    }
+    if (invalid) onInvalid?.(invalid);
+    return valid.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
   } catch (cause) {
     throw failure('load', cause);
   }

@@ -196,3 +196,16 @@ it('bootstrap uses the OS when localStorage is denied', () => {
   );
   expect(document.documentElement).toHaveClass('dark');
 });
+
+it('applies same-tab preference changes and reset without recreating the removed theme key', () => {
+  storage.set(THEME_STORAGE_KEY, 'dark');
+  setup();
+  expect(screen.getByRole('status')).toHaveTextContent('dark:dark');
+  storage.set(THEME_STORAGE_KEY, 'light');
+  act(() => window.dispatchEvent(new Event('roamlet-preferences-change')));
+  expect(screen.getByRole('status')).toHaveTextContent('light:light');
+  storage.delete(THEME_STORAGE_KEY);
+  act(() => window.dispatchEvent(new Event('roamlet-preferences-change')));
+  expect(screen.getByRole('status')).toHaveTextContent('system:light');
+  expect(storage.has(THEME_STORAGE_KEY)).toBe(false);
+});

@@ -31,7 +31,16 @@ import {
 
 import type { PlannedRoute } from '../domain/types';
 import { listRoutes, saveRoute, deleteRoute, duplicateRoute } from '../domain/storage';
-import { formatDistance } from './Statistics';
+import { formatDistance } from '../domain/format';
+import { loadPreferences, savePreferences } from '../domain/preferences';
+import {
+  exportBackup,
+  importBackup,
+  readBackupFile,
+  type RouteBackup,
+  type ConflictMode,
+} from '../domain/backup';
+import { thumbnailPaths } from './routeThumbnail';
 import { Dialog } from './Dialog';
 import { locale, translateMessage } from '../i18n';
 
@@ -56,8 +65,41 @@ export function Library({
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [sort, setSort] = useState<RouteSort>('updated');
-  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState(() => loadPreferences().library);
+  const { sort, query, activity, favoriteOnly, tag, minKm, maxKm } = filters;
+  function updateFilters(patch: Partial<typeof filters>) {
+    setFilters((current) => ({ ...current, ...patch }));
+  }
+  const setSort = (sort: RouteSort) => updateFilters({ sort });
+  const setQuery = (query: string) => updateFilters({ query });
+  function resetFilters() {
+    setFilters({
+      sort: 'updated',
+      query: '',
+      activity: 'all',
+      favoriteOnly: false,
+      tag: '',
+      minKm: '',
+      maxKm: '',
+    });
+  }
+  useEffect(() => {
+    savePreferences({ library: filters });
+  }, [filters]);
+  const [invalidCount, setInvalidCount] = useState(0);
+  const [backup, setBackup] = useState<RouteBackup | null>(null);
+  const [conflictMode, setConflictMode] = useState<ConflictMode>('copy');
+  const [importResult, setImportResult] = useState('');
+  const [tags, setTags] = useState('');
+  const [favorite, setFavorite] = useState(false);
+  const hasFilters = !!(
+    query.trim() ||
+    activity !== 'all' ||
+    favoriteOnly ||
+    tag ||
+    minKm ||
+    maxKm
+  );
   const editTitleId = useId();
   const deleteTitleId = useId();
   const [error, setError] = useState('');
@@ -101,8 +143,11 @@ export function Library({
     let active = true;
     setLoading(true);
     setLoadFailed(false);
+    setInvalidCount(0);
     setError('');
-    listRoutes()
+    listRoutes((count) => {
+      if (active) setInvalidCount(count);
+    })
       .then((value) => {
         if (active) setRoutes(value);
       })
@@ -127,7 +172,8 @@ export function Library({
     setError('');
     try {
       await operation();
-      setRoutes(await listRoutes());
+      setInvalidCount(0);
+      setRoutes(await listRoutes(setInvalidCount));
       setEditing(null);
       setDeleting(null);
     } catch (error) {
@@ -139,9 +185,17 @@ export function Library({
   }
   const filtered = routes
     .filter((route) =>
-      `${route.name} ${route.description}`
+      `${route.name} ${route.description} ${(route.tags ?? []).join(' ')}`
         .toLocaleLowerCase(locale())
         .includes(query.trim().toLocaleLowerCase(locale())),
+    )
+    .filter(
+      (route) =>
+        (activity === 'all' || route.activity === activity) &&
+        (!favoriteOnly || route.favorite) &&
+        (!tag || (route.tags ?? []).includes(tag)) &&
+        (!minKm || route.stats.distance >= Number(minKm) * 1000) &&
+        (!maxKm || route.stats.distance <= Number(maxKm) * 1000),
     )
     .sort((a, b) => {
       if (sort === 'name') return a.name.localeCompare(b.name, locale());
@@ -202,6 +256,179 @@ export function Library({
             </DropdownMenu>
           )}
         </div>
+        <div className="library-backup-actions">
+          <Button
+            variant="outline"
+            disabled={loading || busy || loadFailed || !routes.length}
+            onClick={() => {
+              setError('');
+              try {
+                const blob = new Blob([exportBackup(routes)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'roamlet-library.json';
+                document.body.append(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 0);
+              } catch (error) {
+                setError(error instanceof Error ? error.message : 'Could not export your library.');
+              }
+            }}
+          >
+            {t('Export library')}
+          </Button>
+          <Label className="library-import-label">
+            {t('Import library')}
+            <input
+              type="file"
+              accept="application/json,.json"
+              aria-label={t('Import library file')}
+              disabled={loading || busy || loadFailed}
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (!file) return;
+                setBusy(true);
+                setError('');
+                setBackup(null);
+                setImportResult('');
+                try {
+                  setBackup(await readBackupFile(file));
+                  setConflictMode('copy');
+                } catch (error) {
+                  setError(error instanceof Error ? error.message : 'Invalid library backup.');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+          </Label>
+        </div>
+        {routes.length > 0 && (
+          <fieldset className="library-filters" disabled={busy || loading}>
+            <legend>{t('Filter routes')}</legend>
+            <Label>
+              {t('Activity')}
+              <select
+                value={activity}
+                onChange={(event) =>
+                  updateFilters({ activity: event.target.value as typeof activity })
+                }
+              >
+                <option value="all">{t('All activities')}</option>
+                <option value="cycling">{t('Cycling')}</option>
+                <option value="hiking">{t('Hiking')}</option>
+              </select>
+            </Label>
+            <Label className="library-checkbox">
+              <input
+                type="checkbox"
+                checked={favoriteOnly}
+                onChange={(event) => updateFilters({ favoriteOnly: event.target.checked })}
+              />
+              {t('Favorites only')}
+            </Label>
+            <Label>
+              {t('Filter by tag')}
+              <select value={tag} onChange={(event) => updateFilters({ tag: event.target.value })}>
+                <option value="">{t('All tags')}</option>
+                {[
+                  ...new Set([
+                    ...routes.flatMap((route) => route.tags ?? []),
+                    ...(tag ? [tag] : []),
+                  ]),
+                ]
+                  .sort()
+                  .map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
+                  ))}
+              </select>
+            </Label>
+            <Label>
+              {t('Minimum length (km)')}
+              <Input
+                type="number"
+                min="0"
+                step="any"
+                value={minKm}
+                onChange={(event) => updateFilters({ minKm: event.target.value })}
+              />
+            </Label>
+            <Label>
+              {t('Maximum length (km)')}
+              <Input
+                type="number"
+                min="0"
+                step="any"
+                value={maxKm}
+                onChange={(event) => updateFilters({ maxKm: event.target.value })}
+              />
+            </Label>
+            <Button variant="ghost" onClick={resetFilters}>
+              {t('Reset filters')}
+            </Button>
+          </fieldset>
+        )}
+        {backup && (
+          <section className="library-import-preview" aria-label={t('Library import preview')}>
+            <h3>{t('Library import preview')}</h3>
+            <p>{t('{{count}} routes to import', { count: backup.routes.length })}</p>
+            <p>
+              {t('{{count}} conflicting routes', {
+                count: backup.routes.filter((route) =>
+                  routes.some((existing) => existing.id === route.id),
+                ).length,
+              })}
+            </p>
+            <Label>
+              {t('Conflicting routes')}
+              <select
+                disabled={busy}
+                value={conflictMode}
+                onChange={(event) => setConflictMode(event.target.value as ConflictMode)}
+              >
+                <option value="copy">{t('Import copies')}</option>
+                <option value="skip">{t('Skip existing routes')}</option>
+                <option value="replace">{t('Replace existing routes')}</option>
+              </select>
+            </Label>
+            <p>{t('Import changes only your library, not the route in the editor.')}</p>
+            <div className="button-row">
+              <Button variant="ghost" disabled={busy} onClick={() => setBackup(null)}>
+                {t('Cancel import')}
+              </Button>
+              <Button
+                disabled={busy}
+                onClick={() =>
+                  void mutate(async () => {
+                    const result = await importBackup(backup, conflictMode);
+                    setImportResult(
+                      t('Imported {{count}} routes; skipped {{skipped}}.', {
+                        count: result.imported,
+                        skipped: result.skipped,
+                      }),
+                    );
+                    setBackup(null);
+                  }, 'import')
+                }
+              >
+                {t('Import routes')}
+              </Button>
+            </div>
+          </section>
+        )}
+        {importResult && <p role="status">{importResult}</p>}
+        {invalidCount > 0 && (
+          <p role="alert">
+            {t('{{count}} invalid saved routes were hidden and retained on this device.', {
+              count: invalidCount,
+            })}
+          </p>
+        )}
         {!loading && !loadFailed && (
           <div className="library-summary" role="status">
             <span className="library-collection-label">
@@ -213,7 +440,7 @@ export function Library({
                 {t('Good routes are worth keeping. Saved on this device, no account needed.')}
               </span>
             </span>
-            {query.trim() && (
+            {hasFilters && (
               <span>{t('{{count}} matching routes', { count: filtered.length })}</span>
             )}
           </div>
@@ -257,7 +484,7 @@ export function Library({
             <Button
               variant="outline"
               onClick={() => {
-                setQuery('');
+                resetFilters();
                 searchInput.current?.focus();
               }}
             >
@@ -273,6 +500,11 @@ export function Library({
                 data-selected={editing?.id === route.id || deleting?.id === route.id || undefined}
               >
                 <span className="library-activity-icon">
+                  <svg className="library-thumbnail" viewBox="0 0 64 64" aria-hidden="true">
+                    {thumbnailPaths(route.segments).map((path, index) => (
+                      <path key={index} d={path} />
+                    ))}
+                  </svg>
                   {route.activity === 'cycling' ? (
                     <Bike size={18} aria-hidden="true" />
                   ) : (
@@ -296,6 +528,9 @@ export function Library({
                       {t('· Updated')} {new Date(route.updatedAt).toLocaleDateString(locale())}
                     </span>
                   </span>
+                  {!!route.tags?.length && (
+                    <span className="library-route-tags">{route.tags.join(' · ')}</span>
+                  )}
                   {route.description && (
                     <span className="route-description">{route.description}</span>
                   )}
@@ -312,6 +547,21 @@ export function Library({
                 <div className="library-actions">
                   <Button
                     variant="ghost"
+                    disabled={busy}
+                    aria-label={t(route.favorite ? 'Remove from favorites' : 'Add to favorites')}
+                    aria-pressed={route.favorite ?? false}
+                    onClick={(event) => {
+                      actionTrigger.current = event.currentTarget;
+                      void mutate(
+                        () => saveRoute({ ...route, favorite: !route.favorite }),
+                        'favorite:' + route.id,
+                      );
+                    }}
+                  >
+                    <span aria-hidden="true">{route.favorite ? '★' : '☆'}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
                     className="icon-button"
                     disabled={busy}
                     aria-label={t('Edit {{name}}', { name: route.name })}
@@ -322,6 +572,8 @@ export function Library({
                       setDeleting(null);
                       setName(route.name);
                       setDescription(route.description);
+                      setTags((route.tags ?? []).join(', '));
+                      setFavorite(route.favorite ?? false);
                     }}
                   >
                     <Pencil size={18} aria-hidden="true" />
@@ -382,6 +634,15 @@ export function Library({
                       ...editing,
                       name: name.trim(),
                       description: description.trim(),
+                      favorite,
+                      tags: [
+                        ...new Set(
+                          tags
+                            .split(',')
+                            .map((tag) => tag.trim())
+                            .filter(Boolean),
+                        ),
+                      ],
                       updatedAt: new Date().toISOString(),
                     }),
                   'save',
@@ -412,6 +673,25 @@ export function Library({
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
               />
+            </Label>
+            <Label>
+              {t('Tags')}
+              <Input
+                disabled={busy}
+                value={tags}
+                onChange={(event) => setTags(event.target.value)}
+                placeholder={t('Comma-separated tags')}
+                maxLength={2000}
+              />
+            </Label>
+            <Label className="library-checkbox">
+              <input
+                type="checkbox"
+                disabled={busy}
+                checked={favorite}
+                onChange={(event) => setFavorite(event.target.checked)}
+              />
+              {t('Favorite')}
             </Label>
             <div className="button-row">
               <Button
