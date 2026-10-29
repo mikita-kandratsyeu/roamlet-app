@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/__fixtures__/map-style.json', (route) =>
@@ -27,6 +28,36 @@ test('history controls exist only on the map', async ({ page }) => {
   await expect(page.locator('.map-redo-tool')).toBeVisible();
 });
 
+test('personal time fields follow planner sizing without duplicate history buttons', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 900 }
+      : { width: 1440, height: 1000 },
+  );
+  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  for (const value of ['47.26, 11.4', '47.27, 11.41']) {
+    await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+    await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
+  }
+  const speed = page.getByLabel('Personal speed (km/h)', { exact: true });
+  const stops = page.getByLabel('Stops (minutes)', { exact: true });
+  await speed.scrollIntoViewIfNeeded();
+  await expect(speed).toBeVisible();
+  await expect(stops).toBeVisible();
+  for (const input of [speed, stops]) {
+    const box = (await input.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeLessThanOrEqual(48);
+  }
+  await expect(page.locator('.planner').getByRole('button', { name: /^(Undo|Redo)$/ })).toHaveCount(
+    0,
+  );
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('planner-time-fields.png') });
+});
+
 test('library loading overlays the editor without moving the map', async ({ page }) => {
   let release: () => void = () => {};
   const gate = new Promise<void>((resolve) => {
@@ -40,17 +71,80 @@ test('library loading overlays the editor without moving the map', async ({ page
   const before = await canvas.boundingBox();
   try {
     await page.getByRole('button', { name: 'My routes', exact: true }).click();
-    await expect(page.getByTestId('panel-loader')).toBeVisible();
+    await expect(page.getByTestId('global-map-loader')).toBeVisible();
+    await expect(page.locator('.global-map-loader__orbit')).toBeVisible();
     expect(await canvas.boundingBox()).toEqual(before);
-    await expect(page.getByTestId('panel-loader')).toHaveCSS('position', 'fixed');
+    await expect(page.getByTestId('global-map-loader')).toHaveCSS('position', 'fixed');
     release();
     await expect(page.locator('.library-screen')).toBeVisible();
+    await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
     await page.getByRole('button', { name: 'Back to map', exact: true }).click();
     await expect(canvas).toBeVisible();
     expect(await canvas.boundingBox()).toEqual(before);
   } finally {
     release();
   }
+});
+
+test('saved route cards keep uniform heights and aligned actions with long names and tags', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 900 }
+      : { width: 1440, height: 1200 },
+  );
+  await page
+    .getByLabel('Import GPX file')
+    .setInputFiles({
+      name: 'grid.gpx',
+      mimeType: 'application/gpx+xml',
+      buffer: Buffer.from(
+        '<gpx version="1.1"><trk><name>Short route</name><trkseg><trkpt lat="47.26" lon="11.4"/><trkpt lat="47.27" lon="11.41"/></trkseg></trk></gpx>',
+      ),
+    });
+  await page.getByRole('button', { name: 'Save route', exact: true }).click();
+  await page.getByRole('button', { name: 'Save to library', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'My routes', exact: true }).click();
+  const pending = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export library', exact: true }).click();
+  const backup = JSON.parse(await readFile((await (await pending).path())!, 'utf8'));
+  const original = backup.routes[0];
+  backup.routes = Array.from({ length: 6 }, (_, index) => ({
+    ...original,
+    id: `grid-route-${index}`,
+    name:
+      index % 2 ? `Route ${index}` : `A long route name ${'with another copy '.repeat(12)}${index}`,
+    tags: index % 2 ? [] : ['weekend', 'waterfront', 'mountain', 'forest', 'spring', 'trail'],
+    waypoints: original.waypoints.map((point: { id: string }) => ({
+      ...point,
+      id: `${point.id}-${index}`,
+    })),
+  }));
+  await page
+    .getByLabel('Import library file')
+    .setInputFiles({
+      name: 'grid.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(backup)),
+    });
+  await page.getByRole('button', { name: 'Import routes', exact: true }).click();
+  const cards = page.locator('.library-route');
+  await expect(cards).toHaveCount(7);
+  const boxes = await cards.evaluateAll((elements) =>
+    elements.map((element) => {
+      const card = element.getBoundingClientRect();
+      const footer = element.querySelector('.library-actions')!.getBoundingClientRect();
+      return { height: card.height, footer: footer.top - card.top };
+    }),
+  );
+  for (const box of boxes) {
+    expect(Math.abs(box.height - boxes[0].height)).toBeLessThan(1);
+    expect(Math.abs(box.footer - boxes[0].footer)).toBeLessThan(1);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('library-uniform-grid.png') });
 });
 
 test('draft recovery uses the same compact confirmation layout', async ({ page }, testInfo) => {

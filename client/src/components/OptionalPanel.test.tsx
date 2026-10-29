@@ -10,8 +10,9 @@ it('portals a screen loader without adding a flow element to the mounted editor'
   const { container } = render(<div data-testid="editor"><div data-testid="canvas" /><Panel onClose={onClose} /></div>);
   expect(await screen.findByTestId('panel-loader')).toBeInTheDocument();
   expect(container.querySelector('.panel-loading-overlay')).toBeNull();
-  expect(document.querySelector('.optional-screen-overlay')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Back to map' })).toHaveFocus();
+  expect(document.querySelector('.global-map-loader')).toBeInTheDocument();
+  expect(document.querySelector('.global-map-loader__orbit')).toBeInTheDocument();
+  expect(screen.getByTestId('global-map-loader')).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: 'Back to map' }));
   expect(onClose).toHaveBeenCalledOnce();
   finish({ default: () => <p>Library ready</p> });

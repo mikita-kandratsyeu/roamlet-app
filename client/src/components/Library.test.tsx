@@ -147,11 +147,23 @@ it('offers backup import for an empty library without fake route creation contro
 });
 
 it('announces loading and allows retrying a failed load rather than claiming the library is empty', async () => {
-  vi.mocked(listRoutes).mockRejectedValueOnce(new Error('Your library could not be loaded.'));
+  let rejectLoad!: (error: Error) => void;
+  vi.mocked(listRoutes).mockImplementationOnce(
+    () =>
+      new Promise((_, reject) => {
+        rejectLoad = reject;
+      }),
+  );
   render(<Library onClose={() => {}} onOpen={() => {}} />);
   expect(
-    screen.getByRole('status', { name: i18next.t('Opening your library…') }),
+    await screen.findByRole('status', { name: i18next.t('Opening your library…') }),
   ).toBeInTheDocument();
+  const loader = screen.getByTestId('global-map-loader');
+  expect(loader).toHaveAttribute('data-purpose', 'library');
+  expect(loader.closest('[data-testid="panel-loader"]')).not.toBeNull();
+  expect(loader.querySelector('.global-map-loader__orbit')).toBeInTheDocument();
+  expect(document.querySelector('.library-loading')).toBeNull();
+  rejectLoad(new Error('Your library could not be loaded.'));
   await screen.findByRole('button', { name: 'Try again' });
   expect(screen.queryByText(i18next.t('Your next adventure belongs here'))).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -514,4 +526,47 @@ it('opens import preview in a separate dialog and Escape cancels preview rather 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(onClose).not.toHaveBeenCalled();
   expect(importBackup).not.toHaveBeenCalled();
+});
+
+it('keeps complete long route names/tags/details accessible in consistently reserved card content slots', async () => {
+  const longName = `Alpine loop ${'(copy) '.repeat(35)}`;
+  const longTags = ['mountains'.repeat(30), 'weekend', 'forest'];
+  const longDescription = 'Very detailed route notes. '.repeat(80);
+  const longRoute = { ...alpine, name: longName, tags: longTags, description: longDescription };
+  vi.mocked(listRoutes).mockResolvedValue([longRoute, { ...woodland, description: '' }]);
+  const onOpen = vi.fn();
+  render(<Library onClose={() => {}} onOpen={onOpen} />);
+  const list = await screen.findByRole('list', { name: 'Saved routes' });
+  const bodies = within(list)
+    .getAllByRole('button')
+    .filter((button) => button.classList.contains('library-route-body'));
+  expect(bodies).toHaveLength(2);
+  const longBody = bodies.find((button) => button.title === longName)!;
+  expect(longBody).toHaveAccessibleName(expect.stringContaining(longName));
+  expect(longBody.querySelector('.library-route-title')).toHaveAttribute('title', longName);
+  expect(longBody.querySelector('.library-route-title')).toHaveTextContent(longName.trim());
+  expect(longBody.querySelector('.library-route-tags')).toHaveAttribute(
+    'title',
+    longTags.join(' · '),
+  );
+  expect(longBody.querySelector('.route-description')).toHaveAttribute('title', longDescription);
+  for (const body of bodies) {
+    expect(body.querySelector('.library-route-title')).toBeInTheDocument();
+    expect(body.querySelector('.library-route-meta')).toBeInTheDocument();
+    expect(body.querySelector('.library-route-tags')).toBeInTheDocument();
+    expect(body.querySelector('.route-description')).toBeInTheDocument();
+  }
+  const card = longBody.closest('.library-route') as HTMLElement;
+  const actions = within(card).getByRole('group');
+  expect(
+    within(actions).getByRole('button', { name: `Edit ${longName.trim()}` }),
+  ).toHaveTextContent('Edit');
+  expect(
+    within(actions).getByRole('button', { name: `Duplicate ${longName.trim()}` }),
+  ).toHaveTextContent('Copy');
+  expect(within(actions).getByRole('button', { name: `Delete ${longName.trim()}` })).toHaveClass(
+    'library-delete-action',
+  );
+  fireEvent.click(longBody);
+  expect(onOpen).toHaveBeenCalledWith(longRoute);
 });

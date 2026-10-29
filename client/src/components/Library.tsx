@@ -3,7 +3,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import './Library.css';
-import { Skeleton } from './ui/skeleton';
+import { MapLoader } from './MapLoader';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -158,18 +158,18 @@ export function Library({
   const searchInput = useRef<HTMLInputElement>(null);
   const importInput = useRef<HTMLInputElement>(null);
   const importCancel = useRef<HTMLButtonElement>(null);
-  const previousFocus = useRef<HTMLElement | null>(null);
+  const previousFocus = useRef<HTMLElement | null>(
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
   const editInput = useRef<HTMLInputElement>(null);
   const keepButton = useRef<HTMLButtonElement>(null);
   const actionTrigger = useRef<HTMLButtonElement | null>(null);
   const restoreFocus = useRef(false);
   useEffect(() => {
-    previousFocus.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    searchInput.current?.focus();
+    const previous = previousFocus.current;
     return () => {
       queueMicrotask(() => {
-        const target = previousFocus.current;
+        const target = previous;
         if (
           target?.isConnected &&
           !target.matches(':disabled') &&
@@ -183,6 +183,9 @@ export function Library({
       });
     };
   }, []);
+  useEffect(() => {
+    if (!loading) searchInput.current?.focus();
+  }, [loading]);
   useEffect(() => {
     if (busy) return;
     if (editing) editInput.current?.focus();
@@ -610,11 +613,12 @@ export function Library({
             </p>
           )}
           {loading ? (
-            <div role="status" aria-label={t('Opening your library…')} className="library-loading">
-              {[0, 1, 2].map((index) => (
-                <Skeleton key={index} className="h-20 w-full rounded-xl" />
-              ))}
-            </div>
+            <MapLoader
+              purpose="library"
+              ariaLabel={t('Opening your library…')}
+              title={t('Opening your library…')}
+              onCancel={onClose}
+            />
           ) : loadFailed ? (
             <div className="library-empty library-load-error">
               <FolderHeart size={34} aria-hidden="true" />
@@ -666,11 +670,14 @@ export function Library({
                   </span>
                   <Button
                     variant="ghost"
-                    className="library-open"
+                    className="library-open library-route-body"
+                    title={route.name}
                     disabled={busy}
                     onClick={() => onOpen(route)}
                   >
-                    <strong>{route.name}</strong>
+                    <strong className="library-route-title" title={route.name}>
+                      {route.name}
+                    </strong>
                     <span className="library-route-meta">
                       <span className="library-activity">
                         {route.activity === 'cycling' ? t('Cycling') : t('Hiking')}
@@ -683,12 +690,12 @@ export function Library({
                         {t('· Updated')} {new Date(route.updatedAt).toLocaleDateString(locale())}
                       </span>
                     </span>
-                    {!!route.tags?.length && (
-                      <span className="library-route-tags">{route.tags.join(' · ')}</span>
-                    )}
-                    {route.description && (
-                      <span className="route-description">{route.description}</span>
-                    )}
+                    <span className="library-route-tags" title={(route.tags ?? []).join(' · ')}>
+                      {(route.tags ?? []).join(' · ')}
+                    </span>
+                    <span className="route-description" title={route.description}>
+                      {route.description}
+                    </span>
                   </Button>
                   <Button
                     variant="outline"
@@ -741,7 +748,7 @@ export function Library({
                       }}
                     >
                       <Pencil size={18} aria-hidden="true" />
-                      <span className="library-action-label">{t('Edit route details')}</span>
+                      <span className="library-action-label">{t('Edit')}</span>
                     </Button>
                     <Button
                       variant="ghost"
@@ -758,13 +765,11 @@ export function Library({
                       ) : (
                         <Copy size={18} aria-hidden="true" />
                       )}
-                      <span className="library-action-label">
-                        {t('Duplicate {{name}}', { name: '' }).trim()}
-                      </span>
+                      <span className="library-action-label">{t('Copy')}</span>
                     </Button>
                     <Button
                       variant="ghost"
-                      className="icon-button"
+                      className="icon-button library-delete-action"
                       disabled={busy}
                       aria-label={t('Delete {{name}}', { name: route.name })}
                       title={t('Delete {{name}}', { name: route.name })}
@@ -777,7 +782,6 @@ export function Library({
                       }}
                     >
                       <Trash2 size={18} aria-hidden="true" />
-                      <span className="library-action-label">{t('Delete')}</span>
                     </Button>
                   </div>
                 </li>

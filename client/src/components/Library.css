@@ -867,7 +867,8 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   max-height: none;
   overflow: visible;
-  align-items: start;
+  align-items: stretch;
+  grid-auto-rows: 1fr;
 }
 .library-screen .library-loading {
   display: grid;
@@ -948,5 +949,71 @@
   .library-screen .library-toolbar {
     order: initial;
     gap: 10px;
+  }
+}
+
+.library-screen .library-route {
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.route-library .library-route-body {
+  width: 100%;
+  align-self: start;
+}
+.route-library .library-route-title,
+.route-library .library-route-meta,
+.route-library .library-route-tags,
+.route-library .route-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+}
+.route-library .library-route-title {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  height: 2.9em;
+  min-height: 2.9em;
+}
+.route-library .library-route-meta {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  height: 2.9em;
+  min-height: 2.9em;
+}
+.route-library .library-route-tags {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  line-height: 1.45;
+  height: 1.45em;
+  min-height: 1.45em;
+}
+.route-library .route-description {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  height: 2.9em;
+  min-height: 2.9em;
+}
+.route-library .library-actions {
+  align-self: end;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.route-library .library-actions .icon-button {
+  height: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+.route-library .library-actions .library-favorite-action,
+.route-library .library-actions .library-delete-action {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+@media (max-width: 560px) {
+  .route-library .library-actions .icon-button {
+    padding: 0;
   }
 }

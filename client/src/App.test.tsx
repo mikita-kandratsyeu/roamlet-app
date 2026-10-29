@@ -342,7 +342,7 @@ describe('route planner interactions', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
-    expect(await screen.findByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus());
     const edit = await screen.findByRole('button', { name: 'Edit Focus trip' });
     fireEvent.click(edit);
     expect(screen.getByRole('textbox', { name: 'Route name' })).toHaveFocus();
@@ -358,7 +358,7 @@ describe('route planner interactions', () => {
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Delete Focus trip' })).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus());
   });
   it('switches to Russian persistently without recalculating routes or changing user names', async () => {
     const values = new Map<string, string>();
@@ -604,7 +604,9 @@ describe('route planner interactions', () => {
     const libraryButton = screen.getByRole('button', { name: 'My routes' });
     libraryButton.focus();
     fireEvent.click(libraryButton);
-    expect(await screen.findByRole('region', { name: 'Saved routes' })).toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector('.library-screen')).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument());
+    expect(screen.getByRole('region', { name: 'Saved routes' })).toBeInTheDocument();
     expect(document.querySelector('.editor-screen')).toHaveAttribute('inert');
     expect(document.querySelector('.editor-screen')).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('map')).toBe(map);

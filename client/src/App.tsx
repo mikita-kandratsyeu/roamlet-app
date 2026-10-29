@@ -74,7 +74,7 @@ export default function App() {
   const [preferences] = useState(loadPreferences);
   const [editorInitial] = useState(() => ({ ...initialEditor(), activity: preferences.activity, planningMode: preferences.planningMode, automaticMode: preferences.planningMode === 'loop' ? 'loop' as const : 'point' as const, targetKm: preferences.targetKm, speeds: preferences.speeds, stopsMinutes: preferences.stopsMinutes }));
   const editor = useRouteEditor(editorInitial);
-  const { activity, setActivity, waypoints, setWaypoints, result, setResult, mode, setMode, planningMode, setPlanningMode, name, setName, description, setDescription, targetKm, setTargetKm, speeds, setSpeeds, stopsMinutes, setStopsMinutes } = editor;
+  const { activity, setActivity, waypoints, setWaypoints, result, setResult, mode, setMode, planningMode, setPlanningMode, setAutomaticMode, name, setName, description, setDescription, targetKm, setTargetKm, speeds, setSpeeds, stopsMinutes, setStopsMinutes } = editor;
   const [panelHidden, setPanelHidden] = useState(preferences.panelHidden);
   const hidePlannerButton = useRef<HTMLButtonElement>(null);
   const showPlannerButton = useRef<HTMLButtonElement>(null);
@@ -204,7 +204,7 @@ export default function App() {
       setTargetKm(next.targetKm);
       if (!dirty && !result && mode !== 'snapshot') {
         setPlanningMode(next.planningMode);
-        if (next.planningMode !== 'manual') editor.setAutomaticMode(next.planningMode);
+        if (next.planningMode !== 'manual') setAutomaticMode(next.planningMode);
       }
     };
     const connection = () => setOnline(navigator.onLine);
@@ -216,7 +216,7 @@ export default function App() {
       window.removeEventListener('online', connection);
       window.removeEventListener('offline', connection);
     };
-  }, [mode, dirty, result, setActivity, setSpeeds, setStopsMinutes, setTargetKm, setPlanningMode, editor.routingAllowed]);
+  }, [mode, dirty, result, setActivity, setSpeeds, setStopsMinutes, setTargetKm, setPlanningMode, setAutomaticMode, editor.routingAllowed]);
   function travelHistory(direction: 'undo' | 'redo') {
     if (direction === 'undo' ? !editor.canUndo : !editor.canRedo) return;
     request.current?.abort();
@@ -228,7 +228,7 @@ export default function App() {
   }
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
-      if (libraryOpen || document.querySelector('[role="dialog"], dialog[open]')) return;
+      if (libraryOpen || document.querySelector('[role="dialog"], dialog[open], .global-map-loader')) return;
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select'))) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !event.altKey) {

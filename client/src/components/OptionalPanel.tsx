@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, LoaderCircle } from 'lucide-react';
 import { Button } from './ui/button';
+import { MapLoader } from './MapLoader';
 type PanelKind = 'screen' | 'statistics';
 function PanelFallback({ kind, failed = false, onRetry, onClose }: { kind: PanelKind; failed?: boolean; onRetry?: () => void; onClose?: () => void }) {
   const { t } = useTranslation();
+  if (kind === 'screen' && !failed) return <MapLoader purpose="library" onCancel={onClose} />;
   const content = <div className={`panel-loading-overlay ${failed ? 'panel-loading-error' : ''}`} data-testid="panel-loader">
     <div role={failed ? 'alert' : 'status'}>
       {!failed && <LoaderCircle size={20} className="spin" aria-hidden="true" />}
