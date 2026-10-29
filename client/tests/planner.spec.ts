@@ -64,7 +64,7 @@ test.beforeEach(async ({ page }) => {
     const request = route.request();
     expect(request.method()).toBe('POST');
     expect(request.headers()).toMatchObject({
-      accept: 'application/json',
+      accept: 'application/geo+json',
       'content-type': 'application/json',
       authorization: 'test-only-not-a-real-ors-key',
     });

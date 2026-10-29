@@ -268,9 +268,9 @@ describe('OpenRouteServiceRoutingService', () => {
   });
   it('reports a network failure without falling back to a line', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Network'));
-    await expect(requestJson('/openrouteservice/v2/directions/cycling-regular/geojson', {})).rejects.toThrow(
-      'internet connection',
-    );
+    await expect(
+      requestJson('/openrouteservice/v2/directions/cycling-regular/geojson', {}),
+    ).rejects.toThrow('internet connection');
   });
   it('does not expose an address search helper', () => {
     expect(routing).not.toHaveProperty('searchPlaces');
