@@ -80,6 +80,7 @@ interface Confirmation {
 export default function App() {
   const { t } = useTranslation();
   const [preferences] = useState(loadPreferences);
+  const [timeSyncRevision, setTimeSyncRevision] = useState(0);
   const [editorInitial] = useState(() => ({
     ...initialEditor(),
     activity: preferences.activity,
@@ -303,6 +304,7 @@ export default function App() {
       )
         return;
       const next = loadPreferences();
+      if (!detail || detail.reset || Object.keys(detail.patch ?? {}).some(key => key === 'speeds' || key === 'stopsMinutes')) setTimeSyncRevision(revision => revision + 1);
       applyingPreferences.current = true;
       if (!dirty && !result) {
         editor.routingAllowed.current = false;
@@ -506,6 +508,7 @@ export default function App() {
     else action();
   }
   function newRoute() {
+    setTimeSyncRevision(revision => revision + 1);
     request.current?.abort();
     setBusy(false);
     void writer.clear();
@@ -531,6 +534,7 @@ export default function App() {
     setSearchTarget(null);
   }
   function openRoute(route: PlannedRoute) {
+    setTimeSyncRevision(revision => revision + 1);
     request.current?.abort();
     setBusy(false);
     void writer.clear();
@@ -1480,6 +1484,7 @@ export default function App() {
                   </div>
                 )}
               <PlannerTools
+                contextKey={`${editor.identity.id}:${activity}:${timeSyncRevision}`}
                 speed={speeds[activity]}
                 stops={stopsMinutes}
                 onSpeed={(value) => {
