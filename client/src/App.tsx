@@ -1641,6 +1641,7 @@ export default function App() {
             });
           }}
           onRestore={() => {
+            setTimeSyncRevision(revision => revision + 1);
             request.current?.abort();
             setBusy(false);
             editor.reset(draft.snapshot);

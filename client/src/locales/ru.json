@@ -407,5 +407,7 @@
   "Copy": "Копия",
   "Loading your routes…": "Загружаем ваши маршруты…",
   "Preparing your saved routes.": "Подготавливаем сохранённые маршруты.",
-  "Personal time": "Оценка времени"
+  "Personal time": "Оценка времени",
+  "Enter a finite speed greater than zero.": "Укажите скорость больше 0.",
+  "Enter a finite stop duration of zero or more.": "Укажите 0 минут или больше."
 }

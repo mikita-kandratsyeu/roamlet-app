@@ -407,5 +407,7 @@
   "Copy": "Copy",
   "Loading your routes…": "Loading your routes…",
   "Preparing your saved routes.": "Preparing your saved routes.",
-  "Personal time": "Personal time"
+  "Personal time": "Personal time",
+  "Enter a finite speed greater than zero.": "Enter a speed greater than 0.",
+  "Enter a finite stop duration of zero or more.": "Enter 0 or more minutes."
 }
