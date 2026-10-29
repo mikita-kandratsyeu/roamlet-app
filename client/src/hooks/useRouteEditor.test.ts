@@ -7,7 +7,11 @@ describe('editor history', () => {
     let state: EditorHistory = { present: initialEditor(), past: [], future: [] };
     for (let i = 0; i < 60; i++) {
       state = editorReducer(state, { type: 'checkpoint' });
-      state = editorReducer(state, { type: 'patch', key: 'waypoints', value: [{ id: String(i), name: 'point', coordinate: [i, 1] }] });
+      state = editorReducer(state, {
+        type: 'patch',
+        key: 'waypoints',
+        value: [{ id: String(i), name: 'point', coordinate: [i, 1] }],
+      });
     }
     expect(state.past).toHaveLength(50);
     state = editorReducer(state, { type: 'undo' });
@@ -20,8 +24,14 @@ describe('editor history', () => {
   });
   it('restores serializable ready geometry without granting routing and resets session history', () => {
     const { result } = renderHook(() => useRouteEditor(initialEditor()));
-    act(() => { result.current.checkpoint(); result.current.setWaypoints([{ id: 'a', name: 'A', coordinate: [10, 20] }]); });
-    act(() => { result.current.checkpoint(); result.current.setWaypoints([]); });
+    act(() => {
+      result.current.checkpoint();
+      result.current.setWaypoints([{ id: 'a', name: 'A', coordinate: [10, 20] }]);
+    });
+    act(() => {
+      result.current.checkpoint();
+      result.current.setWaypoints([]);
+    });
     act(() => result.current.undo());
     expect(result.current.waypoints).toHaveLength(1);
     expect(result.current.routingAllowed.current).toBe(false);

@@ -11,27 +11,82 @@ interface Options {
   request: MutableRefObject<AbortController | null>;
   setBusy: Dispatch<SetStateAction<boolean>>;
   setResult: Dispatch<SetStateAction<PlannedRoute | null>>;
-  setNotice: Dispatch<SetStateAction<{ text: string; error: boolean; kind?: 'routing' | 'map' } | null>>;
+  setNotice: Dispatch<
+    SetStateAction<{ text: string; error: boolean; kind?: 'routing' | 'map' } | null>
+  >;
 }
-export function usePointRouting({ snapshot, revision, allowed, request, setBusy, setResult, setNotice }: Options) {
+export function usePointRouting({
+  snapshot,
+  revision,
+  allowed,
+  request,
+  setBusy,
+  setResult,
+  setNotice,
+}: Options) {
   const { activity, waypoints, mode, planningMode, identity, routeMetadata } = snapshot;
   useEffect(() => {
-    if (!allowed.current || mode !== 'manual' || planningMode === 'loop' || waypoints.length < 2) return;
-    const route = (calculated: ReturnType<typeof manualRoute>, source: PlannedRoute['source']): PlannedRoute => ({
-      ...identity, ...routeMetadata, name: i18n.t('Untitled adventure'), description: '', activity, waypoints,
-      ...calculated, updatedAt: new Date().toISOString(), source,
+    if (!allowed.current || mode !== 'manual' || planningMode === 'loop' || waypoints.length < 2)
+      return;
+    const route = (
+      calculated: ReturnType<typeof manualRoute>,
+      source: PlannedRoute['source'],
+    ): PlannedRoute => ({
+      ...identity,
+      ...routeMetadata,
+      name: i18n.t('Untitled adventure'),
+      description: '',
+      activity,
+      waypoints,
+      ...calculated,
+      updatedAt: new Date().toISOString(),
+      source,
     });
-    if (planningMode === 'manual') { setBusy(false); setResult(route(manualRoute(waypoints, activity), 'manual')); return; }
+    if (planningMode === 'manual') {
+      setBusy(false);
+      setResult(route(manualRoute(waypoints, activity), 'manual'));
+      return;
+    }
     const controller = new AbortController();
     request.current = controller;
-    setBusy(true); setNotice(null); setResult(null);
+    setBusy(true);
+    setNotice(null);
+    setResult(null);
     const timer = setTimeout(() => {
-      routingProvider.calculateRoute(waypoints, activity, controller.signal).then(calculated => {
-        if (!controller.signal.aborted) setResult(route(calculated, 'openrouteservice'));
-      }).catch(error => {
-        if (!controller.signal.aborted) setNotice({ text: error instanceof Error ? error.message : 'Something went wrong. Please try again.', error: true, kind: 'routing' });
-      }).finally(() => { if (!controller.signal.aborted) setBusy(false); });
+      routingProvider
+        .calculateRoute(waypoints, activity, controller.signal)
+        .then((calculated) => {
+          if (!controller.signal.aborted) setResult(route(calculated, 'openrouteservice'));
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted)
+            setNotice({
+              text:
+                error instanceof Error ? error.message : 'Something went wrong. Please try again.',
+              error: true,
+              kind: 'routing',
+            });
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setBusy(false);
+        });
     }, 350);
-    return () => { clearTimeout(timer); controller.abort(); };
-  }, [activity, waypoints, mode, planningMode, identity, routeMetadata, revision, allowed, request, setBusy, setResult, setNotice]);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [
+    activity,
+    waypoints,
+    mode,
+    planningMode,
+    identity,
+    routeMetadata,
+    revision,
+    allowed,
+    request,
+    setBusy,
+    setResult,
+    setNotice,
+  ]);
 }

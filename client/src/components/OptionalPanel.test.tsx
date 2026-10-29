@@ -4,10 +4,18 @@ import { optionalLazy } from './OptionalPanel';
 import type { ComponentType } from 'react';
 it('portals a screen loader without adding a flow element to the mounted editor', async () => {
   let finish!: (value: { default: ComponentType<{ onClose: () => void }> }) => void;
-  const loader = () => new Promise<{ default: ComponentType<{ onClose: () => void }> }>(resolve => { finish = resolve; });
+  const loader = () =>
+    new Promise<{ default: ComponentType<{ onClose: () => void }> }>((resolve) => {
+      finish = resolve;
+    });
   const Panel = optionalLazy<{ onClose: () => void }>(loader, 'screen');
   const onClose = vi.fn();
-  const { container } = render(<div data-testid="editor"><div data-testid="canvas" /><Panel onClose={onClose} /></div>);
+  const { container } = render(
+    <div data-testid="editor">
+      <div data-testid="canvas" />
+      <Panel onClose={onClose} />
+    </div>,
+  );
   expect(await screen.findByTestId('panel-loader')).toBeInTheDocument();
   expect(container.querySelector('.panel-loading-overlay')).toBeNull();
   expect(document.querySelector('.global-map-loader')).toBeInTheDocument();
@@ -21,10 +29,18 @@ it('portals a screen loader without adding a flow element to the mounted editor'
 afterEach(cleanup);
 it('keeps the surrounding UI usable and retries an optional loader after failure', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
-  const loader = vi.fn().mockRejectedValueOnce(new Error('Offline')).mockResolvedValue({ default: () => <p>Panel loaded</p> });
+  const loader = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('Offline'))
+    .mockResolvedValue({ default: () => <p>Panel loaded</p> });
   const Panel = optionalLazy(loader);
   const action = vi.fn();
-  render(<><button onClick={action}>Editor action</button><Panel /></>);
+  render(
+    <>
+      <button onClick={action}>Editor action</button>
+      <Panel />
+    </>,
+  );
   expect(await screen.findByRole('alert')).toHaveTextContent('panel could not be loaded');
   fireEvent.click(screen.getByText('Editor action'));
   expect(action).toHaveBeenCalledOnce();

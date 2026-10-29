@@ -577,9 +577,13 @@ export function Library({
               </div>
             </Dialog>
           )}
-          {importResult && <p role="status">{importResult}</p>}
+          {importResult && (
+            <p className="library-message" role="status">
+              {importResult}
+            </p>
+          )}
           {invalidCount > 0 && (
-            <p role="alert">
+            <p className="library-message library-message-warning" role="alert">
               {t('{{count}} invalid saved routes were hidden and retained on this device.', {
                 count: invalidCount,
               })}

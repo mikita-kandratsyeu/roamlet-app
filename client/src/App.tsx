@@ -20,8 +20,16 @@ import { loadPreferences, savePreferences } from './domain/preferences';
 import { optionalLazy } from './components/OptionalPanel';
 import { formatDistance, formatDuration } from './domain/format';
 import { useAppUpdate } from './hooks/useAppUpdate';
-const Statistics = optionalLazy<{ route: PlannedRoute | null; emptyHint?: string; speedKmh?: number; stopsMinutes?: number }>(() => import('./components/Statistics').then(m => ({ default: m.Statistics })));
-const Library = optionalLazy<{ onClose: () => void; onOpen: (route: PlannedRoute) => void }>(() => import('./components/Library').then(m => ({ default: m.Library })), 'screen');
+const Statistics = optionalLazy<{
+  route: PlannedRoute | null;
+  emptyHint?: string;
+  speedKmh?: number;
+  stopsMinutes?: number;
+}>(() => import('./components/Statistics').then((m) => ({ default: m.Statistics })));
+const Library = optionalLazy<{ onClose: () => void; onOpen: (route: PlannedRoute) => void }>(
+  () => import('./components/Library').then((m) => ({ default: m.Library })),
+  'screen',
+);
 import {
   MapPinPlus,
   Plus,
@@ -72,9 +80,39 @@ interface Confirmation {
 export default function App() {
   const { t } = useTranslation();
   const [preferences] = useState(loadPreferences);
-  const [editorInitial] = useState(() => ({ ...initialEditor(), activity: preferences.activity, planningMode: preferences.planningMode, automaticMode: preferences.planningMode === 'loop' ? 'loop' as const : 'point' as const, targetKm: preferences.targetKm, speeds: preferences.speeds, stopsMinutes: preferences.stopsMinutes }));
+  const [editorInitial] = useState(() => ({
+    ...initialEditor(),
+    activity: preferences.activity,
+    planningMode: preferences.planningMode,
+    automaticMode: preferences.planningMode === 'loop' ? ('loop' as const) : ('point' as const),
+    targetKm: preferences.targetKm,
+    speeds: preferences.speeds,
+    stopsMinutes: preferences.stopsMinutes,
+  }));
   const editor = useRouteEditor(editorInitial);
-  const { activity, setActivity, waypoints, setWaypoints, result, setResult, mode, setMode, planningMode, setPlanningMode, setAutomaticMode, name, setName, description, setDescription, targetKm, setTargetKm, speeds, setSpeeds, stopsMinutes, setStopsMinutes } = editor;
+  const {
+    activity,
+    setActivity,
+    waypoints,
+    setWaypoints,
+    result,
+    setResult,
+    mode,
+    setMode,
+    planningMode,
+    setPlanningMode,
+    setAutomaticMode,
+    name,
+    setName,
+    description,
+    setDescription,
+    targetKm,
+    setTargetKm,
+    speeds,
+    setSpeeds,
+    stopsMinutes,
+    setStopsMinutes,
+  } = editor;
   const [panelHidden, setPanelHidden] = useState(preferences.panelHidden);
   const hidePlannerButton = useRef<HTMLButtonElement>(null);
   const showPlannerButton = useRef<HTMLButtonElement>(null);
@@ -118,7 +156,11 @@ export default function App() {
   const [routingConfigured, setRoutingConfigured] = useState<boolean | null>(null);
   const [configurationUnavailable, setConfigurationUnavailable] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<{ text: string; error: boolean; kind?: 'routing' | 'map' } | null>(null);
+  const [notice, setNotice] = useState<{
+    text: string;
+    error: boolean;
+    kind?: 'routing' | 'map';
+  } | null>(null);
   const [mapRetryToken, setMapRetryToken] = useState(0);
   const [query, setQuery] = useState('');
   const [searchTarget, setSearchTarget] = useState<string | null>(null);
@@ -128,10 +170,13 @@ export default function App() {
   const libraryReturnFocus = useRef<HTMLElement | null>(null);
   const libraryWasOpen = useRef(false);
   function openLibrary() {
-    libraryReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    libraryReturnFocus.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setLibraryOpen(true);
   }
-  function closeLibrary() { setLibraryOpen(false); }
+  function closeLibrary() {
+    setLibraryOpen(false);
+  }
   const [saveOpen, setSaveOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(preferences.collapsed);
@@ -139,8 +184,13 @@ export default function App() {
   useEffect(() => {
     if (libraryWasOpen.current && !libraryOpen) {
       const previous = libraryReturnFocus.current;
-      const target = previous?.isConnected && !previous.closest('[hidden], [inert], [aria-hidden="true"]') ? previous : libraryTrigger.current;
-      queueMicrotask(() => (confirmation ? confirmationCancel.current : target)?.focus({ preventScroll: true }));
+      const target =
+        previous?.isConnected && !previous.closest('[hidden], [inert], [aria-hidden="true"]')
+          ? previous
+          : libraryTrigger.current;
+      queueMicrotask(() =>
+        (confirmation ? confirmationCancel.current : target)?.focus({ preventScroll: true }),
+      );
     }
     libraryWasOpen.current = libraryOpen;
   }, [libraryOpen, confirmation]);
@@ -163,27 +213,69 @@ export default function App() {
   const [online, setOnline] = useState(navigator.onLine);
   useEffect(() => {
     let active = true;
-    loadDraft().then(value => { if (active) { setDraft(value); setDraftChecked(true); } }).catch(() => {
-      if (active) { setDraftError(true); setDraftChecked(true); }
-    });
-    return () => { active = false; };
+    loadDraft()
+      .then((value) => {
+        if (active) {
+          setDraft(value);
+          setDraftChecked(true);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setDraftError(true);
+          setDraftChecked(true);
+        }
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   useEffect(() => {
     if (draftChecked && !draft && dirty) writer.schedule(editor.snapshot);
   }, [draftChecked, draft, dirty, editor.snapshot, writer]);
   useEffect(() => {
-    const flush = () => { if (document.visibilityState === 'hidden') void writer.flush(); };
+    const flush = () => {
+      if (document.visibilityState === 'hidden') void writer.flush();
+    };
     document.addEventListener('visibilitychange', flush);
-    return () => { document.removeEventListener('visibilitychange', flush); writer.cancel(); };
+    return () => {
+      document.removeEventListener('visibilitychange', flush);
+      writer.cancel();
+    };
   }, [writer]);
   const writingPreferences = useRef(false);
   const applyingPreferences = useRef(false);
-  const previousSettings = useRef({ activity, planningMode, targetKm, speeds, stopsMinutes, panelHidden, collapsed });
+  const previousSettings = useRef({
+    activity,
+    planningMode,
+    targetKm,
+    speeds,
+    stopsMinutes,
+    panelHidden,
+    collapsed,
+  });
   useEffect(() => {
-    const current = { activity, planningMode, targetKm, speeds, stopsMinutes, panelHidden, collapsed };
-    const patch = Object.fromEntries(Object.entries(current).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(previousSettings.current[key as keyof typeof current])));
+    const current = {
+      activity,
+      planningMode,
+      targetKm,
+      speeds,
+      stopsMinutes,
+      panelHidden,
+      collapsed,
+    };
+    const patch = Object.fromEntries(
+      Object.entries(current).filter(
+        ([key, value]) =>
+          JSON.stringify(value) !==
+          JSON.stringify(previousSettings.current[key as keyof typeof current]),
+      ),
+    );
     previousSettings.current = current;
-    if (applyingPreferences.current) { applyingPreferences.current = false; return; }
+    if (applyingPreferences.current) {
+      applyingPreferences.current = false;
+      return;
+    }
     if (!Object.keys(patch).length) return;
     writingPreferences.current = true;
     savePreferences(patch);
@@ -192,11 +284,30 @@ export default function App() {
   useEffect(() => {
     const apply = (event: Event) => {
       if (writingPreferences.current) return;
-      const detail = (event as CustomEvent<{ reset?: boolean; patch?: Record<string, unknown> }>).detail;
-      if (detail?.patch && !detail.reset && !Object.keys(detail.patch).some(key => ['activity', 'planningMode', 'targetKm', 'speeds', 'stopsMinutes', 'panelHidden', 'collapsed'].includes(key))) return;
+      const detail = (event as CustomEvent<{ reset?: boolean; patch?: Record<string, unknown> }>)
+        .detail;
+      if (
+        detail?.patch &&
+        !detail.reset &&
+        !Object.keys(detail.patch).some((key) =>
+          [
+            'activity',
+            'planningMode',
+            'targetKm',
+            'speeds',
+            'stopsMinutes',
+            'panelHidden',
+            'collapsed',
+          ].includes(key),
+        )
+      )
+        return;
       const next = loadPreferences();
       applyingPreferences.current = true;
-      if (!dirty && !result) { editor.routingAllowed.current = false; setActivity(next.activity); }
+      if (!dirty && !result) {
+        editor.routingAllowed.current = false;
+        setActivity(next.activity);
+      }
       setSpeeds(next.speeds);
       setStopsMinutes(next.stopsMinutes);
       setPanelHidden(next.panelHidden);
@@ -216,7 +327,18 @@ export default function App() {
       window.removeEventListener('online', connection);
       window.removeEventListener('offline', connection);
     };
-  }, [mode, dirty, result, setActivity, setSpeeds, setStopsMinutes, setTargetKm, setPlanningMode, setAutomaticMode, editor.routingAllowed]);
+  }, [
+    mode,
+    dirty,
+    result,
+    setActivity,
+    setSpeeds,
+    setStopsMinutes,
+    setTargetKm,
+    setPlanningMode,
+    setAutomaticMode,
+    editor.routingAllowed,
+  ]);
   function travelHistory(direction: 'undo' | 'redo') {
     if (direction === 'undo' ? !editor.canUndo : !editor.canRedo) return;
     request.current?.abort();
@@ -228,9 +350,17 @@ export default function App() {
   }
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
-      if (libraryOpen || document.querySelector('[role="dialog"], dialog[open], .global-map-loader')) return;
+      if (
+        libraryOpen ||
+        document.querySelector('[role="dialog"], dialog[open], .global-map-loader')
+      )
+        return;
       const target = event.target;
-      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select'))) return;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || target.closest('input, textarea, select'))
+      )
+        return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !event.altKey) {
         event.preventDefault();
         travelHistory(event.shiftKey ? 'redo' : 'undo');
@@ -240,7 +370,15 @@ export default function App() {
     return () => window.removeEventListener('keydown', key);
   });
 
-  usePointRouting({ snapshot: editor.snapshot, revision: routeRevision, allowed: editor.routingAllowed, request, setBusy, setResult, setNotice });
+  usePointRouting({
+    snapshot: editor.snapshot,
+    revision: routeRevision,
+    allowed: editor.routingAllowed,
+    request,
+    setBusy,
+    setResult,
+    setNotice,
+  });
   useEffect(() => {
     const controller = new AbortController();
     checkRoutingConfiguration(controller.signal)
@@ -373,7 +511,15 @@ export default function App() {
     void writer.clear();
     setDraft(null);
     const defaults = loadPreferences();
-    editor.reset({ ...initialEditor(), identity: newIdentity(), activity: defaults.activity, planningMode: defaults.planningMode, targetKm: defaults.targetKm, speeds: defaults.speeds, stopsMinutes: defaults.stopsMinutes });
+    editor.reset({
+      ...initialEditor(),
+      identity: newIdentity(),
+      activity: defaults.activity,
+      planningMode: defaults.planningMode,
+      targetKm: defaults.targetKm,
+      speeds: defaults.speeds,
+      stopsMinutes: defaults.stopsMinutes,
+    });
     setAlternatives([]);
     setSelectedAlternative(-1);
     setNotice(null);
@@ -389,9 +535,19 @@ export default function App() {
     setBusy(false);
     void writer.clear();
     setDraft(null);
-    editor.reset({ ...editor.snapshot, identity: { id: route.id, createdAt: route.createdAt }, savedRouteId: route.id, routeMetadata: { favorite: route.favorite, tags: route.tags },
-      result: route, waypoints: route.waypoints, name: route.name, description: route.description,
-      activity: route.activity, mode: 'snapshot', planningMode: route.source === 'manual' ? 'manual' : 'point' });
+    editor.reset({
+      ...editor.snapshot,
+      identity: { id: route.id, createdAt: route.createdAt },
+      savedRouteId: route.id,
+      routeMetadata: { favorite: route.favorite, tags: route.tags },
+      result: route,
+      waypoints: route.waypoints,
+      name: route.name,
+      description: route.description,
+      activity: route.activity,
+      mode: 'snapshot',
+      planningMode: route.source === 'manual' ? 'manual' : 'point',
+    });
     setAlternatives([]);
     setSelectedAlternative(-1);
     editor.setAutomaticMode('point');
@@ -426,7 +582,8 @@ export default function App() {
         setDirty(false);
         void writer.clear();
       }
-      if (latestSnapshot.current.identity.id === savedSnapshot.identity.id) editor.setSavedRouteId(route.id);
+      if (latestSnapshot.current.identity.id === savedSnapshot.identity.id)
+        editor.setSavedRouteId(route.id);
       setSaveOpen(false);
       setNotice({
         text: 'Route saved on this device. Your next adventure is ready.',
@@ -649,672 +806,817 @@ export default function App() {
         void handleFile(event.dataTransfer.files[0]);
       }}
     >
-      <div className="editor-screen" aria-hidden={libraryOpen || undefined} inert={libraryOpen || undefined}>
-      <header className="app-header">
-        <a
-          className="brand"
-          href="#"
-          onClick={(event) => {
-            event.preventDefault();
-            guard(newRoute);
-          }}
-          aria-label={t('Roamlet home')}
-        >
-          <span className="brand-mark">
-            <img src="/icon.svg" alt="" />
-          </span>
-          <strong className="brand-wordmark">Roamlet</strong>
-        </a>
-        <nav aria-label={t('Main navigation')}>
-          <Button
-            variant="ghost"
-            className="header-library"
-            ref={libraryTrigger}
-            onClick={openLibrary}
-            aria-label={t('My routes')}
-          >
-            <LibraryIcon size={18} aria-hidden="true" />
-            <span>{t('My routes')}</span>
-          </Button>
-          <HeaderMenu
-            onNewRoute={() => guard(newRoute)}
-            onLibrary={openLibrary}
-            onHelp={() => setHelpOpen(true)}
-          />
-        </nav>
-      </header>
-      {!online && <Alert role="status"><span>{t('Offline: saved routes, GPX and manual drawing remain available. Routing and basemaps need internet.')}</span><Button variant="ghost" onClick={openLibrary}>{t('My routes')}</Button><Button variant="ghost" onClick={() => changePlanningMode('manual')}>{t('Use manual drawing')}</Button></Alert>}
-      {update.available && <Alert role="status"><span>{t('An app update is ready.')}</span><Button disabled={update.installing} onClick={() => setConfirmation({ title: 'Update app?', text: 'Your draft will be saved before reloading.', label: 'Reload app', action: () => { void update.apply(); } })}>{t('Update app')}</Button></Alert>}
-      {update.failed && <Alert role="alert">{t('The update could not save your draft. Please retry; the app has not reloaded.')}</Alert>}
-      {draftError && <Alert role="alert"><span>{t('The draft could not be loaded or saved. Your routes and settings are unchanged.')}</span><Button onClick={() => { void writer.clear().then(ok => { if (ok) setDraftError(false); }); }}>{t('Delete draft')}</Button></Alert>}
-      <main
-        className={`workspace ${collapsed ? 'panel-collapsed' : ''} ${panelHidden ? 'desktop-panel-hidden' : ''}`}
+      <div
+        className="editor-screen"
+        aria-hidden={libraryOpen || undefined}
+        inert={libraryOpen || undefined}
       >
-        {panelHidden && (
-          <Button
-            ref={showPlannerButton}
-            variant="outline"
-            className="planner-reopen"
-            aria-label={t('Show planner')}
-            aria-controls="route-planner"
-            onClick={() => {
-              plannerFocusRequested.current = true;
-              setPanelHidden(false);
+        <header className="app-header">
+          <a
+            className="brand"
+            href="#"
+            onClick={(event) => {
+              event.preventDefault();
+              guard(newRoute);
             }}
+            aria-label={t('Roamlet home')}
           >
-            <PanelLeftOpen size={18} />
-            {t('Route planner')}
-          </Button>
-        )}
-        <aside id="route-planner" className="planner" aria-label={t('Route planner')}>
-          <Button
-            variant="ghost"
-            className="mobile-sheet-toggle"
-            onClick={() => setCollapsed(!collapsed)}
-            aria-expanded={!collapsed}
-          >
-            <span className="sheet-identity">
-              <strong>{name || t('New route')}</strong>
-              <small>
-                {result
-                  ? formatDistance(result.stats.distance) +
-                    ' · ' +
-                    formatDuration(result.stats.duration)
-                  : t('Start with two points on the map')}
-              </small>
+            <span className="brand-mark">
+              <img src="/icon.svg" alt="" />
             </span>
-            {collapsed ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-          </Button>
-          <div className="planner-scroll">
-            <div className="planner-heading">
-              <div>
-                <h1>{name || t('New route')}</h1>
-                <div className="planner-kicker">
-                  <p className="muted">
-                    {dirty ? t('Unsaved changes') : t('Start with two points on the map')}
-                  </p>
-                </div>
-              </div>
-              <div className="planner-heading-actions">
-                {canUseRoute && (
-                  <Button
-                    variant="ghost"
-                    className="icon-button"
-                    aria-label={t('Edit route name')}
-                    title={t('Edit route name')}
-                    onClick={() => setSaveOpen(true)}
-                  >
-                    <Pencil size={16} />
-                  </Button>
-                )}
-                <Button
-                  ref={hidePlannerButton}
-                  variant="ghost"
-                  className="icon-button desktop-planner-toggle"
-                  aria-label={t('Hide planner')}
-                  title={t('Hide planner')}
-                  aria-controls="route-planner"
-                  onClick={() => {
-                    plannerFocusRequested.current = true;
-                    setPanelHidden(true);
-                  }}
-                >
-                  <PanelLeftClose size={17} />
-                </Button>
-              </div>
-            </div>
-            <ToggleGroup
-              type="single"
-              value={activity}
-              onValueChange={(value) => {
-                if (value === 'cycling' || value === 'hiking') changeActivity(value);
-              }}
-              className="activity-selector"
-              aria-label={t('Activity profile')}
+            <strong className="brand-wordmark">Roamlet</strong>
+          </a>
+          <nav aria-label={t('Main navigation')}>
+            <Button
+              variant="ghost"
+              className="header-library"
+              ref={libraryTrigger}
+              onClick={openLibrary}
+              aria-label={t('My routes')}
             >
-              <ToggleGroupItem value="cycling" className={activity === 'cycling' ? 'selected' : ''}>
-                {t('Cycling')}
-              </ToggleGroupItem>
-              <ToggleGroupItem value="hiking" className={activity === 'hiking' ? 'selected' : ''}>
-                {t('Hiking')}
-              </ToggleGroupItem>
-            </ToggleGroup>
-            {mode === 'manual' ? (
-              <>
-                {planningMode !== 'manual' && (
-                  <ToggleGroup
-                    type="single"
-                    value={planningMode}
-                    className="planning-tabs"
-                    aria-label={t('Route style')}
-                    onValueChange={(value) => {
-                      if (value === 'point' || value === 'loop') changePlanningMode(value);
+              <LibraryIcon size={18} aria-hidden="true" />
+              <span>{t('My routes')}</span>
+            </Button>
+            <HeaderMenu
+              onNewRoute={() => guard(newRoute)}
+              onLibrary={openLibrary}
+              onHelp={() => setHelpOpen(true)}
+            />
+          </nav>
+        </header>
+        {!online && (
+          <Alert role="status">
+            <span>
+              {t(
+                'Offline: saved routes, GPX and manual drawing remain available. Routing and basemaps need internet.',
+              )}
+            </span>
+            <Button variant="ghost" onClick={openLibrary}>
+              {t('My routes')}
+            </Button>
+            <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
+              {t('Use manual drawing')}
+            </Button>
+          </Alert>
+        )}
+        {update.available && (
+          <Alert role="status">
+            <span>{t('An app update is ready.')}</span>
+            <Button
+              disabled={update.installing}
+              onClick={() =>
+                setConfirmation({
+                  title: 'Update app?',
+                  text: 'Your draft will be saved before reloading.',
+                  label: 'Reload app',
+                  action: () => {
+                    void update.apply();
+                  },
+                })
+              }
+            >
+              {t('Update app')}
+            </Button>
+          </Alert>
+        )}
+        {update.failed && (
+          <Alert role="alert">
+            {t('The update could not save your draft. Please retry; the app has not reloaded.')}
+          </Alert>
+        )}
+        {draftError && (
+          <Alert role="alert">
+            <span>
+              {t('The draft could not be loaded or saved. Your routes and settings are unchanged.')}
+            </span>
+            <Button
+              onClick={() => {
+                void writer.clear().then((ok) => {
+                  if (ok) setDraftError(false);
+                });
+              }}
+            >
+              {t('Delete draft')}
+            </Button>
+          </Alert>
+        )}
+        <main
+          className={`workspace ${collapsed ? 'panel-collapsed' : ''} ${panelHidden ? 'desktop-panel-hidden' : ''}`}
+        >
+          {panelHidden && (
+            <Button
+              ref={showPlannerButton}
+              variant="outline"
+              className="planner-reopen"
+              aria-label={t('Show planner')}
+              aria-controls="route-planner"
+              onClick={() => {
+                plannerFocusRequested.current = true;
+                setPanelHidden(false);
+              }}
+            >
+              <PanelLeftOpen size={18} />
+              {t('Route planner')}
+            </Button>
+          )}
+          <aside id="route-planner" className="planner" aria-label={t('Route planner')}>
+            <Button
+              variant="ghost"
+              className="mobile-sheet-toggle"
+              onClick={() => setCollapsed(!collapsed)}
+              aria-expanded={!collapsed}
+            >
+              <span className="sheet-identity">
+                <strong>{name || t('New route')}</strong>
+                <small>
+                  {result
+                    ? formatDistance(result.stats.distance) +
+                      ' · ' +
+                      formatDuration(result.stats.duration)
+                    : t('Start with two points on the map')}
+                </small>
+              </span>
+              {collapsed ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </Button>
+            <div className="planner-scroll">
+              <div className="planner-heading">
+                <div>
+                  <h1>{name || t('New route')}</h1>
+                  <div className="planner-kicker">
+                    <p className="muted">
+                      {dirty ? t('Unsaved changes') : t('Start with two points on the map')}
+                    </p>
+                  </div>
+                </div>
+                <div className="planner-heading-actions">
+                  {canUseRoute && (
+                    <Button
+                      variant="ghost"
+                      className="icon-button"
+                      aria-label={t('Edit route name')}
+                      title={t('Edit route name')}
+                      onClick={() => setSaveOpen(true)}
+                    >
+                      <Pencil size={16} />
+                    </Button>
+                  )}
+                  <Button
+                    ref={hidePlannerButton}
+                    variant="ghost"
+                    className="icon-button desktop-planner-toggle"
+                    aria-label={t('Hide planner')}
+                    title={t('Hide planner')}
+                    aria-controls="route-planner"
+                    onClick={() => {
+                      plannerFocusRequested.current = true;
+                      setPanelHidden(true);
                     }}
                   >
-                    <ToggleGroupItem
-                      value="point"
-                      className={planningMode === 'point' ? 'active' : ''}
-                    >
-                      {t('Point to point')}
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="loop"
-                      className={planningMode === 'loop' ? 'active' : ''}
-                    >
-                      {t('Round trip')}
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                )}
-                {planningMode === 'manual' && (
-                  <p className="fine-print manual-mode-note">
-                    <Ruler size={14} aria-hidden="true" />
-                    {t('Straight lines between points. No road snapping.')}
-                  </p>
-                )}
-                <Label className="search-label" htmlFor="place-search-input">
-                  {t('Enter coordinates')}
-                </Label>
-                <form className="place-search" onSubmit={addCoordinates}>
-                  <MapPinPlus size={16} aria-hidden="true" />
-                  <Input
-                    ref={searchInput}
-                    id="place-search-input"
-                    aria-label={t('Latitude, longitude')}
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder={
-                      searchTarget
-                        ? t('Replacement latitude, longitude…')
-                        : t('Latitude, longitude…')
-                    }
-                    maxLength={200}
-                  />
-                  <Button
-                    type="submit"
-                    variant="ghost"
-                    aria-label={t('Add coordinates')}
-                    disabled={!query.trim()}
-                  >
-                    <span className="search-submit-label">{t('Add')}</span>
-                    <Plus className="search-submit-icon" size={18} />
+                    <PanelLeftClose size={17} />
                   </Button>
-                </form>
-                <p className="search-help">
-                  <span>{t('Add with the button or Enter · latitude, longitude')}</span>
-                </p>
-                {searchTarget && (
-                  <Button
-                    variant="ghost"
-                    className="text-button"
-                    onClick={() => setSearchTarget(null)}
-                  >
-                    {t('Cancel replacing stop')}
-                  </Button>
-                )}
-                {!waypoints.length ? (
-                  <Card className="stops-empty">
-                    <MapPinPlus size={26} aria-hidden="true" />
-                    <div>
-                      <strong>{t('Where shall we go?')}</strong>
-                      <p>{t('Click the map or enter coordinates to add a start and finish.')}</p>
-                    </div>
-                  </Card>
-                ) : (
-                  <ol className="waypoint-list">
-                    {waypoints.map((point, index) => (
-                      <li
-                        key={point.id}
-                        data-stop-id={point.id}
-                        className={`${draggedStop === point.id ? 'dragging' : ''} ${dropTarget === point.id ? 'drop-target' : ''}`}
-                        onDragOver={(event) => {
-                          if (!stopDrag.current || planningMode === 'loop') return;
-                          event.preventDefault();
-                          event.stopPropagation();
-                          event.dataTransfer.dropEffect = 'move';
-                          stopDrag.current.target = point.id;
-                          setDropTarget(point.id);
-                        }}
-                        onDrop={(event) => {
-                          if (!stopDrag.current) return;
-                          event.preventDefault();
-                          event.stopPropagation();
-                          stopDrag.current.target = point.id;
-                          finishStopDrag(true);
-                        }}
+                </div>
+              </div>
+              <ToggleGroup
+                type="single"
+                value={activity}
+                onValueChange={(value) => {
+                  if (value === 'cycling' || value === 'hiking') changeActivity(value);
+                }}
+                className="activity-selector"
+                aria-label={t('Activity profile')}
+              >
+                <ToggleGroupItem
+                  value="cycling"
+                  className={activity === 'cycling' ? 'selected' : ''}
+                >
+                  {t('Cycling')}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="hiking" className={activity === 'hiking' ? 'selected' : ''}>
+                  {t('Hiking')}
+                </ToggleGroupItem>
+              </ToggleGroup>
+              {mode === 'manual' ? (
+                <>
+                  {planningMode !== 'manual' && (
+                    <ToggleGroup
+                      type="single"
+                      value={planningMode}
+                      className="planning-tabs"
+                      aria-label={t('Route style')}
+                      onValueChange={(value) => {
+                        if (value === 'point' || value === 'loop') changePlanningMode(value);
+                      }}
+                    >
+                      <ToggleGroupItem
+                        value="point"
+                        className={planningMode === 'point' ? 'active' : ''}
                       >
-                        <Card className="waypoint-card">
-                          {planningMode !== 'loop' && (
-                            <span
-                              className="stop-grip"
-                              draggable
-                              aria-hidden="true"
-                              title={t('Drag to reorder stops')}
-                              onPointerDown={(event) => {
-                                if (event.button !== 0) return;
-                                event.preventDefault();
-                                event.currentTarget.setPointerCapture(event.pointerId);
-                                stopDrag.current = {
-                                  id: point.id,
-                                  pointerId: event.pointerId,
-                                  startY: event.clientY,
-                                  target: null,
-                                  active: false,
-                                };
-                              }}
-                              onPointerMove={(event) => {
-                                const drag = stopDrag.current;
-                                if (!drag || drag.pointerId !== event.pointerId) return;
-                                if (!drag.active && Math.abs(event.clientY - drag.startY) < 4)
-                                  return;
-                                drag.active = true;
-                                setDraggedStop(drag.id);
-                                const scroll =
-                                  event.currentTarget.closest<HTMLElement>('.planner-scroll');
-                                if (scroll) {
-                                  const bounds = scroll.getBoundingClientRect();
-                                  if (event.clientY < bounds.top + 32) scroll.scrollTop -= 16;
-                                  else if (event.clientY > bounds.bottom - 32)
-                                    scroll.scrollTop += 16;
-                                }
-                                const target = document
-                                  .elementFromPoint(event.clientX, event.clientY)
-                                  ?.closest<HTMLElement>('[data-stop-id]');
-                                drag.target = target?.dataset.stopId ?? null;
-                                setDropTarget(drag.target !== drag.id ? drag.target : null);
-                              }}
-                              onPointerUp={() => finishStopDrag(true)}
-                              onPointerCancel={() => finishStopDrag()}
-                              onLostPointerCapture={() => finishStopDrag()}
-                              onDragStart={(event) => {
-                                event.stopPropagation();
-                                event.dataTransfer.setData('text/plain', point.id);
-                                event.dataTransfer.effectAllowed = 'move';
-                                stopDrag.current = {
-                                  id: point.id,
-                                  startY: 0,
-                                  target: null,
-                                  active: true,
-                                };
-                                setDraggedStop(point.id);
-                              }}
-                              onDragEnd={() => finishStopDrag()}
-                            >
-                              <GripVertical size={14} />
-                            </span>
-                          )}
-                          <Badge
-                            className={`stop-badge ${waypointKind(index, waypoints.length)}`}
-                            aria-hidden="true"
-                          >
-                            {formatNumber(index + 1)}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            className="stop-name"
-                            onClick={() => {
-                              setSearchTarget(point.id);
-                              searchInput.current?.focus();
-                            }}
-                          >
-                            <small>
-                              {index === 0
-                                ? t('Start')
-                                : index === waypoints.length - 1
-                                  ? t('Finish')
-                                  : t('Via')}
-                            </small>
-                            {point.name}
-                          </Button>
-                          <div className="stop-controls">
+                        {t('Point to point')}
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="loop"
+                        className={planningMode === 'loop' ? 'active' : ''}
+                      >
+                        {t('Round trip')}
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  )}
+                  {planningMode === 'manual' && (
+                    <p className="fine-print manual-mode-note">
+                      <Ruler size={14} aria-hidden="true" />
+                      {t('Straight lines between points. No road snapping.')}
+                    </p>
+                  )}
+                  <Label className="search-label" htmlFor="place-search-input">
+                    {t('Enter coordinates')}
+                  </Label>
+                  <form className="place-search" onSubmit={addCoordinates}>
+                    <MapPinPlus size={16} aria-hidden="true" />
+                    <Input
+                      ref={searchInput}
+                      id="place-search-input"
+                      aria-label={t('Latitude, longitude')}
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder={
+                        searchTarget
+                          ? t('Replacement latitude, longitude…')
+                          : t('Latitude, longitude…')
+                      }
+                      maxLength={200}
+                    />
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      aria-label={t('Add coordinates')}
+                      disabled={!query.trim()}
+                    >
+                      <span className="search-submit-label">{t('Add')}</span>
+                      <Plus className="search-submit-icon" size={18} />
+                    </Button>
+                  </form>
+                  <p className="search-help">
+                    <span>{t('Add with the button or Enter · latitude, longitude')}</span>
+                  </p>
+                  {searchTarget && (
+                    <Button
+                      variant="ghost"
+                      className="text-button"
+                      onClick={() => setSearchTarget(null)}
+                    >
+                      {t('Cancel replacing stop')}
+                    </Button>
+                  )}
+                  {!waypoints.length ? (
+                    <Card className="stops-empty">
+                      <MapPinPlus size={26} aria-hidden="true" />
+                      <div>
+                        <strong>{t('Where shall we go?')}</strong>
+                        <p>{t('Click the map or enter coordinates to add a start and finish.')}</p>
+                      </div>
+                    </Card>
+                  ) : (
+                    <ol className="waypoint-list">
+                      {waypoints.map((point, index) => (
+                        <li
+                          key={point.id}
+                          data-stop-id={point.id}
+                          className={`${draggedStop === point.id ? 'dragging' : ''} ${dropTarget === point.id ? 'drop-target' : ''}`}
+                          onDragOver={(event) => {
+                            if (!stopDrag.current || planningMode === 'loop') return;
+                            event.preventDefault();
+                            event.stopPropagation();
+                            event.dataTransfer.dropEffect = 'move';
+                            stopDrag.current.target = point.id;
+                            setDropTarget(point.id);
+                          }}
+                          onDrop={(event) => {
+                            if (!stopDrag.current) return;
+                            event.preventDefault();
+                            event.stopPropagation();
+                            stopDrag.current.target = point.id;
+                            finishStopDrag(true);
+                          }}
+                        >
+                          <Card className="waypoint-card">
                             {planningMode !== 'loop' && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  className="icon-button"
-                                  aria-label={t('Move stop {{number}} up', {
-                                    number: formatNumber(index + 1),
-                                  })}
-                                  disabled={index === 0}
-                                  onClick={() => {
-                                    const next = [...waypoints];
-                                    [next[index - 1], next[index]] = [next[index], next[index - 1]];
-                                    changeWaypoints(next);
-                                  }}
-                                >
-                                  <ArrowUp size={13} />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  className="icon-button"
-                                  aria-label={t('Move stop {{number}} down', {
-                                    number: formatNumber(index + 1),
-                                  })}
-                                  disabled={index === waypoints.length - 1}
-                                  onClick={() => {
-                                    const next = [...waypoints];
-                                    [next[index + 1], next[index]] = [next[index], next[index + 1]];
-                                    changeWaypoints(next);
-                                  }}
-                                >
-                                  <ArrowDown size={13} />
-                                </Button>
-                              </>
+                              <span
+                                className="stop-grip"
+                                draggable
+                                aria-hidden="true"
+                                title={t('Drag to reorder stops')}
+                                onPointerDown={(event) => {
+                                  if (event.button !== 0) return;
+                                  event.preventDefault();
+                                  event.currentTarget.setPointerCapture(event.pointerId);
+                                  stopDrag.current = {
+                                    id: point.id,
+                                    pointerId: event.pointerId,
+                                    startY: event.clientY,
+                                    target: null,
+                                    active: false,
+                                  };
+                                }}
+                                onPointerMove={(event) => {
+                                  const drag = stopDrag.current;
+                                  if (!drag || drag.pointerId !== event.pointerId) return;
+                                  if (!drag.active && Math.abs(event.clientY - drag.startY) < 4)
+                                    return;
+                                  drag.active = true;
+                                  setDraggedStop(drag.id);
+                                  const scroll =
+                                    event.currentTarget.closest<HTMLElement>('.planner-scroll');
+                                  if (scroll) {
+                                    const bounds = scroll.getBoundingClientRect();
+                                    if (event.clientY < bounds.top + 32) scroll.scrollTop -= 16;
+                                    else if (event.clientY > bounds.bottom - 32)
+                                      scroll.scrollTop += 16;
+                                  }
+                                  const target = document
+                                    .elementFromPoint(event.clientX, event.clientY)
+                                    ?.closest<HTMLElement>('[data-stop-id]');
+                                  drag.target = target?.dataset.stopId ?? null;
+                                  setDropTarget(drag.target !== drag.id ? drag.target : null);
+                                }}
+                                onPointerUp={() => finishStopDrag(true)}
+                                onPointerCancel={() => finishStopDrag()}
+                                onLostPointerCapture={() => finishStopDrag()}
+                                onDragStart={(event) => {
+                                  event.stopPropagation();
+                                  event.dataTransfer.setData('text/plain', point.id);
+                                  event.dataTransfer.effectAllowed = 'move';
+                                  stopDrag.current = {
+                                    id: point.id,
+                                    startY: 0,
+                                    target: null,
+                                    active: true,
+                                  };
+                                  setDraggedStop(point.id);
+                                }}
+                                onDragEnd={() => finishStopDrag()}
+                              >
+                                <GripVertical size={14} />
+                              </span>
                             )}
+                            <Badge
+                              className={`stop-badge ${waypointKind(index, waypoints.length)}`}
+                              aria-hidden="true"
+                            >
+                              {formatNumber(index + 1)}
+                            </Badge>
                             <Button
                               variant="ghost"
-                              className="icon-button"
-                              aria-label={t('Remove stop {{number}}', {
-                                number: formatNumber(index + 1),
-                              })}
-                              onClick={() =>
-                                changeWaypoints(waypoints.filter((w) => w.id !== point.id))
-                              }
+                              className="stop-name"
+                              onClick={() => {
+                                setSearchTarget(point.id);
+                                searchInput.current?.focus();
+                              }}
                             >
-                              <X size={15} />
+                              <small>
+                                {index === 0
+                                  ? t('Start')
+                                  : index === waypoints.length - 1
+                                    ? t('Finish')
+                                    : t('Via')}
+                              </small>
+                              {point.name}
                             </Button>
-                          </div>
-                        </Card>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-                <div className="waypoint-tools">
-                  {planningMode !== 'loop' && waypoints.length < stopLimit && (
-                    <Button
-                      variant={waypoints.length ? 'ghost' : 'outline'}
-                      className={`add-stop ${!waypoints.length ? 'add-stop-empty' : ''}`}
-                      onClick={() => {
-                        setSearchTarget(null);
-                        searchInput.current?.focus();
-                      }}
-                    >
-                      <Plus size={18} />
-                      {t('Add a stop')}
-                    </Button>
+                            <div className="stop-controls">
+                              {planningMode !== 'loop' && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    className="icon-button"
+                                    aria-label={t('Move stop {{number}} up', {
+                                      number: formatNumber(index + 1),
+                                    })}
+                                    disabled={index === 0}
+                                    onClick={() => {
+                                      const next = [...waypoints];
+                                      [next[index - 1], next[index]] = [
+                                        next[index],
+                                        next[index - 1],
+                                      ];
+                                      changeWaypoints(next);
+                                    }}
+                                  >
+                                    <ArrowUp size={13} />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    className="icon-button"
+                                    aria-label={t('Move stop {{number}} down', {
+                                      number: formatNumber(index + 1),
+                                    })}
+                                    disabled={index === waypoints.length - 1}
+                                    onClick={() => {
+                                      const next = [...waypoints];
+                                      [next[index + 1], next[index]] = [
+                                        next[index],
+                                        next[index + 1],
+                                      ];
+                                      changeWaypoints(next);
+                                    }}
+                                  >
+                                    <ArrowDown size={13} />
+                                  </Button>
+                                </>
+                              )}
+                              <Button
+                                variant="ghost"
+                                className="icon-button"
+                                aria-label={t('Remove stop {{number}}', {
+                                  number: formatNumber(index + 1),
+                                })}
+                                onClick={() =>
+                                  changeWaypoints(waypoints.filter((w) => w.id !== point.id))
+                                }
+                              >
+                                <X size={15} />
+                              </Button>
+                            </div>
+                          </Card>
+                        </li>
+                      ))}
+                    </ol>
                   )}
-                  {planningMode !== 'loop' && waypoints.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      className="reverse-stops"
-                      aria-label={t('Reverse')}
-                      onClick={() => changeWaypoints([...waypoints].reverse())}
-                    >
-                      <ArrowDownUp size={18} />
-                      <span>{t('Reverse')}</span>
-                    </Button>
-                  )}
-                  {!!waypoints.length && (
-                    <Button
-                      variant="ghost"
-                      className="icon-button clear-stops"
-                      aria-label={t('Clear stops')}
-                      title={t('Clear stops')}
-                      onClick={() =>
-                        setConfirmation({
-                          title: 'Clear all stops?',
-                          text: 'This removes all stops and the calculated route. Saved routes are not affected.',
-                          label: 'Clear stops',
-                          action: () => changeWaypoints([]),
-                        })
-                      }
-                    >
-                      <Trash2 size={18} />
-                    </Button>
-                  )}
-                </div>
-                {planningMode === 'point' && (
-                  <div className="calculate-action">
-                    <Button
-                      className="primary full-width"
-                      disabled={busy || waypoints.length < 2}
-                      onClick={() => { editor.routingAllowed.current = true; editor.checkpoint(); setDirty(true); setRouteRevision((revision) => revision + 1); }}
-                    >
-                      {busy ? <LoaderCircle size={17} className="spin" /> : <RouteIcon size={17} />}
-                      {busy
-                        ? t('Calculating route…')
-                        : result
-                          ? t('Update route')
-                          : t('Calculate route')}
-                    </Button>
-                    <p className="fine-print">
-                      {t('Routes update automatically as you edit stops.')}
-                    </p>
-                  </div>
-                )}
-                {planningMode === 'loop' && (
-                  <div className="loop-planner">
-                    <Label htmlFor="distance">
-                      {t('Target distance')}{' '}
-                      <strong>
-                        {formatNumber(targetKm)} {t('km')}
-                      </strong>
-                    </Label>
-                    <Slider
-                      id="distance"
-                      aria-label={t('Target loop distance')}
-                      min={2}
-                      max={100}
-                      step={1}
-                      value={[targetKm]}
-                      onValueChange={([distance]) => {
-                        invalidate();
-                        setTargetKm(distance);
-                      }}
-                      className="distance-slider"
-                    />
-                    <p className="fine-print">
-                      {t(
-                        'Two calculated possibilities. Actual distances vary with the path network.',
-                      )}
-                    </p>
-                    <Button
-                      className="primary full-width"
-                      disabled={busy || !waypoints.length}
-                      onClick={() => void generateLoops()}
-                    >
-                      <Sparkles size={17} />
-                      {busy ? t('Finding your way…') : t('Discover round trips')}
-                    </Button>
-                    {alternatives.length > 0 && (
-                      <div className="alternatives">
-                        {alternatives.map((alternative, index) => (
-                          <Button
-                            variant="ghost"
-                            className={selectedAlternative === index ? 'chosen' : ''}
-                            key={index}
-                            onClick={() => selectAlternative(alternative, index)}
-                          >
-                            <span>
-                              {t('Option')} {formatNumber(index + 1)}
-                              <strong>{formatDistance(alternative.stats.distance)}</strong>
-                            </span>
-                            <span>
-                              {formatDuration(alternative.stats.duration)}
-                              {selectedAlternative === index && <Check size={16} />}
-                            </span>
-                          </Button>
-                        ))}
-                      </div>
+                  <div className="waypoint-tools">
+                    {planningMode !== 'loop' && waypoints.length < stopLimit && (
+                      <Button
+                        variant={waypoints.length ? 'ghost' : 'outline'}
+                        className={`add-stop ${!waypoints.length ? 'add-stop-empty' : ''}`}
+                        onClick={() => {
+                          setSearchTarget(null);
+                          searchInput.current?.focus();
+                        }}
+                      >
+                        <Plus size={18} />
+                        {t('Add a stop')}
+                      </Button>
+                    )}
+                    {planningMode !== 'loop' && waypoints.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        className="reverse-stops"
+                        aria-label={t('Reverse')}
+                        onClick={() => changeWaypoints([...waypoints].reverse())}
+                      >
+                        <ArrowDownUp size={18} />
+                        <span>{t('Reverse')}</span>
+                      </Button>
+                    )}
+                    {!!waypoints.length && (
+                      <Button
+                        variant="ghost"
+                        className="icon-button clear-stops"
+                        aria-label={t('Clear stops')}
+                        title={t('Clear stops')}
+                        onClick={() =>
+                          setConfirmation({
+                            title: 'Clear all stops?',
+                            text: 'This removes all stops and the calculated route. Saved routes are not affected.',
+                            label: 'Clear stops',
+                            action: () => changeWaypoints([]),
+                          })
+                        }
+                      >
+                        <Trash2 size={18} />
+                      </Button>
                     )}
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="snapshot-panel">
-                <Alert className="snapshot-notice" role="note">
-                  <Info size={18} aria-hidden="true" />
-                  <div>
-                    <strong>{t('Original geometry preserved')}</strong>
-                    <p>
-                      {t(
-                        'Viewing and exporting do not recalculate the route. Switch to editing points separately.',
-                      )}
-                    </p>
-                  </div>
-                </Alert>
-                <Button
-                  variant="outline"
-                  className="secondary snapshot-edit"
-                  onClick={editSnapshot}
-                >
-                  <Pencil size={18} aria-hidden="true" />
-                  {t('Edit waypoints')}
-                </Button>
-              </div>
-            )}
-            {busy && (
-              <p className="routing-status" role="status">
-                <LoaderCircle size={16} className="spin" />
-                {t('Calculating a real')} {activity === 'cycling' ? t('cycling') : t('hiking')}{' '}
-                {t('route…')}
-              </p>
-            )}
-            {notice && (
-              <Alert
-                variant={notice.error ? 'destructive' : 'default'}
-                className={`notice ${notice.error ? 'error' : 'success'}`}
-                role={notice.error ? 'alert' : 'status'}
-              >
-                <span>{notice.kind && <strong>{t(notice.kind === 'map' ? 'Map error' : 'Routing error')}: </strong>}{translateMessage(notice.text)}</span>
-                {notice.kind === 'routing' && <Button variant="ghost" onClick={() => {
-                  if (planningMode === 'loop') void generateLoops();
-                  else { editor.routingAllowed.current = true; setRouteRevision(revision => revision + 1); }
-                }}>{t('Retry routing')}</Button>}
-                {notice.kind === 'map' && <Button variant="ghost" onClick={() => { setMapRetryToken(value => value + 1); setNotice(null); }}>{t('Retry map')}</Button>}
-                {notice.kind && <Button variant="ghost" onClick={openLibrary}>{t('Open library')}</Button>}
-                {notice.kind === 'routing' && <Button variant="ghost" onClick={() => changePlanningMode('manual')}>{t('Use manual drawing')}</Button>}
-                <Button
-                  variant="ghost"
-                  aria-label={t('Dismiss notification')}
-                  onClick={() => setNotice(null)}
-                >
-                  <X size={16} />
-                </Button>
-              </Alert>
-            )}
-            {planningMode !== 'manual' &&
-              (routingConfigured === false || configurationUnavailable) &&
-              !notice?.error && (
-                <div className="configuration-note">
-                  <Info size={16} />
-                  <span>
-                    {configurationUnavailable
-                      ? t(
-                          'OpenRouteService configuration could not be checked. GPX and saved routes still work.',
-                        )
-                      : t(
-                          'Configure an OpenRouteService API key in VITE_ORS_API_KEY. GPX and saved routes remain available.',
+                  {planningMode === 'point' && (
+                    <div className="calculate-action">
+                      <Button
+                        className="primary full-width"
+                        disabled={busy || waypoints.length < 2}
+                        onClick={() => {
+                          editor.routingAllowed.current = true;
+                          editor.checkpoint();
+                          setDirty(true);
+                          setRouteRevision((revision) => revision + 1);
+                        }}
+                      >
+                        {busy ? (
+                          <LoaderCircle size={17} className="spin" />
+                        ) : (
+                          <RouteIcon size={17} />
                         )}
-                  </span>
-                  <Button variant="ghost" className="text-button" onClick={() => setHelpOpen(true)}>
-                    {t('Setup')}
+                        {busy
+                          ? t('Calculating route…')
+                          : result
+                            ? t('Update route')
+                            : t('Calculate route')}
+                      </Button>
+                      <p className="fine-print">
+                        {t('Routes update automatically as you edit stops.')}
+                      </p>
+                    </div>
+                  )}
+                  {planningMode === 'loop' && (
+                    <div className="loop-planner">
+                      <Label htmlFor="distance">
+                        {t('Target distance')}{' '}
+                        <strong>
+                          {formatNumber(targetKm)} {t('km')}
+                        </strong>
+                      </Label>
+                      <Slider
+                        id="distance"
+                        aria-label={t('Target loop distance')}
+                        min={2}
+                        max={100}
+                        step={1}
+                        value={[targetKm]}
+                        onValueChange={([distance]) => {
+                          invalidate();
+                          setTargetKm(distance);
+                        }}
+                        className="distance-slider"
+                      />
+                      <p className="fine-print">
+                        {t(
+                          'Two calculated possibilities. Actual distances vary with the path network.',
+                        )}
+                      </p>
+                      <Button
+                        className="primary full-width"
+                        disabled={busy || !waypoints.length}
+                        onClick={() => void generateLoops()}
+                      >
+                        <Sparkles size={17} />
+                        {busy ? t('Finding your way…') : t('Discover round trips')}
+                      </Button>
+                      {alternatives.length > 0 && (
+                        <div className="alternatives">
+                          {alternatives.map((alternative, index) => (
+                            <Button
+                              variant="ghost"
+                              className={selectedAlternative === index ? 'chosen' : ''}
+                              key={index}
+                              onClick={() => selectAlternative(alternative, index)}
+                            >
+                              <span>
+                                {t('Option')} {formatNumber(index + 1)}
+                                <strong>{formatDistance(alternative.stats.distance)}</strong>
+                              </span>
+                              <span>
+                                {formatDuration(alternative.stats.duration)}
+                                {selectedAlternative === index && <Check size={16} />}
+                              </span>
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="snapshot-panel">
+                  <Alert className="snapshot-notice" role="note">
+                    <Info size={18} aria-hidden="true" />
+                    <div>
+                      <strong>{t('Original geometry preserved')}</strong>
+                      <p>
+                        {t(
+                          'Viewing and exporting do not recalculate the route. Switch to editing points separately.',
+                        )}
+                      </p>
+                    </div>
+                  </Alert>
+                  <Button
+                    variant="outline"
+                    className="secondary snapshot-edit"
+                    onClick={editSnapshot}
+                  >
+                    <Pencil size={18} aria-hidden="true" />
+                    {t('Edit waypoints')}
                   </Button>
                 </div>
               )}
-            <PlannerTools speed={speeds[activity]} stops={stopsMinutes}
-              onSpeed={value => { setSpeeds(previous => ({ ...previous, [activity]: value })); if (waypoints.length || result) setDirty(true); }}
-              onStops={value => { setStopsMinutes(value); if (waypoints.length || result) setDirty(true); }} />
-            {result ? <Statistics
-              route={result}
-              speedKmh={speeds[activity]}
-              stopsMinutes={stopsMinutes}
-              emptyHint={
-                planningMode === 'loop'
-                  ? t('Choose a start and find round trips to see route details.')
-                  : undefined
-              }
-            /> : <section className="statistics statistics-empty" aria-label={t('Route statistics')}><Info size={18} aria-hidden="true" /><p>{planningMode === 'loop' ? t('Choose a start and find round trips to see their distance and time.') : t('Add two stops to see distance and time.')}</p></section>}
-          </div>
-          <footer className={`planner-footer ${canUseRoute ? 'route-ready' : ''}`}>
-            <div className="route-actions">
-              <Button
-                className="primary"
-                disabled={!canUseRoute}
-                onClick={() => {
-                  if (!name) setName(i18n.t('Untitled adventure'));
-                  setSaveOpen(true);
+              {busy && (
+                <p className="routing-status" role="status">
+                  <LoaderCircle size={16} className="spin" />
+                  {t('Calculating a real')} {activity === 'cycling' ? t('cycling') : t('hiking')}{' '}
+                  {t('route…')}
+                </p>
+              )}
+              {notice && (
+                <Alert
+                  variant={notice.error ? 'destructive' : 'default'}
+                  className={`notice ${notice.error ? 'error' : 'success'}`}
+                  role={notice.error ? 'alert' : 'status'}
+                >
+                  <span>
+                    {notice.kind && (
+                      <strong>{t(notice.kind === 'map' ? 'Map error' : 'Routing error')}: </strong>
+                    )}
+                    {translateMessage(notice.text)}
+                  </span>
+                  {notice.kind === 'routing' && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        if (planningMode === 'loop') void generateLoops();
+                        else {
+                          editor.routingAllowed.current = true;
+                          setRouteRevision((revision) => revision + 1);
+                        }
+                      }}
+                    >
+                      {t('Retry routing')}
+                    </Button>
+                  )}
+                  {notice.kind === 'map' && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setMapRetryToken((value) => value + 1);
+                        setNotice(null);
+                      }}
+                    >
+                      {t('Retry map')}
+                    </Button>
+                  )}
+                  {notice.kind && (
+                    <Button variant="ghost" onClick={openLibrary}>
+                      {t('Open library')}
+                    </Button>
+                  )}
+                  {notice.kind === 'routing' && (
+                    <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
+                      {t('Use manual drawing')}
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    aria-label={t('Dismiss notification')}
+                    onClick={() => setNotice(null)}
+                  >
+                    <X size={16} />
+                  </Button>
+                </Alert>
+              )}
+              {planningMode !== 'manual' &&
+                (routingConfigured === false || configurationUnavailable) &&
+                !notice?.error && (
+                  <div className="configuration-note">
+                    <Info size={16} />
+                    <span>
+                      {configurationUnavailable
+                        ? t(
+                            'OpenRouteService configuration could not be checked. GPX and saved routes still work.',
+                          )
+                        : t(
+                            'Configure an OpenRouteService API key in VITE_ORS_API_KEY. GPX and saved routes remain available.',
+                          )}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      className="text-button"
+                      onClick={() => setHelpOpen(true)}
+                    >
+                      {t('Setup')}
+                    </Button>
+                  </div>
+                )}
+              <PlannerTools
+                speed={speeds[activity]}
+                stops={stopsMinutes}
+                onSpeed={(value) => {
+                  setSpeeds((previous) => ({ ...previous, [activity]: value }));
+                  if (waypoints.length || result) setDirty(true);
                 }}
-              >
-                <Bookmark size={17} />
-                {t('Save route')}
-              </Button>
-              <Button
-                variant="outline"
-                className="secondary"
-                disabled={!canUseRoute}
-                onClick={download}
-              >
-                <Download size={17} />
-                {t('Export GPX')}
-              </Button>
+                onStops={(value) => {
+                  setStopsMinutes(value);
+                  if (waypoints.length || result) setDirty(true);
+                }}
+              />
+              {result ? (
+                <Statistics
+                  route={result}
+                  speedKmh={speeds[activity]}
+                  stopsMinutes={stopsMinutes}
+                  emptyHint={
+                    planningMode === 'loop'
+                      ? t('Choose a start and find round trips to see route details.')
+                      : undefined
+                  }
+                />
+              ) : (
+                <section className="statistics statistics-empty" aria-label={t('Route statistics')}>
+                  <Info size={18} aria-hidden="true" />
+                  <p>
+                    {planningMode === 'loop'
+                      ? t('Choose a start and find round trips to see their distance and time.')
+                      : t('Add two stops to see distance and time.')}
+                  </p>
+                </section>
+              )}
             </div>
-            <Button
-              variant="ghost"
-              className="import-action"
-              onClick={() => fileInput.current?.click()}
-            >
-              <FileUp size={18} />
-              {t('Import GPX')}
-              <span>{t('or drop a file anywhere')}</span>
-            </Button>
-          </footer>
-        </aside>
-        <div id="map-elevation-root" />
-        <RouteMap
-          key={mapRetryToken}
-          plannerHidden={panelHidden}
-          onImport={() => fileInput.current?.click()}
-          segments={result?.segments || emptySegments}
-          waypoints={mapWaypoints}
-          editable={mode === 'manual' && !busy && (planningMode !== 'loop' || !result)}
-          manualDrawing={mode === 'manual' && planningMode === 'manual'}
-          onToggleManualDrawing={
-            mode === 'manual'
-              ? () =>
-                  changePlanningMode(planningMode === 'manual' ? automaticMode : 'manual')
-              : result?.source === 'manual'
-                ? editSnapshot
-                : undefined
-          }
-          onUndo={() => travelHistory('undo')}
-          onRedo={() => travelHistory('redo')}
-          canUndo={editor.canUndo}
-          canRedo={editor.canRedo}
-          onInsert={mode === 'manual' && planningMode !== 'loop' ? (coordinate, index) => {
-            if (waypoints.length >= stopLimit) { fail(planningMode === 'manual' ? 'A manual route supports up to 1,000 points. Remove a point before adding another.' : 'A route supports up to 25 stops. Remove a stop before adding another.'); return; }
-            const next = [...waypoints];
-            next.splice(Math.max(0, Math.min(index, next.length)), 0, { id: crypto.randomUUID(), name: `${coordinate[1].toFixed(5)}, ${coordinate[0].toFixed(5)}`, coordinate });
-            changeWaypoints(next);
-          } : undefined}
-          fitToken={fitToken}
-          onAdd={(coordinate) => addLocation(coordinate)}
-          onMove={(id, coordinate) =>
-            changeWaypoints(
-              waypoints.map((w) =>
-                w.id === id
-                  ? {
-                      ...w,
-                      coordinate,
-                      name: `${coordinate[1].toFixed(5)}, ${coordinate[0].toFixed(5)}`,
+            <footer className={`planner-footer ${canUseRoute ? 'route-ready' : ''}`}>
+              <div className="route-actions">
+                <Button
+                  className="primary"
+                  disabled={!canUseRoute}
+                  onClick={() => {
+                    if (!name) setName(i18n.t('Untitled adventure'));
+                    setSaveOpen(true);
+                  }}
+                >
+                  <Bookmark size={17} />
+                  {t('Save route')}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="secondary"
+                  disabled={!canUseRoute}
+                  onClick={download}
+                >
+                  <Download size={17} />
+                  {t('Export GPX')}
+                </Button>
+              </div>
+              <Button
+                variant="ghost"
+                className="import-action"
+                onClick={() => fileInput.current?.click()}
+              >
+                <FileUp size={18} />
+                {t('Import GPX')}
+                <span>{t('or drop a file anywhere')}</span>
+              </Button>
+            </footer>
+          </aside>
+          <div id="map-elevation-root" />
+          <RouteMap
+            key={mapRetryToken}
+            plannerHidden={panelHidden}
+            onImport={() => fileInput.current?.click()}
+            segments={result?.segments || emptySegments}
+            waypoints={mapWaypoints}
+            editable={mode === 'manual' && !busy && (planningMode !== 'loop' || !result)}
+            manualDrawing={mode === 'manual' && planningMode === 'manual'}
+            onToggleManualDrawing={
+              mode === 'manual'
+                ? () => changePlanningMode(planningMode === 'manual' ? automaticMode : 'manual')
+                : result?.source === 'manual'
+                  ? editSnapshot
+                  : undefined
+            }
+            onUndo={() => travelHistory('undo')}
+            onRedo={() => travelHistory('redo')}
+            canUndo={editor.canUndo}
+            canRedo={editor.canRedo}
+            onInsert={
+              mode === 'manual' && planningMode !== 'loop'
+                ? (coordinate, index) => {
+                    if (waypoints.length >= stopLimit) {
+                      fail(
+                        planningMode === 'manual'
+                          ? 'A manual route supports up to 1,000 points. Remove a point before adding another.'
+                          : 'A route supports up to 25 stops. Remove a stop before adding another.',
+                      );
+                      return;
                     }
-                  : w,
-              ),
-            )
-          }
-          onError={text => fail(text, 'map')}
+                    const next = [...waypoints];
+                    next.splice(Math.max(0, Math.min(index, next.length)), 0, {
+                      id: crypto.randomUUID(),
+                      name: `${coordinate[1].toFixed(5)}, ${coordinate[0].toFixed(5)}`,
+                      coordinate,
+                    });
+                    changeWaypoints(next);
+                  }
+                : undefined
+            }
+            fitToken={fitToken}
+            onAdd={(coordinate) => addLocation(coordinate)}
+            onMove={(id, coordinate) =>
+              changeWaypoints(
+                waypoints.map((w) =>
+                  w.id === id
+                    ? {
+                        ...w,
+                        coordinate,
+                        name: `${coordinate[1].toFixed(5)}, ${coordinate[0].toFixed(5)}`,
+                      }
+                    : w,
+                ),
+              )
+            }
+            onError={(text) => fail(text, 'map')}
+          />
+        </main>
+        <Input
+          ref={fileInput}
+          hidden
+          type="file"
+          accept=".gpx,application/gpx+xml,application/xml,text/xml"
+          aria-label={t('Import GPX file')}
+          onChange={(event) => {
+            void handleFile(event.target.files?.[0]);
+            event.target.value = '';
+          }}
         />
-      </main>
-      <Input
-        ref={fileInput}
-        hidden
-        type="file"
-        accept=".gpx,application/gpx+xml,application/xml,text/xml"
-        aria-label={t('Import GPX file')}
-        onChange={(event) => {
-          void handleFile(event.target.files?.[0]);
-          event.target.value = '';
-        }}
-      />
       </div>
       {libraryOpen && (
         <Library
@@ -1325,10 +1627,26 @@ export default function App() {
           }}
         />
       )}
-      {draft && !libraryOpen && <DraftPrompt onDismiss={() => setDraft(null)} onDelete={() => { void writer.clear().then(ok => { if (ok) setDraft(null); }); }} onRestore={() => {
-        request.current?.abort(); setBusy(false); editor.reset(draft.snapshot); setDirty(true); setDraft(null);
-        setAlternatives([]); setSelectedAlternative(-1); setFitToken(token => token + 1);
-      }} />}
+      {draft && !libraryOpen && (
+        <DraftPrompt
+          onDismiss={() => setDraft(null)}
+          onDelete={() => {
+            void writer.clear().then((ok) => {
+              if (ok) setDraft(null);
+            });
+          }}
+          onRestore={() => {
+            request.current?.abort();
+            setBusy(false);
+            editor.reset(draft.snapshot);
+            setDirty(true);
+            setDraft(null);
+            setAlternatives([]);
+            setSelectedAlternative(-1);
+            setFitToken((token) => token + 1);
+          }}
+        />
+      )}
       {saveOpen && !libraryOpen && (
         <Dialog
           title={t('Save your adventure')}

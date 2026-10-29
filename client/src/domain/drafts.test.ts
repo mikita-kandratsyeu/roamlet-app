@@ -2,7 +2,9 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { routeDb } from './storage';
 import { draftWriter, loadDraft } from './drafts';
 import { initialEditor, validateSnapshot } from './editorSnapshot';
-beforeEach(async () => { await routeDb.table('drafts').clear(); });
+beforeEach(async () => {
+  await routeDb.table('drafts').clear();
+});
 it('validates version and snapshot before restoring one separate draft', async () => {
   const editor = initialEditor();
   const writer = draftWriter(vi.fn());
@@ -38,7 +40,13 @@ it('captures snapshots before asynchronous writes and reports nonblocking errors
   expect((await loadDraft())?.snapshot.name).toBe('');
 });
 it('rejects invalid points, identity, modes and time parameters', () => {
-  for (const patch of [{ speeds: { cycling: 0, hiking: 5 } }, { waypoints: [{ id: 'x', name: 'X', coordinate: [181, 1] }] }, { mode: 'invalid' }, { identity: {} }, { result: {} }]) {
+  for (const patch of [
+    { speeds: { cycling: 0, hiking: 5 } },
+    { waypoints: [{ id: 'x', name: 'X', coordinate: [181, 1] }] },
+    { mode: 'invalid' },
+    { identity: {} },
+    { result: {} },
+  ]) {
     expect(() => validateSnapshot({ ...initialEditor(), ...patch })).toThrow();
   }
 });

@@ -45,7 +45,9 @@ vi.mock('./components/RouteMap', () => ({
       <button disabled={!onUndo || canUndo === false} onClick={onUndo}>
         Undo
       </button>
-      <button disabled={!onRedo || canRedo === false} onClick={onRedo}>Redo</button>
+      <button disabled={!onRedo || canRedo === false} onClick={onRedo}>
+        Redo
+      </button>
       <button disabled={!waypoints.length} onClick={() => onMove(waypoints[0].id, [11.5, 47.3])}>
         Move first map point
       </button>
@@ -62,7 +64,12 @@ beforeEach(async () => {
   await routeDb.routes.clear();
   await routeDb.table('drafts').clear();
   const values = new Map<string, string>();
-  vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value), removeItem: (key: string) => values.delete(key), clear: () => values.clear() });
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+    clear: () => values.clear(),
+  });
   vi.clearAllMocks();
   vi.mocked(checkRoutingConfiguration).mockResolvedValue(true);
   HTMLDialogElement.prototype.showModal = function () {
@@ -181,10 +188,26 @@ describe('route planner interactions', () => {
       ]),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify([[[11.5, 47.3], [11.41, 47.27]]]));
+    expect(screen.getByTestId('map')).toHaveAttribute(
+      'data-geometry',
+      JSON.stringify([
+        [
+          [11.5, 47.3],
+          [11.41, 47.27],
+        ],
+      ]),
+    );
     expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
-    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify([[[11.41, 47.27], [11.5, 47.3]]]));
+    expect(screen.getByTestId('map')).toHaveAttribute(
+      'data-geometry',
+      JSON.stringify([
+        [
+          [11.41, 47.27],
+          [11.5, 47.3],
+        ],
+      ]),
+    );
     addCoordinate('47.28, 11.42');
     fireEvent.click(screen.getByRole('radio', { name: 'Hiking' }));
     expect(provider.calculateRoute).not.toHaveBeenCalled();
@@ -342,7 +365,9 @@ describe('route planner interactions', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
-    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus());
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus(),
+    );
     const edit = await screen.findByRole('button', { name: 'Edit Focus trip' });
     fireEvent.click(edit);
     expect(screen.getByRole('textbox', { name: 'Route name' })).toHaveFocus();
@@ -358,7 +383,9 @@ describe('route planner interactions', () => {
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Delete Focus trip' })).not.toBeInTheDocument(),
     );
-    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus());
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus(),
+    );
   });
   it('switches to Russian persistently without recalculating routes or changing user names', async () => {
     const values = new Map<string, string>();
@@ -599,8 +626,10 @@ describe('route planner interactions', () => {
   it('keeps the editor mounted and inert behind the library screen, restores focus, and isolates history shortcuts', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
-    addCoordinate('47.26, 11.4'); addCoordinate('47.27, 11.41');
-    const map = screen.getByTestId('map'), geometryBefore = map.getAttribute('data-geometry');
+    addCoordinate('47.26, 11.4');
+    addCoordinate('47.27, 11.41');
+    const map = screen.getByTestId('map'),
+      geometryBefore = map.getAttribute('data-geometry');
     const libraryButton = screen.getByRole('button', { name: 'My routes' });
     libraryButton.focus();
     fireEvent.click(libraryButton);
@@ -623,16 +652,35 @@ describe('route planner interactions', () => {
     render(<App />);
     await plan();
     const original = screen.getByTestId('map').getAttribute('data-geometry');
-    provider.calculateRoute.mockResolvedValueOnce({ segments: [[[11.4, 47.26], [11.42, 47.28]]], stats: { distance: 2000, duration: 500 } });
+    provider.calculateRoute.mockResolvedValueOnce({
+      segments: [
+        [
+          [11.4, 47.26],
+          [11.42, 47.28],
+        ],
+      ],
+      stats: { distance: 2000, duration: 500 },
+    });
     addCoordinate('47.28, 11.42');
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
     expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', original!);
     fireEvent.keyDown(window, { key: 'z', metaKey: true, shiftKey: true });
-    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify([[[11.4, 47.26], [11.42, 47.28]]]));
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Latitude, longitude' }), { key: 'z', ctrlKey: true });
-    await new Promise(resolve => setTimeout(resolve, 400));
+    expect(screen.getByTestId('map')).toHaveAttribute(
+      'data-geometry',
+      JSON.stringify([
+        [
+          [11.4, 47.26],
+          [11.42, 47.28],
+        ],
+      ]),
+    );
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Latitude, longitude' }), {
+      key: 'z',
+      ctrlKey: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 400));
     expect(provider.calculateRoute).toHaveBeenCalledTimes(2);
   });
   it('stores and restores the unfinished editor and time parameters without routing', async () => {
@@ -648,7 +696,7 @@ describe('route planner interactions', () => {
     expect(screen.getByLabelText('Personal speed (km/h)')).toHaveValue(12);
     expect(screen.getByLabelText('Stops (minutes)')).toHaveValue(20);
     expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
-    await new Promise(resolve => setTimeout(resolve, 400));
+    await new Promise((resolve) => setTimeout(resolve, 400));
     expect(provider.calculateRoute).toHaveBeenCalledTimes(1);
   });
   it('warns about corrupt drafts without blocking the planner and deletes only drafts', async () => {
@@ -662,18 +710,29 @@ describe('route planner interactions', () => {
   });
   it('does not delete new edits made while a library save is awaiting completion', async () => {
     let finish!: () => void;
-    const save = vi.spyOn(storage, 'saveRoute').mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    const save = vi.spyOn(storage, 'saveRoute').mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
     render(<App />);
     await plan();
     fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), { target: { value: 'Saving' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
+      target: { value: 'Saving' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Save to library' }));
     await waitFor(() => expect(save).toHaveBeenCalledOnce());
-    fireEvent.change(screen.getByLabelText('Latitude, longitude'), { target: { value: '47.28, 11.42' } });
+    fireEvent.change(screen.getByLabelText('Latitude, longitude'), {
+      target: { value: '47.28, 11.42' },
+    });
     fireEvent.click(screen.getByLabelText('Add coordinates'));
     await act(async () => finish());
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
-    await waitFor(async () => expect((await routeDb.table('drafts').get('current'))?.snapshot.waypoints).toHaveLength(3));
+    await waitFor(async () =>
+      expect((await routeDb.table('drafts').get('current'))?.snapshot.waypoints).toHaveLength(3),
+    );
     expect(save.mock.calls[0][0].waypoints).toHaveLength(2);
   });
   it('keeps personal time changes separate from provider statistics and routing', async () => {
@@ -685,7 +744,9 @@ describe('route planner interactions', () => {
     expect(screen.getByText('Original time estimate')).toBeInTheDocument();
     expect(provider.calculateRoute).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), { target: { value: 'Timed' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
+      target: { value: 'Timed' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Save to library' }));
     await waitFor(async () => expect(await routeDb.routes.count()).toBe(1));
     expect((await routeDb.routes.toArray())[0].stats.duration).toBe(480);

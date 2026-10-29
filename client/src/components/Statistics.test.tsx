@@ -53,7 +53,12 @@ it.each(['openrouteservice', 'mapbox'] as const)(
 );
 
 it('shows personal movement and total while retaining the original duration estimate', () => {
-  const snapshot = route([[[11, 47], [11.01, 47.01]]]);
+  const snapshot = route([
+    [
+      [11, 47],
+      [11.01, 47.01],
+    ],
+  ]);
   snapshot.stats = { distance: 18000, duration: 1800 };
   render(<Statistics route={snapshot} speedKmh={18} stopsMinutes={15} />);
   expect(screen.getByText('Original time estimate')).toBeInTheDocument();

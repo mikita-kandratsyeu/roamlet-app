@@ -365,7 +365,7 @@ it('previews backup counts with safe copy default and imports only after confirm
   await waitFor(() =>
     expect(importBackup).toHaveBeenCalledWith(expect.objectContaining({ version: 1 }), 'copy'),
   );
-  await screen.findByText('Imported 2 routes; skipped 0.');
+  expect(await screen.findByText('Imported 2 routes; skipped 0.')).toHaveClass('library-message');
   expect(onOpen).not.toHaveBeenCalled();
 });
 

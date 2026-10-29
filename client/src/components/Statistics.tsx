@@ -145,7 +145,8 @@ export function Statistics({
         <p>{emptyHint || t('Add two stops to see distance and time.')}</p>
       </section>
     );
-  const personal = speedKmh === undefined ? null : estimateTime(route.stats.distance, speedKmh, stopsMinutes);
+  const personal =
+    speedKmh === undefined ? null : estimateTime(route.stats.distance, speedKmh, stopsMinutes);
   return (
     <section className="statistics" aria-label={t('Route statistics')}>
       <dl className="stat-grid">
@@ -157,10 +158,18 @@ export function Statistics({
           <dt>{t(speedKmh === undefined ? 'Est. moving time' : 'Original time estimate')}</dt>
           <dd>{formatDuration(route.stats.duration)}</dd>
         </div>
-        {personal && <>
-          <div className="stat-card"><dt>{t('Personal moving time')}</dt><dd>{formatDuration(personal.moving)}</dd></div>
-          <div className="stat-card"><dt>{t('Total time with stops')}</dt><dd>{formatDuration(personal.total)}</dd></div>
-        </>}
+        {personal && (
+          <>
+            <div className="stat-card">
+              <dt>{t('Personal moving time')}</dt>
+              <dd>{formatDuration(personal.moving)}</dd>
+            </div>
+            <div className="stat-card">
+              <dt>{t('Total time with stops')}</dt>
+              <dd>{formatDuration(personal.total)}</dd>
+            </div>
+          </>
+        )}
         {showElevation && (
           <>
             <div className="stat-card">

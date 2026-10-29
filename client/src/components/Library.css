@@ -868,6 +868,7 @@
   max-height: none;
   overflow: visible;
   align-items: stretch;
+  align-content: start;
   grid-auto-rows: 1fr;
 }
 .library-screen .library-loading {
@@ -955,6 +956,7 @@
 .library-screen .library-route {
   height: 100%;
   grid-template-rows: minmax(0, 1fr) auto;
+  row-gap: 8px;
 }
 .route-library .library-route-body {
   width: 100%;
@@ -977,10 +979,10 @@
   min-height: 2.9em;
 }
 .route-library .library-route-meta {
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  height: 2.9em;
-  min-height: 2.9em;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  height: 1.45em;
+  min-height: 1.45em;
 }
 .route-library .library-route-tags {
   -webkit-line-clamp: 1;
@@ -990,15 +992,16 @@
   min-height: 1.45em;
 }
 .route-library .route-description {
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  height: 2.9em;
-  min-height: 2.9em;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  height: 1.45em;
+  min-height: 1.45em;
 }
 .route-library .library-actions {
   align-self: end;
   align-items: center;
   flex-wrap: nowrap;
+  padding-top: 8px;
 }
 .route-library .library-actions .icon-button {
   height: 44px;
@@ -1016,4 +1019,19 @@
   .route-library .library-actions .icon-button {
     padding: 0;
   }
+}
+
+.route-library .library-message {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--muted);
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.route-library .library-message-warning {
+  color: var(--destructive);
 }

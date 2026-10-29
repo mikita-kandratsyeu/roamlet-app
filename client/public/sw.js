@@ -18,7 +18,8 @@ self.addEventListener('install', (event) => {
       for (const entry of Object.values(manifest)) {
         for (const path of [entry.file, ...(entry.css || []), ...(entry.assets || [])]) {
           const url = new URL(path, self.location.origin);
-          if (url.origin === self.location.origin && url.pathname.startsWith('/assets/')) assets.push(url.pathname);
+          if (url.origin === self.location.origin && url.pathname.startsWith('/assets/'))
+            assets.push(url.pathname);
         }
       }
       await cache.put('/', response);
@@ -46,7 +47,11 @@ self.addEventListener('activate', (event) => {
       // Other open tabs can still need their old, not-yet-loaded chunks.
       if (windows.length <= 1) {
         const keys = await caches.keys();
-        await Promise.all(keys.filter((key) => key.startsWith('roamlet-shell-') && key !== CACHE).map((key) => caches.delete(key)));
+        await Promise.all(
+          keys
+            .filter((key) => key.startsWith('roamlet-shell-') && key !== CACHE)
+            .map((key) => caches.delete(key)),
+        );
       }
       await self.clients.claim();
     })(),
@@ -57,7 +62,9 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
   if (event.request.mode === 'navigate') {
     // Keep this worker's HTML and chunks together until the user approves its successor.
-    event.respondWith(caches.open(CACHE).then(async (cache) => (await cache.match('/')) || fetch(event.request)));
+    event.respondWith(
+      caches.open(CACHE).then(async (cache) => (await cache.match('/')) || fetch(event.request)),
+    );
   } else if (url.pathname.startsWith('/assets/') || url.pathname === '/icon.svg') {
     // These same-origin, content-hashed files are identical regardless of Origin headers.
     event.respondWith(
