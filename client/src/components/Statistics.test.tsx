@@ -54,7 +54,7 @@ it.each(['openrouteservice', 'mapbox'] as const)(
 
 it.each([false, true])(
   'shows a collapsed terrain preview, including flat routes (flat: %s)',
-  (flat) => {
+  async (flat) => {
     const snapshot = route([
       [
         [11, 47, 100],
@@ -77,9 +77,13 @@ it.each([false, true])(
     }
     const lines = preview.querySelectorAll('path[fill="none"]');
     expect(lines[0].getAttribute('d')).toContain(flat ? ',16.00' : ',3.00');
+    expect(screen.queryByTestId('elevation-chart')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('panel-loader')).not.toBeInTheDocument();
     rerender(<Statistics route={snapshot} elevationOpen />);
     expect(container.querySelector('.elevation-preview')).not.toBeInTheDocument();
-    expect(screen.getByTestId('elevation-chart')).toBeInTheDocument();
+    expect(await screen.findByTestId('elevation-chart')).toBeInTheDocument();
+    rerender(<Statistics route={snapshot} elevationOpen={false} />);
+    expect(screen.queryByTestId('elevation-chart')).not.toBeInTheDocument();
   },
 );
 
@@ -110,7 +114,7 @@ it('shows personal movement and total while retaining the original duration esti
 });
 
 for (const desktop of [false, true]) {
-  it(`hides unavailable profiles and removes them after changing routes (desktop: ${desktop})`, () => {
+  it(`hides unavailable profiles and removes them after changing routes (desktop: ${desktop})`, async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query === '(min-width: 1025px)' ? desktop : !desktop,
       addEventListener: vi.fn(),
@@ -125,9 +129,9 @@ for (const desktop of [false, true]) {
         [11.01, 47.01, 0],
       ],
     ];
-    const { container, rerender } = render(<Statistics route={route(complete)} />);
+    const { container, rerender } = render(<Statistics route={route(complete)} elevationOpen />);
     expect(screen.getByText('Elevation profile')).toBeInTheDocument();
-    expect(screen.getByTestId('elevation-chart')).toBeInTheDocument();
+    expect(await screen.findByTestId('elevation-chart')).toBeInTheDocument();
     expect(container.querySelector('.statistics .elevation-box')).toBeInTheDocument();
     expect(portal).toBeEmptyDOMElement();
     for (const segments of [

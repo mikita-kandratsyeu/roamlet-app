@@ -27,6 +27,24 @@ it('portals a screen loader without adding a flow element to the mounted editor'
   expect(await screen.findByText('Library ready')).toBeInTheDocument();
 });
 afterEach(cleanup);
+it('loads route statistics only when mounted and forwards updated props', async () => {
+  const loader = vi.fn().mockResolvedValue({
+    default: ({ distance }: { distance: number }) => <p>Distance: {distance}</p>,
+  });
+  const Statistics = optionalLazy<{ distance: number }>(loader);
+  const { rerender } = render(<div>Empty planner</div>);
+  expect(loader).not.toHaveBeenCalled();
+  expect(screen.queryByTestId('panel-loader')).not.toBeInTheDocument();
+
+  rerender(<Statistics distance={10} />);
+  expect(await screen.findByText('Distance: 10')).toBeInTheDocument();
+  expect(loader).toHaveBeenCalledOnce();
+  expect(screen.queryByTestId('panel-loader')).not.toBeInTheDocument();
+
+  rerender(<Statistics distance={20} />);
+  expect(screen.getByText('Distance: 20')).toBeInTheDocument();
+  expect(loader).toHaveBeenCalledOnce();
+});
 it('keeps the surrounding UI usable and retries an optional loader after failure', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   const loader = vi

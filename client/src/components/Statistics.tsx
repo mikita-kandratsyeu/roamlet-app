@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { useMemo, useId, useEffect, useState } from 'react';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from './ui/chart';
+import { useMemo, useEffect, useState } from 'react';
+import { optionalLazy } from './OptionalPanel';
 import { ChevronDown, Info } from 'lucide-react';
 import type { Coordinate, PlannedRoute } from '../domain/types';
 import { elevationSamples } from '../domain/stats';
@@ -18,6 +17,10 @@ import {
   type TimeRange,
   type TimeWarning,
 } from '../domain/time';
+const ElevationChart = optionalLazy(() =>
+  import('./ElevationChart').then(({ ElevationChart }) => ({ default: ElevationChart })),
+);
+
 function formatTimeRange(range: TimeRange) {
   const rounded = outwardMinutes(range)!;
   return `${formatDuration(rounded.lower * 60)}–${formatDuration(rounded.upper * 60)}`;
@@ -87,7 +90,6 @@ export function Statistics({
     ? samples.reduce((max, s) => Math.max(max, s.elevation), -Infinity)
     : 0;
   const total = samples.at(-1)?.distance || 1;
-  const gradientId = `elevation-${useId().replace(/:/g, '')}`;
   const chartSamples = useMemo(
     () => (samples.length && route ? elevationChartSamples(route.segments) : []),
     [route, samples.length],
@@ -123,10 +125,6 @@ export function Statistics({
     return paths;
   }, [chartSamples, minimum, maximum, total]);
   const linkedSamples = chartSamples.filter((sample) => sample.coordinate);
-  const hoverSample = (index: number | string | null | undefined, active = true) => {
-    const sample = index == null ? undefined : chartSamples[Number(index)];
-    onElevationHover?.(active ? (sample?.coordinate ?? null) : null);
-  };
   const elevationProfile = showElevation ? (
     <details className="elevation-box planner-disclosure" open={profileOpen}>
       <summary
@@ -169,74 +167,15 @@ export function Statistics({
         </span>
       </summary>
       <>
-        <ChartContainer
-          config={{ elevation: { label: t('Elevation'), color: 'var(--primary)' } }}
-          className="elevation-chart"
-          role="img"
-          aria-label={t('Elevation from {{minimum}} to {{maximum}} metres', {
-            minimum: formatNumber(Math.round(minimum)),
-            maximum: formatNumber(Math.round(maximum)),
-          })}
-        >
-          <AreaChart
-            data={chartSamples}
-            margin={{ top: 12, right: 4, bottom: 0, left: 0 }}
-            onMouseMove={(event) => hoverSample(event.activeTooltipIndex, event.isTooltipActive)}
-            onClick={(event) => hoverSample(event.activeTooltipIndex, event.isTooltipActive)}
-            onMouseLeave={() => onElevationHover?.(null)}
-          >
-            <defs>
-              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-elevation)" stopOpacity={0.15} />
-                <stop offset="100%" stopColor="var(--color-elevation)" stopOpacity={0.03} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid vertical={false} stroke="var(--border)" />
-            <XAxis
-              dataKey="distance"
-              type="number"
-              domain={[0, total]}
-              ticks={[0, total / 3, (total * 2) / 3, total]}
-              tickFormatter={(distance: number) =>
-                distance === total
-                  ? formatDistance(distance)
-                  : formatNumber(distance / 1000, { maximumFractionDigits: 1 })
-              }
-              tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-              axisLine={false}
-              tickLine={false}
-              height={20}
-            />
-            <YAxis
-              dataKey="elevation"
-              domain={['dataMin - 5', 'dataMax + 5']}
-              tickFormatter={(elevation: number) => `${formatNumber(elevation)} ${t('m')}`}
-              tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-              axisLine={false}
-              tickLine={false}
-              width={52}
-            />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(_, payload) =>
-                    formatDistance(Number(payload[0]?.payload.distance ?? 0))
-                  }
-                  formatter={(value) => `${formatNumber(Math.round(Number(value)))} ${t('m')}`}
-                />
-              }
-            />
-            <Area
-              dataKey="elevation"
-              type="linear"
-              fill={`url(#${gradientId})`}
-              stroke="var(--color-elevation)"
-              strokeWidth={2}
-              isAnimationActive={false}
-              connectNulls={false}
-            />
-          </AreaChart>
-        </ChartContainer>
+        {profileOpen && (
+          <ElevationChart
+            samples={chartSamples}
+            minimum={minimum}
+            maximum={maximum}
+            total={total}
+            onElevationHover={onElevationHover}
+          />
+        )}
         {onElevationHover && mapAvailable && linkedSamples.length > 1 && (
           <label className="elevation-position">
             {t('Position on elevation profile')}
