@@ -52,33 +52,36 @@ it.each(['openrouteservice', 'mapbox'] as const)(
   },
 );
 
-it.each([false, true])('shows a collapsed terrain preview, including flat routes (flat: %s)', (flat) => {
-  const snapshot = route([
-    [
-      [11, 47, 100],
-      [11.01, 47.01, flat ? 100 : 160],
-      [11.02, 47.02, 100],
-    ],
-    [
-      [12, 48, 100],
-      [12.01, 48.01, flat ? 100 : 130],
-    ],
-  ]);
-  const { container, rerender } = render(<Statistics route={snapshot} elevationOpen={false} />);
-  const preview = container.querySelector('.elevation-preview')!;
-  expect(preview).toBeInTheDocument();
-  expect(preview.closest('summary')).toHaveTextContent('Elevation profile');
-  expect(preview).toHaveAttribute('aria-hidden', 'true');
-  expect(preview.querySelectorAll('g')).toHaveLength(2);
-  for (const path of preview.querySelectorAll('path')) {
-    expect(path.getAttribute('d')).not.toMatch(/NaN|Infinity/);
-  }
-  const lines = preview.querySelectorAll('path[fill="none"]');
-  expect(lines[0].getAttribute('d')).toContain(flat ? ',16.00' : ',3.00');
-  rerender(<Statistics route={snapshot} elevationOpen />);
-  expect(container.querySelector('.elevation-preview')).not.toBeInTheDocument();
-  expect(screen.getByTestId('elevation-chart')).toBeInTheDocument();
-});
+it.each([false, true])(
+  'shows a collapsed terrain preview, including flat routes (flat: %s)',
+  (flat) => {
+    const snapshot = route([
+      [
+        [11, 47, 100],
+        [11.01, 47.01, flat ? 100 : 160],
+        [11.02, 47.02, 100],
+      ],
+      [
+        [12, 48, 100],
+        [12.01, 48.01, flat ? 100 : 130],
+      ],
+    ]);
+    const { container, rerender } = render(<Statistics route={snapshot} elevationOpen={false} />);
+    const preview = container.querySelector('.elevation-preview')!;
+    expect(preview).toBeInTheDocument();
+    expect(preview.closest('summary')).toHaveTextContent('Elevation profile');
+    expect(preview).toHaveAttribute('aria-hidden', 'true');
+    expect(preview.querySelectorAll('g')).toHaveLength(2);
+    for (const path of preview.querySelectorAll('path')) {
+      expect(path.getAttribute('d')).not.toMatch(/NaN|Infinity/);
+    }
+    const lines = preview.querySelectorAll('path[fill="none"]');
+    expect(lines[0].getAttribute('d')).toContain(flat ? ',16.00' : ',3.00');
+    rerender(<Statistics route={snapshot} elevationOpen />);
+    expect(container.querySelector('.elevation-preview')).not.toBeInTheDocument();
+    expect(screen.getByTestId('elevation-chart')).toBeInTheDocument();
+  },
+);
 
 it('shows personal movement and total while retaining the original duration estimate', () => {
   const snapshot = route([
@@ -94,7 +97,9 @@ it('shows personal movement and total while retaining the original duration esti
   expect(screen.getByText('42 min–1 h 30 min')).toBeInTheDocument();
   expect(screen.getByText('57 min–1 h 45 min')).toBeInTheDocument();
   expect(
-    screen.getByText('The range is a rough planning estimate, not a statistical confidence interval or a guarantee.'),
+    screen.getByText(
+      'The range is a rough planning estimate, not a statistical confidence interval or a guarantee.',
+    ),
   ).toBeInTheDocument();
   expect(
     screen.getByText(

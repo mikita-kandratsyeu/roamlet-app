@@ -207,13 +207,17 @@ export function RouteMap(props: Props) {
           ? Math.max(0, (controls?.getBoundingClientRect().height || 44) - 44)
           : 0;
       const spacing = Number.parseFloat(getComputedStyle(region).getPropertyValue('--space')) || 12;
-      const smallScreen = window.matchMedia?.('(max-width: 700px)').matches ?? window.innerWidth <= 700;
+      const smallScreen =
+        window.matchMedia?.('(max-width: 700px)').matches ?? window.innerWidth <= 700;
       const pickerTop =
         reopen && smallScreen
           ? reopen.getBoundingClientRect().bottom - region.getBoundingClientRect().top + 8
           : spacing;
       workspace.style.setProperty('--map-attribution-height', `${attributionHeight}px`);
-      workspace.style.setProperty('--map-elevation-height', `${elevation?.getBoundingClientRect().height || 0}px`);
+      workspace.style.setProperty(
+        '--map-elevation-height',
+        `${elevation?.getBoundingClientRect().height || 0}px`,
+      );
       workspace.style.setProperty(
         '--map-bottom-reserved',
         `${attributionHeight + toolbarHeight + wrappedControlsHeight + 32}px`,
@@ -231,7 +235,15 @@ export function RouteMap(props: Props) {
       );
     };
     const observer = new ResizeObserver(measure);
-    for (const element of [region, toolbar, ...attribution, stylePicker, controls, elevation, reopen]) {
+    for (const element of [
+      region,
+      toolbar,
+      ...attribution,
+      stylePicker,
+      controls,
+      elevation,
+      reopen,
+    ]) {
       if (element) observer.observe(element);
     }
     measure();
@@ -695,15 +707,20 @@ export function RouteMap(props: Props) {
     update('route-annotations', routeAnnotations(props.segments, zoom));
     update('route-insertion', pointFeature(insertionPreview));
     update('route-elevation', pointFeature(props.elevationCoordinate));
-    update('route-highlight', lineFeatures(props.routeStale ? [] : (props.highlightSegments ?? [])));
+    update(
+      'route-highlight',
+      lineFeatures(props.routeStale ? [] : (props.highlightSegments ?? [])),
+    );
     update('route-comparison', {
       type: 'FeatureCollection',
       features: (props.comparisonLayers ?? []).flatMap(({ segments, color, dashed }) =>
-        segments.filter((segment) => segment.length >= 2).map((coordinates) => ({
-          type: 'Feature' as const,
-          properties: { color, direct: dashed ?? false },
-          geometry: { type: 'LineString' as const, coordinates },
-        })),
+        segments
+          .filter((segment) => segment.length >= 2)
+          .map((coordinates) => ({
+            type: 'Feature' as const,
+            properties: { color, direct: dashed ?? false },
+            geometry: { type: 'LineString' as const, coordinates },
+          })),
       ),
     });
     const opacity = props.comparisonMode ? 0 : props.routeStale ? 0.4 : 1;
@@ -1022,14 +1039,18 @@ export function RouteMap(props: Props) {
           className="map-control map-undo-tool"
           variant="outline"
           size="icon"
-          aria-label={t(props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo')}
+          aria-label={t(
+            props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo',
+          )}
           title={t(props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo')}
           disabled={!props.onUndo || props.canUndo === false}
           onClick={props.onUndo}
         >
           <Undo2 size={18} aria-hidden="true" />
           {compactControls && (
-            <span>{t(props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo')}</span>
+            <span>
+              {t(props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo')}
+            </span>
           )}
         </Button>
       )}
@@ -1100,50 +1121,59 @@ export function RouteMap(props: Props) {
             setMapError('');
             setPreferenceWarning('');
           }}
-          actions={mapError && !configurationError && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setMapError('');
-                setReady(false);
-                if (map.current) map.current.setStyle(activeStyle.current);
-                else {
-                  setLoading(true);
-                  setMapAttempt((attempt) => attempt + 1);
-                }
-              }}
-            >
-              {t('Retry map')}
-            </Button>
-          )}
+          actions={
+            mapError &&
+            !configurationError && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMapError('');
+                  setReady(false);
+                  if (map.current) map.current.setStyle(activeStyle.current);
+                  else {
+                    setLoading(true);
+                    setMapAttempt((attempt) => attempt + 1);
+                  }
+                }}
+              >
+                {t('Retry map')}
+              </Button>
+            )
+          }
         />
       )}
-      {loading && !mapError && (props.comparisonMode ? (
-        <div className="comparison-map-loading" role="status">
-          <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />
-          <span>{t('Loading your map…')}</span>
-        </div>
-      ) : <MapLoader />)}
-      {!props.comparisonMode && <ToggleGroup
-        type="single"
-        className="map-style-picker map-top-label"
-        aria-label={t('Map style')}
-        value={style}
-        onValueChange={changeStyle}
-        disabled={!map.current}
-      >
-        {styles.map((item) => (
-          <ToggleGroupItem
-            key={item.value}
-            value={item.value}
-            className="map-style-option"
-            aria-label={item.label}
-            title={item.label}
-          >
-            <item.icon size={20} aria-hidden="true" />
-          </ToggleGroupItem>
+      {loading &&
+        !mapError &&
+        (props.comparisonMode ? (
+          <div className="comparison-map-loading" role="status">
+            <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />
+            <span>{t('Loading your map…')}</span>
+          </div>
+        ) : (
+          <MapLoader />
         ))}
-      </ToggleGroup>}
+      {!props.comparisonMode && (
+        <ToggleGroup
+          type="single"
+          className="map-style-picker map-top-label"
+          aria-label={t('Map style')}
+          value={style}
+          onValueChange={changeStyle}
+          disabled={!map.current}
+        >
+          {styles.map((item) => (
+            <ToggleGroupItem
+              key={item.value}
+              value={item.value}
+              className="map-style-option"
+              aria-label={item.label}
+              title={item.label}
+            >
+              <item.icon size={20} aria-hidden="true" />
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      )}
 
       <div className="map-extra-controls" role="group" aria-label={t('Map controls')}>
         {!compactControls && navigationControls}

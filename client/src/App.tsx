@@ -222,17 +222,24 @@ export default function App() {
   const [comparisonError, setComparisonError] = useState('');
   const [climbSegments, setClimbSegments] = useState<Coordinate[][]>([]);
   const comparisonLayers = useMemo(
-    () => comparisonRoutes.flatMap((route, index) => {
-      const direct = route.source === 'manual' ? route.segments : (route.directSegments ?? []);
-      const directKeys = new Set(direct.map((segment) => JSON.stringify(segment)));
-      return [
-        { segments: route.segments.filter((segment) => !directKeys.has(JSON.stringify(segment))), color: ROUTE_COMPARISON_COLORS[index] },
-        { segments: direct, color: ROUTE_COMPARISON_COLORS[index], dashed: true },
-      ];
-    }),
+    () =>
+      comparisonRoutes.flatMap((route, index) => {
+        const direct = route.source === 'manual' ? route.segments : (route.directSegments ?? []);
+        const directKeys = new Set(direct.map((segment) => JSON.stringify(segment)));
+        return [
+          {
+            segments: route.segments.filter((segment) => !directKeys.has(JSON.stringify(segment))),
+            color: ROUTE_COMPARISON_COLORS[index],
+          },
+          { segments: direct, color: ROUTE_COMPARISON_COLORS[index], dashed: true },
+        ];
+      }),
     [comparisonRoutes],
   );
-  const comparisonSegments = useMemo(() => comparisonRoutes.flatMap((route) => route.segments), [comparisonRoutes]);
+  const comparisonSegments = useMemo(
+    () => comparisonRoutes.flatMap((route) => route.segments),
+    [comparisonRoutes],
+  );
   const libraryTrigger = useRef<HTMLButtonElement>(null);
   const libraryReturnFocus = useRef<HTMLElement | null>(null);
   const libraryWasOpen = useRef(false);
@@ -439,7 +446,8 @@ export default function App() {
   ]);
   function travelHistory(direction: 'undo' | 'redo') {
     if (direction === 'undo' ? !editor.canUndo : !editor.canRedo) return;
-    const changesGeometry = direction === 'undo' ? editor.undoChangesGeometry : editor.redoChangesGeometry;
+    const changesGeometry =
+      direction === 'undo' ? editor.undoChangesGeometry : editor.redoChangesGeometry;
     if (!changesGeometry) {
       editor[direction]();
       setDirty(true);
@@ -960,48 +968,58 @@ export default function App() {
       <Toaster />
       {notice && (
         <Notification
-          title={t(notice.kind === 'map' ? 'Map error' : notice.kind === 'routing' ? 'Routing error' : 'Notification')}
+          title={t(
+            notice.kind === 'map'
+              ? 'Map error'
+              : notice.kind === 'routing'
+                ? 'Routing error'
+                : 'Notification',
+          )}
           message={translateMessage(notice.text)}
           variant={notice.error ? 'error' : 'success'}
           onDismiss={() => setNotice(null)}
-          actions={notice.kind && (
-            <>
-              {notice.kind === 'routing' && (
-                <Button
-                  variant="outline"
-                  disabled={!online || busy}
-                  onClick={() => {
-                    if (planningMode === 'loop') void generateLoops();
-                    else {
-                      editor.routingAllowed.current = true;
-                      setRouteStale(true);
-                      setRouteRevision((revision) => revision + 1);
-                    }
-                  }}
-                >
-                  {t('Retry routing')}
+          actions={
+            notice.kind && (
+              <>
+                {notice.kind === 'routing' && (
+                  <Button
+                    variant="outline"
+                    disabled={!online || busy}
+                    onClick={() => {
+                      if (planningMode === 'loop') void generateLoops();
+                      else {
+                        editor.routingAllowed.current = true;
+                        setRouteStale(true);
+                        setRouteRevision((revision) => revision + 1);
+                      }
+                    }}
+                  >
+                    {t('Retry routing')}
+                  </Button>
+                )}
+                {notice.kind === 'map' && (
+                  <Button
+                    variant="outline"
+                    disabled={!online}
+                    onClick={() => {
+                      setMapRetryToken((value) => value + 1);
+                      setNotice(null);
+                    }}
+                  >
+                    {t('Retry map')}
+                  </Button>
+                )}
+                <Button variant="ghost" onClick={openLibrary}>
+                  {t('Open library')}
                 </Button>
-              )}
-              {notice.kind === 'map' && (
-                <Button
-                  variant="outline"
-                  disabled={!online}
-                  onClick={() => {
-                    setMapRetryToken((value) => value + 1);
-                    setNotice(null);
-                  }}
-                >
-                  {t('Retry map')}
-                </Button>
-              )}
-              <Button variant="ghost" onClick={openLibrary}>{t('Open library')}</Button>
-              {notice.kind === 'routing' && (
-                <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
-                  {t('Use manual drawing')}
-                </Button>
-              )}
-            </>
-          )}
+                {notice.kind === 'routing' && (
+                  <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
+                    {t('Use manual drawing')}
+                  </Button>
+                )}
+              </>
+            )
+          }
         />
       )}
       <div
@@ -1093,7 +1111,9 @@ export default function App() {
                     title: 'Update app?',
                     text: 'Your draft will be saved before reloading.',
                     label: 'Reload app',
-                    action: () => { void update.apply(); },
+                    action: () => {
+                      void update.apply();
+                    },
                   })
                 }
               >
@@ -1106,14 +1126,18 @@ export default function App() {
           <Notification
             title={t('Notification')}
             variant="error"
-            message={t('The update could not save your draft. Please retry; the app has not reloaded.')}
+            message={t(
+              'The update could not save your draft. Please retry; the app has not reloaded.',
+            )}
           />
         )}
         {draftError && (
           <Notification
             title={t('Notification')}
             variant="error"
-            message={t('The draft could not be loaded or saved. Your routes and settings are unchanged.')}
+            message={t(
+              'The draft could not be loaded or saved. Your routes and settings are unchanged.',
+            )}
             actions={
               <Button
                 onClick={() => {
@@ -1859,33 +1883,46 @@ export default function App() {
                 </p>
               ) : result ? (
                 <>
-                <Statistics
-                  route={result}
-                  mapAvailable={online}
-                  onElevationHover={setElevationCoordinate}
-                  elevationOpen={elevationOpen}
-                  onElevationOpenChange={setElevationOpen}
-                  speedKmh={speeds[activity]}
-                  stopsMinutes={stopsMinutes}
-                  fitness={fitness}
-                  surface={surface}
-                  emptyHint={
-                    planningMode === 'loop'
-                      ? t('Choose a start and find round trips to see route details.')
-                      : undefined
-                  }
-                />
-                <ClimbAnalysis route={result} onHighlight={setClimbSegments} />
-                <RouteSchedule
-                  route={result}
-                  waypoints={editor.scheduleWaypoints}
-                  departureLocal={editor.departureLocal}
-                  movingSeconds={estimatePersonalTime(result, { speedKmh: speeds[activity], stopsMinutes, fitness, surface })?.moving ?? null}
-                  geometryCurrent={canUseRoute}
-                  contextKey={editor.identity.id}
-                  onDepartureLocal={(value) => { editor.setDepartureLocal(value); setDirty(true); }}
-                  onWaypointPause={(id, value) => { editor.setWaypointPause(id, value); setDirty(true); }}
-                />
+                  <Statistics
+                    route={result}
+                    mapAvailable={online}
+                    onElevationHover={setElevationCoordinate}
+                    elevationOpen={elevationOpen}
+                    onElevationOpenChange={setElevationOpen}
+                    speedKmh={speeds[activity]}
+                    stopsMinutes={stopsMinutes}
+                    fitness={fitness}
+                    surface={surface}
+                    emptyHint={
+                      planningMode === 'loop'
+                        ? t('Choose a start and find round trips to see route details.')
+                        : undefined
+                    }
+                  />
+                  <ClimbAnalysis route={result} onHighlight={setClimbSegments} />
+                  <RouteSchedule
+                    route={result}
+                    waypoints={editor.scheduleWaypoints}
+                    departureLocal={editor.departureLocal}
+                    movingSeconds={
+                      estimatePersonalTime(result, {
+                        speedKmh: speeds[activity],
+                        stopsMinutes,
+                        fitness,
+                        surface,
+                      })?.moving ?? null
+                    }
+                    geometryCurrent={canUseRoute}
+                    contextKey={editor.identity.id}
+                    onDepartureLocal={(value) => {
+                      editor.setDepartureLocal(value);
+                      setDirty(true);
+                    }}
+                    onWaypointPause={(id, value) => {
+                      editor.setWaypointPause(id, value);
+                      setDirty(true);
+                    }}
+                  />
                 </>
               ) : (
                 <section className="statistics statistics-empty" aria-label={t('Route statistics')}>

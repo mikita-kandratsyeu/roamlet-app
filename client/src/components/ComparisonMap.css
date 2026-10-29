@@ -1,6 +1,8 @@
 .comparison-map {
   position: relative;
   height: clamp(240px, 40vh, 420px);
+  min-height: 240px;
+  flex-shrink: 0;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;

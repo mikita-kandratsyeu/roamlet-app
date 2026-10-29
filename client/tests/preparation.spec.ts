@@ -14,15 +14,40 @@ async function save(page: Page, name: string) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/__fixtures__/map-style.json', (route) => route.fulfill({ json: {
-    version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } }],
-  } }));
-  await page.route('**/api/route', (route) => route.fulfill({ json: {
-    type: 'FeatureCollection', features: [{ type: 'Feature',
-      properties: { summary: { distance: 1344, duration: 600 } },
-      geometry: { type: 'LineString', coordinates: route.request().postDataJSON().coordinates.map((coordinate: number[], index: number) => [...coordinate, 100 + index * 50]) },
-    }],
-  } }));
+  await page.route('**/__fixtures__/map-style.json', (route) =>
+    route.fulfill({
+      json: {
+        version: 8,
+        sources: {},
+        layers: [
+          { id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } },
+        ],
+      },
+    }),
+  );
+  await page.route('**/api/route', (route) =>
+    route.fulfill({
+      json: {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: { summary: { distance: 1344, duration: 600 } },
+            geometry: {
+              type: 'LineString',
+              coordinates: route
+                .request()
+                .postDataJSON()
+                .coordinates.map((coordinate: number[], index: number) => [
+                  ...coordinate,
+                  100 + index * 50,
+                ]),
+            },
+          },
+        ],
+      },
+    }),
+  );
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
@@ -33,7 +58,9 @@ test.beforeEach(async ({ page }) => {
 
 test('schedule edits persist and do not reroute; arrivals cross midnight', async ({ page }) => {
   let requests = 0;
-  page.on('request', (request) => { if (new URL(request.url()).pathname === '/api/route') requests += 1; });
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/route') requests += 1;
+  });
   const schedule = page.getByRole('region', { name: 'Route schedule', exact: true });
   const departure = schedule.getByLabel('Local departure date and time', { exact: true });
   await departure.fill('2026-10-29T23:59');
@@ -41,8 +68,14 @@ test('schedule edits persist and do not reroute; arrivals cross midnight', async
   const pause = schedule.getByLabel(/^Pause \(minutes\):/).first();
   await pause.fill('10');
   await pause.press('Tab');
-  await expect(schedule.getByRole('listitem').first().locator('time').nth(1)).toHaveAttribute('datetime', '2026-10-30T00:09');
-  await expect(schedule.locator('.route-schedule-finish time')).toHaveAttribute('datetime', /^2026-10-30T/);
+  await expect(schedule.getByRole('listitem').first().locator('time').nth(1)).toHaveAttribute(
+    'datetime',
+    '2026-10-30T00:09',
+  );
+  await expect(schedule.locator('.route-schedule-finish time')).toHaveAttribute(
+    'datetime',
+    /^2026-10-30T/,
+  );
   await save(page, 'Night ride');
   await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
   await page.getByRole('button', { name: /^Night ride Cycling/ }).click();
@@ -52,7 +85,9 @@ test('schedule edits persist and do not reroute; arrivals cross midnight', async
   expect(requests).toBe(0);
 });
 
-test('comparison preserves editor and closes back to the selected library routes', async ({ page }) => {
+test('comparison preserves editor and closes back to the selected library routes', async ({
+  page,
+}) => {
   await save(page, 'River');
   await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
   await page.getByRole('button', { name: 'Duplicate River', exact: true }).click();
@@ -66,10 +101,18 @@ test('comparison preserves editor and closes back to the selected library routes
   await expect(dialog.getByRole('table', { name: 'Saved route comparison' })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Fit route', exact: true })).toBeEnabled();
   await expect(dialog.getByRole('group', { name: 'Map style', exact: true })).toHaveCount(0);
-  const frame = (await dialog.locator('.comparison-map').boundingBox())!;
-  const canvas = (await dialog.locator('.maplibregl-canvas').boundingBox())!;
-  expect(Math.abs(frame.y + frame.height - canvas.y - canvas.height)).toBeLessThanOrEqual(2);
-  expect(Math.abs(frame.width - canvas.width)).toBeLessThanOrEqual(2);
+  await expect
+    .poll(() =>
+      dialog.locator('.comparison-map').evaluate((element) => {
+        const frame = element.getBoundingClientRect();
+        const canvas = element.querySelector('.maplibregl-canvas')!.getBoundingClientRect();
+        return Math.max(
+          Math.abs(frame.bottom - canvas.bottom),
+          Math.abs(frame.width - canvas.width),
+        );
+      }),
+    )
+    .toBeLessThanOrEqual(2);
   await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(compare).toBeFocused();
   await expect(checks.nth(0)).toBeChecked();
@@ -77,16 +120,23 @@ test('comparison preserves editor and closes back to the selected library routes
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
 });
 
-test('disclosure arrows align and mobile route actions have labels and 44px targets', async ({ page }, testInfo) => {
+test('disclosure arrows align and mobile route actions have labels and 44px targets', async ({
+  page,
+}, testInfo) => {
   const climb = page.getByRole('region', { name: 'Climb analysis', exact: true });
   await climb.getByRole('button', { name: /^Climb 1/ }).click();
-  await expect(climb.getByRole('button', { name: /^Climb 1/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(climb.getByRole('button', { name: /^Climb 1/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(page.getByText('How time is estimated', { exact: true })).toBeVisible();
   await expect(page.getByText('How climbs are detected', { exact: true })).toBeVisible();
   expect(await page.locator('.time-explanation').getAttribute('open')).toBeNull();
   expect(await page.locator('.climb-analysis details').getAttribute('open')).toBeNull();
   if (testInfo.project.name !== 'mobile') return;
-  const positions = await page.locator('#route-planner .planner-disclosure > summary .disclosure-toggle').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().right));
+  const positions = await page
+    .locator('#route-planner .planner-disclosure > summary .disclosure-toggle')
+    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().right));
   expect(positions.length).toBeGreaterThanOrEqual(3);
   expect(Math.max(...positions) - Math.min(...positions)).toBeLessThanOrEqual(1);
   const actions = page.locator('.waypoint-tools');

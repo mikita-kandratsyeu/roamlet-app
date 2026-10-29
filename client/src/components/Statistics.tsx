@@ -124,7 +124,10 @@ export function Statistics({
       } else {
         points.push({
           x: (sample.distance / total) * 160,
-          y: maximum === minimum ? 16 : 29 - ((sample.elevation - minimum) / (maximum - minimum)) * 26,
+          y:
+            maximum === minimum
+              ? 16
+              : 29 - ((sample.elevation - minimum) / (maximum - minimum)) * 26,
         });
       }
     }
@@ -380,29 +383,72 @@ export function Statistics({
         <details className="personal-time-assumptions time-explanation planner-disclosure">
           <summary className="section-heading">
             <span>{t('How time is estimated')}</span>
-            <span className="disclosure-toggle" aria-hidden="true"><ChevronDown size={18} /></span>
+            <span className="disclosure-toggle" aria-hidden="true">
+              <ChevronDown size={18} />
+            </span>
           </summary>
           <div className="time-explanation-body">
             <h3>{t('Calculation inputs')}</h3>
             <dl className="time-inputs">
-              <div><dt>{t('Flat-ground speed')}</dt><dd>{t('{{speed}} km/h', { speed: formatNumber(speedKmh!, { maximumFractionDigits: 2 }) })}</dd></div>
-              <div><dt>{t('Surface adjustment')}</dt><dd>×{formatNumber(personal.surfaceFactor, { maximumFractionDigits: 2 })}</dd></div>
-              <div><dt>{t('Stops, added once')}</dt><dd>{t('{{minutes}} min', { minutes: formatNumber(stopsMinutes) })}</dd></div>
+              <div>
+                <dt>{t('Flat-ground speed')}</dt>
+                <dd>
+                  {t('{{speed}} km/h', {
+                    speed: formatNumber(speedKmh!, { maximumFractionDigits: 2 }),
+                  })}
+                </dd>
+              </div>
+              <div>
+                <dt>{t('Surface adjustment')}</dt>
+                <dd>×{formatNumber(personal.surfaceFactor, { maximumFractionDigits: 2 })}</dd>
+              </div>
+              <div>
+                <dt>{t('Stops, added once')}</dt>
+                <dd>{t('{{minutes}} min', { minutes: formatNumber(stopsMinutes) })}</dd>
+              </div>
               {personal.ascentMetres !== null && (
-                <div><dt>{t('Climbing allowance')}</dt><dd>{t('{{minutes}} min', { minutes: formatNumber(personal.climbSeconds / 60, { maximumFractionDigits: 1 }) })}</dd></div>
+                <div>
+                  <dt>{t('Climbing allowance')}</dt>
+                  <dd>
+                    {t('{{minutes}} min', {
+                      minutes: formatNumber(personal.climbSeconds / 60, {
+                        maximumFractionDigits: 1,
+                      }),
+                    })}
+                  </dd>
+                </div>
               )}
             </dl>
             {personal.ascentMetres !== null && (
-              <p className="fine-print">{t('Climbing uses {{ascent}} m ascent after 3 m noise filtering. Descents do not reduce time.', { ascent: formatNumber(Math.round(personal.ascentMetres)) })}</p>
+              <p className="fine-print">
+                {t(
+                  'Climbing uses {{ascent}} m ascent after 3 m noise filtering. Descents do not reduce time.',
+                  { ascent: formatNumber(Math.round(personal.ascentMetres)) },
+                )}
+              </p>
             )}
             {provider && (
-              <p className="fine-print">{t('Planning reference takes the longer moving estimate (provider or personal), then adds stops once.')}</p>
+              <p className="fine-print">
+                {t(
+                  'Planning reference takes the longer moving estimate (provider or personal), then adds stops once.',
+                )}
+              </p>
             )}
             <h3>{t('Estimate limitations')}</h3>
             <ul className="time-limitations">
-              <li>{t('The range is a rough planning estimate, not a statistical confidence interval or a guarantee.')}</li>
-              {personal.warnings.map((warning) => <li key={warning}>{t(warningLabels[warning])}</li>)}
-              <li>{t('Weather, wind, load and access are not inferred. Original route statistics remain unchanged.')}</li>
+              <li>
+                {t(
+                  'The range is a rough planning estimate, not a statistical confidence interval or a guarantee.',
+                )}
+              </li>
+              {personal.warnings.map((warning) => (
+                <li key={warning}>{t(warningLabels[warning])}</li>
+              ))}
+              <li>
+                {t(
+                  'Weather, wind, load and access are not inferred. Original route statistics remain unchanged.',
+                )}
+              </li>
             </ul>
           </div>
         </details>

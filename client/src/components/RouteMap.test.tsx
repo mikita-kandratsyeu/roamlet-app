@@ -736,30 +736,33 @@ it('does not duplicate the planner GPX import action on the map', () => {
   expect(screen.queryByRole('button', { name: 'Import GPX' })).not.toBeInTheDocument();
 });
 
-it.each([false, true])('keeps the map issue link only in the tools menu (compact: %s)', async (compact) => {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: compact && query === '(max-width: 700px)',
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  }));
-  const user = userEvent.setup();
-  const { container } = render(<RouteMap {...props} />);
-  act(() => mocks.handlers.get('load')!());
-  expect(container.querySelector('.map-issue')).not.toBeInTheDocument();
-  expect(screen.queryByRole('link', { name: 'Report a map issue ↗' })).not.toBeInTheDocument();
-  const trigger = screen.getByRole('button', { name: 'More map tools' });
-  await user.click(trigger);
-  const panel = screen.getByRole('dialog', { name: 'Map controls' });
-  const report = within(panel).getByRole('link', { name: 'Report a map issue ↗' });
-  expect(report).toHaveAttribute('href', 'https://www.openstreetmap.org/');
-  expect(report).toHaveAttribute('target', '_blank');
-  expect(report).toHaveAttribute('rel', 'noreferrer');
-  expect(screen.getAllByRole('link', { name: 'Report a map issue ↗' })).toHaveLength(1);
-  expect(screen.getAllByRole('button', { name: 'Zoom in' })).toHaveLength(1);
-  await user.keyboard('{Escape}');
-  expect(screen.queryByRole('link', { name: 'Report a map issue ↗' })).not.toBeInTheDocument();
-  expect(trigger).toHaveFocus();
-});
+it.each([false, true])(
+  'keeps the map issue link only in the tools menu (compact: %s)',
+  async (compact) => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: compact && query === '(max-width: 700px)',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    const user = userEvent.setup();
+    const { container } = render(<RouteMap {...props} />);
+    act(() => mocks.handlers.get('load')!());
+    expect(container.querySelector('.map-issue')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Report a map issue ↗' })).not.toBeInTheDocument();
+    const trigger = screen.getByRole('button', { name: 'More map tools' });
+    await user.click(trigger);
+    const panel = screen.getByRole('dialog', { name: 'Map controls' });
+    const report = within(panel).getByRole('link', { name: 'Report a map issue ↗' });
+    expect(report).toHaveAttribute('href', 'https://www.openstreetmap.org/');
+    expect(report).toHaveAttribute('target', '_blank');
+    expect(report).toHaveAttribute('rel', 'noreferrer');
+    expect(screen.getAllByRole('link', { name: 'Report a map issue ↗' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Zoom in' })).toHaveLength(1);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('link', { name: 'Report a map issue ↗' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  },
+);
 
 it('keeps two primary mobile controls and exposes secondary tools in a dismissible panel', async () => {
   vi.stubGlobal('matchMedia', (query: string) => ({
@@ -981,7 +984,9 @@ it('preserves the configured style during unrelated planner/theme changes', () =
   });
   expect(mocks.setStyle).not.toHaveBeenCalled();
   expect(screen.getByRole('radio', { name: 'Standard' })).toHaveAttribute('data-state', 'on');
-  expect(mocks.options).toHaveBeenCalledWith(expect.objectContaining({ style: '/custom-style.json' }));
+  expect(mocks.options).toHaveBeenCalledWith(
+    expect.objectContaining({ style: '/custom-style.json' }),
+  );
 });
 it('allows explicit retry after map construction fails without reviving an endless loader', async () => {
   mocks.options.mockImplementationOnce(() => {
@@ -1164,19 +1169,42 @@ it('renders isolated direct, inactive alternative and elevation geometry without
 it('preserves comparison colors and disconnected segments across style changes', () => {
   const layers = [
     { segments: annotationSegments, color: '#2563eb' },
-    { segments: [[[10, 0], [10.02, 0]], [[12, 0], [12.01, 0]]] as [number, number][][], color: '#c2410c', dashed: true },
+    {
+      segments: [
+        [
+          [10, 0],
+          [10.02, 0],
+        ],
+        [
+          [12, 0],
+          [12.01, 0],
+        ],
+      ] as [number, number][][],
+      color: '#c2410c',
+      dashed: true,
+    },
   ];
-  const options = { ...props, editable: false, segments: layers.flatMap((layer) => layer.segments), comparisonLayers: layers, comparisonMode: true, fitToken: 1 };
+  const options = {
+    ...props,
+    editable: false,
+    segments: layers.flatMap((layer) => layer.segments),
+    comparisonLayers: layers,
+    comparisonMode: true,
+    fitToken: 1,
+  };
   const { rerender } = render(<RouteMap {...options} />);
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
   expect(screen.queryByRole('group', { name: 'Map style' })).not.toBeInTheDocument();
   act(() => mocks.handlers.get('load')?.());
   const expected = {
     type: 'FeatureCollection',
-    features: layers.flatMap((layer) => layer.segments.map((coordinates) => ({
-      type: 'Feature', properties: { color: layer.color, direct: layer.dashed ?? false },
-      geometry: { type: 'LineString', coordinates },
-    }))),
+    features: layers.flatMap((layer) =>
+      layer.segments.map((coordinates) => ({
+        type: 'Feature',
+        properties: { color: layer.color, direct: layer.dashed ?? false },
+        geometry: { type: 'LineString', coordinates },
+      })),
+    ),
   };
   expect(mocks.extraData.get('route-comparison')).toHaveBeenLastCalledWith(expected);
   expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-opacity', 0);
@@ -1185,7 +1213,10 @@ it('preserves comparison colors and disconnected segments across style changes',
   act(() => mocks.handlers.get('style.load')?.());
   expect(mocks.extraData.get('route-comparison')).toHaveBeenLastCalledWith(expected);
   rerender(<RouteMap {...options} comparisonLayers={[]} />);
-  expect(mocks.extraData.get('route-comparison')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  expect(mocks.extraData.get('route-comparison')).toHaveBeenLastCalledWith({
+    type: 'FeatureCollection',
+    features: [],
+  });
   expect(props.onAdd).not.toHaveBeenCalled();
 });
 
@@ -1193,11 +1224,24 @@ it('highlights climbs without moving the map and clears stale highlights', () =>
   const options = { ...props, segments: annotationSegments, highlightSegments: annotationSegments };
   const { rerender } = render(<RouteMap {...options} />);
   act(() => mocks.handlers.get('load')?.());
-  expect(mocks.extraData.get('route-highlight')).toHaveBeenLastCalledWith(expect.objectContaining({ features: [expect.objectContaining({ geometry: { type: 'LineString', coordinates: annotationSegments[0] } })] }));
+  expect(mocks.extraData.get('route-highlight')).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      features: [
+        expect.objectContaining({
+          geometry: { type: 'LineString', coordinates: annotationSegments[0] },
+        }),
+      ],
+    }),
+  );
   act(() => mocks.handlers.get('style.load')?.());
-  expect(mocks.extraData.get('route-highlight')).toHaveBeenLastCalledWith(expect.objectContaining({ features: [expect.anything()] }));
+  expect(mocks.extraData.get('route-highlight')).toHaveBeenLastCalledWith(
+    expect.objectContaining({ features: [expect.anything()] }),
+  );
   rerender(<RouteMap {...options} routeStale />);
-  expect(mocks.extraData.get('route-highlight')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  expect(mocks.extraData.get('route-highlight')).toHaveBeenLastCalledWith({
+    type: 'FeatureCollection',
+    features: [],
+  });
   expect(mocks.fit).not.toHaveBeenCalled();
   expect(mocks.fly).not.toHaveBeenCalled();
 });

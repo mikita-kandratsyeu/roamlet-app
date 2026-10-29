@@ -150,11 +150,20 @@ function setOnline(online: boolean) {
 describe('route preparation features', () => {
   it('compares saved routes without losing the current unsaved editor or making routing requests', async () => {
     const now = new Date().toISOString();
-    await routeDb.routes.bulkAdd(['Lake', 'Forest'].map((name, index) => ({
-      id: `comparison-${index}`, name, description: '', activity: 'hiking' as const,
-      segments: [geometry], waypoints: [], stats: { distance: 1342, duration: 1000 },
-      source: 'gpx' as const, createdAt: now, updatedAt: now,
-    })));
+    await routeDb.routes.bulkAdd(
+      ['Lake', 'Forest'].map((name, index) => ({
+        id: `comparison-${index}`,
+        name,
+        description: '',
+        activity: 'hiking' as const,
+        segments: [geometry],
+        waypoints: [],
+        stats: { distance: 1342, duration: 1000 },
+        source: 'gpx' as const,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    );
     render(<App />);
     await plan();
     const editorMap = screen.getByTestId('map');
@@ -167,7 +176,9 @@ describe('route preparation features', () => {
     compare.focus();
     fireEvent.click(compare);
     const dialog = screen.getByRole('dialog', { name: 'Compare saved routes' });
-    expect(within(dialog).getByRole('table', { name: 'Saved route comparison' })).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('table', { name: 'Saved route comparison' }),
+    ).toBeInTheDocument();
     expect(within(dialog).getByTestId('map')).toHaveAttribute('data-comparison', 'true');
     expect(editorMap).toHaveAttribute('data-geometry', before!);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close dialog' }));
@@ -180,10 +191,15 @@ describe('route preparation features', () => {
 
   it('highlights imported climbs and clears the highlight when opening another route', async () => {
     render(<App />);
-    const xml = '<gpx version="1.1"><metadata><name>Climb</name></metadata><trk><trkseg><trkpt lat="47.26" lon="11.4"><ele>100</ele></trkpt><trkpt lat="47.27" lon="11.41"><ele>150</ele></trkpt></trkseg></trk></gpx>';
-    const file = Object.assign(new File([xml], 'climb.gpx', { type: 'application/gpx+xml' }), { text: async () => xml });
+    const xml =
+      '<gpx version="1.1"><metadata><name>Climb</name></metadata><trk><trkseg><trkpt lat="47.26" lon="11.4"><ele>100</ele></trkpt><trkpt lat="47.27" lon="11.41"><ele>150</ele></trkpt></trkseg></trk></gpx>';
+    const file = Object.assign(new File([xml], 'climb.gpx', { type: 'application/gpx+xml' }), {
+      text: async () => xml,
+    });
     fireEvent.change(screen.getByLabelText('Import GPX file'), { target: { files: [file] } });
-    const climb = await within(await screen.findByRole('region', { name: 'Climb analysis' })).findByRole('button', { name: /Climb 1/ });
+    const climb = await within(
+      await screen.findByRole('region', { name: 'Climb analysis' }),
+    ).findByRole('button', { name: /Climb 1/ });
     fireEvent.click(climb);
     expect(screen.getByTestId('map').getAttribute('data-highlight')).not.toBe('[]');
     expect(provider.calculateRoute).not.toHaveBeenCalled();
@@ -628,7 +644,9 @@ describe('route planner interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
     for (let i = 0; i < 26; i++) addCoordinate(`47.${2600 + i}, 11.4`);
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Automatic routing supports up to 25');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Automatic routing supports up to 25',
+    );
     expect(screen.getByRole('button', { name: 'Manual drawing' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -794,7 +812,8 @@ describe('route planner interactions', () => {
   it('reorders stops by dragging while retaining the keyboard alternative', async () => {
     render(<App />);
     await plan();
-    const stops = () => within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem');
+    const stops = () =>
+      within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem');
     const items = stops();
     const originalOrder = items.map((item) => item.getAttribute('data-stop-id'));
     fireEvent.dragStart(items[0].querySelector('[draggable]')!, {
@@ -812,7 +831,9 @@ describe('route planner interactions', () => {
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
     expect(stops().map((item) => item.getAttribute('data-stop-id'))).toEqual(originalOrder);
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
-    expect(stops().map((item) => item.getAttribute('data-stop-id'))).toEqual([...originalOrder].reverse());
+    expect(stops().map((item) => item.getAttribute('data-stop-id'))).toEqual(
+      [...originalOrder].reverse(),
+    );
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(provider.calculateRoute).toHaveBeenCalledTimes(2);
   });
@@ -830,11 +851,15 @@ describe('route planner interactions', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Round trip' }));
     expect(screen.getByRole('dialog', { name: 'Switch to a round trip?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem')).toHaveLength(2);
+    expect(
+      within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem'),
+    ).toHaveLength(2);
     expect(screen.getByRole('radio', { name: 'Point to point' })).toBeChecked();
     fireEvent.click(screen.getByRole('radio', { name: 'Round trip' }));
     fireEvent.click(screen.getByRole('button', { name: 'Switch to round trip' }));
-    expect(within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem')).toHaveLength(1);
+    expect(
+      within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem'),
+    ).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
   });
   it('plans, saves, opens its library and reopens a persistent route', async () => {
