@@ -45,7 +45,7 @@ export function draftWriter(onError: () => void, delay = 500) {
             id: 'current',
             version: 1,
             updatedAt: new Date().toISOString(),
-            snapshot: captured.snapshot,
+            snapshot: migrateSnapshot(captured.snapshot),
           });
         });
       const writing = queue;

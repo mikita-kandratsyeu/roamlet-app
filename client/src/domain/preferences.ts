@@ -3,6 +3,9 @@ import { isFitness, type Fitness } from './time';
 import { isTheme, saveTheme, storedTheme, THEME_STORAGE_KEY, type Theme } from '../theme';
 import { initialMapView, MAP_VIEW_KEY, saveMapView, validMapView, type MapView } from './mapView';
 
+import type { RoutingOptions } from './types';
+import { DEFAULT_ROUTING_OPTIONS, validRoutingOptions } from './routingOptions';
+
 export type MapStyle = 'standard' | 'bright' | 'custom';
 export interface Preferences {
   activity: 'cycling' | 'hiking';
@@ -11,6 +14,7 @@ export interface Preferences {
   speeds: { cycling: number; hiking: number };
   stopsMinutes: number;
   fitness: Fitness;
+  routingOptions: RoutingOptions;
   panelHidden: boolean;
   collapsed: boolean;
   library: {
@@ -37,6 +41,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   speeds: { cycling: 18, hiking: 5 },
   stopsMinutes: 0,
   fitness: 'regular',
+  routingOptions: { ...DEFAULT_ROUTING_OPTIONS },
   panelHidden: false,
   collapsed: false,
   library: {
@@ -61,6 +66,7 @@ const fields = [
   'speeds',
   'stopsMinutes',
   'fitness',
+  'routingOptions',
   'panelHidden',
   'collapsed',
   'library',
@@ -97,6 +103,7 @@ function valid(value: Preferences): boolean {
     positive(value.speeds.hiking) &&
     nonnegative(value.stopsMinutes) &&
     isFitness(value.fitness) &&
+    validRoutingOptions(value.routingOptions) &&
     typeof value.panelHidden === 'boolean' &&
     typeof value.collapsed === 'boolean' &&
     !!library &&

@@ -102,7 +102,7 @@ export function estimatePersonalTime(route: PlannedRoute, options: PersonalTimeO
     !route.stats ||
     !options ||
     !['cycling', 'hiking'].includes(route.activity) ||
-    !['openrouteservice', 'mapbox', 'gpx', 'manual'].includes(route.source) ||
+    !['openrouteservice', 'mapbox', 'gpx', 'manual', 'mixed'].includes(route.source) ||
     !isFitness(options.fitness) ||
     !isSurface(options.surface)
   )
@@ -114,7 +114,10 @@ export function estimatePersonalTime(route: PlannedRoute, options: PersonalTimeO
     cycling: { unknown: 1, paved: 1, mixed: 1.2, rough: 1.5 },
   };
   const surfaceFactor = surfaceFactors[route.activity][options.surface];
-  const ascentMetres = route.source === 'gpx' ? reliableAscent(route.segments) : null;
+  const ascentMetres =
+    route.source === 'gpx' || route.elevationSource === 'openrouteservice'
+      ? reliableAscent(route.segments)
+      : null;
   const climbSeconds =
     ascentMetres === null
       ? 0
@@ -126,17 +129,19 @@ export function estimatePersonalTime(route: PlannedRoute, options: PersonalTimeO
   const warnings: TimeWarning[] = [];
   if (options.surface === 'unknown') warnings.push('unknown-surface');
   if (ascentMetres === null) warnings.push('missing-elevation');
-  if (route.source === 'manual') warnings.push('manual-distance');
+  const hasDirectLegs =
+    route.source === 'manual' || route.source === 'mixed' || !!route.directSegments?.length;
+  if (hasDirectLegs) warnings.push('manual-distance');
   if (route.activity === 'cycling' && climbSeconds > 0) warnings.push('cycling-climb');
   // These spreads are transparent planning heuristics, not statistical confidence intervals.
   const spread = { beginner: 0.25, regular: 0.2, trained: 0.15 }[options.fitness];
   const lowerSpread = spread + (options.surface === 'unknown' ? 0.1 : 0);
-  const upperSpread =
-    lowerSpread + (ascentMetres === null ? 0.2 : 0) + (route.source === 'manual' ? 0.3 : 0);
+  const upperSpread = lowerSpread + (ascentMetres === null ? 0.2 : 0) + (hasDirectLegs ? 0.3 : 0);
   const movingRange = { lower: moving * (1 - lowerSpread), upper: moving * (1 + upperSpread) };
   const totalRange = { lower: movingRange.lower + stops, upper: movingRange.upper + stops };
   const total = moving + stops;
-  const automatic = route.source === 'openrouteservice' || route.source === 'mapbox';
+  const automatic =
+    route.source === 'openrouteservice' || route.source === 'mapbox' || route.source === 'mixed';
   const planningReference = automatic
     ? planningReferenceTime(route.stats.duration, moving, options.stopsMinutes)
     : null;

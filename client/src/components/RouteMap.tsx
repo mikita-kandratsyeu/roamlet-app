@@ -1,3 +1,5 @@
+import './map-controls.css';
+import { lineFeatures, pointFeature, routeAnnotations } from '../domain/mapAnnotations';
 import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { useTranslation } from 'react-i18next';
@@ -87,6 +89,17 @@ interface Props {
   canUndo?: boolean;
   canRedo?: boolean;
   onInsert?: (coordinate: Coordinate, index: number) => void;
+  selectedWaypointId?: string | null;
+  onSelectWaypoint?: (id: string) => void;
+  focusWaypointToken?: number;
+  onRemoveWaypoint?: (id: string) => void;
+  onReplaceWaypoint?: (id: string) => void;
+  onStartWaypoint?: (id: string) => void;
+  directSegments?: Coordinate[][];
+  alternativeSegments?: Coordinate[][][];
+  selectedAlternativeIndex?: number;
+  elevationCoordinate?: Coordinate | null;
+  routeStale?: boolean;
 }
 export function RouteMap(props: Props) {
   const { t } = useTranslation();
@@ -95,6 +108,7 @@ export function RouteMap(props: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const locationMarker = useRef<maplibregl.Marker | null>(null);
+  const focusedWaypointId = useRef<string | null>(null);
   const locationArea = useRef(locationAccuracy([0, 0], 0));
   const latest = useRef(props);
   const [ready, setReady] = useState(false);
@@ -139,6 +153,35 @@ export function RouteMap(props: Props) {
   const savedStyleWarning = 'The saved map style is unavailable. The standard map is being used.';
   const [locating, setLocating] = useState(false);
   const lastFitToken = useRef(0);
+  const lastFocusToken = useRef(0);
+  const [bearing, setBearing] = useState(0);
+  const [zoom, setZoom] = useState(10);
+  const [insertionPreview, setInsertionPreview] = useState<Coordinate | null>(null);
+  const [routeHovered, setRouteHovered] = useState(false);
+  const [mobile, setMobile] = useState(() => Boolean(window.matchMedia?.('(pointer: coarse)').matches) || window.innerWidth <= 700);
+  const [addPoints, setAddPoints] = useState(false);
+  const allowMapEdits = useRef(!mobile);
+  const [menuWaypointId, setMenuWaypointId] = useState<string | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  useEffect(() => {
+    const media = window.matchMedia?.('(pointer: coarse)');
+    const update = () => {
+      const next = Boolean(media?.matches) || window.innerWidth <= 700;
+      setMobile(next);
+      setAddPoints(false);
+    };
+    media?.addEventListener?.('change', update);
+    window.addEventListener('resize', update);
+    return () => {
+      media?.removeEventListener?.('change', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+  useEffect(() => {
+    allowMapEdits.current = editable && (!mobile || addPoints);
+    setInsertionPreview(null);
+    setRouteHovered(false);
+  }, [editable, mobile, addPoints]);
   useEffect(() => {
     const region = container.current?.parentElement;
     const workspace = region?.closest<HTMLElement>('.workspace');
@@ -335,6 +378,16 @@ export function RouteMap(props: Props) {
     };
     window.addEventListener('pagehide', persistOnHide);
     instance.addControl(new maplibregl.AttributionControl({ compact: false }), 'bottom-right');
+    if (maplibregl.ScaleControl) {
+      instance.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+    }
+    const updateCameraControls = () => {
+      setBearing(instance.getBearing());
+      setZoom(instance.getZoom());
+    };
+    updateCameraControls();
+    instance.on('rotate', updateCameraControls);
+    instance.on('zoomend', updateCameraControls);
     const installRouteLayers = () => {
       if (!instance.getSource('location-accuracy')) {
         instance.addSource('location-accuracy', {
@@ -374,6 +427,34 @@ export function RouteMap(props: Props) {
           paint: { 'line-color': '#286046', 'line-width': 4 },
           layout: { 'line-cap': 'round', 'line-join': 'round' },
         });
+      }
+      const empty = { type: 'FeatureCollection' as const, features: [] };
+      for (const id of ['route-alternatives', 'route-direct', 'route-annotations', 'route-insertion', 'route-elevation']) {
+        if (!instance.getSource(id)) instance.addSource(id, { type: 'geojson', data: empty });
+      }
+      if (!instance.getLayer?.('route-alternatives-line')) {
+        instance.addLayer({ id: 'route-alternatives-line', type: 'line', source: 'route-alternatives',
+          paint: { 'line-color': '#77857d', 'line-width': 3, 'line-opacity': 0.35 },
+          layout: { 'line-cap': 'round', 'line-join': 'round' } }, 'route-casing');
+        instance.addLayer({ id: 'route-direct-line', type: 'line', source: 'route-direct',
+          paint: { 'line-color': '#bc6a20', 'line-width': 4, 'line-dasharray': [2, 2] },
+          layout: { 'line-cap': 'round', 'line-join': 'round' } });
+        instance.addLayer({ id: 'route-hover', type: 'line', source: 'route',
+          paint: { 'line-color': '#52a87a', 'line-width': 14, 'line-opacity': 0 },
+          layout: { 'line-cap': 'round', 'line-join': 'round' } }, 'route-line');
+        instance.addLayer({ id: 'route-directions', type: 'symbol', source: 'route-annotations',
+          filter: ['==', ['get', 'kind'], 'direction'],
+          layout: { 'text-field': ['get', 'label'], 'text-size': 20,
+            'text-rotate': ['get', 'bearing'], 'text-rotation-alignment': 'map', 'text-keep-upright': false },
+          paint: { 'text-color': '#286046', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
+        instance.addLayer({ id: 'route-kilometers', type: 'symbol', source: 'route-annotations',
+          filter: ['==', ['get', 'kind'], 'kilometer'],
+          layout: { 'text-field': ['get', 'label'], 'text-size': 12, 'text-offset': [0, 1.4] },
+          paint: { 'text-color': '#286046', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
+        for (const [id, color] of [['route-insertion', '#bc6a20'], ['route-elevation', '#ab43c0']]) {
+          instance.addLayer({ id: `${id}-point`, type: 'circle', source: id,
+            paint: { 'circle-radius': 7, 'circle-color': color, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 } });
+        }
       }
       setReady(true);
       setMapError('');
@@ -417,6 +498,7 @@ export function RouteMap(props: Props) {
       const current = latest.current;
       if (
         !current.editable ||
+        !allowMapEdits.current ||
         Date.now() < suppressClickUntil.current ||
         (event.originalEvent?.target instanceof Element &&
           event.originalEvent.target.closest('.waypoint-marker'))
@@ -432,8 +514,31 @@ export function RouteMap(props: Props) {
         if (insertion) current.onInsert(insertion.coordinate, insertion.index);
         return;
       }
+      if (event.point && current.alternativeSegments?.length &&
+        instance.queryRenderedFeatures(event.point, { layers: ['route-alternatives-line'] }).length) return;
       current.onAdd(coordinate);
     });
+    const clearHover = () => {
+      setRouteHovered(false);
+      setInsertionPreview(null);
+      instance.getCanvas().style.cursor = latest.current.manualDrawing && allowMapEdits.current ? 'crosshair' : '';
+    };
+    instance.on('mousemove', (event) => {
+      const current = latest.current;
+      if (!allowMapEdits.current || !current.editable || !event.point ||
+        !instance.queryRenderedFeatures(event.point, { layers: ['route-hit'] }).length) {
+        clearHover();
+        return;
+      }
+      setRouteHovered(true);
+      instance.getCanvas().style.cursor = current.onInsert ? 'copy' : 'pointer';
+      const insertion = current.onInsert
+        ? routeInsertion([event.lngLat.lng, event.lngLat.lat], current.segments, current.waypoints)
+        : null;
+      setInsertionPreview(insertion?.coordinate ?? null);
+    });
+    const canvas = instance.getCanvas();
+    canvas.addEventListener('mouseleave', clearHover);
     const observer = new ResizeObserver(() => instance.resize());
     observer.observe(container.current);
     return () => {
@@ -441,10 +546,15 @@ export function RouteMap(props: Props) {
       window.removeEventListener('pagehide', persistOnHide);
       window.removeEventListener(PREFERENCES_CHANGE_EVENT, preferencesChanged);
       observer.disconnect();
+      canvas.removeEventListener('mouseleave', clearHover);
       if (moved) persistView();
       locationMarker.current?.remove();
       locationMarker.current = null;
       locationArea.current = locationAccuracy([0, 0], 0);
+      setLocating(false);
+      setAccuracy(null);
+      setInsertionPreview(null);
+      setRouteHovered(false);
       instance.remove();
       map.current = null;
     };
@@ -471,10 +581,45 @@ export function RouteMap(props: Props) {
   }, [ready, props.segments]);
   useEffect(() => {
     if (!ready || !map.current) return;
+    const instance = map.current;
+    const update = (id: string, data: Parameters<maplibregl.GeoJSONSource['setData']>[0]) =>
+      (instance.getSource(id) as maplibregl.GeoJSONSource | undefined)?.setData(data);
+    update('route-direct', lineFeatures(props.directSegments ?? []));
+    update('route-alternatives', lineFeatures((props.alternativeSegments ?? []).flatMap(
+      (segments, index) => index === (props.selectedAlternativeIndex ?? 0) ? [] : segments,
+    )));
+    update('route-annotations', routeAnnotations(props.segments, zoom));
+    update('route-insertion', pointFeature(insertionPreview));
+    update('route-elevation', pointFeature(props.elevationCoordinate));
+    const opacity = props.routeStale ? 0.4 : 1;
+    instance.setPaintProperty('route-line', 'line-opacity', opacity);
+    instance.setPaintProperty('route-casing', 'line-opacity', opacity * 0.95);
+    instance.setPaintProperty('route-direct-line', 'line-opacity', opacity);
+    instance.setPaintProperty('route-directions', 'text-opacity', opacity);
+    instance.setPaintProperty('route-kilometers', 'text-opacity', opacity);
+    instance.setPaintProperty('route-hover', 'line-opacity', routeHovered && editable ? 0.25 : 0);
+  }, [ready, props.directSegments, props.alternativeSegments, props.selectedAlternativeIndex,
+    props.elevationCoordinate, props.routeStale, props.segments, zoom, insertionPreview, routeHovered, editable]);
+  useEffect(() => {
+    setInsertionPreview(null);
+    setRouteHovered(false);
+  }, [props.segments]);
+  useEffect(() => {
+    if (!ready || !map.current || props.focusWaypointToken === undefined ||
+      props.focusWaypointToken === lastFocusToken.current) return;
+    lastFocusToken.current = props.focusWaypointToken;
+    const point = props.waypoints.find((waypoint) => waypoint.id === props.selectedWaypointId);
+    if (point) map.current.flyTo({ center: [point.coordinate[0], point.coordinate[1]], duration: mapMotionDuration() });
+  }, [ready, props.focusWaypointToken, props.selectedWaypointId, props.waypoints]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
     const markers = props.waypoints.map((point, index) => {
       const element = document.createElement('button');
-      element.className = `waypoint-marker ${waypointKind(index, props.waypoints.length)}`;
+      const selected = point.id === props.selectedWaypointId;
+      element.className = `waypoint-marker ${waypointKind(index, props.waypoints.length)}${selected ? ' waypoint-marker-selected' : ''}`;
+      element.setAttribute('aria-pressed', String(selected));
       element.type = 'button';
+      element.dataset.waypointId = point.id;
       element.textContent = formatNumber(index + 1);
       const label = point.id.endsWith('-display-start')
         ? t('Track start')
@@ -483,10 +628,19 @@ export function RouteMap(props: Props) {
           : point.name;
       element.title = `${label}${props.editable ? t(' — drag to reposition') : ''}`;
       element.setAttribute('aria-label', element.title);
-      element.addEventListener('click', (event) => event.stopPropagation());
+      element.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (Date.now() < suppressClickUntil.current) return;
+        latest.current.onSelectWaypoint?.(point.id);
+        setMenuWaypointId(point.id);
+      });
       const marker = new maplibregl.Marker({ element, draggable: props.editable })
         .setLngLat([point.coordinate[0], point.coordinate[1]])
         .addTo(map.current!);
+      if (focusedWaypointId.current === point.id) {
+        element.focus({ preventScroll: true });
+        focusedWaypointId.current = null;
+      }
       marker.on('dragstart', () => {
         suppressClickUntil.current = Infinity;
       });
@@ -498,8 +652,13 @@ export function RouteMap(props: Props) {
       });
       return marker;
     });
-    return () => markers.forEach((marker) => marker.remove());
-  }, [ready, props.waypoints, props.editable, t]);
+    return () => {
+      const active = document.activeElement;
+      focusedWaypointId.current = active instanceof HTMLElement && active.classList.contains('waypoint-marker')
+        ? active.dataset.waypointId ?? null : null;
+      markers.forEach((marker) => marker.remove());
+    };
+  }, [ready, props.waypoints, props.editable, props.selectedWaypointId, t]);
   useEffect(() => {
     const labels = [
       ['.maplibregl-ctrl-zoom-in', t('Zoom in')],
@@ -512,7 +671,12 @@ export function RouteMap(props: Props) {
       element?.setAttribute('aria-label', label);
       element?.setAttribute('title', label);
     }
-  }, [t, ready]);
+    const scale = container.current?.querySelector('.maplibregl-ctrl-scale');
+    if (scale) {
+      scale.setAttribute('role', 'img');
+      scale.setAttribute('aria-label', `${t('Map scale')}: ${scale.textContent}`);
+    }
+  }, [t, ready, zoom]);
   useEffect(() => {
     if (!ready || !map.current || props.fitToken === lastFitToken.current) return;
     const coordinates = props.segments.flat().length
@@ -531,7 +695,7 @@ export function RouteMap(props: Props) {
   useEffect(() => {
     if (!ready || !map.current) return;
     const canvas = map.current.getCanvas();
-    canvas.style.cursor = manualDrawing && editable ? 'crosshair' : '';
+    canvas.style.cursor = (manualDrawing || (mobile && addPoints)) && editable && allowMapEdits.current ? 'crosshair' : '';
     const undo = (event: KeyboardEvent) => {
       if (!editable || !(event.ctrlKey || event.metaKey)) return;
       const key = event.key.toLowerCase();
@@ -554,7 +718,7 @@ export function RouteMap(props: Props) {
       canvas.style.cursor = '';
       canvas.removeEventListener('keydown', undo);
     };
-  }, [ready, manualDrawing, editable, onUndo, onRedo, canUndo, canRedo]);
+  }, [ready, manualDrawing, editable, onUndo, onRedo, canUndo, canRedo, mobile, addPoints]);
   function locate() {
     if (!navigator.geolocation) {
       props.onError(
@@ -581,22 +745,30 @@ export function RouteMap(props: Props) {
           | maplibregl.GeoJSONSource
           | undefined;
         source?.setData(locationArea.current);
-        instance.flyTo({
-          center: coordinate,
-          zoom: Math.max(instance.getZoom(), 14),
-          duration: mapMotionDuration(),
-        });
+        const reportedAccuracy = position.coords.accuracy;
+        setAccuracy(Number.isFinite(reportedAccuracy) && reportedAccuracy > 0 ? reportedAccuracy : null);
+        const ring = locationArea.current.features[0]?.geometry.coordinates[0];
+        if (ring?.length) {
+          const bounds = new maplibregl.LngLatBounds();
+          ring.forEach((point) => bounds.extend([point[0], point[1]]));
+          instance.fitBounds(bounds, { padding: mapFitPadding(container.current), maxZoom: 16, duration: mapMotionDuration() });
+        } else {
+          instance.flyTo({ center: coordinate, duration: mapMotionDuration() });
+        }
       },
-      () => {
+      (error) => {
         if (map.current !== instance) return;
         setLocating(false);
-        props.onError(
-          'Location permission was denied or your position is unavailable. Enter coordinates or click the map instead.',
+        latest.current.onError(
+          error.code === 1 ? 'Location permission was denied. Enable location access in your browser settings.' :
+          error.code === 3 ? 'Location request timed out. Try again.' :
+          'Your position is unavailable. Enter coordinates or click the map instead.',
         );
       },
       { timeout: 10000 },
     );
   }
+  const menuWaypoint = props.waypoints.find((point) => point.id === menuWaypointId);
   if (!online) {
     return (
       <section className="map-region map-offline" aria-label={t('Interactive route map')}>
@@ -632,6 +804,23 @@ export function RouteMap(props: Props) {
   return (
     <section className="map-region" aria-label={t('Interactive route map')}>
       <div ref={container} className="map-canvas" />
+      {ready && menuWaypoint && (
+        <div className="map-waypoint-actions" role="group" aria-label={t('Waypoint actions')}>
+          <strong>{menuWaypoint.name}</strong>
+          {editable && props.onReplaceWaypoint && <Button variant="outline" onClick={() => props.onReplaceWaypoint?.(menuWaypoint.id)}>{t('Replace waypoint')}</Button>}
+          {editable && props.onStartWaypoint && <Button variant="outline" onClick={() => props.onStartWaypoint?.(menuWaypoint.id)}>{t('Start route here')}</Button>}
+          {editable && props.onRemoveWaypoint && <Button variant="outline" onClick={() => { props.onRemoveWaypoint?.(menuWaypoint.id); setMenuWaypointId(null); }}>{t('Remove waypoint')}</Button>}
+          <Button variant="ghost" aria-label={t('Close waypoint actions')} onClick={() => setMenuWaypointId(null)}><X size={16} /></Button>
+        </div>
+      )}
+      {ready && (accuracy !== null || props.elevationCoordinate || insertionPreview || props.routeStale) && (
+        <div className="map-annotation-status" role="status">
+          {accuracy !== null && <span>{t('Location accuracy: ±{{meters}} m', { meters: formatNumber(Math.round(accuracy)) })}</span>}
+          {props.elevationCoordinate && <span>{t('Elevation location')}</span>}
+          {insertionPreview && <span>{t('Insert waypoint here')}</span>}
+          {props.routeStale && <span>{t('Route is out of date')}</span>}
+        </div>
+      )}
       {(mapError || preferenceWarning) && (
         <Alert className="map-warning" role="status">
           <span>{translateMessage(mapError || preferenceWarning)}</span>
@@ -684,10 +873,18 @@ export function RouteMap(props: Props) {
       </Badge>
 
       <div className="map-extra-controls" role="group" aria-label={t('Map controls')}>
+        <Button variant="outline" size="icon" className="map-control map-north-control"
+          title={t('Reset north')} aria-label={t('Reset north')} disabled={!ready}
+          onClick={() => map.current?.easeTo?.({ bearing: 0, duration: mapMotionDuration() })}>
+          <span aria-hidden="true" style={{ transform: `rotate(${-bearing}deg)` }}>↑<small>N</small></span>
+        </Button>
+        {mobile && editable && <Button variant={addPoints ? 'default' : 'outline'} className="map-control map-add-points-tool"
+          aria-label={t('Add points on map')} aria-pressed={addPoints} disabled={!ready}
+          onClick={() => setAddPoints((enabled) => !enabled)}><Plus size={18} />{t('Add points on map')}</Button>}
         <Button
           variant="outline"
           size="icon"
-          className="map-control"
+          className="map-control map-zoom-in"
           title={t('Zoom in')}
           aria-label={t('Zoom in')}
           disabled={!ready}
@@ -698,7 +895,7 @@ export function RouteMap(props: Props) {
         <Button
           variant="outline"
           size="icon"
-          className="map-control"
+          className="map-control map-zoom-out"
           title={t('Zoom out')}
           aria-label={t('Zoom out')}
           disabled={!ready}
@@ -788,10 +985,10 @@ export function RouteMap(props: Props) {
               <div className="map-hint">
                 <MousePointer2 size={16} aria-hidden="true" />
                 <span>
-                  {props.manualDrawing
+                  {mobile && !addPoints ? t('Enable Add points on map to edit. Drag pins to refine.') : props.manualDrawing
                     ? t('Click to draw straight lines. Drag points to adjust.')
                     : t('Click the map to add a stop. Drag pins to refine.')}
-                  {props.onInsert && ` ${t('Click the route line to insert a stop.')}`}
+                  {props.onInsert && (!mobile || addPoints) && ` ${t('Click the route line to insert a stop.')}`}
                 </span>
               </div>
             </div>

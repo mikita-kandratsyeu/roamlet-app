@@ -1,6 +1,7 @@
 import { useMemo, useReducer, useRef } from 'react';
 import type { SetStateAction } from 'react';
 import { initialEditor, migrateSnapshot, type EditorSnapshot } from '../domain/editorSnapshot';
+import { normalizeRoutingOptions } from '../domain/routingOptions';
 
 export interface EditorHistory {
   present: EditorSnapshot;
@@ -43,6 +44,10 @@ export function editorReducer(state: EditorHistory, action: Action): EditorHisto
 export function useRouteEditor(initial: EditorSnapshot = initialEditor()) {
   const [history, dispatch] = useReducer(editorReducer, { present: initial, past: [], future: [] });
   const routingAllowed = useRef(false);
+  const routingOptions = useMemo(
+    () => normalizeRoutingOptions(history.present.routingOptions),
+    [history.present.routingOptions],
+  );
   const setters = useMemo(() => {
     function setter<K extends keyof EditorSnapshot>(key: K) {
       return (value: SetStateAction<EditorSnapshot[K]>) => dispatch({ type: 'patch', key, value });
@@ -51,6 +56,8 @@ export function useRouteEditor(initial: EditorSnapshot = initialEditor()) {
       setActivity: setter('activity'),
       setWaypoints: setter('waypoints'),
       setResult: setter('result'),
+      setRoutingOptions: setter('routingOptions'),
+      setRouteStale: setter('routeStale'),
       setMode: setter('mode'),
       setPlanningMode: setter('planningMode'),
       setAutomaticMode: setter('automaticMode'),
@@ -68,6 +75,8 @@ export function useRouteEditor(initial: EditorSnapshot = initialEditor()) {
   return {
     ...history.present,
     ...setters,
+    routingOptions,
+    routeStale: history.present.routeStale ?? false,
     snapshot: history.present,
     routingAllowed,
     canUndo: history.past.length > 0,

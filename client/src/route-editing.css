@@ -1,0 +1,70 @@
+.selected-stop > .waypoint-card {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.routing-preferences {
+  display: grid;
+  gap: 10px;
+  margin-block: 12px;
+}
+
+.routing-preferences select,
+.leg-mode select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 40px;
+  padding: 8px;
+  font: inherit;
+  max-width: 100%;
+}
+
+.routing-preferences label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.leg-mode {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 4px 12px 38px;
+  font-size: 12px;
+}
+
+.leg-mode select {
+  min-height: 36px;
+}
+
+.stale-route-note {
+  margin-block: 12px;
+  font-size: 13px;
+}
+
+.point-alternatives {
+  margin-block: 12px;
+}
+
+.route-distance-delta {
+  display: block;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.elevation-position {
+  display: grid;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.elevation-position input {
+  width: 100%;
+  accent-color: var(--primary);
+}

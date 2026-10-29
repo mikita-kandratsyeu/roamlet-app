@@ -7,7 +7,7 @@ function validate(point: Coordinate): void {
   if (
     !Array.isArray(point) ||
     (point.length !== 2 && point.length !== 3) ||
-    !point.every(Number.isFinite) ||
+    !Array.from(point).every(Number.isFinite) ||
     Math.abs(point[0]) > 180 ||
     Math.abs(point[1]) > 90
   ) {

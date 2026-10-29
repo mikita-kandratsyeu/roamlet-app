@@ -3,8 +3,22 @@ import type {
   Coordinate,
   RoutingProvider,
   RoutingResult,
+  RoutingOptions,
   Waypoint,
 } from '../domain/types';
+import { manualRoute, MANUAL_STOP_LIMIT } from '../domain/manualRoute';
+import {
+  AUTOMATIC_POINT_LIMIT,
+  automaticPointCount,
+  validLegMode,
+  waypointLegMode,
+  waypointRuns,
+} from '../domain/waypointLegs';
+import {
+  normalizeRoutingOptions,
+  orsRoutingOptions,
+  routingProfile,
+} from '../domain/routingOptions';
 import { calculateStats } from '../domain/stats';
 import { coordinateDistance, loopWaypoints } from './loops';
 import { openRouteServiceApiKey, openRouteServiceUrl } from './openrouteservice';
@@ -28,7 +42,7 @@ export function validCoordinate(value: unknown): value is Coordinate {
   return (
     Array.isArray(value) &&
     (value.length === 2 || value.length === 3) &&
-    value.every((v) => typeof v === 'number' && Number.isFinite(v)) &&
+    Array.from(value).every((v) => typeof v === 'number' && Number.isFinite(v)) &&
     Math.abs(value[0]) <= 180 &&
     Math.abs(value[1]) <= 90
   );
@@ -99,27 +113,35 @@ export async function requestJson(
 }
 
 export class OpenRouteServiceRoutingService implements RoutingProvider {
-  private cache = new Map<string, { time: number; result: RoutingResult }>();
-  private async calculate(
+  private cache = new Map<string, { time: number; results: RoutingResult[] }>();
+  private async requestRoutes(
     coordinates: Coordinate[],
     activity: Activity,
     signal?: AbortSignal,
-  ): Promise<RoutingResult> {
+    options: RoutingOptions = {},
+    alternatives = false,
+  ): Promise<RoutingResult[]> {
     if (!coordinates.every(validCoordinate))
       throw new Error('Route locations must contain valid longitude and latitude.');
-    if (!(activity in profiles)) throw new Error('Invalid route activity.');
+    const profile = routingProfile(activity, options);
     const locations = coordinates.map((coordinate) => coordinate.slice(0, 2));
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
-    const cacheKey = JSON.stringify([activity, locations, openRouteServiceApiKey()]);
+    const body = {
+      coordinates: locations,
+      instructions: false,
+      elevation: true,
+      ...(orsRoutingOptions(options) ? { options: orsRoutingOptions(options) } : {}),
+      ...(alternatives
+        ? { alternative_routes: { target_count: 2, weight_factor: 1.4, share_factor: 0.6 } }
+        : {}),
+    };
+    const cacheKey = JSON.stringify([profile, body, openRouteServiceApiKey()]);
     const cached = this.cache.get(cacheKey);
-    if (cached && Date.now() - cached.time < 300_000) return structuredClone(cached.result);
+    if (cached && Date.now() - cached.time < 300_000) return structuredClone(cached.results);
     const data = object(
       await requestJson(
-        `/openrouteservice/v2/directions/${profiles[activity]}/geojson`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ coordinates: locations, instructions: false, elevation: false }),
-        },
+        `/openrouteservice/v2/directions/${profile}/geojson`,
+        { method: 'POST', body: JSON.stringify(body) },
         signal,
       ),
     );
@@ -127,46 +149,113 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
       throw new Error('The service returned an invalid response.');
     if (!data.features.length)
       throw new NoRouteError('No route was returned. Try a different location.');
-    const route = object(data.features[0]);
-    if (route.type !== 'Feature') throw new Error('The service returned an invalid response.');
-    const geometry = object(route.geometry);
-    if (
-      geometry.type !== 'LineString' ||
-      !Array.isArray(geometry.coordinates) ||
-      geometry.coordinates.length < 2 ||
-      !geometry.coordinates.every(validCoordinate)
-    )
-      throw new Error('The service returned invalid route geometry.');
-    const summary = object(object(route.properties).summary);
-    if (
-      typeof summary.duration !== 'number' ||
-      !Number.isFinite(summary.duration) ||
-      summary.duration < 0 ||
-      typeof summary.distance !== 'number' ||
-      !Number.isFinite(summary.distance) ||
-      summary.distance < 0
-    )
-      throw new Error('The service returned invalid route statistics.');
-    const points: Coordinate[] = geometry.coordinates.map(([longitude, latitude]) => [
-      longitude,
-      latitude,
-    ]);
+    const results: RoutingResult[] = (
+      alternatives ? data.features.slice(0, 2) : data.features.slice(0, 1)
+    ).map((feature) => {
+      const route = object(feature);
+      if (route.type !== 'Feature') throw new Error('The service returned an invalid response.');
+      const geometry = object(route.geometry);
+      if (
+        geometry.type !== 'LineString' ||
+        !Array.isArray(geometry.coordinates) ||
+        geometry.coordinates.length < 2 ||
+        !geometry.coordinates.every(validCoordinate)
+      )
+        throw new Error('The service returned invalid route geometry.');
+      const summary = object(object(route.properties).summary);
+      if (
+        typeof summary.duration !== 'number' ||
+        !Number.isFinite(summary.duration) ||
+        summary.duration < 0 ||
+        typeof summary.distance !== 'number' ||
+        !Number.isFinite(summary.distance) ||
+        summary.distance < 0
+      )
+        throw new Error('The service returned invalid route statistics.');
+      const segments: Coordinate[][] = [
+        geometry.coordinates.map((point) => [...point] as Coordinate),
+      ];
+      const stats = calculateStats(segments, activity);
+      stats.duration = summary.duration;
+      return {
+        segments,
+        stats,
+        ...(stats.ascent !== undefined ? { elevationSource: 'openrouteservice' as const } : {}),
+      };
+    });
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
-    const segments: Coordinate[][] = [points];
-    const stats = calculateStats(segments, activity);
-    stats.duration = summary.duration;
-    const result = { segments, stats };
     if (this.cache.size >= 20) this.cache.delete(this.cache.keys().next().value!);
-    this.cache.set(cacheKey, { time: Date.now(), result: structuredClone(result) });
-    return result;
+    this.cache.set(cacheKey, { time: Date.now(), results: structuredClone(results) });
+    return results;
   }
-  async calculateRoute(waypoints: Waypoint[], activity: Activity, signal?: AbortSignal) {
-    if (waypoints.length < 2 || waypoints.length > 25)
+  private async calculate(
+    coordinates: Coordinate[],
+    activity: Activity,
+    signal?: AbortSignal,
+    options?: RoutingOptions,
+  ): Promise<RoutingResult> {
+    return (await this.requestRoutes(coordinates, activity, signal, options))[0];
+  }
+  async calculateRoute(
+    waypoints: Waypoint[],
+    activity: Activity,
+    signal?: AbortSignal,
+    options?: RoutingOptions,
+  ): Promise<RoutingResult> {
+    normalizeRoutingOptions(options);
+    routingProfile(activity, options);
+    if (waypoints.length < 2 || automaticPointCount(waypoints) > AUTOMATIC_POINT_LIMIT)
       throw new Error('Choose between 2 and 25 route points.');
-    return this.calculate(
-      waypoints.map((w) => w.coordinate),
+    if (waypoints.length > MANUAL_STOP_LIMIT)
+      throw new Error('Choose between 2 and 1,000 points for a manual route.');
+    if (
+      !waypoints.every((point) => validCoordinate(point.coordinate) && validLegMode(point.legMode))
+    )
+      throw new Error('Route locations must contain valid longitude and latitude.');
+    const segments: Coordinate[][] = [];
+    const directSegments: Coordinate[][] = [];
+    let duration = 0;
+    for (const run of waypointRuns(waypoints)) {
+      if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
+      const result =
+        run.mode === 'direct'
+          ? manualRoute(run.waypoints, activity)
+          : await this.calculate(
+              run.waypoints.map((point) => point.coordinate),
+              activity,
+              signal,
+              options,
+            );
+      segments.push(...result.segments);
+      if (run.mode === 'direct') directSegments.push(...result.segments);
+      duration += result.stats.duration;
+    }
+    if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
+    const stats = calculateStats(segments, activity);
+    stats.duration = duration;
+    return {
+      segments,
+      stats,
+      ...(directSegments.length ? { directSegments } : {}),
+      ...(stats.ascent !== undefined ? { elevationSource: 'openrouteservice' as const } : {}),
+    };
+  }
+  async calculatePointAlternatives(
+    waypoints: Waypoint[],
+    activity: Activity,
+    signal?: AbortSignal,
+    options?: RoutingOptions,
+  ): Promise<RoutingResult[]> {
+    if (waypoints.length !== 2 || waypointLegMode(waypoints[0]) !== 'automatic')
+      throw new Error('Alternatives require exactly two automatic route points.');
+    if (!waypoints.every((point) => validLegMode(point.legMode)))
+      throw new Error('Invalid routing options.');
+    return this.requestRoutes(
+      waypoints.map((point) => point.coordinate),
       activity,
       signal,
+      options,
+      true,
     );
   }
   async calculateAlternatives(
@@ -174,7 +263,10 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
     activity: Activity,
     distance: number,
     signal?: AbortSignal,
+    options?: RoutingOptions,
   ) {
+    normalizeRoutingOptions(options);
+    routingProfile(activity, options);
     if (!Number.isFinite(distance) || distance < 2000 || distance > 100000)
       throw new Error('Choose a loop distance between 2 and 100 km.');
     if (!validCoordinate(start.coordinate))
@@ -192,6 +284,7 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
             loopWaypoints(start.coordinate, radius, bearing + attempt * 10),
             activity,
             signal,
+            options,
           );
         } catch (error) {
           if (!(error instanceof NoRouteError)) throw error;
@@ -222,4 +315,4 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
     return results;
   }
 }
-export const routingProvider = new OpenRouteServiceRoutingService();
+export const routingProvider: RoutingProvider = new OpenRouteServiceRoutingService();

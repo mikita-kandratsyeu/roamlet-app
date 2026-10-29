@@ -1,0 +1,79 @@
+.waypoint-marker.waypoint-marker-selected {
+  outline: 3px solid #f0b44c;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px #ffffffb3;
+}
+.waypoint-marker:focus-visible {
+  outline: 3px solid #f0b44c;
+  outline-offset: 3px;
+}
+.map-north-control > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  font-size: 20px;
+}
+.map-north-control small { font-size: 9px; }
+.map-extra-controls .map-control.map-north-control {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.map-extra-controls .map-control.map-zoom-in {
+  margin-top: 8px;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 0;
+}
+.map-extra-controls .map-control.map-zoom-out {
+  margin-top: 0;
+  border-radius: 0 0 8px 8px;
+}
+.map-extra-controls .map-control.map-add-points-tool {
+  flex: 0 0 auto;
+  width: auto;
+  padding-inline: 10px;
+}
+.map-waypoint-actions {
+  position: absolute;
+  z-index: 5;
+  top: calc(var(--map-message-top, 64px) + 64px);
+  right: 72px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: min(450px, calc(100% - 96px));
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--foreground);
+  background: var(--background);
+  box-shadow: 0 4px 16px #0002;
+}
+.map-waypoint-actions strong { overflow-wrap: anywhere; }
+.map-annotation-status {
+  position: absolute;
+  z-index: 4;
+  right: 72px;
+  bottom: calc(var(--map-bottom-reserved, 110px) + 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: calc(100% - 96px);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 12px;
+  pointer-events: none;
+}
+@media (max-width: 700px) {
+  .map-extra-controls .map-control.map-zoom-in,
+  .map-extra-controls .map-control.map-zoom-out {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 0;
+  }
+  .map-waypoint-actions { right: 12px; max-width: calc(100% - 24px); }
+  .map-annotation-status { right: 12px; max-width: calc(100% - 24px); }
+}

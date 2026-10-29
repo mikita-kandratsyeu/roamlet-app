@@ -63,25 +63,26 @@ describe('OpenRouteServiceRoutingService', () => {
       'Unsupported OpenRouteService endpoint',
     );
   });
-  it('uses cycling geometry distance and provider time, discarding provider heights', async () => {
+  it('uses cycling geometry distance, provider time and confirmed provider heights', async () => {
     const fetcher = mockJson(response());
     const result = await new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling');
     expect(fetcher.mock.calls[0][1]?.method).toBe('POST');
     expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({
       coordinates: points.map((point) => point.coordinate),
       instructions: false,
-      elevation: false,
+      elevation: true,
     });
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(result.segments[0]).toEqual([
-      [11.4, 47.26],
-      [11.405, 47.265],
-      [11.41, 47.27],
+      [11.4, 47.26, 600],
+      [11.405, 47.265, 625],
+      [11.41, 47.27, 610],
     ]);
     expect(result.stats.distance).toBeGreaterThan(1300);
     expect(result.stats.duration).toBe(420);
-    expect(result.stats.ascent).toBeUndefined();
-    expect(result.stats.descent).toBeUndefined();
+    expect(result.stats.ascent).toBe(25);
+    expect(result.stats.descent).toBe(15);
+    expect(result.elevationSource).toBe('openrouteservice');
   });
   it('routes hiking with foot-hiking, not a cycling fallback', async () => {
     const fetcher = mockJson(response());
@@ -149,12 +150,13 @@ describe('OpenRouteServiceRoutingService', () => {
     );
     expect(result).toHaveLength(1);
     expect(result[0].segments[0]).toEqual([
-      [11.4, 47.26],
-      [11.42, 47.28],
-      [11.4, 47.26],
+      [11.4, 47.26, 600],
+      [11.42, 47.28, 700],
+      [11.4, 47.26, 600],
     ]);
-    expect(result[0].stats.ascent).toBeUndefined();
-    expect(result[0].stats.descent).toBeUndefined();
+    expect(result[0].stats.ascent).toBe(100);
+    expect(result[0].stats.descent).toBe(100);
+    expect(result[0].elevationSource).toBe('openrouteservice');
     expect(fetcher.mock.calls.length).toBeLessThanOrEqual(6);
     expect(
       fetcher.mock.calls.every(([url]) =>

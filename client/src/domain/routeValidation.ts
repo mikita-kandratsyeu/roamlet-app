@@ -1,4 +1,6 @@
 import type { PlannedRoute } from './types';
+import { validRoutingOptions } from './routingOptions';
+import { validLegMode } from './waypointLegs';
 
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -40,7 +42,7 @@ export function validateRoute(value: unknown): asserts value is PlannedRoute {
     !text(value.name) ||
     !text(value.description) ||
     !['cycling', 'hiking'].includes(value.activity as string) ||
-    !['gpx', 'openrouteservice', 'mapbox', 'manual'].includes(value.source as string) ||
+    !['gpx', 'openrouteservice', 'mapbox', 'manual', 'mixed'].includes(value.source as string) ||
     !Array.isArray(value.segments) ||
     !Array.from(value.segments).every(
       (segment) => Array.isArray(segment) && Array.from(segment).every(coordinate),
@@ -48,6 +50,15 @@ export function validateRoute(value: unknown): asserts value is PlannedRoute {
     !Array.isArray(value.waypoints) ||
     !validTimestamp(value.createdAt) ||
     !validTimestamp(value.updatedAt) ||
+    (value.routingOptions !== undefined && !validRoutingOptions(value.routingOptions)) ||
+    (value.routingInputKey !== undefined && !text(value.routingInputKey)) ||
+    (value.elevationSource !== undefined && value.elevationSource !== 'openrouteservice') ||
+    (value.directSegments !== undefined &&
+      (!Array.isArray(value.directSegments) ||
+        !Array.from(value.directSegments).every(
+          (segment) =>
+            Array.isArray(segment) && segment.length >= 2 && Array.from(segment).every(coordinate),
+        ))) ||
     (value.favorite !== undefined && typeof value.favorite !== 'boolean') ||
     (value.tags !== undefined &&
       (!Array.isArray(value.tags) || !Array.from(value.tags).every(text)))
@@ -61,7 +72,8 @@ export function validateRoute(value: unknown): asserts value is PlannedRoute {
       !waypoint.id.trim() ||
       ids.has(waypoint.id) ||
       !text(waypoint.name) ||
-      !coordinate(waypoint.coordinate)
+      !coordinate(waypoint.coordinate) ||
+      !validLegMode(waypoint.legMode)
     )
       throw new Error('Invalid route waypoint.');
     ids.add(waypoint.id);
@@ -71,7 +83,13 @@ export function validateRoute(value: unknown): asserts value is PlannedRoute {
     !record(stats) ||
     !nonnegative(stats.distance) ||
     !nonnegative(stats.duration) ||
-    [stats.ascent, stats.descent].some((n) => n !== undefined && !nonnegative(n))
+    [stats.ascent, stats.descent].some((n) => n !== undefined && !nonnegative(n)) ||
+    (value.elevationSource !== undefined &&
+      (!nonnegative(stats.ascent) ||
+        !nonnegative(stats.descent) ||
+        !value.segments.some((segment) => segment.length >= 2) ||
+        value.segments.some((segment) => segment.some((point: number[]) => point.length !== 3)) ||
+        (Array.isArray(value.directSegments) && value.directSegments.length > 0)))
   )
     throw new Error('Invalid route statistics.');
 }

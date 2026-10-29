@@ -1,9 +1,18 @@
 export type Activity = 'cycling' | 'hiking';
 export type Coordinate = [number, number] | [number, number, number];
+export type LegMode = 'automatic' | 'direct';
+export type CyclingProfile = 'cycling-regular' | 'cycling-road' | 'cycling-mountain';
+export interface RoutingOptions {
+  cyclingProfile?: CyclingProfile;
+  avoidFerries?: boolean;
+  avoidSteps?: boolean;
+}
 export interface Waypoint {
   id: string;
   name: string;
   coordinate: Coordinate;
+  /** Mode of the outgoing leg; omitted means automatic, the last waypoint is ignored. */
+  legMode?: LegMode;
 }
 export interface RouteStats {
   distance: number;
@@ -23,22 +32,36 @@ export interface PlannedRoute {
   stats: RouteStats;
   createdAt: string;
   updatedAt: string;
-  source: 'openrouteservice' | 'mapbox' | 'gpx' | 'manual';
+  source: 'openrouteservice' | 'mapbox' | 'gpx' | 'manual' | 'mixed';
+  routingOptions?: RoutingOptions;
+  elevationSource?: 'openrouteservice';
+  routingInputKey?: string;
+  directSegments?: Coordinate[][];
 }
 export interface RoutingResult {
   segments: Coordinate[][];
   stats: RouteStats;
+  directSegments?: Coordinate[][];
+  elevationSource?: 'openrouteservice';
 }
 export interface RoutingProvider {
   calculateRoute(
     waypoints: Waypoint[],
     activity: Activity,
     signal?: AbortSignal,
+    options?: RoutingOptions,
   ): Promise<RoutingResult>;
+  calculatePointAlternatives?(
+    waypoints: Waypoint[],
+    activity: Activity,
+    signal?: AbortSignal,
+    options?: RoutingOptions,
+  ): Promise<RoutingResult[]>;
   calculateAlternatives(
     start: Waypoint,
     activity: Activity,
     distance: number,
     signal?: AbortSignal,
+    options?: RoutingOptions,
   ): Promise<RoutingResult[]>;
 }

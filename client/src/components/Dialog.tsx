@@ -20,6 +20,7 @@ export function Dialog({
   children,
   onClose,
   wide = false,
+  compact = false,
   initialFocusRef,
 }: {
   title: string;
@@ -28,6 +29,7 @@ export function Dialog({
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  compact?: boolean;
   initialFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const { t } = useTranslation();
@@ -41,7 +43,7 @@ export function Dialog({
       }}
     >
       <DialogContent
-        className={cn('dialog roamlet-dialog block', wide && 'wide')}
+        className={cn('dialog roamlet-dialog block', wide && 'wide', compact && 'compact')}
         showCloseButton={false}
         {...(!description && { 'aria-describedby': undefined })}
         onOpenAutoFocus={(event) => {

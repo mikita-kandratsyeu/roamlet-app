@@ -38,6 +38,10 @@ const mocks = vi.hoisted(() => ({
   zoomOut: vi.fn(),
   fly: vi.fn(),
   setStyle: vi.fn(),
+  extraData: new Map<string, ReturnType<typeof vi.fn>>(),
+  bearing: 20,
+  ease: vi.fn(),
+  scale: vi.fn(),
   theme: 'light',
 }));
 vi.mock('../theme', async (importOriginal) => ({
@@ -62,7 +66,8 @@ vi.mock('maplibre-gl', () => ({
       addSource(id: string, options: unknown) {
         mocks.source(id, options);
         if (id === 'location-accuracy') mocks.accuracyInstalled = true;
-        else mocks.sourceInstalled = true;
+        else if (id === 'route') mocks.sourceInstalled = true;
+        else mocks.extraData.set(id, vi.fn());
       }
       addLayer = mocks.layer;
       queryRenderedFeatures = mocks.query;
@@ -71,7 +76,9 @@ vi.mock('maplibre-gl', () => ({
       getSource(id: string) {
         if (id === 'location-accuracy')
           return mocks.accuracyInstalled ? { setData: mocks.accuracyData } : undefined;
-        return mocks.sourceInstalled ? { setData: mocks.data } : undefined;
+        if (id === 'route') return mocks.sourceInstalled ? { setData: mocks.data } : undefined;
+        const setData = mocks.extraData.get(id);
+        return setData ? { setData } : undefined;
       }
       getCenter() {
         return { wrap: () => ({ lng: 12, lat: 48 }) };
@@ -80,8 +87,9 @@ vi.mock('maplibre-gl', () => ({
         return mocks.zoom;
       }
       getBearing() {
-        return 20;
+        return mocks.bearing;
       }
+      easeTo = mocks.ease;
       getPitch() {
         return 30;
       }
@@ -111,6 +119,9 @@ vi.mock('maplibre-gl', () => ({
         return { lng: 13, lat: 49 };
       }
       remove = mocks.markerRemove;
+    },
+    ScaleControl: class {
+      constructor(options: unknown) { mocks.scale(options); }
     },
     AttributionControl: class {
       constructor(options: unknown) {
@@ -154,6 +165,8 @@ beforeEach(() => {
   mocks.sourceInstalled = false;
   mocks.accuracyInstalled = false;
   mocks.zoom = 10;
+  mocks.bearing = 20;
+  mocks.extraData.clear();
   mocks.handlers.clear();
   mocks.markerDrag.length = 0;
   vi.stubGlobal(
@@ -285,6 +298,7 @@ it('orders navigation before drawing and offers a single ruler tool with context
   expect(
     [...controls.querySelectorAll('button')].map((button) => button.getAttribute('aria-label')),
   ).toEqual([
+    'Reset north',
     'Zoom in',
     'Zoom out',
     'Use my location',
@@ -565,7 +579,8 @@ it.each([true, false])('location recenters without adding a stop (editable: %s)'
   render(<RouteMap {...props} editable={editable} />);
   act(() => mocks.handlers.get('load')!());
   fireEvent.click(screen.getByRole('button', { name: 'Use my location' }));
-  expect(mocks.fly).toHaveBeenCalledWith(expect.objectContaining({ center: [13, 49], zoom: 14 }));
+  expect(mocks.fly).toHaveBeenCalledWith(expect.objectContaining({ center: [13, 49] }));
+  expect(mocks.fly.mock.lastCall![0]).not.toHaveProperty('zoom');
   expect(mocks.markerOptions).toHaveBeenCalledWith({
     element: expect.objectContaining({ className: 'user-location-marker' }),
   });
@@ -594,7 +609,7 @@ it('updates a single location dot, preserves closer zoom and removes the dot on 
   expect(mocks.markerOptions).toHaveBeenCalledOnce();
   expect(mocks.markerPosition).toHaveBeenLastCalledWith([14, 50]);
   expect(mocks.fly).toHaveBeenLastCalledWith(
-    expect.objectContaining({ center: [14, 50], zoom: 16 }),
+    expect.objectContaining({ center: [14, 50] }),
   );
   expect(props.onAdd).not.toHaveBeenCalled();
   expect(props.onMove).not.toHaveBeenCalled();
@@ -925,4 +940,174 @@ it('allows explicit retry after map construction fails without reviving an endle
   act(() => mocks.handlers.get('load')?.());
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+});
+
+const annotationWaypoints = [
+  { id: 'a', name: 'Start', coordinate: [0, 0] as [number, number] },
+  { id: 'b', name: 'Finish', coordinate: [0.02, 0] as [number, number] },
+];
+const annotationSegments: [number, number][][] = [[[0, 0], [0.02, 0]]];
+
+it('selects accessible waypoint buttons, exposes actions and focuses only on explicit request', () => {
+  const onSelectWaypoint = vi.fn(), onRemoveWaypoint = vi.fn(), onReplaceWaypoint = vi.fn(), onStartWaypoint = vi.fn();
+  const options = { ...props, waypoints: annotationWaypoints, selectedWaypointId: 'a', focusWaypointToken: 0,
+    onSelectWaypoint, onRemoveWaypoint, onReplaceWaypoint, onStartWaypoint };
+  const { rerender } = render(<RouteMap {...options} />);
+  act(() => mocks.handlers.get('load')?.());
+  const marker = mocks.markerOptions.mock.calls[0][0].element as HTMLButtonElement;
+  expect(marker).toHaveAttribute('aria-pressed', 'true');
+  expect(marker).toHaveClass('waypoint-marker-selected');
+  expect(marker).toHaveAttribute('aria-label', expect.stringContaining('Start'));
+  fireEvent.click(marker);
+  expect(onSelectWaypoint).toHaveBeenCalledWith('a');
+  fireEvent.click(screen.getByRole('button', { name: 'Replace waypoint' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Start route here' }));
+  expect(onReplaceWaypoint).toHaveBeenCalledWith('a');
+  expect(onStartWaypoint).toHaveBeenCalledWith('a');
+  expect(mocks.fly).not.toHaveBeenCalled();
+  rerender(<RouteMap {...options} focusWaypointToken={1} />);
+  expect(mocks.fly).toHaveBeenCalledWith(expect.objectContaining({ center: [0, 0] }));
+  fireEvent.click(screen.getByRole('button', { name: 'Remove waypoint' }));
+  expect(onRemoveWaypoint).toHaveBeenCalledWith('a');
+  expect(screen.queryByRole('group', { name: 'Waypoint actions' })).not.toBeInTheDocument();
+});
+
+it('highlights the hit area and projected insertion point, clearing on leave and read-only changes', () => {
+  const options = { ...props, segments: annotationSegments, waypoints: annotationWaypoints, onInsert: vi.fn() };
+  const { rerender } = render(<RouteMap {...options} />);
+  act(() => mocks.handlers.get('load')?.());
+  mocks.query.mockReturnValue([{}]);
+  act(() => mocks.handlers.get('mousemove')?.({ lngLat: { lng: 0.01, lat: 0.001 }, point: { x: 1, y: 1 } }));
+  expect(mocks.paint).toHaveBeenCalledWith('route-hover', 'line-opacity', 0.25);
+  expect(mocks.extraData.get('route-insertion')).toHaveBeenLastCalledWith(expect.objectContaining({
+    features: [expect.objectContaining({ geometry: { type: 'Point', coordinates: [0.01, 0] } })],
+  }));
+  fireEvent.mouseLeave(mocks.canvas!);
+  expect(mocks.extraData.get('route-insertion')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  act(() => mocks.handlers.get('mousemove')?.({ lngLat: { lng: 0.01, lat: 0 }, point: { x: 1, y: 1 } }));
+  rerender(<RouteMap {...options} editable={false} />);
+  expect(mocks.extraData.get('route-insertion')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  expect(mocks.paint).toHaveBeenLastCalledWith('route-hover', 'line-opacity', 0);
+});
+
+it('requires an explicit mobile add-points toggle and disables edits when toggled off', () => {
+  vi.stubGlobal('matchMedia', () => ({ matches: true }));
+  render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')?.());
+  const click = () => mocks.handlers.get('click')?.({ lngLat: { lng: 1, lat: 2 } });
+  act(click);
+  expect(props.onAdd).not.toHaveBeenCalled();
+  const toggle = screen.getByRole('button', { name: 'Add points on map' });
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  act(click);
+  expect(props.onAdd).toHaveBeenCalledOnce();
+  fireEvent.click(toggle);
+  act(click);
+  expect(props.onAdd).toHaveBeenCalledOnce();
+});
+
+it('renders isolated direct, inactive alternative and elevation geometry without camera jumps', () => {
+  const alternatives = [annotationSegments, [[[10, 0], [10.02, 0]]] as [number, number][][]];
+  const options = { ...props, segments: annotationSegments, directSegments: annotationSegments,
+    alternativeSegments: alternatives, selectedAlternativeIndex: 0, elevationCoordinate: [0.01, 0] as [number, number], routeStale: true };
+  const { rerender } = render(<RouteMap {...options} />);
+  act(() => mocks.handlers.get('load')?.());
+  expect(mocks.extraData.get('route-direct')).toHaveBeenLastCalledWith(expect.objectContaining({
+    features: [expect.objectContaining({ geometry: { type: 'LineString', coordinates: annotationSegments[0] } })],
+  }));
+  expect(mocks.extraData.get('route-alternatives')).toHaveBeenLastCalledWith(expect.objectContaining({
+    features: [expect.objectContaining({ geometry: { type: 'LineString', coordinates: alternatives[1][0] } })],
+  }));
+  expect(mocks.extraData.get('route-elevation')).toHaveBeenLastCalledWith(expect.objectContaining({
+    features: [expect.objectContaining({ geometry: { type: 'Point', coordinates: [0.01, 0] } })],
+  }));
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-opacity', 0.4);
+  mocks.query.mockImplementation((...args: unknown[]) => {
+    const options = args[1] as { layers: string[] };
+    return options.layers[0] === 'route-alternatives-line' ? [{}] : [];
+  });
+  act(() => mocks.handlers.get('click')?.({ lngLat: { lng: 10.01, lat: 0 }, point: { x: 1, y: 1 } }));
+  expect(props.onAdd).not.toHaveBeenCalled();
+  rerender(<RouteMap {...options} elevationCoordinate={null} routeStale={false} />);
+  expect(mocks.extraData.get('route-elevation')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-opacity', 1);
+  expect(mocks.fly).not.toHaveBeenCalled();
+  expect(mocks.fit).not.toHaveBeenCalled();
+});
+
+it('installs a metric scale and updates the north indicator on rotation', () => {
+  render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')?.());
+  expect(mocks.scale).toHaveBeenCalledWith({ unit: 'metric' });
+  const button = screen.getByRole('button', { name: 'Reset north' });
+  mocks.bearing = 65;
+  act(() => mocks.handlers.get('rotate')?.());
+  expect(button.querySelector('span')).toHaveStyle({ transform: 'rotate(-65deg)' });
+  fireEvent.click(button);
+  expect(mocks.ease).toHaveBeenCalledWith(expect.objectContaining({ bearing: 0 }));
+});
+
+it.each([
+  [1, 'Location permission was denied. Enable location access in your browser settings.'],
+  [2, 'Your position is unavailable. Enter coordinates or click the map instead.'],
+  [3, 'Location request timed out. Try again.'],
+])('reports distinct geolocation failure %s without requesting it automatically', (code, message) => {
+  const getCurrentPosition = vi.fn((_success: PositionCallback, failure: PositionErrorCallback) => failure({ code } as GeolocationPositionError));
+  vi.stubGlobal('navigator', { geolocation: { getCurrentPosition } });
+  render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')?.());
+  expect(getCurrentPosition).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Use my location' }));
+  expect(props.onError).toHaveBeenCalledWith(message);
+  expect(screen.getByRole('button', { name: 'Use my location' })).toBeEnabled();
+});
+
+it('fits reported accuracy bounds and reports precision rather than forcing zoom 14', () => {
+  vi.stubGlobal('navigator', { geolocation: { getCurrentPosition: (success: PositionCallback) =>
+    success({ coords: { longitude: 13, latitude: 49, accuracy: 2000 } } as GeolocationPosition) } });
+  render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')?.());
+  fireEvent.click(screen.getByRole('button', { name: 'Use my location' }));
+  expect(mocks.fit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ maxZoom: 16 }));
+  expect(screen.getByText('Location accuracy: ±2,000 m')).toBeInTheDocument();
+  expect(mocks.fly).not.toHaveBeenCalled();
+});
+
+it('recomputes distance annotations on zoom without joining disconnected geometry', () => {
+  const segments: [number, number][][] = [[[0, 0], [0.2, 0]], [[10, 0], [10.2, 0]]];
+  render(<RouteMap {...props} segments={segments} />);
+  act(() => mocks.handlers.get('load')?.());
+  const source = mocks.extraData.get('route-annotations')!;
+  const initialCount = source.mock.lastCall![0].features.length;
+  mocks.zoom = 14;
+  act(() => mocks.handlers.get('zoomend')?.());
+  expect(source.mock.lastCall![0].features.length).toBeGreaterThan(initialCount);
+  expect(mocks.data.mock.lastCall![0].features).toHaveLength(2);
+  expect(mocks.layer).toHaveBeenCalledWith(expect.objectContaining({ id: 'route-direct-line',
+    paint: expect.objectContaining({ 'line-dasharray': [2, 2] }) }));
+  expect(mocks.fit).not.toHaveBeenCalled();
+});
+
+it('allows read-only waypoint selection but never offers mutating actions', () => {
+  const onSelectWaypoint = vi.fn(), onRemoveWaypoint = vi.fn();
+  render(<RouteMap {...props} waypoints={annotationWaypoints} editable={false}
+    onSelectWaypoint={onSelectWaypoint} onRemoveWaypoint={onRemoveWaypoint} />);
+  act(() => mocks.handlers.get('load')?.());
+  fireEvent.click(mocks.markerOptions.mock.calls[0][0].element);
+  expect(onSelectWaypoint).toHaveBeenCalledWith('a');
+  expect(screen.queryByRole('button', { name: 'Remove waypoint' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Close waypoint actions' })).toBeInTheDocument();
+});
+
+it('restores keyboard focus when selected marker styling changes', () => {
+  const { rerender } = render(<RouteMap {...props} waypoints={annotationWaypoints} selectedWaypointId="a" />);
+  act(() => mocks.handlers.get('load')?.());
+  const element = mocks.markerOptions.mock.calls[0][0].element as HTMLButtonElement;
+  document.body.append(element);
+  element.focus();
+  const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+  rerender(<RouteMap {...props} waypoints={annotationWaypoints} selectedWaypointId="b" />);
+  expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  element.remove();
 });

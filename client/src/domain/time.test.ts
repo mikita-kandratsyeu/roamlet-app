@@ -252,6 +252,46 @@ it.each(['gpx', 'manual'] as const)(
     expect(estimatePersonalTime(route({ source }), options)?.planningReference).toBeNull();
   },
 );
+it('uses confirmed ORS elevation but not legacy provider heights for personal climb estimates', () => {
+  const confirmed = estimatePersonalTime(
+    route({ source: 'openrouteservice', elevationSource: 'openrouteservice' }),
+    options,
+  )!;
+  expect(confirmed.ascentMetres).toBe(600);
+  expect(confirmed.climbSeconds).toBe(3600);
+  expect(confirmed.warnings).not.toContain('missing-elevation');
+  const legacy = estimatePersonalTime(route({ source: 'openrouteservice' }), options)!;
+  expect(legacy.ascentMetres).toBeNull();
+  expect(legacy.climbSeconds).toBe(0);
+});
+it('keeps mixed route estimates conservative for direct distance and missing elevation', () => {
+  const mixed = estimatePersonalTime(
+    route({
+      source: 'mixed',
+      segments: [
+        [
+          [0, 0],
+          [0.01, 0],
+        ],
+        [
+          [0.01, 0, 600],
+          [0.02, 0, 620],
+        ],
+      ],
+      directSegments: [
+        [
+          [0, 0],
+          [0.01, 0],
+        ],
+      ],
+    }),
+    options,
+  )!;
+  expect(mixed.warnings).toContain('manual-distance');
+  expect(mixed.warnings).toContain('missing-elevation');
+  expect(mixed.ascentMetres).toBeNull();
+  expect(mixed.planningReference).not.toBeNull();
+});
 it('rejects invalid or overflowing automatic provider references', () => {
   for (const duration of [-1, NaN, Infinity]) {
     expect(

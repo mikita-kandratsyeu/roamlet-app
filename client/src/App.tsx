@@ -54,10 +54,14 @@ import { importGpx, exportGpx } from './domain/gpx';
 import { ExportDialog } from './components/ExportDialog';
 import { calculateStats } from './domain/stats';
 import { MANUAL_STOP_LIMIT } from './domain/manualRoute';
+import { reverseWaypoints, reorderWaypoints, insertWaypoint } from './domain/waypointLegs';
+import { isRouteResultCurrent } from './domain/editorRouting';
+import { DEFAULT_ROUTING_OPTIONS } from './domain/routingOptions';
 type PlanningMode = 'point' | 'loop' | 'manual';
 import { saveRoute } from './domain/storage';
 import { checkRoutingConfiguration, routingProvider } from './services/routing';
 import { RouteMap } from './components/RouteMap';
+import './route-editing.css';
 import { Dialog } from './components/Dialog';
 import { HeaderMenu } from './components/HeaderMenu';
 import i18n, { formatNumber, translateMessage } from './i18n';
@@ -85,6 +89,7 @@ export default function App() {
     speeds: preferences.speeds,
     stopsMinutes: preferences.stopsMinutes,
     fitness: preferences.fitness,
+    routingOptions: preferences.routingOptions,
   }));
   const editor = useRouteEditor(editorInitial);
   const {
@@ -113,6 +118,10 @@ export default function App() {
     setFitness,
     surface,
     setSurface,
+    routingOptions,
+    setRoutingOptions,
+    routeStale,
+    setRouteStale,
   } = editor;
   const [panelHidden, setPanelHidden] = useState(preferences.panelHidden);
   const hidePlannerButton = useRef<HTMLButtonElement>(null);
@@ -164,7 +173,34 @@ export default function App() {
   } | null>(null);
   const [mapRetryToken, setMapRetryToken] = useState(0);
   const [searchTarget, setSearchTarget] = useState<string | null>(null);
+  const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null);
+  const [focusWaypointToken, setFocusWaypointToken] = useState(0);
+  const [elevationCoordinate, setElevationCoordinate] = useState<Coordinate | null>(null);
   const [fitToken, setFitToken] = useState(0);
+  function selectWaypoint(id: string, focusMap = false) {
+    setSelectedWaypointId(id);
+    if (focusMap) setFocusWaypointToken((token) => token + 1);
+    else {
+      setPanelHidden(false);
+      setCollapsed(false);
+      requestAnimationFrame(() => {
+        const item = [...document.querySelectorAll<HTMLElement>('[data-stop-id]')].find(
+          (element) => element.dataset.stopId === id,
+        );
+        item?.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
+      });
+    }
+  }
+  function replaceWaypoint(id: string) {
+    selectWaypoint(id);
+    setSearchTarget(id);
+    searchInput.current?.focus();
+    requestAnimationFrame(() => searchInput.current?.focus());
+  }
+  useEffect(() => {
+    if (selectedWaypointId && !waypoints.some((point) => point.id === selectedWaypointId))
+      setSelectedWaypointId(null);
+  }, [waypoints, selectedWaypointId]);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const libraryTrigger = useRef<HTMLButtonElement>(null);
   const libraryReturnFocus = useRef<HTMLElement | null>(null);
@@ -255,6 +291,7 @@ export default function App() {
     speeds,
     stopsMinutes,
     fitness,
+    routingOptions,
     panelHidden,
     collapsed,
   });
@@ -266,6 +303,7 @@ export default function App() {
       speeds,
       stopsMinutes,
       fitness,
+      routingOptions,
       panelHidden,
       collapsed,
     };
@@ -285,7 +323,7 @@ export default function App() {
     writingPreferences.current = true;
     savePreferences(patch);
     writingPreferences.current = false;
-  }, [activity, planningMode, targetKm, speeds, stopsMinutes, fitness, panelHidden, collapsed]);
+  }, [activity, planningMode, targetKm, speeds, stopsMinutes, fitness, routingOptions, panelHidden, collapsed]);
   useEffect(() => {
     const apply = (event: Event) => {
       if (writingPreferences.current) return;
@@ -302,6 +340,7 @@ export default function App() {
             'speeds',
             'stopsMinutes',
             'fitness',
+            'routingOptions',
             'panelHidden',
             'collapsed',
           ].includes(key),
@@ -319,6 +358,7 @@ export default function App() {
       if (!dirty && !result) {
         editor.routingAllowed.current = false;
         setActivity(next.activity);
+        setRoutingOptions(next.routingOptions);
       }
       setSpeeds(next.speeds);
       setStopsMinutes(next.stopsMinutes);
@@ -346,6 +386,7 @@ export default function App() {
     dirty,
     result,
     setActivity,
+    setRoutingOptions,
     setSpeeds,
     setStopsMinutes,
     setFitness,
@@ -398,6 +439,7 @@ export default function App() {
     request,
     setBusy,
     setResult,
+    setRouteStale,
     setNotice,
   });
   useEffect(() => {
@@ -428,12 +470,14 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
-  function invalidate() {
+  function invalidate(preserveGeometry = false) {
     editor.checkpoint();
     editor.routingAllowed.current = true;
     request.current?.abort();
     setBusy(false);
-    setResult(null);
+    setRouteStale(preserveGeometry);
+    setElevationCoordinate(null);
+    if (!preserveGeometry) setResult(null);
     setAlternatives([]);
     setSelectedAlternative(-1);
     setNotice(null);
@@ -441,8 +485,13 @@ export default function App() {
   }
   function changeWaypoints(next: Waypoint[]) {
     if (offlineAutomatic) return;
-    invalidate();
+    invalidate(planningMode === 'point' && next.length >= 2);
     setWaypoints(next);
+  }
+  function changeRoutingOptions(next: typeof routingOptions) {
+    if (mode !== 'manual' || planningMode === 'manual' || offlineAutomatic) return;
+    invalidate(planningMode === 'point' && waypoints.length >= 2);
+    setRoutingOptions(next);
   }
   function changePlanningMode(next: PlanningMode) {
     if (next === planningMode || (!online && next !== 'manual')) return;
@@ -488,7 +537,7 @@ export default function App() {
       coordinate,
     };
     if (searchTarget)
-      changeWaypoints(waypoints.map((w) => (w.id === searchTarget ? { ...point, id: w.id } : w)));
+      changeWaypoints(waypoints.map((w) => (w.id === searchTarget ? { ...w, ...point, id: w.id } : w)));
     else if (planningMode === 'loop') changeWaypoints([point]);
     else if (waypoints.length < stopLimit) changeWaypoints([...waypoints, point]);
     else {
@@ -506,9 +555,7 @@ export default function App() {
     const from = waypoints.findIndex((point) => point.id === fromId);
     const to = waypoints.findIndex((point) => point.id === toId);
     if (from < 0 || to < 0 || from === to) return;
-    const next = [...waypoints];
-    next.splice(to, 0, next.splice(from, 1)[0]);
-    changeWaypoints(next);
+    changeWaypoints(reorderWaypoints(waypoints, from, to));
   }
   function finishStopDrag(commit = false) {
     const drag = stopDrag.current;
@@ -543,6 +590,7 @@ export default function App() {
       speeds: defaults.speeds,
       stopsMinutes: defaults.stopsMinutes,
       fitness: defaults.fitness,
+      routingOptions: defaults.routingOptions,
     });
     setAlternatives([]);
     setSelectedAlternative(-1);
@@ -567,6 +615,8 @@ export default function App() {
       savedRouteId: route.id,
       routeMetadata: { favorite: route.favorite, tags: route.tags },
       result: route,
+      routeStale: false,
+      routingOptions: route.routingOptions ?? DEFAULT_ROUTING_OPTIONS,
       waypoints: route.waypoints,
       name: route.name,
       description: route.description,
@@ -586,7 +636,7 @@ export default function App() {
     searchInput.current?.clear();
   }
   function currentRoute(): PlannedRoute | null {
-    return result
+    return result && isRouteResultCurrent(editor.snapshot) && !routeStale && !busy
       ? {
           ...result,
           ...editor.snapshot.routeMetadata,
@@ -730,13 +780,37 @@ export default function App() {
       action,
     });
   }
+  async function generatePointAlternatives() {
+    if (!online || busy || waypoints.length !== 2 || waypoints[0].legMode === 'direct') return;
+    invalidate(true);
+    editor.routingAllowed.current = false;
+    const controller = new AbortController();
+    request.current = controller;
+    setBusy(true);
+    try {
+      const found = await routingProvider.calculatePointAlternatives!(
+        waypoints,
+        activity,
+        controller.signal,
+        routingOptions,
+      );
+      if (!controller.signal.aborted) {
+        setAlternatives(found);
+        selectAlternative(found[0], 0, false);
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) fail(errorMessage(error), 'routing');
+    } finally {
+      if (!controller.signal.aborted) setBusy(false);
+    }
+  }
   async function generateLoops() {
     if (!online) return;
     if (!waypoints.length) {
       fail('Choose a starting point on the map or enter coordinates first.');
       return;
     }
-    invalidate();
+    invalidate(Boolean(result));
     const controller = new AbortController();
     request.current = controller;
     setBusy(true);
@@ -746,6 +820,7 @@ export default function App() {
         activity,
         targetKm * 1000,
         controller.signal,
+        routingOptions,
       );
       if (!controller.signal.aborted) {
         setAlternatives(found);
@@ -761,7 +836,7 @@ export default function App() {
     if (recordHistory && selectedAlternative === index && result) return;
     if (recordHistory) editor.checkpoint();
     const coordinates = calculated.segments[0];
-    const stops = [0, 0.25, 0.5, 0.75, 1].map((fraction, i) => ({
+    const stops = planningMode === 'point' ? waypoints : [0, 0.25, 0.5, 0.75, 1].map((fraction, i) => ({
       id: crypto.randomUUID(),
       name:
         i === 0
@@ -777,11 +852,14 @@ export default function App() {
       description: '',
       activity,
       waypoints: stops,
+      routingOptions,
       ...calculated,
       updatedAt: new Date().toISOString(),
       source: 'openrouteservice',
     });
     setSelectedAlternative(index);
+    setRouteStale(false);
+    setElevationCoordinate(null);
     setDirty(true);
   }
   const mapWaypoints = useMemo(() => {
@@ -801,7 +879,7 @@ export default function App() {
     }
     return result && planningMode === 'loop' ? result.waypoints : waypoints;
   }, [result, planningMode, waypoints]);
-  const canUseRoute = Boolean(result) && !busy;
+  const canUseRoute = isRouteResultCurrent(editor.snapshot) && !busy && !routeStale;
 
   return (
     <div
@@ -1080,6 +1158,51 @@ export default function App() {
                       {t('Straight lines between points. No road snapping.')}
                     </p>
                   )}
+                  {planningMode !== 'manual' && (
+                    <div className="routing-preferences">
+                      {activity === 'cycling' && (
+                        <label>
+                          {t('Cycling route profile')}
+                          <select
+                            value={routingOptions.cyclingProfile ?? 'cycling-regular'}
+                            onChange={(event) =>
+                              changeRoutingOptions({
+                                ...routingOptions,
+                                cyclingProfile: event.target.value as typeof routingOptions.cyclingProfile,
+                              })
+                            }
+                          >
+                            <option value="cycling-regular">{t('Regular cycling')}</option>
+                            <option value="cycling-road">{t('Road cycling')}</option>
+                            <option value="cycling-mountain">{t('Mountain biking')}</option>
+                          </select>
+                        </label>
+                      )}
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={routingOptions.avoidFerries ?? false}
+                          onChange={(event) =>
+                            changeRoutingOptions({ ...routingOptions, avoidFerries: event.target.checked })
+                          }
+                        />
+                        {t('Avoid ferries')}
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={routingOptions.avoidSteps ?? false}
+                          onChange={(event) =>
+                            changeRoutingOptions({ ...routingOptions, avoidSteps: event.target.checked })
+                          }
+                        />
+                        {t('Avoid steps')}
+                      </label>
+                      <p className="fine-print">
+                        {t('Routing preferences do not guarantee road surface or access.')}
+                      </p>
+                    </div>
+                  )}
                   <CoordinateInput
                     ref={searchInput}
                     replacing={Boolean(searchTarget)}
@@ -1111,7 +1234,7 @@ export default function App() {
                         <li
                           key={point.id}
                           data-stop-id={point.id}
-                          className={`${draggedStop === point.id ? 'dragging' : ''} ${dropTarget === point.id ? 'drop-target' : ''}`}
+                          className={`${draggedStop === point.id ? 'dragging' : ''} ${dropTarget === point.id ? 'drop-target' : ''} ${selectedWaypointId === point.id ? 'selected-stop' : ''}`}
                           onDragOver={(event) => {
                             if (!stopDrag.current || planningMode === 'loop') return;
                             event.preventDefault();
@@ -1197,10 +1320,8 @@ export default function App() {
                             <Button
                               variant="ghost"
                               className="stop-name"
-                              onClick={() => {
-                                setSearchTarget(point.id);
-                                searchInput.current?.focus();
-                              }}
+                              aria-pressed={selectedWaypointId === point.id}
+                              onClick={() => selectWaypoint(point.id, true)}
                             >
                               <small>
                                 {index === 0
@@ -1212,6 +1333,16 @@ export default function App() {
                               {point.name}
                             </Button>
                             <div className="stop-controls">
+                              <Button
+                                variant="ghost"
+                                className="icon-button"
+                                aria-label={t('Replace stop {{number}}', {
+                                  number: formatNumber(index + 1),
+                                })}
+                                onClick={() => replaceWaypoint(point.id)}
+                              >
+                                <Pencil size={13} />
+                              </Button>
                               {planningMode !== 'loop' && (
                                 <>
                                   <Button
@@ -1222,12 +1353,7 @@ export default function App() {
                                     })}
                                     disabled={index === 0}
                                     onClick={() => {
-                                      const next = [...waypoints];
-                                      [next[index - 1], next[index]] = [
-                                        next[index],
-                                        next[index - 1],
-                                      ];
-                                      changeWaypoints(next);
+                                      changeWaypoints(reorderWaypoints(waypoints, index, index - 1));
                                     }}
                                   >
                                     <ArrowUp size={13} />
@@ -1240,12 +1366,7 @@ export default function App() {
                                     })}
                                     disabled={index === waypoints.length - 1}
                                     onClick={() => {
-                                      const next = [...waypoints];
-                                      [next[index + 1], next[index]] = [
-                                        next[index],
-                                        next[index + 1],
-                                      ];
-                                      changeWaypoints(next);
+                                      changeWaypoints(reorderWaypoints(waypoints, index, index + 1));
                                     }}
                                   >
                                     <ArrowDown size={13} />
@@ -1266,9 +1387,35 @@ export default function App() {
                               </Button>
                             </div>
                           </Card>
+                          {planningMode === 'point' && index < waypoints.length - 1 && (
+                            <label className="leg-mode">
+                              {t('Section {{number}}', { number: formatNumber(index + 1) })}
+                              <select
+                                aria-label={t('Section {{number}} mode', { number: formatNumber(index + 1) })}
+                                value={point.legMode ?? 'automatic'}
+                                onChange={(event) =>
+                                  changeWaypoints(
+                                    waypoints.map((candidate) =>
+                                      candidate.id === point.id
+                                        ? { ...candidate, legMode: event.target.value as 'automatic' | 'direct' }
+                                        : candidate,
+                                    ),
+                                  )
+                                }
+                              >
+                                <option value="automatic">{t('Road/path routing')}</option>
+                                <option value="direct">{t('Direct line — unverified')}</option>
+                              </select>
+                            </label>
+                          )}
                         </li>
                       ))}
                     </ol>
+                  )}
+                  {planningMode === 'point' && waypoints.slice(0, -1).some((point) => point.legMode === 'direct') && (
+                    <p className="fine-print">
+                      {t('Direct sections are unverified straight lines, not confirmed roads or trails.')}
+                    </p>
                   )}
                   <div className="waypoint-tools">
                     {planningMode !== 'loop' && waypoints.length < stopLimit && (
@@ -1289,7 +1436,7 @@ export default function App() {
                         variant="ghost"
                         className="reverse-stops"
                         aria-label={t('Reverse')}
-                        onClick={() => changeWaypoints([...waypoints].reverse())}
+                        onClick={() => changeWaypoints(reverseWaypoints(waypoints))}
                       >
                         <ArrowDownUp size={18} />
                         <span>{t('Reverse')}</span>
@@ -1322,6 +1469,7 @@ export default function App() {
                         onClick={() => {
                           editor.routingAllowed.current = true;
                           editor.checkpoint();
+                          setRouteStale(true);
                           setDirty(true);
                           setRouteRevision((revision) => revision + 1);
                         }}
@@ -1340,6 +1488,40 @@ export default function App() {
                       <p className="fine-print">
                         {t('Routes update automatically as you edit stops.')}
                       </p>
+                      {routingProvider.calculatePointAlternatives && (
+                        <Button
+                          variant="outline"
+                          disabled={!online || busy || waypoints.length !== 2 || waypoints[0]?.legMode === 'direct'}
+                          onClick={() => void generatePointAlternatives()}
+                        >
+                          {t('Find alternatives')}
+                        </Button>
+                      )}
+                      <p className="fine-print">
+                        {t('Alternatives require two stops and an automatic section. Provider limits apply.')}
+                      </p>
+                      {alternatives.length > 0 && (
+                        <div className="alternatives point-alternatives">
+                          {alternatives.map((alternative, index) => (
+                            <Button
+                              variant="ghost"
+                              className={selectedAlternative === index ? 'chosen' : ''}
+                              key={index}
+                              aria-pressed={selectedAlternative === index}
+                              onClick={() => selectAlternative(alternative, index)}
+                            >
+                              <span>
+                                {t('Option')} {formatNumber(index + 1)}
+                                <strong>{formatDistance(alternative.stats.distance)}</strong>
+                              </span>
+                              <span>
+                                {formatDuration(alternative.stats.duration)}
+                                {selectedAlternative === index && <Check size={16} />}
+                              </span>
+                            </Button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                   {planningMode === 'loop' && (
@@ -1384,11 +1566,17 @@ export default function App() {
                               variant="ghost"
                               className={selectedAlternative === index ? 'chosen' : ''}
                               key={index}
+                              aria-pressed={selectedAlternative === index}
                               onClick={() => selectAlternative(alternative, index)}
                             >
                               <span>
                                 {t('Option')} {formatNumber(index + 1)}
                                 <strong>{formatDistance(alternative.stats.distance)}</strong>
+                                <small className="route-distance-delta">
+                                  {t('Difference from target: {{distance}}', {
+                                    distance: formatDistance(Math.abs(alternative.stats.distance - targetKm * 1000)),
+                                  })}
+                                </small>
                               </span>
                               <span>
                                 {formatDuration(alternative.stats.duration)}
@@ -1425,6 +1613,15 @@ export default function App() {
                   </Button>
                 </div>
               )}
+              {routeStale && result && (
+                <Alert className="stale-route-note" role="status">
+                  {t(
+                    busy
+                      ? 'Previous route shown while recalculating. Saving and export are paused.'
+                      : 'Previous route shown. Recalculate successfully before saving or exporting.',
+                  )}
+                </Alert>
+              )}
               {busy && (
                 <p className="routing-status" role="status">
                   <LoaderCircle size={16} className="spin" />
@@ -1451,6 +1648,7 @@ export default function App() {
                         if (planningMode === 'loop') void generateLoops();
                         else {
                           editor.routingAllowed.current = true;
+                          setRouteStale(true);
                           setRouteRevision((revision) => revision + 1);
                         }
                       }}
@@ -1536,10 +1734,13 @@ export default function App() {
                   if (waypoints.length || result) setDirty(true);
                 }}
               />
-              {result ? (
+              {routeStale && result ? (
+                <p className="fine-print">{t('Route details will update after a successful calculation.')}</p>
+              ) : result ? (
                 <Statistics
                   route={result}
                   mapAvailable={online}
+                  onElevationHover={setElevationCoordinate}
                   speedKmh={speeds[activity]}
                   stopsMinutes={stopsMinutes}
                   fitness={fitness}
@@ -1607,7 +1808,22 @@ export default function App() {
             onImport={() => fileInput.current?.click()}
             segments={result?.segments || emptySegments}
             waypoints={mapWaypoints}
-            editable={mode === 'manual' && !busy && (planningMode !== 'loop' || !result)}
+            selectedWaypointId={selectedWaypointId}
+            focusWaypointToken={focusWaypointToken}
+            onSelectWaypoint={selectWaypoint}
+            onReplaceWaypoint={replaceWaypoint}
+            onRemoveWaypoint={(id) => changeWaypoints(waypoints.filter((point) => point.id !== id))}
+            onStartWaypoint={(id) => {
+              const point = waypoints.find((candidate) => candidate.id === id);
+              if (point && waypoints[0]?.id !== id)
+                changeWaypoints(reorderWaypoints(waypoints, waypoints.indexOf(point), 0));
+            }}
+            elevationCoordinate={elevationCoordinate}
+            routeStale={routeStale}
+            directSegments={result?.source === 'manual' ? result.segments : result?.directSegments}
+            alternativeSegments={alternatives.map((alternative) => alternative.segments)}
+            selectedAlternativeIndex={selectedAlternative}
+            editable={mode === 'manual' && !busy && !offlineAutomatic && (planningMode !== 'loop' || !result)}
             manualDrawing={mode === 'manual' && planningMode === 'manual'}
             onToggleManualDrawing={
               mode === 'manual'
@@ -1621,7 +1837,7 @@ export default function App() {
             canUndo={editor.canUndo}
             canRedo={editor.canRedo}
             onInsert={
-              mode === 'manual' && planningMode !== 'loop'
+              mode === 'manual' && planningMode !== 'loop' && !routeStale
                 ? (coordinate, index) => {
                     if (waypoints.length >= stopLimit) {
                       fail(
@@ -1631,13 +1847,11 @@ export default function App() {
                       );
                       return;
                     }
-                    const next = [...waypoints];
-                    next.splice(Math.max(0, Math.min(index, next.length)), 0, {
+                    changeWaypoints(insertWaypoint(waypoints, index, {
                       id: crypto.randomUUID(),
                       name: `${coordinate[1].toFixed(5)}, ${coordinate[0].toFixed(5)}`,
                       coordinate,
-                    });
-                    changeWaypoints(next);
+                    }));
                   }
                 : undefined
             }
@@ -1774,6 +1988,7 @@ export default function App() {
       {confirmation && !libraryOpen && (
         <Dialog
           title={t(confirmation.title)}
+          compact
           initialFocusRef={confirmationCancel}
           onClose={() => setConfirmation(null)}
         >
@@ -1788,7 +2003,8 @@ export default function App() {
               {t('Cancel')}
             </Button>
             <Button
-              className="primary"
+              variant="destructive"
+              className="danger"
               onClick={() => {
                 const action = confirmation.action;
                 setConfirmation(null);

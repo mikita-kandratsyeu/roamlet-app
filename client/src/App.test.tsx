@@ -5,7 +5,11 @@ import { routeDb } from './domain/storage';
 import * as storage from './domain/storage';
 import { checkRoutingConfiguration } from './services/routing';
 import i18n, { detectLanguage, LANGUAGE_KEY } from './i18n';
-const provider = vi.hoisted(() => ({ calculateRoute: vi.fn(), calculateAlternatives: vi.fn() }));
+const provider = vi.hoisted(() => ({
+  calculateRoute: vi.fn(),
+  calculateAlternatives: vi.fn(),
+  calculatePointAlternatives: vi.fn(),
+}));
 vi.mock('./services/routing', () => ({
   checkRoutingConfiguration: vi.fn().mockResolvedValue(true),
   routingProvider: provider,
@@ -21,6 +25,11 @@ vi.mock('./components/RouteMap', () => ({
     canRedo,
     onMove,
     waypoints,
+    selectedWaypointId,
+    onSelectWaypoint,
+    onReplaceWaypoint,
+    routeStale,
+    directSegments,
   }: {
     segments: unknown[];
     manualDrawing?: boolean;
@@ -31,12 +40,20 @@ vi.mock('./components/RouteMap', () => ({
     canRedo?: boolean;
     onMove: (id: string, coordinate: [number, number]) => void;
     waypoints: { id: string }[];
+    selectedWaypointId?: string | null;
+    onSelectWaypoint?: (id: string) => void;
+    onReplaceWaypoint?: (id: string) => void;
+    routeStale?: boolean;
+    directSegments?: unknown[];
   }) => (
     <div
       data-testid="map"
       data-segments={segments.length}
       data-manual={manualDrawing}
       data-geometry={JSON.stringify(segments)}
+      data-selected={selectedWaypointId ?? ''}
+      data-stale={routeStale}
+      data-direct={JSON.stringify(directSegments ?? [])}
     >
       Map
       <button aria-pressed={manualDrawing} onClick={onToggleManualDrawing}>
@@ -50,6 +67,12 @@ vi.mock('./components/RouteMap', () => ({
       </button>
       <button disabled={!waypoints.length} onClick={() => onMove(waypoints[0].id, [11.5, 47.3])}>
         Move first map point
+      </button>
+      <button disabled={!waypoints.length} onClick={() => onSelectWaypoint?.(waypoints[0].id)}>
+        Select first map point
+      </button>
+      <button disabled={!waypoints.length} onClick={() => onReplaceWaypoint?.(waypoints[0].id)}>
+        Replace first map point
       </button>
     </div>
   ),
@@ -322,7 +345,7 @@ describe('route planner interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
     addCoordinate('47.26, 11.4');
     addCoordinate('47.27, 11.41');
-    fireEvent.click(screen.getByRole('button', { name: /^Start 47/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Replace stop 1' }));
     const latitude = screen.getByRole('textbox', { name: 'Latitude' });
     const longitude = screen.getByRole('textbox', { name: 'Longitude' });
     expect(latitude).toHaveFocus();
@@ -739,7 +762,10 @@ describe('route planner interactions', () => {
     addCoordinate('47.28, 11.42');
     await screen.findByRole('alert');
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
-    expect(screen.getByTestId('map')).toHaveAttribute('data-segments', '0');
+    expect(screen.getByTestId('map')).toHaveAttribute('data-segments', '1');
+    expect(screen.getByText('Previous route shown. Recalculate successfully before saving or exporting.')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
+    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
   });
   it('validates coordinate bounds without calling a service', () => {
     render(<App />);
@@ -752,6 +778,9 @@ describe('route planner interactions', () => {
     await plan();
     fireEvent.click(screen.getByRole('button', { name: 'New route' }));
     expect(screen.getByRole('dialog')).toHaveTextContent('Unsaved changes');
+    expect(screen.getByRole('dialog')).toHaveClass('compact');
+    expect(screen.getByRole('button', { name: 'Discard changes' })).toHaveClass('danger');
+    expect(screen.getByRole('button', { name: 'Discard changes' })).not.toHaveClass('primary');
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
@@ -931,5 +960,77 @@ describe('route planner interactions', () => {
     await waitFor(async () => expect(await routeDb.routes.count()).toBe(1));
     expect((await routeDb.routes.toArray())[0].stats.duration).toBe(480);
     await waitFor(async () => expect(await routeDb.table('drafts').count()).toBe(0));
+  });
+});
+
+describe('map and routing improvements', () => {
+  it('links map selection to the stop card without entering replacement mode', async () => {
+    await i18n.changeLanguage('en');
+    render(<App />);
+    await plan();
+    fireEvent.click(screen.getByRole('button', { name: 'Select first map point' }));
+    const start = screen.getByRole('button', { name: /^Start 47/ });
+    expect(start).toHaveAttribute('aria-pressed', 'true');
+    expect(start.closest('li')).toHaveClass('selected-stop');
+    expect(screen.queryByRole('button', { name: 'Replace stop coordinates' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Finish 47/ }));
+    expect(screen.getByRole('button', { name: /^Finish 47/ })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Replace first map point' }));
+    expect(screen.getByRole('textbox', { name: 'Latitude' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Replace stop coordinates' })).toBeVisible();
+  });
+
+  it('keeps previous geometry visible but unusable until the newest calculation succeeds', async () => {
+    await i18n.changeLanguage('en');
+    render(<App />);
+    await plan();
+    const previous = screen.getByTestId('map').getAttribute('data-geometry');
+    let resolve!: (value: { segments: number[][][]; stats: { distance: number; duration: number } }) => void;
+    provider.calculateRoute.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    addCoordinate('47.28, 11.42');
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', previous);
+    expect(screen.getByTestId('map')).toHaveAttribute('data-stale', 'true');
+    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
+    await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
+    await act(async () => resolve({ segments: [geometry], stats: { distance: 1500, duration: 500 } }));
+    expect(screen.getByTestId('map')).toHaveAttribute('data-stale', 'false');
+    expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
+  });
+
+  it('requests cycling preferences and offers point alternatives only for two automatic stops', async () => {
+    await i18n.changeLanguage('en');
+    render(<App />);
+    await plan();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Cycling route profile' }), { target: { value: 'road' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Avoid ferries' }));
+    await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
+    expect(provider.calculateRoute.mock.calls[1][3]).toMatchObject({ cyclingProfile: 'road', avoidFerries: true });
+    provider.calculatePointAlternatives.mockResolvedValueOnce([
+      { segments: [geometry], stats: { distance: 1000, duration: 300 } },
+      { segments: [[[11.4, 47.26], [11.42, 47.27], [11.41, 47.27]]], stats: { distance: 1300, duration: 400 } },
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: 'Find alternatives' }));
+    await waitFor(() => expect(provider.calculatePointAlternatives).toHaveBeenCalledOnce());
+    expect(screen.getByRole('button', { name: /Option 1/ })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /Option 2/ }));
+    expect(screen.getByRole('button', { name: /Option 2/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getAllByRole('button', { name: /^(Start|Finish) 47/ })).toHaveLength(2);
+    addCoordinate('47.28, 11.42');
+    expect(screen.getByRole('button', { name: 'Find alternatives' })).toBeDisabled();
+  });
+
+  it('preserves direct section meaning when reversing stops and undoing', async () => {
+    await i18n.changeLanguage('en');
+    render(<App />);
+    await plan();
+    addCoordinate('47.28, 11.42');
+    await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Section 2 mode' }), { target: { value: 'direct' } });
+    await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(3));
+    fireEvent.click(screen.getByRole('button', { name: 'Reverse' }));
+    expect(screen.getByRole('combobox', { name: 'Section 1 mode' })).toHaveValue('direct');
+    expect(screen.getByRole('combobox', { name: 'Section 2 mode' })).toHaveValue('automatic');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByRole('combobox', { name: 'Section 2 mode' })).toHaveValue('direct');
   });
 });

@@ -1,4 +1,11 @@
-import type { Activity, PlannedRoute, Waypoint } from './types';
+import type { Activity, PlannedRoute, RoutingOptions, Waypoint } from './types';
+import {
+  DEFAULT_ROUTING_OPTIONS,
+  normalizeRoutingOptions,
+  validRoutingOptions,
+} from './routingOptions';
+import { validLegMode } from './waypointLegs';
+import { isRouteResultCurrent } from './editorRouting';
 import { validateRoute } from './routeValidation';
 import { calculateStats } from './stats';
 import { isFitness, isSurface, type Fitness, type Surface } from './time';
@@ -10,6 +17,8 @@ export interface EditorSnapshot {
   activity: Activity;
   waypoints: Waypoint[];
   result: PlannedRoute | null;
+  routingOptions?: RoutingOptions;
+  routeStale?: boolean;
   mode: 'manual' | 'snapshot';
   planningMode: 'point' | 'loop' | 'manual';
   automaticMode?: 'point' | 'loop';
@@ -29,6 +38,8 @@ export function initialEditor(): EditorSnapshot {
     activity: 'cycling',
     waypoints: [],
     result: null,
+    routingOptions: { ...DEFAULT_ROUTING_OPTIONS },
+    routeStale: false,
     mode: 'manual',
     planningMode: 'point',
     automaticMode: 'point',
@@ -65,7 +76,9 @@ export function validateSnapshot(value: unknown): asserts value is EditorSnapsho
     !Number.isFinite(s.stopsMinutes) ||
     s.stopsMinutes < 0 ||
     (s.fitness !== undefined && !isFitness(s.fitness)) ||
-    (s.surface !== undefined && !isSurface(s.surface))
+    (s.surface !== undefined && !isSurface(s.surface)) ||
+    (s.routingOptions !== undefined && !validRoutingOptions(s.routingOptions)) ||
+    (s.routeStale !== undefined && typeof s.routeStale !== 'boolean')
   )
     throw new Error('Invalid draft data.');
   if (
@@ -85,7 +98,8 @@ export function validateSnapshot(value: unknown): asserts value is EditorSnapsho
       typeof p.id !== 'string' ||
       !p.id.trim() ||
       ids.has(p.id) ||
-      typeof p.name !== 'string'
+      typeof p.name !== 'string' ||
+      !validLegMode(p.legMode)
     )
       throw new Error('Invalid draft points.');
     ids.add(p.id);
@@ -96,5 +110,13 @@ export function validateSnapshot(value: unknown): asserts value is EditorSnapsho
 
 export function migrateSnapshot(value: unknown): EditorSnapshot {
   validateSnapshot(value);
-  return { ...value, fitness: value.fitness ?? 'regular', surface: value.surface ?? 'unknown' };
+  const snapshot: EditorSnapshot = {
+    ...value,
+    fitness: value.fitness ?? 'regular',
+    surface: value.surface ?? 'unknown',
+    routingOptions: normalizeRoutingOptions(value.routingOptions),
+    routeStale: value.routeStale ?? false,
+  };
+  if (snapshot.result && !isRouteResultCurrent(snapshot)) snapshot.routeStale = true;
+  return snapshot;
 }

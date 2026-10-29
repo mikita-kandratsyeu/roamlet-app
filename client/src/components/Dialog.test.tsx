@@ -102,6 +102,21 @@ it('associates an optional description with the dialog and omits the association
   expect(screen.getByRole('dialog', { name: 'Details' })).not.toHaveAttribute('aria-describedby');
 });
 
+it('opts into compact styling without changing other dialogs', () => {
+  const view = render(
+    <Dialog title="Confirmation" compact onClose={() => {}}>
+      Content
+    </Dialog>,
+  );
+  expect(screen.getByRole('dialog')).toHaveClass('compact');
+  view.rerender(
+    <Dialog title="Details" onClose={() => {}}>
+      Content
+    </Dialog>,
+  );
+  expect(screen.getByRole('dialog')).not.toHaveClass('compact');
+});
+
 it('closes through the accessible close button', () => {
   const onClose = vi.fn();
   render(<FormDialog onClose={onClose} />);

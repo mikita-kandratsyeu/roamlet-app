@@ -4,8 +4,9 @@ import { createPortal } from 'react-dom';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from './ui/chart';
 import { ChevronDown, Info } from 'lucide-react';
-import type { PlannedRoute } from '../domain/types';
+import type { Coordinate, PlannedRoute } from '../domain/types';
 import { elevationSamples } from '../domain/stats';
+import { elevationChartSamples } from './elevationChartSamples';
 import { formatNumber } from '../i18n';
 import { formatDistance, formatDuration } from '../domain/format';
 import {
@@ -36,6 +37,7 @@ export function Statistics({
   fitness = 'regular',
   surface = 'unknown',
   mapAvailable = true,
+  onElevationHover,
 }: {
   route: PlannedRoute | null;
   emptyHint?: string;
@@ -44,10 +46,17 @@ export function Statistics({
   fitness?: Fitness;
   surface?: Surface;
   mapAvailable?: boolean;
+  onElevationHover?: (coordinate: Coordinate | null) => void;
 }) {
   const { t } = useTranslation();
   const [elevationTarget, setElevationTarget] = useState<HTMLElement | null>(null);
   const [compact, setCompact] = useState(false);
+  const [profilePosition, setProfilePosition] = useState(0);
+  useEffect(() => {
+    setProfilePosition(0);
+    onElevationHover?.(null);
+    return () => onElevationHover?.(null);
+  }, [route?.segments, onElevationHover]);
   useEffect(() => {
     const media = window.matchMedia?.('(min-width: 1025px)');
     if (!media) return;
@@ -67,7 +76,10 @@ export function Statistics({
     };
   }, [mapAvailable]);
   const samples = useMemo(
-    () => (route?.source === 'gpx' ? elevationSamples(route.segments) : []),
+    () =>
+      route && (route.source === 'gpx' || route.elevationSource === 'openrouteservice')
+        ? elevationSamples(route.segments)
+        : [],
     [route],
   );
   const showElevation =
@@ -80,10 +92,15 @@ export function Statistics({
     : 0;
   const total = samples.at(-1)?.distance || 1;
   const gradientId = `elevation-${useId().replace(/:/g, '')}`;
-  // Decimate only the chart, never the saved/exported geometry.
-  const chartSamples = samples.filter(
-    (_, i) => i % Math.max(1, Math.ceil(samples.length / 400)) === 0 || i === samples.length - 1,
+  const chartSamples = useMemo(
+    () => (samples.length && route ? elevationChartSamples(route.segments) : []),
+    [route, samples.length],
   );
+  const linkedSamples = chartSamples.filter((sample) => sample.coordinate);
+  const hoverSample = (index: number | string | null | undefined, active = true) => {
+    const sample = index == null ? undefined : chartSamples[Number(index)];
+    onElevationHover?.(active ? sample?.coordinate ?? null : null);
+  };
   const elevationProfile = showElevation ? (
     <details className="elevation-box" open={!compact}>
       <summary className="section-heading">
@@ -102,7 +119,13 @@ export function Statistics({
             maximum: formatNumber(Math.round(maximum)),
           })}
         >
-          <AreaChart data={chartSamples} margin={{ top: 12, right: 4, bottom: 0, left: 0 }}>
+          <AreaChart
+            data={chartSamples}
+            margin={{ top: 12, right: 4, bottom: 0, left: 0 }}
+            onMouseMove={(event) => hoverSample(event.activeTooltipIndex, event.isTooltipActive)}
+            onClick={(event) => hoverSample(event.activeTooltipIndex, event.isTooltipActive)}
+            onMouseLeave={() => onElevationHover?.(null)}
+          >
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="var(--color-elevation)" stopOpacity={0.15} />
@@ -151,16 +174,40 @@ export function Statistics({
               stroke="var(--color-elevation)"
               strokeWidth={2}
               isAnimationActive={false}
+              connectNulls={false}
             />
           </AreaChart>
         </ChartContainer>
+        {onElevationHover && mapAvailable && linkedSamples.length > 1 && (
+          <label className="elevation-position">
+            {t('Position on elevation profile')}
+            <input
+              type="range"
+              min={0}
+              max={linkedSamples.length - 1}
+              step={1}
+              value={profilePosition}
+              aria-valuetext={formatDistance(linkedSamples[profilePosition]?.distance ?? 0)}
+              onChange={(event) => {
+                const position = Number(event.target.value);
+                setProfilePosition(position);
+                onElevationHover(linkedSamples[position]?.coordinate ?? null);
+              }}
+              onBlur={() => onElevationHover(null)}
+            />
+          </label>
+        )}
         <div className="chart-labels sr-only">
           <span>
             {formatNumber(Math.round(minimum))}–{formatNumber(Math.round(maximum))} {t('m')}
           </span>
           <span>{formatDistance(total)}</span>
         </div>
-        <p className="fine-print">{t('Elevation: GPX file, when available.')}</p>
+        <p className="fine-print">
+          {t(route?.elevationSource === 'openrouteservice'
+            ? 'Elevation: OpenRouteService terrain estimate, not a ground survey.'
+            : 'Elevation: GPX file, when available.')}
+        </p>
       </>
     </details>
   ) : null;
@@ -186,7 +233,9 @@ export function Statistics({
         <div className="stat-card">
           <dt>
             {t(
-              provider
+              route.source === 'mixed'
+                ? 'Combined time estimate'
+                : provider
                 ? 'Provider estimate'
                 : speedKmh === undefined
                   ? 'Est. moving time'
@@ -241,11 +290,18 @@ export function Statistics({
             ? t('Imported GPX')
             : route.source === 'manual'
               ? t('Manual route')
-              : route.source === 'mapbox'
-                ? 'Mapbox'
-                : 'OpenRouteService'}
+              : route.source === 'mixed'
+                ? t('Mixed route')
+                : route.source === 'mapbox'
+                  ? 'Mapbox'
+                  : 'OpenRouteService'}
         </span>
       </p>
+      {route.source === 'mixed' && (
+        <p className="fine-print">
+          {t('Combined time uses ORS estimates for routed sections and average speed for direct sections.')}
+        </p>
+      )}
       {personal && (
         <div className="personal-time-assumptions">
           <p className="fine-print">
@@ -271,7 +327,9 @@ export function Statistics({
           {personal.ascentMetres !== null && (
             <p className="fine-print">
               {t(
-                'GPX ascent {{ascent}} m after 3 m noise filtering; climb allowance {{minutes}} min. No downhill bonus.',
+                route.elevationSource === 'openrouteservice'
+                  ? 'Route ascent {{ascent}} m after 3 m noise filtering; climb allowance {{minutes}} min. No downhill bonus.'
+                  : 'GPX ascent {{ascent}} m after 3 m noise filtering; climb allowance {{minutes}} min. No downhill bonus.',
                 {
                   ascent: formatNumber(Math.round(personal.ascentMetres)),
                   minutes: formatNumber(personal.climbSeconds / 60, { maximumFractionDigits: 1 }),

@@ -16,7 +16,7 @@ export class RouteDatabase extends Dexie {
         await transaction
           .table('routes')
           .filter(
-            (route) => !['openrouteservice', 'mapbox', 'gpx', 'manual'].includes(route.source),
+            (route) => !['openrouteservice', 'mapbox', 'gpx', 'manual', 'mixed'].includes(route.source),
           )
           .delete();
       });

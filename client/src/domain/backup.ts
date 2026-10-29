@@ -39,7 +39,9 @@ export function validateBackup(value: unknown): asserts value is RouteBackup {
     if (ids.has(route.id)) throw new Error('Duplicate route IDs in library backup.');
     ids.add(route.id);
     const points =
-      route.segments.reduce((sum, segment) => sum + segment.length, 0) + route.waypoints.length;
+      route.segments.reduce((sum, segment) => sum + segment.length, 0) +
+      route.waypoints.length +
+      (route.directSegments?.reduce((sum, segment) => sum + segment.length, 0) ?? 0);
     total += points;
     if (points > BACKUP_LIMITS.pointsPerRoute || total > BACKUP_LIMITS.totalPoints)
       throw new Error('Library backup exceeds point limits.');

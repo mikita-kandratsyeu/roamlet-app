@@ -8,7 +8,11 @@ export function openRouteServiceApiKey(): string {
 }
 
 export function openRouteServiceUrl(path: string): URL {
-  if (!/^\/openrouteservice\/v2\/directions\/(?:cycling-regular|foot-hiking)\/geojson$/.test(path))
+  if (
+    !/^\/openrouteservice\/v2\/directions\/(?:cycling-regular|cycling-road|cycling-mountain|foot-hiking)\/geojson$/.test(
+      path,
+    )
+  )
     throw new Error('Unsupported OpenRouteService endpoint.');
   return new URL(path, 'https://api.heigit.org');
 }
