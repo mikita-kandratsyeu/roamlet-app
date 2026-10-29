@@ -1011,10 +1011,10 @@
   border: 0;
 }
 .route-library .route-description {
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  height: 1.45em;
-  min-height: 1.45em;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  height: 2.9em;
+  min-height: 2.9em;
 }
 .route-library .library-actions {
   align-self: end;

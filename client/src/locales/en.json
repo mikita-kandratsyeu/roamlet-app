@@ -507,6 +507,8 @@
   "Export": "Export",
   "Export route": "Export route",
   "Route details": "Route details",
+  "Route description": "Route description",
+  "Read route description": "Read route description",
   "Track points": "Track points",
   "GPX segments": "GPX segments",
   "Waypoints": "Waypoints",

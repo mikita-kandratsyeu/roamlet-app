@@ -507,6 +507,8 @@
   "Export": "Экспорт",
   "Export route": "Экспорт маршрута",
   "Route details": "Данные маршрута",
+  "Route description": "Описание маршрута",
+  "Read route description": "Прочитать описание маршрута",
   "Track points": "Точки трека",
   "GPX segments": "Участки GPX",
   "Waypoints": "Путевые точки",

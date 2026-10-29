@@ -34,8 +34,6 @@ import {
   FileUp,
   Trash2,
   Bookmark,
-  ChevronDown,
-  ChevronUp,
   Sparkles,
   Check,
   Pencil,
@@ -53,6 +51,7 @@ import {
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
 import { importGpx, exportGpx } from './domain/gpx';
 import { ExportDialog } from './components/ExportDialog';
+import { RouteDescription } from './components/RouteDescription';
 import { calculateStats } from './domain/stats';
 import { MANUAL_STOP_LIMIT } from './domain/manualRoute';
 import { reverseWaypoints, reorderWaypoints, insertWaypoint } from './domain/waypointLegs';
@@ -1081,7 +1080,6 @@ export default function App() {
                     : t('Start with two points on the map')}
                 </small>
               </span>
-              {collapsed ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </Button>
             <div className="planner-scroll">
               <div className="planner-heading">
@@ -1121,6 +1119,7 @@ export default function App() {
                   </Button>
                 </div>
               </div>
+              <RouteDescription key={editor.identity.id} description={description} name={name} />
               <ToggleGroup
                 type="single"
                 value={activity}

@@ -136,6 +136,35 @@
   margin-bottom: 10px;
   align-items: center;
 }
+.planner-route-description {
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  padding: 8px 10px;
+  margin-bottom: 14px;
+  gap: 10px;
+  border-radius: var(--radius);
+  white-space: normal;
+  text-align: left;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+.planner-route-description-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.route-description-full {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
 .planner-heading h1 {
   font-size: 19px;
   font-weight: 600;

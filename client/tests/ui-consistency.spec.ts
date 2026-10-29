@@ -210,6 +210,65 @@ test('small-screen statistics keep labels readable and time ranges on one line',
   }
 });
 
+test('mobile planner header toggles without a right-hand arrow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+  const header = page.locator('.mobile-sheet-toggle');
+  await expect(header).toBeVisible();
+  await expect(header.locator('svg')).toHaveCount(0);
+  await expect(header.locator('.sheet-identity')).toBeVisible();
+  await header.focus();
+  await expect(header).toBeFocused();
+  const initial = await header.getAttribute('aria-expanded');
+  await header.press('Enter');
+  await expect(header).toHaveAttribute('aria-expanded', initial === 'true' ? 'false' : 'true');
+  await header.press('Space');
+  await expect(header).toHaveAttribute('aria-expanded', initial!);
+  await header.click();
+  await expect(header).toHaveAttribute('aria-expanded', initial === 'true' ? 'false' : 'true');
+});
+
+test('saved descriptions use two-line previews and open in the planner without map clutter', async ({ page }, testInfo) => {
+  await page.setViewportSize(testInfo.project.name === 'mobile'
+    ? { width: 320, height: 844 }
+    : { width: 1440, height: 1000 });
+  const description = ('Meet at the station and bring water. Enjoy the forest trail and its views. ').repeat(12)
+    + '\n\nReturn before sunset.';
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'description.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from('<gpx version="1.1" creator="test"><trk><name>Forest notes</name><trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.01" lon="11.01"/></trkseg></trk></gpx>'),
+  });
+  await page.getByRole('button', { name: 'Save route', exact: true }).click();
+  await page.getByRole('textbox', { name: /^Description/ }).fill(description);
+  await page.getByRole('button', { name: 'Save to library', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
+  await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
+  await expect(page.getByTestId('panel-loader')).toHaveCount(0);
+  const libraryPreview = page.locator('.library-route .route-description');
+  await expect(libraryPreview).toHaveCSS('-webkit-line-clamp', '2');
+  await expect(libraryPreview).toHaveAttribute('title', description);
+  const libraryBox = (await libraryPreview.boundingBox())!;
+  const lineHeight = await libraryPreview.evaluate((element) => Number.parseFloat(getComputedStyle(element).lineHeight));
+  expect(libraryBox.height).toBeLessThanOrEqual(lineHeight * 2 + 1);
+  await page.screenshot({ path: testInfo.outputPath('library-description.png') });
+  await page.locator('.library-route .library-open-action').click();
+  await expect(page.locator('.library-screen')).toHaveCount(0);
+  const sheet = page.locator('.mobile-sheet-toggle');
+  if (await sheet.isVisible() && await sheet.getAttribute('aria-expanded') === 'false') await sheet.click();
+  const trigger = page.getByRole('button', { name: 'Read route description' });
+  await expect(page.locator('.planner').getByRole('button', { name: 'Read route description' })).toBeVisible();
+  await expect(page.locator('.map-region .planner-route-description')).toHaveCount(0);
+  await expect(trigger.locator('.planner-route-description-preview')).toHaveCSS('-webkit-line-clamp', '2');
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'Route description' });
+  expect(await dialog.locator('.route-description-full').textContent()).toBe(description);
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('full-route-description.png') });
+  await dialog.press('Escape');
+  await expect(trigger).toBeFocused();
+});
+
 test('coordinate fields support pair paste, inline correction and aligned mobile actions', async ({
   page,
 }, testInfo) => {
