@@ -186,7 +186,7 @@
   "(copy)": "(копия)",
   "Leave this route?": "Закрыть этот маршрут?",
   "Your unsaved changes will be lost. Save the route first if you want to keep it.": "Несохранённые изменения будут потеряны. Сохраните маршрут перед закрытием, чтобы не потерять их.",
-  "Discard changes": "Отбросить изменения",
+  "Discard changes": "Cбросить изменения",
   "Recalculate for cycling?": "Пересчитать для велосипеда?",
   "Recalculate for hiking?": "Пересчитать для пешего похода?",
   "This changes the routing profile and may change the route geometry. Save or export the original if you want to keep it.": "Смена активности пересчитает маршрут и может изменить его путь. Сначала сохраните или экспортируйте исходный маршрут, если хотите оставить его.",

@@ -749,9 +749,11 @@ test('point edits preserve the camera and location does not add stops', async ({
   page,
   context,
 }) => {
-  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
   const mapView = () => page.evaluate(() => localStorage.getItem('roamlet:map-view:v1'));
   await expect.poll(mapView).not.toBeNull();
+  const initialZoom = JSON.parse((await mapView())!).zoom;
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await expect.poll(async () => JSON.parse((await mapView())!).zoom).toBe(initialZoom + 1);
   const original = await mapView();
   await createRoute(page);
   expect(await mapView()).toBe(original);

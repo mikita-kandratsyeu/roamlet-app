@@ -406,7 +406,7 @@ describe('route planner interactions', () => {
     expect(screen.getByRole('dialog', { name: 'Закрыть этот маршрут?' })).toHaveTextContent(
       'Несохранённые изменения',
     );
-    expect(screen.getByRole('button', { name: 'Отбросить изменения' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Сбросить изменения' })).toBeInTheDocument();
   });
   it('translates an open clear-stops confirmation and its destructive action', async () => {
     render(<App />);
