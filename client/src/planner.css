@@ -240,11 +240,65 @@
   line-height: 1.45;
   letter-spacing: 0;
 }
-.planner-kicker {
+.planner-route-status {
+  margin-bottom: 14px;
+  color: var(--muted-foreground);
+  font-size: var(--font-size-helper);
+  overflow-wrap: anywhere;
+}
+.planner-route-status-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.planner-route-status-copy > div {
+  min-width: 0;
+}
+.planner-route-status-copy p {
+  margin: 0;
+}
+.planner-route-status-copy .planner-route-status-context {
+  margin-top: 6px;
+}
+.planner-route-status-copy svg {
+  flex-shrink: 0;
   margin-top: 2px;
 }
-.planner-kicker .muted {
-  font-size: var(--font-size-helper);
+.planner-route-status:is(.is-calculating, .is-stale, .is-error) {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--muted);
+  color: var(--foreground);
+}
+.planner-route-status.is-error {
+  border-color: var(--destructive);
+}
+.planner-route-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.planner-route-status-actions button {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+}
+.planner-details {
+  margin-top: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.planner-details > summary h2 {
+  margin: 0;
+  min-width: 0;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+.planner-details-body > :is(.climb-analysis, .route-schedule) {
+  padding: 12px 0 0;
+  border-top: 0;
 }
 .planner-heading-actions .icon-button {
   width: 44px;

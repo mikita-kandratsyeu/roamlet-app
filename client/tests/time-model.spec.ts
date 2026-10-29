@@ -8,6 +8,8 @@ async function addPoint(page: Page, value: string) {
   await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
 }
 async function choose(page: Page, label: string, option: string) {
+  const settings = page.locator('.personal-time-section');
+  if ((await settings.getAttribute('open')) === null) await settings.locator('summary').click();
   await page.getByRole('button', { name: label, exact: true }).click();
   await page.getByRole('menuitemradio', { name: option, exact: true }).click();
 }
@@ -153,6 +155,7 @@ test('draft recovery retains fitness, explicit surface and personal pace', async
   await page.waitForTimeout(1200);
   await page.reload();
   await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
+  await page.locator('.personal-time-section > summary').click();
   await expect(page.getByRole('button', { name: 'Fitness level', exact: true })).toContainText(
     'Trained',
   );

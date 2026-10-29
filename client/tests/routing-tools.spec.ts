@@ -152,7 +152,7 @@ test('recalculation notice has readable width and disabled alternatives explain 
   );
   await addPoint(page, '52.02, 30.02');
   await started;
-  const note = page.locator('.stale-route-note');
+  const note = page.locator('.planner-route-status');
   const description = note.locator('[data-slot="alert-description"]');
   await expect(description).toContainText('Во время пересчёта показан предыдущий маршрут');
   const bounds = (await description.boundingBox())!;

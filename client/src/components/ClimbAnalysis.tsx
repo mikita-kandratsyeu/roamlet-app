@@ -8,11 +8,12 @@ import './disclosures.css';
 
 export interface ClimbAnalysisProps {
   route: PlannedRoute | null;
+  showHeading?: boolean;
   /** Parent owns map rendering; an empty array clears the highlight. */
   onHighlight?: (geometry: Coordinate[][]) => void;
 }
 
-export function ClimbAnalysis({ route, onHighlight }: ClimbAnalysisProps) {
+export function ClimbAnalysis({ route, onHighlight, showHeading = true }: ClimbAnalysisProps) {
   const { t, i18n } = useTranslation();
   const headingId = useId();
   const explanationId = useId();
@@ -38,11 +39,12 @@ export function ClimbAnalysis({ route, onHighlight }: ClimbAnalysisProps) {
   return (
     <section
       className="climb-analysis"
-      aria-labelledby={headingId}
+      aria-labelledby={showHeading ? headingId : undefined}
+      aria-label={showHeading ? undefined : t('Climb analysis')}
       aria-describedby={explanationId}
     >
       <header className="section-heading climb-analysis__header">
-        <h2 id={headingId}>{t('Climb analysis')}</h2>
+        {showHeading && <h2 id={headingId}>{t('Climb analysis')}</h2>}
         <p id={explanationId} className="fine-print climb-analysis__thresholds">
           {t('≥{{length}} m · ≥{{ascent}} m gain', {
             length: number(CLIMB_THRESHOLDS.minimumLengthMeters),

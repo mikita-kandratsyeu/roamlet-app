@@ -333,6 +333,7 @@
   "Invalid text for GPX XML.": "Route text contains characters that GPX cannot use. Check the route name and notes.",
   "Cannot export an empty GPX route.": "Add route points or import a GPX file before exporting.",
   "Unsaved changes": "Unsaved changes",
+  "Calculating route…": "Calculating route…",
   "Elevation": "Elevation",
   "Map controls": "Map controls",
   "More map tools": "More map tools",

@@ -7,7 +7,7 @@ import { Label } from './components/ui/label';
 import { Slider } from './components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from './components/ui/toggle-group';
 import { Badge } from './components/ui/badge';
-import { Alert, AlertDescription } from './components/ui/alert';
+import { Alert } from './components/ui/alert';
 import { Card } from './components/ui/card';
 import { waypointKind } from './components/waypointStyle';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouteEditor } from './hooks/useRouteEditor';
 import { usePointRouting } from './hooks/usePointRouting';
 import { PlannerTools } from './components/PlannerTools';
+import { PlannerDetails } from './components/PlannerDetails';
 import { PlannerChoice } from './components/PlannerChoice';
 import { CoordinateInput, type CoordinateInputHandle } from './components/CoordinateInput';
 import { DraftPrompt } from './components/DraftPrompt';
@@ -943,6 +944,28 @@ export default function App() {
     return result && planningMode === 'loop' ? result.waypoints : waypoints;
   }, [result, planningMode, waypoints]);
   const canUseRoute = isRouteResultCurrent(editor.snapshot) && !busy && !routeStale;
+  const routingError = !busy && notice?.kind === 'routing' && notice.error ? notice : null;
+  const plannerStatus = busy
+    ? routeStale && result
+      ? t('Previous route shown while recalculating. Saving and export are paused.')
+      : t('Calculating route…')
+    : routingError
+      ? translateMessage(routingError.text)
+      : routeStale && result
+        ? t('Previous route shown. Recalculate successfully before saving or exporting.')
+        : dirty
+          ? t('Unsaved changes')
+          : result
+            ? t('Saved route, ready to explore')
+            : t('Start with two points on the map');
+  const retryRouting = () => {
+    if (planningMode === 'loop') void generateLoops();
+    else {
+      editor.routingAllowed.current = true;
+      setRouteStale(true);
+      setRouteRevision((revision) => revision + 1);
+    }
+  };
   const alternativesHelp = !online
     ? 'Connect to the internet to find alternatives.'
     : waypoints.length !== 2
@@ -966,7 +989,7 @@ export default function App() {
       }}
     >
       <Toaster />
-      {notice && (
+      {notice && (notice.kind !== 'routing' || panelHidden || libraryOpen) && (
         <Notification
           title={t(
             notice.kind === 'map'
@@ -985,14 +1008,7 @@ export default function App() {
                   <Button
                     variant="outline"
                     disabled={!online || busy}
-                    onClick={() => {
-                      if (planningMode === 'loop') void generateLoops();
-                      else {
-                        editor.routingAllowed.current = true;
-                        setRouteStale(true);
-                        setRouteRevision((revision) => revision + 1);
-                      }
-                    }}
+                    onClick={retryRouting}
                   >
                     {t('Retry routing')}
                   </Button>
@@ -1195,11 +1211,6 @@ export default function App() {
               <div className="planner-heading">
                 <div>
                   <h1>{name || t('New route')}</h1>
-                  <div className="planner-kicker">
-                    <p className="muted">
-                      {dirty ? t('Unsaved changes') : t('Start with two points on the map')}
-                    </p>
-                  </div>
                 </div>
                 <div className="planner-heading-actions">
                   {canUseRoute && (
@@ -1228,6 +1239,34 @@ export default function App() {
                     <PanelLeftClose size={17} />
                   </Button>
                 </div>
+              </div>
+              <div className={`planner-route-status ${busy ? 'is-calculating' : routingError ? 'is-error' : routeStale && result ? 'is-stale' : ''}`}
+                role={routingError ? 'alert' : 'status'} aria-atomic="true">
+                <div className="planner-route-status-copy">
+                  {busy ? <LoaderCircle size={16} className="spin" aria-hidden="true" />
+                    : routingError || routeStale && result ? <Info size={16} aria-hidden="true" />
+                    : result && !dirty ? <Check size={16} aria-hidden="true" /> : null}
+                  <div>
+                    <p>{plannerStatus}</p>
+                    {routingError && routeStale && result && (
+                      <p className="planner-route-status-context">
+                        {t('Previous route shown. Recalculate successfully before saving or exporting.')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {routingError && (
+                  <div className="planner-route-status-actions">
+                    <Button variant="outline" disabled={!online} onClick={retryRouting}>
+                      {t('Retry routing')}
+                    </Button>
+                    <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
+                      {t('Use manual drawing')}
+                    </Button>
+                    <Button variant="ghost" onClick={openLibrary}>{t('Open library')}</Button>
+                    <Button variant="ghost" onClick={() => setNotice(null)}>{t('Dismiss notification')}</Button>
+                  </div>
+                )}
               </div>
               <RouteDescription
                 key={editor.identity.id}
@@ -1813,25 +1852,6 @@ export default function App() {
                   </Button>
                 </div>
               )}
-              {routeStale && result && (
-                <Alert className="stale-route-note" role="status">
-                  <Info aria-hidden="true" />
-                  <AlertDescription>
-                    {t(
-                      busy
-                        ? 'Previous route shown while recalculating. Saving and export are paused.'
-                        : 'Previous route shown. Recalculate successfully before saving or exporting.',
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-              {busy && !(routeStale && result) && (
-                <p className="routing-status" role="status">
-                  <LoaderCircle size={16} className="spin" />
-                  {t('Calculating a real')} {activity === 'cycling' ? t('cycling') : t('hiking')}{' '}
-                  {t('route…')}
-                </p>
-              )}
               {online &&
                 planningMode !== 'manual' &&
                 (routingConfigured === false || configurationUnavailable) &&
@@ -1856,7 +1876,25 @@ export default function App() {
                     </Button>
                   </div>
                 )}
+              {result && !routeStale && (
+                <Statistics
+                  route={result}
+                  mapAvailable={online}
+                  onElevationHover={setElevationCoordinate}
+                  elevationOpen={elevationOpen}
+                  onElevationOpenChange={setElevationOpen}
+                  speedKmh={speeds[activity]}
+                  stopsMinutes={stopsMinutes}
+                  fitness={fitness}
+                  surface={surface}
+                  emptyHint={planningMode === 'loop'
+                    ? t('Choose a start and find round trips to see route details.')
+                    : undefined}
+                />
+              )}
               <PlannerTools
+                key={editor.identity.id}
+                initiallyOpen={false}
                 contextKey={`${editor.identity.id}:${activity}:${timeSyncRevision}`}
                 speed={speeds[activity]}
                 stops={stopsMinutes}
@@ -1880,30 +1918,14 @@ export default function App() {
                   if (waypoints.length || result) setDirty(true);
                 }}
               />
-              {routeStale && result ? (
-                <p className="fine-print">
-                  {t('Route details will update after a successful calculation.')}
-                </p>
-              ) : result ? (
+              {routeStale && result ? null : result ? (
                 <>
-                  <Statistics
-                    route={result}
-                    mapAvailable={online}
-                    onElevationHover={setElevationCoordinate}
-                    elevationOpen={elevationOpen}
-                    onElevationOpenChange={setElevationOpen}
-                    speedKmh={speeds[activity]}
-                    stopsMinutes={stopsMinutes}
-                    fitness={fitness}
-                    surface={surface}
-                    emptyHint={
-                      planningMode === 'loop'
-                        ? t('Choose a start and find round trips to see route details.')
-                        : undefined
-                    }
-                  />
-                  <ClimbAnalysis route={result} onHighlight={setClimbSegments} />
+                  <PlannerDetails key={`climbs:${editor.identity.id}`} title={t('Climb analysis')}>
+                    <ClimbAnalysis route={result} onHighlight={setClimbSegments} showHeading={false} />
+                  </PlannerDetails>
+                  <PlannerDetails key={`schedule:${editor.identity.id}`} title={t('Route schedule')}>
                   <RouteSchedule
+                    showHeading={false}
                     route={result}
                     waypoints={editor.scheduleWaypoints}
                     departureLocal={editor.departureLocal}
@@ -1926,6 +1948,7 @@ export default function App() {
                       setDirty(true);
                     }}
                   />
+                  </PlannerDetails>
                 </>
               ) : (
                 <section className="statistics statistics-empty" aria-label={t('Route statistics')}>

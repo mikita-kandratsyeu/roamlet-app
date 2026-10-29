@@ -14,6 +14,7 @@ import './disclosures.css';
 
 export interface RouteScheduleProps {
   route: PlannedRoute | null;
+  showHeading?: boolean;
   /** Editor waypoints, not the possibly older waypoint metadata in a routing response. */
   waypoints: Waypoint[];
   departureLocal?: string;
@@ -82,7 +83,7 @@ function PauseField({ waypoint, onCommit }: {
   </div>;
 }
 export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds,
-  geometryCurrent = true, contextKey, onDepartureLocal, onWaypointPause }: RouteScheduleProps) {
+  geometryCurrent = true, contextKey, showHeading = true, onDepartureLocal, onWaypointPause }: RouteScheduleProps) {
   const { t, i18n } = useTranslation();
   const schedule = estimateRouteSchedule({ segments: geometryCurrent ? route?.segments ?? [] : [],
     waypoints, departureLocal }, movingSeconds ?? NaN);
@@ -94,9 +95,9 @@ export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds,
       : <span>{t('Unavailable')}</span>;
   }
   return <section className="route-schedule" aria-label={t('Route schedule')}>
-    <div className="section-heading">
+    {showHeading && <div className="section-heading">
       <h2><Clock3 size={16} aria-hidden="true" />{t('Route schedule')}</h2>
-    </div>
+    </div>}
     <DepartureField key={contextKey ?? route?.id} value={departureLocal} onCommit={onDepartureLocal} />
     {schedule.unavailable && <p className="route-schedule-notice">{t(reasons[schedule.unavailable])}</p>}
     <ol className="route-schedule-list">

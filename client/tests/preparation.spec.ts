@@ -111,6 +111,7 @@ test('schedule edits persist and do not reroute; arrivals cross midnight', async
   page.on('request', (request) => {
     if (new URL(request.url()).pathname === '/api/route') requests += 1;
   });
+  await page.locator('.planner-details > summary').filter({ hasText: 'Route schedule' }).click();
   const schedule = page.getByRole('region', { name: 'Route schedule', exact: true });
   const departure = schedule.getByLabel('Local departure date and time', { exact: true });
   await departure.fill('2026-10-29T23:59');
@@ -129,6 +130,7 @@ test('schedule edits persist and do not reroute; arrivals cross midnight', async
   await save(page, 'Night ride');
   await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
   await page.getByRole('button', { name: /^Night ride Cycling/ }).click();
+  await page.locator('.planner-details > summary').filter({ hasText: 'Route schedule' }).click();
   await expect(departure).toHaveValue('2026-10-29T23:59');
   await expect(pause).toHaveValue('10');
   await page.waitForTimeout(500);
@@ -173,6 +175,7 @@ test('comparison preserves editor and closes back to the selected library routes
 test('disclosure arrows align and mobile route actions have labels and 44px targets', async ({
   page,
 }, testInfo) => {
+  await page.locator('.planner-details > summary').filter({ hasText: 'Climb analysis' }).click();
   const climb = page.getByRole('region', { name: 'Climb analysis', exact: true });
   await climb.getByRole('button', { name: /^Climb 1/ }).click();
   await expect(climb.getByRole('button', { name: /^Climb 1/ })).toHaveAttribute(
@@ -184,24 +187,24 @@ test('disclosure arrows align and mobile route actions have labels and 44px targ
   expect(await page.locator('.time-explanation').getAttribute('open')).toBeNull();
   expect(await page.locator('.climb-analysis details').getAttribute('open')).toBeNull();
   const headerLayout = await climb.evaluate((section) => {
-    const title = section.querySelector('h2')!.getBoundingClientRect();
-    const thresholds = section
-      .querySelector('.climb-analysis__thresholds')!
-      .getBoundingClientRect();
-    const statistics = section.previousElementSibling!.getBoundingClientRect();
+    const details = section.closest('.planner-details')!;
+    const title = details.querySelector('summary h2')!.getBoundingClientRect();
+    const thresholds = section.querySelector('.climb-analysis__thresholds')!.getBoundingClientRect();
+    const settings = details.previousElementSibling!.getBoundingClientRect();
     return {
-      gap: title.top - statistics.bottom,
+      gap: title.top - settings.bottom,
       thresholdGap: thresholds.top - title.bottom,
       alignment: Math.abs(title.left - thresholds.left),
     };
   });
-  expect(headerLayout.gap).toBeGreaterThanOrEqual(16);
+  expect(headerLayout.gap).toBeGreaterThanOrEqual(12);
   expect(headerLayout.thresholdGap).toBeGreaterThanOrEqual(4);
   expect(headerLayout.alignment).toBeLessThanOrEqual(1);
   if (testInfo.project.name !== 'mobile') return;
   const positions = await page
     .locator('#route-planner .planner-disclosure > summary .disclosure-toggle')
-    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().right));
+    .evaluateAll((elements) => elements.filter((element) => element.getBoundingClientRect().width > 0)
+      .map((element) => element.getBoundingClientRect().right));
   expect(positions.length).toBeGreaterThanOrEqual(3);
   expect(Math.max(...positions) - Math.min(...positions)).toBeLessThanOrEqual(1);
   const actions = page.locator('.waypoint-tools');

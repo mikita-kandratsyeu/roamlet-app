@@ -449,6 +449,7 @@ test('personal time fields follow planner sizing without duplicate history butto
     await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
+  await page.locator('.personal-time-section > summary').click();
   const speed = page.getByLabel('Personal speed (km/h)', { exact: true });
   const stops = page.getByLabel('Stops (minutes)', { exact: true });
   await speed.scrollIntoViewIfNeeded();
@@ -468,6 +469,7 @@ test('personal time fields follow planner sizing without duplicate history butto
 
 test('time controls have compact spacing and contained Russian dropdowns', async ({ page }) => {
   await clickMapTool(page, 'Manual drawing');
+  await page.locator('.personal-time-section > summary').click();
   const speed = page.getByLabel('Personal speed (km/h)', { exact: true });
   const fitnessLabel = page.getByText('Fitness level', { exact: true });
   await speed.scrollIntoViewIfNeeded();
@@ -516,6 +518,7 @@ test('personal time allows clearing and retyping with localized validation', asy
     await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
+  await page.locator('.personal-time-section > summary').click();
   const speed = page.getByLabel('Personal speed (km/h)', { exact: true });
   const stops = page.getByLabel('Stops (minutes)', { exact: true });
   await speed.fill('');

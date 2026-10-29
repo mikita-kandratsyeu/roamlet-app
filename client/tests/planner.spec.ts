@@ -862,6 +862,45 @@ test('centers the saved-route empty-state icon above its text', async ({ page })
   expect(Math.abs(icon!.x + icon!.width / 2 - (empty!.x + empty!.width / 2))).toBeLessThan(1);
 });
 
+test('route overview precedes collapsed details and settings survive disclosure toggles', async ({ page }) => {
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'overview.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from(gpx),
+  });
+  const sheet = page.locator('.mobile-sheet-toggle');
+  if ((await sheet.isVisible()) && (await sheet.getAttribute('aria-expanded')) === 'false')
+    await sheet.click();
+  const statistics = page.locator('.planner .statistics');
+  const settings = page.locator('.personal-time-section');
+  await expect(statistics).toBeVisible();
+  await expect(settings).not.toHaveAttribute('open');
+  await expect(page.locator('.planner-details')).toHaveCount(2);
+  for (const details of await page.locator('.planner-details').all())
+    await expect(details).not.toHaveAttribute('open');
+  expect(await statistics.evaluate((element) =>
+    Boolean(element.compareDocumentPosition(document.querySelector('.personal-time-section')!)
+      & Node.DOCUMENT_POSITION_FOLLOWING),
+  )).toBe(true);
+  await expect(page.locator('.planner-route-status')).toHaveCount(1);
+  await settings.locator('summary').press('Enter');
+  const speed = page.getByLabel('Personal speed (km/h)', { exact: true });
+  await speed.fill('12.5');
+  await speed.press('Tab');
+  await settings.locator('summary').click();
+  await expect(speed).not.toBeVisible();
+  await settings.locator('summary').click();
+  await expect(speed).toHaveValue('12.5');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
+  await expect(settings).toHaveAttribute('open');
+  await expect(page.getByLabel('Личная скорость (км/ч)', { exact: true })).toHaveValue('12.5');
+  await page.locator('.planner-details > summary').filter({ hasText: 'Расписание маршрута' }).press('Enter');
+  await expect(page.locator('.route-schedule')).toBeVisible();
+  await expect(page.locator('.planner-route-status')).toHaveCount(1);
+  expect(await page.locator('.planner-scroll').evaluate((element) =>
+    element.scrollWidth <= element.clientWidth,
+  )).toBe(true);
+});
+
 test('planner never scrolls horizontally with long content, elevation and viewport changes', async ({
   page,
 }) => {

@@ -197,6 +197,8 @@ describe('route preparation features', () => {
       text: async () => xml,
     });
     fireEvent.change(screen.getByLabelText('Import GPX file'), { target: { files: [file] } });
+    const heading = await screen.findByRole('heading', { name: 'Climb analysis' });
+    fireEvent.click(heading.closest('summary')!);
     const climb = await within(
       await screen.findByRole('region', { name: 'Climb analysis' }),
     ).findByRole('button', { name: /Climb 1/ });
@@ -936,12 +938,12 @@ describe('route planner interactions', () => {
     await screen.findByRole('alert');
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
     expect(screen.getByTestId('map')).toHaveAttribute('data-segments', '1');
-    expect(
-      screen.getByText(
-        'Previous route shown. Recalculate successfully before saving or exporting.',
-      ),
-    ).toBeVisible();
+    expect(screen.getByRole('alert')).toHaveTextContent('Routing quota reached.');
+    expect(document.querySelectorAll('.planner-route-status')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
+    expect(screen.getByText(
+      'Previous route shown. Recalculate successfully before saving or exporting.',
+    )).toBeVisible();
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
   });
   it('validates coordinate bounds without calling a service', () => {
@@ -1104,7 +1106,7 @@ describe('route planner interactions', () => {
     });
     fireEvent.click(screen.getByLabelText('Add coordinates'));
     await act(async () => finish());
-    expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    expect(await screen.findByText('Unsaved changes')).toBeInTheDocument();
     await waitFor(async () =>
       expect((await routeDb.table('drafts').get('current'))?.snapshot.waypoints).toHaveLength(3),
     );

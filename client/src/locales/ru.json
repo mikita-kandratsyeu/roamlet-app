@@ -333,6 +333,7 @@
   "Invalid text for GPX XML.": "В тексте маршрута есть символы, недопустимые для GPX. Проверьте название и заметки.",
   "Cannot export an empty GPX route.": "Добавьте точки маршрута или импортируйте GPX перед экспортом.",
   "Unsaved changes": "Несохранённые изменения",
+  "Calculating route…": "Расчёт маршрута…",
   "Elevation": "Высота",
   "Map controls": "Управление картой",
   "More map tools": "Другие инструменты карты",

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Clock3 } from 'lucide-react';
 import { Label } from './ui/label';
@@ -54,6 +55,7 @@ export function PlannerTools({
   onSpeed,
   onStops,
   contextKey,
+  initiallyOpen = true,
   activity = 'cycling',
   fitness = 'regular',
   surface = 'unknown',
@@ -65,6 +67,7 @@ export function PlannerTools({
   onSpeed: (value: number) => void;
   onStops: (value: number) => void;
   contextKey?: string;
+  initiallyOpen?: boolean;
   activity?: Activity;
   fitness?: Fitness;
   surface?: Surface;
@@ -72,6 +75,7 @@ export function PlannerTools({
   onSurface?: (value: Surface) => void;
 }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(initiallyOpen);
   const hiking = activity === 'hiking';
   const { invalid: speedInvalid, ...speedField } = useDecimalField(
     hiking ? (speedToPace(speed) ?? speed) : speed,
@@ -87,7 +91,8 @@ export function PlannerTools({
     contextKey,
   );
   return (
-    <details className="personal-time-section" open>
+    <details className="personal-time-section planner-disclosure" open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary className="section-heading personal-time-heading">
         <span>
           <Clock3 size={16} aria-hidden="true" />
