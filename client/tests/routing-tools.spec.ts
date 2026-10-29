@@ -33,6 +33,7 @@ test.beforeEach(async ({ page }) => {
   });
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Приблизить', exact: true })).toBeEnabled();
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
 
 test('planner choices share translated accessible menus and remain inside the viewport', async ({ page }, info) => {
@@ -41,6 +42,7 @@ test('planner choices share translated accessible menus and remain inside the vi
   await expect(page.getByRole('checkbox', { name: 'Избегать лестниц' })).toBeVisible();
   await expect(page.getByText('Avoid steps', { exact: true })).toHaveCount(0);
   const profile = page.getByRole('button', { name: 'Велосипедный профиль', exact: true });
+  expect((await profile.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await profile.press('ArrowDown');
   const menu = page.getByRole('menu');
   await expect(menu).toHaveClass(/planner-choice-menu/);
@@ -48,13 +50,20 @@ test('planner choices share translated accessible menus and remain inside the vi
   const bounds = (await menu.boundingBox())!;
   expect(bounds.x).toBeGreaterThanOrEqual(0);
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(page.viewportSize()!.width);
-  expect((await profile.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await page.keyboard.press('Escape');
   await expect(profile).toBeFocused();
   await profile.click();
   await page.getByRole('menuitemradio', { name: 'Шоссейный велосипед', exact: true }).click();
   await expect(profile).toHaveText(/Шоссейный велосипед/);
   await plan(page);
+  const profileDetails = page.locator('.elevation-box');
+  if ((await profileDetails.getAttribute('open')) === null)
+    await profileDetails.locator('summary').click();
+  const elevationPosition = page.getByRole('slider', { name: 'Положение на профиле высот', exact: true });
+  await elevationPosition.focus();
+  await elevationPosition.press('ArrowRight');
+  await expect(page.locator('.map-annotation-status')).toHaveCount(0);
+  await expect(page.getByText('Точка профиля высот', { exact: true })).toHaveCount(0);
   const section = page.getByRole('button', { name: 'Режим участка 1', exact: true });
   await section.click();
   await expect(page.getByRole('menu')).toHaveClass(/planner-choice-menu/);
@@ -110,4 +119,41 @@ test('recalculation notice has readable width and disabled alternatives explain 
   release();
   await expect(page.getByRole('button', { name: 'Сохранить маршрут', exact: true })).toBeEnabled();
   await expect(note).toHaveCount(0);
+});
+
+test('routing errors keep text, recovery actions and dismissal separate', async ({ page }) => {
+  await plan(page);
+  await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) =>
+    route.fulfill({ status: 429, json: { error: { message: 'quota' } } }),
+  );
+  await addPoint(page, '52.02, 30.02');
+  const notice = page.locator('.planner-notice.error');
+  await expect(notice).toBeVisible();
+  const description = (await notice.locator('.planner-notice-description').boundingBox())!;
+  const heading = (await notice.locator('.planner-notice-heading').boundingBox())!;
+  expect(description.width).toBeGreaterThan(200);
+  expect(description.y).toBeGreaterThanOrEqual(heading.y + heading.height);
+  const card = (await notice.boundingBox())!;
+  const buttons = notice.locator('.planner-notice-actions button');
+  await expect(buttons).toHaveCount(3);
+  const bounds = await buttons.evaluateAll((elements) => elements.map((element) => {
+    const rect = element.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  }));
+  for (const button of bounds) {
+    expect(button.height).toBeGreaterThanOrEqual(44);
+    expect(button.y).toBeGreaterThanOrEqual(description.y + description.height);
+    expect(button.x).toBeGreaterThanOrEqual(card.x);
+    expect(button.x + button.width).toBeLessThanOrEqual(card.x + card.width);
+  }
+  for (let first = 0; first < bounds.length; first++) {
+    for (let next = first + 1; next < bounds.length; next++) {
+      const a = bounds[first], b = bounds[next];
+      expect(a.y + a.height <= b.y + 1 || b.y + b.height <= a.y + 1 || a.x + a.width <= b.x + 1 || b.x + b.width <= a.x + 1).toBe(true);
+    }
+  }
+  await expect(page.locator('.map-annotation-status')).toHaveCount(0);
+  await notice.getByRole('button', { name: 'Закрыть уведомление', exact: true }).click();
+  await expect(notice).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Экспорт', exact: true })).toBeDisabled();
 });

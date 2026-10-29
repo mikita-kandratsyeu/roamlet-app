@@ -1654,18 +1654,32 @@ export default function App() {
               {notice && (
                 <Alert
                   variant={notice.error ? 'destructive' : 'default'}
-                  className={`notice ${notice.error ? 'error' : 'success'}`}
+                  className={`notice planner-notice ${notice.error ? 'error' : 'success'}`}
                   role={notice.error ? 'alert' : 'status'}
                 >
-                  <span>
-                    {notice.kind && (
-                      <strong>{t(notice.kind === 'map' ? 'Map error' : 'Routing error')}: </strong>
-                    )}
-                    {translateMessage(notice.text)}
-                  </span>
-                  {notice.kind === 'routing' && (
+                  <div className="planner-notice-heading">
+                    {notice.error ? <TriangleAlert size={18} aria-hidden="true" /> : <Info size={18} aria-hidden="true" />}
+                    <strong>
+                      {t(notice.kind === 'map' ? 'Map error' : notice.kind === 'routing' ? 'Routing error' : 'Notification')}
+                    </strong>
                     <Button
                       variant="ghost"
+                      className="planner-notice-dismiss"
+                      aria-label={t('Dismiss notification')}
+                      onClick={() => setNotice(null)}
+                    >
+                      <X size={16} aria-hidden="true" />
+                    </Button>
+                  </div>
+                  <AlertDescription className="planner-notice-description">
+                    {translateMessage(notice.text)}
+                  </AlertDescription>
+                  {notice.kind && <div className="planner-notice-actions">
+                  {notice.kind === 'routing' && (
+                    <Button
+                      variant="outline"
+                      className="planner-notice-retry"
+                      disabled={!online || busy}
                       onClick={() => {
                         if (planningMode === 'loop') void generateLoops();
                         else {
@@ -1680,7 +1694,9 @@ export default function App() {
                   )}
                   {notice.kind === 'map' && (
                     <Button
-                      variant="ghost"
+                      variant="outline"
+                      className="planner-notice-retry"
+                      disabled={!online}
                       onClick={() => {
                         setMapRetryToken((value) => value + 1);
                         setNotice(null);
@@ -1699,13 +1715,7 @@ export default function App() {
                       {t('Use manual drawing')}
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    aria-label={t('Dismiss notification')}
-                    onClick={() => setNotice(null)}
-                  >
-                    <X size={16} />
-                  </Button>
+                  </div>}
                 </Alert>
               )}
               {online &&

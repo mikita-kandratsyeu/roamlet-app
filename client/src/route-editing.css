@@ -127,6 +127,74 @@
   min-height: 44px;
 }
 
+.planner .notice.planner-notice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.planner-notice-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.planner-notice-heading > svg {
+  flex-shrink: 0;
+}
+
+.planner-notice-heading > strong {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.planner-notice .planner-notice-description {
+  grid-column: 1;
+  display: block;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+
+.planner-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.planner .notice.planner-notice button {
+  width: auto;
+  height: auto;
+  min-height: 44px;
+  padding: 8px 12px;
+  margin: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.planner .notice.planner-notice .planner-notice-dismiss {
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.planner-notice-actions > button {
+  flex: 1 1 140px;
+}
+
+.planner-notice-actions > .planner-notice-retry {
+  flex-basis: 100%;
+}
+
 .point-alternatives {
   margin-block: 12px;
 }

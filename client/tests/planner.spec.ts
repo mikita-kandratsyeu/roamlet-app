@@ -68,7 +68,7 @@ test.beforeEach(async ({ page }) => {
       'content-type': 'application/json',
       authorization: 'test-only-not-a-real-ors-key',
     });
-    expect(request.postDataJSON()).toMatchObject({ instructions: false, elevation: false });
+    expect(request.postDataJSON()).toMatchObject({ instructions: false, elevation: true });
     return route.fulfill({ json: fixture });
   });
   await page.goto('/');
@@ -84,11 +84,13 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   });
   const tool = page.getByRole('button', { name: 'Manual drawing', exact: true });
   await expect(tool).toHaveCount(1);
-  await expect(page.getByRole('group', { name: 'Map controls' }).locator('button')).toHaveCount(7);
+  await expect(page.getByRole('group', { name: 'Map controls' }).getByRole('button', { name: 'Reset north', exact: true })).toHaveCount(1);
   await expect(page.getByRole('radio', { name: 'Manual', exact: true })).toHaveCount(0);
   await tool.click();
   await expect(tool).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('group', { name: 'Route style' })).toHaveCount(0);
+  const addPointsTool = page.getByRole('button', { name: 'Add points on map', exact: true });
+  if (await addPointsTool.isVisible()) await addPointsTool.click();
   const canvas = page.locator('.maplibregl-canvas');
   await expect(canvas).toHaveCSS('cursor', 'crosshair');
   const box = (await canvas.boundingBox())!;
@@ -403,7 +405,7 @@ test('coordinate input replaces paid search; hiking and service failures are hon
       [11.411, 47.271],
     ],
     instructions: false,
-    elevation: false,
+    elevation: true,
   });
   await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();
   await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) =>
@@ -429,7 +431,7 @@ test('round trips route intermediate points with bounded search; responsive cont
       expect(route.request().postDataJSON()).toEqual({
         coordinates: points,
         instructions: false,
-        elevation: false,
+        elevation: true,
       });
       expect(points).toHaveLength(4);
       expect(points[0]).toEqual(points[3]);

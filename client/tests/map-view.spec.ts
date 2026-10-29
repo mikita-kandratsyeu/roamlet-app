@@ -159,6 +159,8 @@ test('loads the Standard OSM raster style and preserves waypoints when switching
     expect(request.referer).toContain('http://127.0.0.1:4174/');
     expect(request.cacheControl).toBeUndefined();
   }
+  const addPointsTool = page.getByRole('button', { name: 'Add points on map', exact: true });
+  if (await addPointsTool.isVisible()) await addPointsTool.click();
   const canvas = page.locator('.maplibregl-canvas');
   const bounds = await canvas.boundingBox();
   expect(bounds).not.toBeNull();

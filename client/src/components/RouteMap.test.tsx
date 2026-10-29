@@ -1076,7 +1076,9 @@ it('fits reported accuracy bounds and reports precision rather than forcing zoom
   act(() => mocks.handlers.get('load')?.());
   fireEvent.click(screen.getByRole('button', { name: 'Use my location' }));
   expect(mocks.fit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ maxZoom: 16 }));
-  expect(screen.getByText('Location accuracy: ±2,000 m')).toBeInTheDocument();
+  expect(screen.getByText('Location accuracy: ±2,000 m')).toHaveClass('sr-only');
+  expect(screen.getByRole('button', { name: 'Use my location' })).toHaveAccessibleDescription('Location accuracy: ±2,000 m');
+  expect(document.querySelector('.map-annotation-status')).not.toBeInTheDocument();
   expect(mocks.fly).not.toHaveBeenCalled();
 });
 

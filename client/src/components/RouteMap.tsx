@@ -3,7 +3,7 @@ import { lineFeatures, pointFeature, routeAnnotations } from '../domain/mapAnnot
 import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { useTranslation } from 'react-i18next';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView } from '../domain/mapView';
@@ -103,6 +103,7 @@ interface Props {
 }
 export function RouteMap(props: Props) {
   const { t } = useTranslation();
+  const accuracyId = useId();
   const { resolvedTheme } = useTheme();
   const { manualDrawing, editable, onUndo, onRedo, canUndo, canRedo, online = true } = props;
   const container = useRef<HTMLDivElement>(null);
@@ -813,12 +814,10 @@ export function RouteMap(props: Props) {
           <Button variant="ghost" aria-label={t('Close waypoint actions')} onClick={() => setMenuWaypointId(null)}><X size={16} /></Button>
         </div>
       )}
-      {ready && (accuracy !== null || insertionPreview || props.routeStale) && (
-        <div className="map-annotation-status" role="status">
-          {accuracy !== null && <span>{t('Location accuracy: ±{{meters}} m', { meters: formatNumber(Math.round(accuracy)) })}</span>}
-          {insertionPreview && <span>{t('Insert waypoint here')}</span>}
-          {props.routeStale && <span>{t('Route is out of date')}</span>}
-        </div>
+      {ready && accuracy !== null && (
+        <span id={accuracyId} className="sr-only" role="status">
+          {t('Location accuracy: ±{{meters}} m', { meters: formatNumber(Math.round(accuracy)) })}
+        </span>
       )}
       {(mapError || preferenceWarning) && (
         <Alert className="map-warning" role="status">
@@ -907,6 +906,7 @@ export function RouteMap(props: Props) {
           className="map-control"
           title={t('Use my location')}
           aria-label={t('Use my location')}
+          aria-describedby={accuracy !== null ? accuracyId : undefined}
           disabled={!ready || locating}
           onClick={locate}
         >

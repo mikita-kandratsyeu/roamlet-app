@@ -51,22 +51,6 @@
   box-shadow: 0 4px 16px #0002;
 }
 .map-waypoint-actions strong { overflow-wrap: anywhere; }
-.map-annotation-status {
-  position: absolute;
-  z-index: 4;
-  right: 72px;
-  bottom: calc(var(--map-bottom-reserved, 110px) + 8px);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-width: calc(100% - 96px);
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: var(--background);
-  color: var(--foreground);
-  font-size: 12px;
-  pointer-events: none;
-}
 @media (max-width: 700px) {
   .map-extra-controls .map-control.map-zoom-in,
   .map-extra-controls .map-control.map-zoom-out {
@@ -75,5 +59,4 @@
     margin-top: 0;
   }
   .map-waypoint-actions { right: 12px; max-width: calc(100% - 24px); }
-  .map-annotation-status { right: 12px; max-width: calc(100% - 24px); }
 }
