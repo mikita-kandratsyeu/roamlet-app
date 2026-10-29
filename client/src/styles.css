@@ -221,6 +221,15 @@ textarea::placeholder {
   font-weight: 700;
   padding-top: 2px;
 }
+.brand-beta {
+  padding: 3px 6px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
 .app-header nav {
   margin-left: auto;
   display: flex;

@@ -316,6 +316,14 @@ describe('offline planner', () => {
 });
 
 describe('route planner interactions', () => {
+  it('shows a beta marker beside the header logo', async () => {
+    await i18n.changeLanguage('en');
+    render(<App />);
+    const brand = screen.getByRole('link', { name: 'Roamlet home' });
+    expect(within(brand).getByText('Roamlet')).toBeVisible();
+    expect(within(brand).getByText('beta')).toBeVisible();
+  });
+
   it('offers manual drawing in the empty planner and an explicit return without routing requests', async () => {
     await i18n.changeLanguage('en');
     render(<App />);

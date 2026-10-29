@@ -1041,6 +1041,7 @@ export default function App() {
               <img src="/icon.svg" alt="" />
             </span>
             <strong className="brand-wordmark">Roamlet</strong>
+            <span className="brand-beta">beta</span>
           </a>
           <nav aria-label={t('Main navigation')}>
             <Button
