@@ -81,7 +81,7 @@ it('loads with search focus, route count, activity and distance, and reopens the
   expect(
     screen.getByText(
       i18next.t(
-        'Your browser stores these routes in IndexedDB. Export important routes as GPX before clearing browser data.',
+        'Keep a downloaded JSON backup outside this browser so you can restore your library on another device.',
       ),
     ),
   ).toBeVisible();
@@ -138,7 +138,7 @@ it('offers backup import for an empty library without fake route creation contro
   render(<Library onClose={() => {}} onOpen={() => {}} />);
   await screen.findByText(i18next.t('Your next adventure belongs here'));
   expect(screen.queryByRole('button', { name: /Sort routes:/ })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Export library' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Download backup' })).toBeDisabled();
   expect(screen.getByLabelText('Import library file')).toBeEnabled();
   expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
   expect(screen.getByRole('status')).toHaveTextContent('Saved routes 0');
@@ -392,7 +392,7 @@ it('downloads a versioned JSON library export using a revoked local Blob URL', a
   const revoke = vi.fn();
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke }));
   const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-  fireEvent.click(screen.getByRole('button', { name: 'Export library' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Download backup' }));
   expect(create).toHaveBeenCalledWith(expect.any(Blob));
   expect(click).toHaveBeenCalledOnce();
   await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:library'));
@@ -438,7 +438,7 @@ it('uses a hidden file picker behind the styled Import library button and cohesi
   const input = screen.getByLabelText('Import library file');
   expect(input).toHaveAttribute('hidden');
   const pick = vi.spyOn(input as HTMLInputElement, 'click').mockImplementation(() => {});
-  await user.click(screen.getByRole('button', { name: 'Import library' }));
+  await user.click(screen.getByRole('button', { name: 'Restore from backup' }));
   expect(pick).toHaveBeenCalledOnce();
   expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   const favorites = screen.getByRole('button', { name: 'Favorites only' });
@@ -549,7 +549,8 @@ it('renders three short tags as compact badges with complete accessible labels',
 it('reserves an empty tag row without badges for absent and empty tags', async () => {
   vi.mocked(listRoutes).mockResolvedValue([alpine, { ...woodland, tags: [] }]);
   await openLibrary();
-  const rows = screen.getByRole('list', { name: 'Saved routes' })
+  const rows = screen
+    .getByRole('list', { name: 'Saved routes' })
     .querySelectorAll('.library-route-tags');
   expect(rows).toHaveLength(2);
   for (const row of rows) {
@@ -560,7 +561,16 @@ it('reserves an empty tag row without badges for absent and empty tags', async (
 
 it('keeps complete long route names/tags/details accessible in consistently reserved card content slots', async () => {
   const longName = `Alpine loop ${'(copy) '.repeat(35)}`;
-  const longTags = ['mountains'.repeat(30), 'weekend', 'forest', 'lake', 'coast', 'city', 'trail', 'hidden-tag'];
+  const longTags = [
+    'mountains'.repeat(30),
+    'weekend',
+    'forest',
+    'lake',
+    'coast',
+    'city',
+    'trail',
+    'hidden-tag',
+  ];
   const longDescription = 'Very detailed route notes. '.repeat(80);
   const longRoute = { ...alpine, name: longName, tags: longTags, description: longDescription };
   vi.mocked(listRoutes).mockResolvedValue([longRoute, { ...woodland, description: '' }]);
@@ -585,7 +595,8 @@ it('keeps complete long route names/tags/details accessible in consistently rese
   expect(tagRow.querySelector('.library-route-tag-label')).toHaveTextContent(longTags[0]);
   expect(tagRow.querySelector('.library-route-tag-overflow')).toHaveTextContent('+5');
   expect(tagRow.querySelector('.library-route-tag-overflow')).toHaveAttribute(
-    'title', longTags.slice(3).join(', '),
+    'title',
+    longTags.slice(3).join(', '),
   );
   expect(longBody).toHaveAccessibleName(expect.stringContaining(longTags.join(', ')));
   expect(longBody.querySelector('.route-description')).toHaveAttribute('title', longDescription);
@@ -614,4 +625,14 @@ it('keeps complete long route names/tags/details accessible in consistently rese
   expect(within(list).getAllByRole('listitem')).toHaveLength(1);
   fireEvent.click(within(actions).getByRole('button', { name: `Edit ${longName.trim()}` }));
   expect(screen.getByRole('textbox', { name: 'Tags' })).toHaveValue(longTags.join(', '));
+});
+
+it('explains local-only storage and the scope of a library backup beside the actions', async () => {
+  render(<Library onClose={vi.fn()} onOpen={vi.fn()} />);
+  const group = await screen.findByRole('group', { name: 'Library backup' });
+  expect(group).toHaveAccessibleDescription(
+    'Routes stay only in this browser. No cloud copy. Clearing browser data deletes them. JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.',
+  );
+  expect(within(group).getByRole('button', { name: 'Download backup' })).toBeEnabled();
+  expect(within(group).getByRole('button', { name: 'Restore from backup' })).toBeEnabled();
 });

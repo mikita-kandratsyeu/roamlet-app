@@ -529,5 +529,21 @@
   "Download the GPX file above.": "Download the GPX file above.",
   "In Komoot, open Profile → Saved routes → Import a GPS file.": "In Komoot, open Profile → Saved routes → Import a GPS file.",
   "Choose the downloaded file, import it as a planned route, and save.": "Choose the downloaded file, import it as a planned route, and save.",
-  "Komoot import instructions": "Komoot import instructions"
+  "Komoot import instructions": "Komoot import instructions",
+  "Manual route drawing": "Manual drawing",
+  "Draw a route manually": "Draw a route manually",
+  "Return to automatic routing": "Return to automatic routing",
+  "Connect to the internet to calculate routes.": "Connect to the internet to calculate routes.",
+  "Saved routes, GPX and coordinate-based manual drawing remain available. Map loading and automatic routing need internet.": "Saved routes, GPX and manual drawing by coordinates are available. Loading the map and automatic routing need internet.",
+  "Download backup": "Download backup",
+  "Restore from backup": "Restore from backup",
+  "Library backup": "Library backup",
+  "Keep a downloaded JSON backup outside this browser so you can restore your library on another device.": "Keep a downloaded JSON backup outside this browser so you can restore your library on another device.",
+  "Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.": "Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.",
+  "JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.": "JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.",
+  "Routes stay only in this browser on this device. There is no cloud copy. Clearing browser data deletes them. Download a JSON library backup from My routes before clearing browser data; GPX exports contain individual routes, not a library backup.": "Routes stay only in this browser on this device. There is no cloud copy. Clearing browser data deletes them. Download a JSON library backup from My routes before clearing browser data; GPX exports contain individual routes, not a library backup.",
+  "Without an internet connection": "Without an internet connection",
+  "Visit the app online first so its offline shell can be cached. No offline map regions are downloaded.": "Visit the app online first so its offline shell can be cached. No offline map regions are downloaded.",
+  "Available offline: saved routes and statistics, GPX import and export, library backups, and manual drawing by coordinates.": "Available offline: saved routes and statistics, GPX import and export, library backups, and manual drawing by coordinates.",
+  "Internet required: loading the map, automatic routing and round trips. This app is not an offline navigation map.": "Internet required: loading the map, automatic routing and round trips. This app is not an offline navigation map."
 }

@@ -105,7 +105,10 @@ test('back to map stays a themed navigation control on narrow and desktop screen
       .click();
     for (const theme of ['light', 'dark']) {
       await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
-      await page.locator('.header-menu-theme-option').nth(theme === 'dark' ? 1 : 0).click();
+      await page
+        .locator('.header-menu-theme-option')
+        .nth(theme === 'dark' ? 1 : 0)
+        .click();
       await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
       await page.getByRole('menuitem', { name: /^(My routes|Мои маршруты)$/ }).click();
       await expect(page.getByTestId('panel-loader')).toHaveCount(0);
@@ -152,7 +155,9 @@ test('map issue reporting stays in the tools menu at every screen size', async (
   }
 });
 
-test('compact map controls keep three touch targets and all tools available', async ({ page }, testInfo) => {
+test('compact map controls keep three touch targets and all tools available', async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize({ width: 320, height: 800 });
   const controls = page.getByRole('group', { name: 'Map controls' });
   await expect(controls.getByRole('button')).toHaveCount(3);
@@ -194,7 +199,9 @@ test('compact map controls keep three touch targets and all tools available', as
   await expect(controls.getByRole('button', { name: 'Zoom in' })).toBeVisible();
 });
 
-test('small-screen statistics keep labels readable and time ranges on one line', async ({ page }, testInfo) => {
+test('small-screen statistics keep labels readable and time ranges on one line', async ({
+  page,
+}, testInfo) => {
   await page.getByLabel('Import GPX file').setInputFiles({
     name: 'mountain-profile.gpx',
     mimeType: 'application/gpx+xml',
@@ -208,7 +215,9 @@ test('small-screen statistics keep labels readable and time ranges on one line',
   await expect(page.locator('.stat-card')).toHaveCount(6);
   for (const language of ['en', 'ru']) {
     await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
-    await page.getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' })
+      .click();
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 1000 });
       const sheet = page.locator('.mobile-sheet-toggle');
@@ -224,7 +233,9 @@ test('small-screen statistics keep labels readable and time ranges on one line',
         expect(value.x).toBeGreaterThanOrEqual(label.x + label.width + 10);
         expect(value.x + value.width).toBeLessThanOrEqual(width);
       }
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
       await cards.nth(2).scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath(`statistics-${language}-${width}.png`) });
     }
@@ -249,16 +260,23 @@ test('mobile planner header toggles without a right-hand arrow', async ({ page }
   await expect(header).toHaveAttribute('aria-expanded', initial === 'true' ? 'false' : 'true');
 });
 
-test('saved descriptions use two-line previews and open in the planner without map clutter', async ({ page }, testInfo) => {
-  await page.setViewportSize(testInfo.project.name === 'mobile'
-    ? { width: 320, height: 844 }
-    : { width: 1440, height: 1000 });
-  const description = ('Meet at the station and bring water. Enjoy the forest trail and its views. ').repeat(12)
-    + '\n\nReturn before sunset.';
+test('saved descriptions use two-line previews and open in the planner without map clutter', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 844 }
+      : { width: 1440, height: 1000 },
+  );
+  const description =
+    'Meet at the station and bring water. Enjoy the forest trail and its views. '.repeat(12) +
+    '\n\nReturn before sunset.';
   await page.getByLabel('Import GPX file').setInputFiles({
     name: 'description.gpx',
     mimeType: 'application/gpx+xml',
-    buffer: Buffer.from('<gpx version="1.1" creator="test"><trk><name>Forest notes</name><trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.01" lon="11.01"/></trkseg></trk></gpx>'),
+    buffer: Buffer.from(
+      '<gpx version="1.1" creator="test"><trk><name>Forest notes</name><trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.01" lon="11.01"/></trkseg></trk></gpx>',
+    ),
   });
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('textbox', { name: /^Description/ }).fill(description);
@@ -285,17 +303,25 @@ test('saved descriptions use two-line previews and open in the planner without m
   await expect(libraryPreview).toHaveCSS('-webkit-line-clamp', '2');
   await expect(libraryPreview).toHaveAttribute('title', description);
   const libraryBox = (await libraryPreview.boundingBox())!;
-  const lineHeight = await libraryPreview.evaluate((element) => Number.parseFloat(getComputedStyle(element).lineHeight));
+  const lineHeight = await libraryPreview.evaluate((element) =>
+    Number.parseFloat(getComputedStyle(element).lineHeight),
+  );
   expect(libraryBox.height).toBeLessThanOrEqual(lineHeight * 2 + 1);
   await page.screenshot({ path: testInfo.outputPath('library-description.png') });
   await page.locator('.library-route .library-open-action').click();
   await expect(page.locator('.library-screen')).toHaveCount(0);
   const sheet = page.locator('.mobile-sheet-toggle');
-  if (await sheet.isVisible() && await sheet.getAttribute('aria-expanded') === 'false') await sheet.click();
+  if ((await sheet.isVisible()) && (await sheet.getAttribute('aria-expanded')) === 'false')
+    await sheet.click();
   const trigger = page.getByRole('button', { name: 'Read route description' });
-  await expect(page.locator('.planner').getByRole('button', { name: 'Read route description' })).toBeVisible();
+  await expect(
+    page.locator('.planner').getByRole('button', { name: 'Read route description' }),
+  ).toBeVisible();
   await expect(page.locator('.map-region .planner-route-description')).toHaveCount(0);
-  await expect(trigger.locator('.planner-route-description-preview')).toHaveCSS('-webkit-line-clamp', '2');
+  await expect(trigger.locator('.planner-route-description-preview')).toHaveCSS(
+    '-webkit-line-clamp',
+    '2',
+  );
   const tagPreview = page.getByRole('button', { name: 'View all route tags' });
   await expect(tagPreview.locator('[data-slot="badge"]')).toHaveCount(4);
   await expect(tagPreview.locator('.planner-route-tag-overflow')).toHaveText('+2');
@@ -313,7 +339,10 @@ test('saved descriptions use two-line previews and open in the planner without m
   expect(await dialog.locator('.route-description-full').textContent()).toBe(description);
   await expect(dialog.locator('.route-full-tags > li')).toHaveCount(tags.length);
   for (const tag of tags) await expect(dialog.getByText(tag, { exact: true })).toBeVisible();
-  await expect(dialog.locator('.route-full-tags [data-slot="badge"]').first()).toHaveCSS('background-color', tagColors.background);
+  await expect(dialog.locator('.route-full-tags [data-slot="badge"]').first()).toHaveCSS(
+    'background-color',
+    tagColors.background,
+  );
   expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('full-route-description.png') });
   await dialog.press('Escape');
@@ -591,7 +620,7 @@ test('saved route cards keep uniform heights and aligned actions with long names
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'My routes', exact: true }).click();
   const pending = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export library', exact: true }).click();
+  await page.getByRole('button', { name: 'Download backup', exact: true }).click();
   const backup = JSON.parse(await readFile((await (await pending).path())!, 'utf8'));
   const original = backup.routes[0];
   backup.routes = Array.from({ length: 6 }, (_, index) => ({
@@ -695,7 +724,7 @@ test('library controls share application styling in Russian, light and dark, wit
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(screen.getByRole('button', { name: 'Назад к карте', exact: true })).toBeVisible();
   await expect(
-    screen.getByRole('button', { name: 'Импорт библиотеки', exact: true }),
+    screen.getByRole('button', { name: 'Восстановить из копии', exact: true }),
   ).toBeVisible();
   await expect(screen.getByLabel('Файл для импорта библиотеки', { exact: true })).not.toBeVisible();
   await expect(screen.getByRole('checkbox')).toHaveCount(0);
@@ -733,4 +762,91 @@ test('library controls share application styling in Russian, light and dark, wit
   await expect(page.locator('html')).toHaveClass(/dark/);
   expect(await screen.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('library-ru-dark.png') });
+});
+
+test('manual discovery and backup guidance share the existing design in both languages and themes', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 800 }
+      : { width: 1440, height: 1000 },
+  );
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English', exact: true })
+      .click();
+    for (const theme of ['light', 'dark']) {
+      await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+      await page
+        .locator('.header-menu-theme-option')
+        .nth(theme === 'dark' ? 1 : 0)
+        .click();
+      const manual = page.getByRole('button', {
+        name: /^(Draw a route manually|Нарисовать маршрут вручную)$/,
+      });
+      await manual.scrollIntoViewIfNeeded();
+      await expect(manual).toBeInViewport();
+      await expect(manual).toHaveAttribute('data-variant', 'outline');
+      await expect(manual).toHaveCSS('font-weight', '400');
+      await expect(manual).toHaveCSS('box-shadow', 'none');
+      const manualBox = (await manual.boundingBox())!;
+      const tabsBox = (await page.locator('.planning-tabs').boundingBox())!;
+      expect(manualBox.height).toBeGreaterThanOrEqual(44);
+      expect(manualBox.x).toBeCloseTo(tabsBox.x, 1);
+      expect(manualBox.width).toBeCloseTo(tabsBox.width, 1);
+      expect(manualBox.y).toBeGreaterThanOrEqual(tabsBox.y + tabsBox.height);
+      await page.screenshot({
+        path: testInfo.outputPath(`manual-action-${language}-${theme}.png`),
+      });
+      await manual.click();
+      const section = page.getByRole('region', { name: /^(Manual drawing|Ручное рисование)$/ });
+      await expect(section).toBeVisible();
+      const returnButton = section.getByRole('button', {
+        name: /^(Return to automatic routing|Вернуться к автоматическому расчёту)$/,
+      });
+      await returnButton.scrollIntoViewIfNeeded();
+      const box = (await returnButton.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+      await page.screenshot({
+        path: testInfo.outputPath(`manual-discovery-${language}-${theme}.png`),
+      });
+      await returnButton.click();
+      await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+      await page.getByRole('menuitem', { name: /^(My routes|Мои маршруты)$/ }).click();
+      const backups = page.getByRole('group', {
+        name: /^(Library backup|Резервная копия библиотеки)$/,
+      });
+      await expect(backups).toHaveAccessibleDescription(/JSON/);
+      await expect(
+        backups.getByRole('button', { name: /^(Download backup|Скачать резервную копию)$/ }),
+      ).toBeDisabled();
+      const restore = backups.getByRole('button', {
+        name: /^(Restore from backup|Восстановить из копии)$/,
+      });
+      await restore.scrollIntoViewIfNeeded();
+      await expect(restore).toBeInViewport();
+      const backupBoxes = await Promise.all(
+        (await backups.getByRole('button').all()).map((button) => button.boundingBox()),
+      );
+      for (const backupBox of backupBoxes) {
+        expect(backupBox!.height).toBeGreaterThanOrEqual(44);
+      }
+      if (testInfo.project.name === 'mobile') {
+        expect(backupBoxes[1]!.y).toBeGreaterThanOrEqual(
+          backupBoxes[0]!.y + backupBoxes[0]!.height,
+        );
+        expect(backupBoxes[1]!.width).toBeCloseTo(backupBoxes[0]!.width, 1);
+      }
+      expect(
+        await page.locator('.library-screen').evaluate((el) => el.scrollWidth <= el.clientWidth),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`backup-guidance-${language}-${theme}.png`),
+      });
+      await page.getByRole('button', { name: /^(Back to map|Назад к карте)$/ }).click();
+    }
+  }
 });

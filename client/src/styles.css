@@ -98,7 +98,8 @@ button svg {
   color: var(--primary);
   border-color: transparent;
 }
-:is(.route-library .library-route-tags, .planner-route-tags) :is(.library-route-tag-overflow, .planner-route-tag-overflow) {
+:is(.route-library .library-route-tags, .planner-route-tags)
+  :is(.library-route-tag-overflow, .planner-route-tag-overflow) {
   background: var(--muted);
   color: var(--muted-foreground);
 }
@@ -425,6 +426,29 @@ textarea::placeholder {
   color: var(--primary);
   background: transparent;
   border-bottom-color: var(--primary);
+}
+.manual-planning-discovery {
+  margin: 12px 0;
+}
+.manual-planning-section {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+.manual-planning-section .fine-print {
+  margin: 0;
+}
+.manual-planning-action[data-slot='button'] {
+  width: 100%;
+  height: auto;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: var(--font-size-control);
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: normal;
+  box-shadow: none;
 }
 .search-results {
   list-style: none;

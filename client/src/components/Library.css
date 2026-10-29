@@ -544,10 +544,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: -4px 0 16px;
+  margin: 12px 0 16px;
 }
 .route-library .library-backup-actions button {
-  min-height: 36px;
+  min-height: 44px;
   height: auto;
   padding: 8px 12px;
   border-radius: 8px;
@@ -741,7 +741,7 @@
 @media (max-width: 560px) {
   .route-library .library-backup-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
   .route-library .library-backup-actions button {
     min-width: 0;

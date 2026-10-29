@@ -974,7 +974,7 @@ export default function App() {
               <strong>{t('No internet connection')}</strong>
               <span>
                 {t(
-                  'Saved routes and GPX are available. Manual drawing uses entered coordinates; drawing on the map and automatic routing need internet.',
+                  'Saved routes, GPX and coordinate-based manual drawing remain available. Map loading and automatic routing need internet.',
                 )}
               </span>
             </div>
@@ -1152,20 +1152,38 @@ export default function App() {
                   {t('Hiking')}
                 </ToggleGroupItem>
               </ToggleGroup>
-              {!online && (
-                <Alert className="offline-planner-notice" role="note">
-                  <TriangleAlert size={18} aria-hidden="true" />
-                  <div>
-                    <strong>{t('Automatic routing is unavailable offline')}</strong>
-                    <p>
-                      {planningMode === 'manual'
-                        ? t('Enter coordinates to draw straight lines without an online map.')
-                        : t(
-                            'Connect to the internet to calculate routes. Saved geometry, statistics and GPX remain available.',
-                          )}
+              {offlineAutomatic && mode === 'manual' && (
+                <p className="fine-print" role="note">
+                  {t('Connect to the internet to calculate routes.')}
+                </p>
+              )}
+              {mode === 'manual' && planningMode === 'manual' && (
+                <section className="manual-planning-section" aria-label={t('Manual route drawing')}>
+                  <p className="fine-print manual-mode-note">
+                    <Ruler size={14} aria-hidden="true" />
+                    <strong>{t('Manual route drawing')}</strong>
+                  </p>
+                  <p className="fine-print">
+                    {t('Straight lines between points. No road snapping.')}
+                    {!online && (
+                      <> {t('Enter coordinates to draw straight lines without an online map.')}</>
+                    )}
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="manual-planning-action"
+                    disabled={!online}
+                    aria-describedby={!online ? 'manual-return-offline' : undefined}
+                    onClick={() => changePlanningMode(automaticMode)}
+                  >
+                    {t('Return to automatic routing')}
+                  </Button>
+                  {!online && (
+                    <p id="manual-return-offline" className="fine-print">
+                      {t('Connect to the internet to calculate routes.')}
                     </p>
-                  </div>
-                </Alert>
+                  )}
+                </section>
               )}
               {mode === 'manual' ? (
                 <fieldset className="planner-edit-fields" disabled={offlineAutomatic}>
@@ -1193,11 +1211,17 @@ export default function App() {
                       </ToggleGroupItem>
                     </ToggleGroup>
                   )}
-                  {planningMode === 'manual' && (
-                    <p className="fine-print manual-mode-note">
-                      <Ruler size={14} aria-hidden="true" />
-                      {t('Straight lines between points. No road snapping.')}
-                    </p>
+                  {planningMode !== 'manual' && online && !waypoints.length && (
+                    <div className="manual-planning-discovery">
+                      <Button
+                        variant="outline"
+                        className="manual-planning-action"
+                        onClick={() => changePlanningMode('manual')}
+                      >
+                        <Ruler size={16} aria-hidden="true" />
+                        {t('Draw a route manually')}
+                      </Button>
+                    </div>
                   )}
                   {planningMode !== 'manual' && (
                     <div className="routing-preferences">
@@ -2135,9 +2159,27 @@ export default function App() {
             <h3>{t('Your route, your device')}</h3>
             <p>
               {t(
-                'Routes stay in your browser’s IndexedDB. No account or backend is needed. Export GPX backups before clearing browser data.',
+                'Routes stay only in this browser on this device. There is no cloud copy. Clearing browser data deletes them. Download a JSON library backup from My routes before clearing browser data; GPX exports contain individual routes, not a library backup.',
               )}
             </p>
+            <h3>{t('Without an internet connection')}</h3>
+            <p>
+              {t(
+                'Visit the app online first so its offline shell can be cached. No offline map regions are downloaded.',
+              )}
+            </p>
+            <ul>
+              <li>
+                {t(
+                  'Available offline: saved routes and statistics, GPX import and export, library backups, and manual drawing by coordinates.',
+                )}
+              </li>
+              <li>
+                {t(
+                  'Internet required: loading the map, automatic routing and round trips. This app is not an offline navigation map.',
+                )}
+              </li>
+            </ul>
             <h3>{t('Take it with you')}</h3>
             <p>
               {t(

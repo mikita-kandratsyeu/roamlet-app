@@ -86,7 +86,7 @@ test('personal adjustments change the range without routing or replacing provide
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
   await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
-  const backup = JSON.parse(await download(page, 'Export library'));
+  const backup = JSON.parse(await download(page, 'Download backup'));
   expect(backup.routes[0].stats.distance).toBeCloseTo(
     calculateStats(
       [
@@ -135,7 +135,7 @@ test('hiking pace and climb allowance preserve split GPX tracks and original hei
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
   await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
-  const backup = JSON.parse(await download(page, 'Export library'));
+  const backup = JSON.parse(await download(page, 'Download backup'));
   expect(backup.routes[0].stats.ascent).toBe(600);
   expect(backup.routes[0].segments).toHaveLength(2);
   expect(requests).toEqual([]);

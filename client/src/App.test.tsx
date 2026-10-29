@@ -237,7 +237,7 @@ describe('offline planner', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled());
     expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeEnabled();
     expect(
-      screen.getByText('Enter coordinates to draw straight lines without an online map.'),
+      screen.getByText(/Enter coordinates to draw straight lines without an online map\./),
     ).toBeVisible();
     expect(document.querySelector('.configuration-note')).toBeNull();
     expect(provider.calculateRoute).not.toHaveBeenCalled();
@@ -245,6 +245,40 @@ describe('offline planner', () => {
 });
 
 describe('route planner interactions', () => {
+  it('offers manual drawing in the empty planner and an explicit return without routing requests', async () => {
+    await i18n.changeLanguage('en');
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Draw a route manually' }));
+    expect(screen.getByRole('region', { name: 'Manual drawing' })).toBeVisible();
+    expect(screen.queryByRole('radiogroup', { name: 'Route style' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Return to automatic routing' }));
+    expect(screen.getByRole('radiogroup', { name: 'Route style' })).toBeVisible();
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+  });
+
+  it('explains offline limits and JSON backups before the connection is lost', async () => {
+    await i18n.changeLanguage('en');
+    render(<App />);
+    openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Help and data sources' }));
+    const help = screen.getByRole('dialog', { name: 'Help and data sources' });
+    expect(within(help).getByText('Without an internet connection')).toBeVisible();
+    expect(within(help).getByText(/Visit the app online first/)).toBeVisible();
+    expect(within(help).getByText(/There is no cloud copy/)).toBeVisible();
+    expect(within(help).getByText(/Internet required: loading the map/)).toBeVisible();
+  });
+
+  it('explains why returning to automatic routing is disabled offline', async () => {
+    await i18n.changeLanguage('en');
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Draw a route manually' }));
+    setOnline(false);
+    const button = screen.getByRole('button', { name: 'Return to automatic routing' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription('Connect to the internet to calculate routes.');
+    expect(document.querySelector('.offline-planner-notice')).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeEnabled();
+  });
   it('shows exact missing-key guidance and hosted ORS setup without requiring a key for the map', async () => {
     vi.mocked(checkRoutingConfiguration).mockResolvedValue(false);
     render(<App />);

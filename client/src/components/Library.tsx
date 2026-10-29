@@ -368,7 +368,20 @@ export function Library({
               </DropdownMenu>
             )}
           </div>
-          <div className="library-backup-actions">
+          <p className="fine-print" id="library-backup-help">
+            {t(
+              'Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.',
+            )}{' '}
+            {t(
+              'JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.',
+            )}
+          </p>
+          <div
+            className="library-backup-actions"
+            role="group"
+            aria-label={t('Library backup')}
+            aria-describedby="library-backup-help"
+          >
             <Button
               variant="outline"
               disabled={loading || busy || loadFailed || !routes.length}
@@ -392,7 +405,7 @@ export function Library({
               }}
             >
               <Download size={16} aria-hidden="true" />
-              {t('Export library')}
+              {t('Download backup')}
             </Button>
             <Button
               variant="outline"
@@ -404,7 +417,7 @@ export function Library({
               }}
             >
               <Upload size={16} aria-hidden="true" />
-              {t('Import library')}
+              {t('Restore from backup')}
             </Button>
             <input
               ref={importInput}
@@ -989,7 +1002,7 @@ export function Library({
             <Info size={18} aria-hidden="true" />
             <span>
               {t(
-                'Your browser stores these routes in IndexedDB. Export important routes as GPX before clearing browser data.',
+                'Keep a downloaded JSON backup outside this browser so you can restore your library on another device.',
               )}
             </span>
           </p>

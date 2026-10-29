@@ -162,7 +162,9 @@ for (const viewport of [
         await page.getByRole('button', { name: 'Back to map', exact: true }).click();
         await context.setOffline(false);
         await expect(page.getByRole('heading', { name: 'Map unavailable offline' })).toHaveCount(0);
-        await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
+        await expect(
+          page.getByRole('button', { name: 'Use my location', exact: true }),
+        ).toBeEnabled();
         const reconnected = page.waitForEvent('download');
         await page.getByRole('button', { name: 'Export', exact: true }).click();
         await page
@@ -340,7 +342,7 @@ test('offline reload restores an unsaved draft and exposes library backup withou
     await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
     await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
     const pending = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Export library', exact: true }).click();
+    await page.getByRole('button', { name: 'Download backup', exact: true }).click();
     const json = await readFile((await (await pending).path())!, 'utf8');
     expect(JSON.parse(json).routes).toHaveLength(1);
     await page.getByLabel('Import library file').setInputFiles({
@@ -385,10 +387,7 @@ test('confirming a waiting update saves the current draft before reloading', asy
     await page.getByRole('button', { name: 'Reload app', exact: true }).click();
     await reloaded;
     await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
-    await expect(await mapTool(page, 'Manual drawing')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    await expect(await mapTool(page, 'Manual drawing')).toHaveAttribute('aria-pressed', 'true');
     const pending = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Export', exact: true }).click();
     await page

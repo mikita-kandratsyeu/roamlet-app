@@ -8,6 +8,7 @@ export default defineConfig({
     'ui-consistency.spec.ts',
     'time-model.spec.ts',
     'routing-tools.spec.ts',
+    'mobile-ergonomics.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,

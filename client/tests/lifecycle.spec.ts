@@ -61,10 +61,7 @@ test('manual edits undo and redo, retain native text undo, and recover after rel
   await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
   await expect(page.locator('.waypoint-marker')).toHaveCount(2);
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
-  await expect(await mapTool(page, 'Manual drawing')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(await mapTool(page, 'Manual drawing')).toHaveAttribute('aria-pressed', 'true');
   const xml = await readDownload(page, 'Export');
   expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
 });
@@ -102,7 +99,7 @@ test('library backup round trip is local and import leaves the editor unchanged'
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
   const before = await readDownload(page, 'Export');
   await library(page);
-  const backup = await readDownload(page, 'Export library');
+  const backup = await readDownload(page, 'Download backup');
   const data = JSON.parse(backup);
   expect(data.routes).toHaveLength(1);
   expect(data.routes[0].segments).toEqual([
@@ -152,7 +149,7 @@ test('favorites, tags and combined library filters survive reload and backup', a
   await page.getByLabel('Maximum length (km)', { exact: true }).fill('100');
   await page.getByRole('textbox', { name: 'Search saved routes' }).fill('Segmented');
   await expect(page.locator('.library-route')).toHaveCount(1);
-  const backup = JSON.parse(await readDownload(page, 'Export library'));
+  const backup = JSON.parse(await readDownload(page, 'Download backup'));
   expect(backup.routes[0].favorite).toBe(true);
   expect(backup.routes[0].tags).toEqual(['ridge', 'weekend']);
   await page.reload();
@@ -328,10 +325,7 @@ test('discarding a draft leaves manual preference and library intact', async ({ 
   await page.reload();
   await page.getByRole('button', { name: 'Delete draft', exact: true }).click();
   await expect(page.locator('.waypoint-marker')).toHaveCount(0);
-  await expect(await mapTool(page, 'Manual drawing')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(await mapTool(page, 'Manual drawing')).toHaveAttribute('aria-pressed', 'true');
   await page.reload();
   await expect(page.getByRole('button', { name: 'Restore draft', exact: true })).toHaveCount(0);
 });
