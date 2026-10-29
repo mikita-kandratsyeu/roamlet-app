@@ -35,7 +35,6 @@ import {
   Plus,
   Minus,
   X,
-  Layers,
   LoaderCircle,
   FileUp,
   RefreshCw,
@@ -976,8 +975,20 @@ export function RouteMap(props: Props) {
           disabled={!ready}
           onClick={() => map.current?.easeTo?.({ bearing: 0, duration: mapMotionDuration() })}
         >
-          <span aria-hidden="true" style={{ transform: `rotate(${-bearing}deg)` }}>
-            ↑<small>N</small>
+          <span className="map-compass" aria-hidden="true">
+            <small className="map-compass-label">N</small>
+            <svg
+              className="map-compass-needle size-6"
+              viewBox="0 0 24 24"
+              fill="none"
+              focusable="false"
+              style={{ transform: `rotate(${-bearing}deg)` }}
+            >
+              <path className="map-compass-south" d="M12 22 7 12h10Z" />
+              <path className="map-compass-north" d="M12 2 7 12h10Z" />
+              <path className="map-compass-facet" d="M12 2v10h5Z" />
+              <circle className="map-compass-pivot" cx="12" cy="12" r="1.5" />
+            </svg>
           </span>
         </Button>
         <Button

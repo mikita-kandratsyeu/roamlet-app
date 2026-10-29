@@ -7,19 +7,58 @@
   outline: 3px solid #f0b44c;
   outline-offset: 3px;
 }
-.map-north-control > span {
+.map-north-control .map-compass {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 1px;
   line-height: 1;
-  font-size: 20px;
 }
-.map-north-control small {
-  font-size: 12px;
+.map-north-control .map-compass-label {
+  color: var(--foreground);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.map-compass-needle {
+  transform-origin: center;
+}
+.map-compass-north {
+  fill: #ef4444;
+}
+.map-compass-facet {
+  fill: #b91c1c;
+}
+.map-compass-south {
+  fill: #94a3b8;
+}
+.map-compass-pivot {
+  fill: var(--surface);
 }
 .map-extra-controls .map-control.map-north-control {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 13px;
+  background: var(--surface);
+  box-shadow: 0 2px 6px #0000000d, 0 6px 18px #00000014;
+}
+.map-extra-controls .map-control.map-north-control:hover:not(:disabled) {
+  background: var(--muted);
+  box-shadow: 0 3px 8px #00000014, 0 8px 20px #0000001a;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .map-extra-controls .map-control.map-north-control {
+    transition:
+      background-color 180ms ease,
+      box-shadow 180ms ease,
+      scale 180ms var(--motion-press);
+  }
+  .map-extra-controls .map-control.map-north-control:active:not(:disabled) {
+    scale: 0.95;
+  }
 }
 .map-extra-controls .map-control.map-zoom-in {
   margin-top: 8px;

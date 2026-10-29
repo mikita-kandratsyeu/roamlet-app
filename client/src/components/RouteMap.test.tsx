@@ -775,6 +775,8 @@ it('disables map camera animation when reduced motion is requested', () => {
   );
   fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
   expect(mocks.zoomIn).toHaveBeenCalledWith({ duration: 0 });
+  fireEvent.click(screen.getByRole('button', { name: 'Reset north' }));
+  expect(mocks.ease).toHaveBeenCalledWith({ bearing: 0, duration: 0 });
   fireEvent.click(screen.getByRole('button', { name: 'Fit route' }));
   expect(mocks.fit).toHaveBeenLastCalledWith(
     expect.anything(),
@@ -1119,7 +1121,12 @@ it('installs a metric scale and updates the north indicator on rotation', () => 
   const button = screen.getByRole('button', { name: 'Reset north' });
   mocks.bearing = 65;
   act(() => mocks.handlers.get('rotate')?.());
-  expect(button.querySelector('span')).toHaveStyle({ transform: 'rotate(-65deg)' });
+  expect(button.querySelector('.map-compass-needle')).toHaveStyle({
+    transform: 'rotate(-65deg)',
+  });
+  expect(button.querySelector('.map-compass-label')).toHaveTextContent('N');
+  expect(button.querySelector('.map-compass')).not.toHaveAttribute('style');
+  expect(button.querySelector('.map-compass')).toHaveAttribute('aria-hidden', 'true');
   fireEvent.click(button);
   expect(mocks.ease).toHaveBeenCalledWith(expect.objectContaining({ bearing: 0 }));
 });
