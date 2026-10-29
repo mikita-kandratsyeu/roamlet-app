@@ -11,17 +11,15 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/*.mapbox.com/**', (route) => route.abort());
   await page.route('https://api.openrouteservice.org/**', (route) => route.abort());
   await page.route('https://api.heigit.org/**', (route) => route.abort());
-  await page.route('**/*.openfreemap.org/**', (route) =>
-    route.fulfill({
-      json: {
-        version: 8,
-        sources: {},
-        layers: [
-          { id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } },
-        ],
-      },
-    }),
-  );
+  const mapStyle = {
+    version: 8,
+    sources: {},
+    layers: [
+      { id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } },
+    ],
+  };
+  await page.route('**/osm-standard.json', (route) => route.fulfill({ json: mapStyle }));
+  await page.route('**/*.openfreemap.org/**', (route) => route.fulfill({ json: mapStyle }));
   page.on('request', (request) => {
     const url = new URL(request.url());
     if (
@@ -159,7 +157,10 @@ for (const viewport of [
         await expect(
           page.getByRole('heading', { name: 'Saved routes', exact: true }),
         ).toBeVisible();
-        await page.getByRole('button', { name: 'Back to map', exact: true }).click();
+        await page
+          .getByRole('region', { name: 'Saved routes', exact: true })
+          .getByRole('button', { name: 'Back to map', exact: true })
+          .click();
         await context.setOffline(false);
         await expect(page.getByRole('heading', { name: 'Map unavailable offline' })).toHaveCount(0);
         await expect(
