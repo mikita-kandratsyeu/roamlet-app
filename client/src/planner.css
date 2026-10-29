@@ -1032,25 +1032,48 @@
     display: none;
   }
   .stat-grid {
-    gap: 4px 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 16px;
+  }
+  .stat-card {
+    min-width: 0;
+  }
+  .stat-card:nth-child(-n + 2) {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 4px;
+    padding-bottom: 12px;
   }
   .stat-card:nth-child(-n + 2) dt {
-    display: none;
+    font-size: var(--font-size-helper);
+    line-height: 1.4;
   }
   .stat-card:nth-child(-n + 2) dd {
-    font-size: 16px;
-  }
-  .stat-card:nth-child(2) dd::before {
-    content: '≈ ';
+    margin: 0;
+    font-size: 18px;
+    overflow-wrap: anywhere;
   }
   .stat-card:nth-child(n + 3) {
-    display: flex;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: baseline;
-    gap: 4px;
+    gap: 12px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+  }
+  .stat-card:nth-child(n + 3) dt {
+    line-height: 1.4;
+    overflow-wrap: anywhere;
   }
   .stat-card:nth-child(n + 3) dd {
+    margin: 0;
     font-size: var(--font-size-body);
-    font-weight: 400;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
   }
   .map-issue {
     display: block;

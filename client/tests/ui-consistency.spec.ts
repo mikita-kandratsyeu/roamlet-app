@@ -173,6 +173,43 @@ test('compact map controls keep three touch targets and all tools available', as
   await expect(controls.getByRole('button', { name: 'Zoom in' })).toBeVisible();
 });
 
+test('small-screen statistics keep labels readable and time ranges on one line', async ({ page }, testInfo) => {
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'mountain-profile.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(`<?xml version="1.0"?><gpx version="1.1" creator="test">
+      <trk><name>Mountain profile</name><trkseg>
+        <trkpt lat="47" lon="11"><ele>100</ele></trkpt>
+        <trkpt lat="47.08" lon="11.08"><ele>600</ele></trkpt>
+        <trkpt lat="47.12" lon="11.12"><ele>200</ele></trkpt>
+      </trkseg></trk></gpx>`),
+  });
+  await expect(page.locator('.stat-card')).toHaveCount(6);
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page.getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' }).click();
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const sheet = page.locator('.mobile-sheet-toggle');
+      if ((await sheet.getAttribute('aria-expanded')) === 'false') await sheet.click();
+      const cards = page.locator('.stat-card');
+      for (const card of (await cards.all()).slice(0, 2))
+        await expect(card.locator('dt')).toBeVisible();
+      for (const card of (await cards.all()).slice(2)) {
+        await expect(card).toHaveCSS('grid-column', '1 / -1');
+        await expect(card.locator('dd')).toHaveCSS('white-space', 'nowrap');
+        const label = (await card.locator('dt').boundingBox())!;
+        const value = (await card.locator('dd').boundingBox())!;
+        expect(value.x).toBeGreaterThanOrEqual(label.x + label.width + 10);
+        expect(value.x + value.width).toBeLessThanOrEqual(width);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await cards.nth(2).scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`statistics-${language}-${width}.png`) });
+    }
+  }
+});
+
 test('coordinate fields support pair paste, inline correction and aligned mobile actions', async ({
   page,
 }, testInfo) => {
