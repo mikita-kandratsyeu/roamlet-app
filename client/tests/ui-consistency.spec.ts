@@ -58,6 +58,41 @@ test('personal time fields follow planner sizing without duplicate history butto
   await page.screenshot({ path: testInfo.outputPath('planner-time-fields.png') });
 });
 
+test('personal time allows clearing and retyping with localized validation', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/v2/directions/')) requests.push(request.url());
+  });
+  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  for (const value of ['47.26, 11.4', '47.27, 11.41']) {
+    await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+    await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
+  }
+  const speed = page.getByLabel('Personal speed (km/h)', { exact: true });
+  const stops = page.getByLabel('Stops (minutes)', { exact: true });
+  await speed.fill('');
+  await expect(speed).toHaveValue('');
+  await speed.fill('12.5');
+  await speed.press('Tab');
+  await stops.fill('');
+  await expect(stops).toHaveValue('');
+  await stops.fill('15');
+  await stops.press('Enter');
+  await expect(stops).toHaveValue('15');
+  await speed.fill('0');
+  await speed.press('Tab');
+  await expect(speed).toHaveAttribute('aria-invalid', 'true');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
+  await expect(page.getByText('Оценка времени', { exact: true })).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await page.getByRole('button', { name: 'Восстановить черновик', exact: true }).click();
+  await expect(page.getByLabel('Личная скорость (км/ч)', { exact: true })).toHaveValue(/12[.,]5/);
+  await expect(page.getByLabel('Остановки (минуты)', { exact: true })).toHaveValue('15');
+  expect(requests).toEqual([]);
+});
+
 test('library loading overlays the editor without moving the map', async ({ page }) => {
   let release: () => void = () => {};
   const gate = new Promise<void>((resolve) => {
@@ -94,15 +129,13 @@ test('saved route cards keep uniform heights and aligned actions with long names
       ? { width: 320, height: 900 }
       : { width: 1440, height: 1200 },
   );
-  await page
-    .getByLabel('Import GPX file')
-    .setInputFiles({
-      name: 'grid.gpx',
-      mimeType: 'application/gpx+xml',
-      buffer: Buffer.from(
-        '<gpx version="1.1"><trk><name>Short route</name><trkseg><trkpt lat="47.26" lon="11.4"/><trkpt lat="47.27" lon="11.41"/></trkseg></trk></gpx>',
-      ),
-    });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'grid.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(
+      '<gpx version="1.1"><trk><name>Short route</name><trkseg><trkpt lat="47.26" lon="11.4"/><trkpt lat="47.27" lon="11.41"/></trkseg></trk></gpx>',
+    ),
+  });
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
@@ -122,13 +155,11 @@ test('saved route cards keep uniform heights and aligned actions with long names
       id: `${point.id}-${index}`,
     })),
   }));
-  await page
-    .getByLabel('Import library file')
-    .setInputFiles({
-      name: 'grid.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(backup)),
-    });
+  await page.getByLabel('Import library file').setInputFiles({
+    name: 'grid.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(backup)),
+  });
   await page.getByRole('button', { name: 'Import routes', exact: true }).click();
   const cards = page.locator('.library-route');
   await expect(cards).toHaveCount(7);
@@ -223,10 +254,24 @@ test('library controls share application styling in Russian, light and dark, wit
   expect(await screen.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const card = screen.locator('.library-route');
-  const before = await card.boundingBox();
+  const before = await card.evaluate((element) => ({
+    height: element.getBoundingClientRect().height,
+    width: element.getBoundingClientRect().width,
+    offset: (element as HTMLElement).offsetTop,
+    scrollHeight: element.closest('.library-screen-scroll')!.scrollHeight,
+  }));
   await card.getByRole('button', { name: 'Удалить Weekend ride', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  expect(await card.boundingBox()).toEqual(before);
+  const after = await card.evaluate((element) => ({
+    height: element.getBoundingClientRect().height,
+    width: element.getBoundingClientRect().width,
+    offset: (element as HTMLElement).offsetTop,
+    scrollHeight: element.closest('.library-screen-scroll')!.scrollHeight,
+  }));
+  expect(after.height).toBeCloseTo(before.height, 0);
+  expect(after.width).toBeCloseTo(before.width, 0);
+  expect(after.offset).toBe(before.offset);
+  expect(after.scrollHeight).toBe(before.scrollHeight);
   await page.screenshot({ path: testInfo.outputPath('library-delete-overlay.png') });
   await page.getByRole('button', { name: 'Оставить маршрут', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);

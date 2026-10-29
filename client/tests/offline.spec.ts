@@ -166,7 +166,7 @@ test('offline reload restores an unsaved draft and exposes library backup withou
     await page.getByRole('textbox', { name: 'Route name' }).fill('Offline draft');
     await page.getByRole('button', { name: 'Save to library', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'My routes', exact: true }).click();
+    await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
     const pending = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Export library', exact: true }).click();
     const json = await readFile((await (await pending).path())!, 'utf8');

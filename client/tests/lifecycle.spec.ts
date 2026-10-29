@@ -251,7 +251,12 @@ test('automatic undo restores ready geometry without an extra routing request', 
 test('language, appearance and map view persist without automatic geolocation', async ({
   page,
 }) => {
-  await page.evaluate(() => localStorage.setItem('roamlet:map-view:v1', JSON.stringify({ center: [28, 53.5], zoom: 5, bearing: 12, pitch: 10 })));
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'roamlet:map-view:v1',
+      JSON.stringify({ center: [28, 53.5], zoom: 5, bearing: 12, pitch: 10 }),
+    ),
+  );
   await page.reload();
   await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
   await expect
@@ -270,7 +275,9 @@ test('language, appearance and map view persist without automatic geolocation', 
   await expect(page.locator('html')).toHaveClass(/dark/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
   await expect(page.getByRole('button', { name: 'Приблизить', exact: true })).toBeEnabled();
-  const restored = await page.evaluate(() => JSON.parse(localStorage.getItem('roamlet:map-view:v1')!));
+  const restored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('roamlet:map-view:v1')!),
+  );
   expect(restored.zoom).toBeCloseTo(camera.zoom, 8);
   expect(restored.center[0]).toBeCloseTo(camera.center[0], 8);
   expect(restored.center[1]).toBeCloseTo(camera.center[1], 8);

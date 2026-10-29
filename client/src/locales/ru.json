@@ -402,5 +402,10 @@
   "Route length (km)": "Длина маршрута (км)",
   "Min": "Мин.",
   "Max": "Макс.",
-  "Actions for {{name}}": "Действия для {{name}}"
+  "Actions for {{name}}": "Действия для {{name}}",
+  "Edit": "Изменить",
+  "Copy": "Копия",
+  "Loading your routes…": "Загружаем ваши маршруты…",
+  "Preparing your saved routes.": "Подготавливаем сохранённые маршруты.",
+  "Personal time": "Оценка времени"
 }

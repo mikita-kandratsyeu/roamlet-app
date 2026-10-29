@@ -402,5 +402,10 @@
   "Route length (km)": "Route length (km)",
   "Min": "Min",
   "Max": "Max",
-  "Actions for {{name}}": "Actions for {{name}}"
+  "Actions for {{name}}": "Actions for {{name}}",
+  "Edit": "Edit",
+  "Copy": "Copy",
+  "Loading your routes…": "Loading your routes…",
+  "Preparing your saved routes.": "Preparing your saved routes.",
+  "Personal time": "Personal time"
 }
