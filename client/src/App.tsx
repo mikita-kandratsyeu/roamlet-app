@@ -463,7 +463,9 @@ export default function App() {
     setNotice,
   });
   useEffect(() => {
+    if (!online) return;
     const controller = new AbortController();
+    setConfigurationUnavailable(false);
     checkRoutingConfiguration(controller.signal)
       .then((configured) => {
         if (!controller.signal.aborted) setRoutingConfigured(configured);
@@ -472,7 +474,7 @@ export default function App() {
         if (!controller.signal.aborted) setConfigurationUnavailable(true);
       });
     return () => controller.abort();
-  }, []);
+  }, [online]);
   useEffect(
     () => () => {
       request.current?.abort();
@@ -1788,7 +1790,7 @@ export default function App() {
                             'OpenRouteService configuration could not be checked. GPX and saved routes still work.',
                           )
                         : t(
-                            'Configure an OpenRouteService API key in VITE_ORS_API_KEY. GPX and saved routes remain available.',
+                            'Configure ORS_API_KEY on the server. GPX and saved routes remain available.',
                           )}
                     </span>
                     <Button
@@ -2125,9 +2127,9 @@ export default function App() {
               <a href="https://account.heigit.org/signup" target="_blank" rel="noreferrer">
                 OpenRouteService
               </a>
-              {t('. Set')} <code>VITE_ORS_API_KEY</code>{' '}
+              {t('. Set')} <code>ORS_API_KEY</code>{' '}
               {t(
-                'in the client environment and restart Vite or rebuild. The OpenRouteService API key is visible in the browser and built assets. Never commit actual keys. Monitor account quotas; production shared or public apps should use a server proxy. The map uses MapLibre and OpenFreeMap without a key.',
+                'in the server environment and restart the local server or redeploy Vercel. The key stays on the server and is never sent to the browser. Never commit actual keys. Configure Vercel Firewall rate limits and monitor account quotas before public deployment. Maps do not need an ORS key.',
               )}
             </p>
             <h3>{t('Your route, your device')}</h3>

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OpenRouteServiceRoutingService } from './routing';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { calculateStats } from '../domain/stats';
@@ -27,7 +27,6 @@ function mockProvider() {
     );
   });
 }
-beforeEach(() => vi.stubEnv('VITE_ORS_API_KEY', 'test-ors-key'));
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
@@ -76,7 +75,6 @@ describe('mixed direct and automatic routing', () => {
     expect(result.segments).toHaveLength(2);
   });
   it('routes all-direct legs locally without credentials, discarding waypoint heights', async () => {
-    vi.stubEnv('VITE_ORS_API_KEY', '');
     const fetcher = mockProvider();
     const stops = points.map((point) => ({
       ...point,
@@ -176,8 +174,8 @@ describe('documented routing profiles and point alternatives', () => {
       cyclingProfile: 'cycling-road',
     });
     expect(fetcher).toHaveBeenCalledTimes(3);
-    expect(String(fetcher.mock.calls[0][0])).toContain('/cycling-road/');
-    expect(String(fetcher.mock.calls[1][0])).toContain('/cycling-mountain/');
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body)).profile).toBe('cycling-road');
+    expect(JSON.parse(String(fetcher.mock.calls[1][1]?.body)).profile).toBe('cycling-mountain');
     expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body)).options).toEqual({
       avoid_features: ['ferries', 'steps'],
     });
@@ -190,7 +188,7 @@ describe('documented routing profiles and point alternatives', () => {
       cyclingProfile: 'cycling-mountain',
       avoidFerries: true,
     });
-    expect(String(fetcher.mock.calls[0][0])).toContain('/foot-hiking/');
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body)).profile).toBe('foot-hiking');
     await expect(
       provider.calculateRoute(points.slice(0, 2), 'cycling', undefined, {
         cyclingProfile: 'road' as never,

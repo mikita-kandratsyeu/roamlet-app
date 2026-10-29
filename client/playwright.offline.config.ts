@@ -23,7 +23,7 @@ export default defineConfig({
     timeout: 120_000,
     reuseExistingServer: false,
     env: {
-      VITE_ORS_API_KEY: '',
+      ORS_API_KEY: '',
       VITE_MAP_STYLE: '',
     },
   },

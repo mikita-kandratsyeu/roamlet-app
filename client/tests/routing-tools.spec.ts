@@ -39,7 +39,7 @@ test.beforeEach(async ({ page }) => {
     }),
   );
   await page.route('https://api.heigit.org/openrouteservice/**', (route) => route.abort());
-  await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) => {
+  await page.route('**/api/route', (route) => {
     expect(route.request().postDataJSON()).toMatchObject({ elevation: true, instructions: false });
     return route.fulfill({ json: fixture });
   });
@@ -141,7 +141,7 @@ test('recalculation notice has readable width and disabled alternatives explain 
     received = resolve;
   });
   await page.route(
-    'https://api.heigit.org/openrouteservice/v2/directions/*/geojson',
+    '**/api/route',
     async (route) => {
       received();
       await new Promise<void>((resolve) => {
@@ -173,7 +173,7 @@ test('recalculation notice has readable width and disabled alternatives explain 
 
 test('routing errors keep text, recovery actions and dismissal separate', async ({ page }) => {
   await plan(page);
-  await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) =>
+  await page.route('**/api/route', (route) =>
     route.fulfill({ status: 429, json: { error: { message: 'quota' } } }),
   );
   await addPoint(page, '52.02, 30.02');

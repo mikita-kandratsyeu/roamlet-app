@@ -72,7 +72,7 @@ test('manual edits undo and redo, retain native text undo, and recover after rel
 test('restored GPX preserves disconnected tracks and heights without routing', async ({ page }) => {
   const requests: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/v2/directions/')) requests.push(request.url());
+    if (new URL(request.url()).pathname === '/api/route') requests.push(request.url());
   });
   await page.getByLabel('Import GPX file').setInputFiles({
     name: 'segments.gpx',
@@ -222,7 +222,7 @@ test('automatic undo restores ready geometry without an extra routing request', 
   page,
 }) => {
   let requests = 0;
-  await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) => {
+  await page.route('**/api/route', (route) => {
     requests += 1;
     const coordinates = route.request().postDataJSON().coordinates;
     return route.fulfill({

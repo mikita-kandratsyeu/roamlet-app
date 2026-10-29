@@ -33,7 +33,7 @@ export default defineConfig({
     url: 'http://127.0.0.1:4174',
     reuseExistingServer: false,
     env: {
-      VITE_ORS_API_KEY: 'test-only-not-a-real-ors-key',
+      ORS_API_KEY: 'test-only-not-a-real-ors-key',
       VITE_MAP_STYLE: '/__fixtures__/map-style.json',
     },
   },

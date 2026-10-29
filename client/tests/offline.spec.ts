@@ -4,8 +4,10 @@ import { readFile, writeFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 let forbiddenRequests: string[] = [];
+let allowUnavailableRoutingRequest = false;
 test.beforeEach(async ({ page }) => {
   forbiddenRequests = [];
+  allowUnavailableRoutingRequest = false;
   await page.route('**/*.mapbox.com/**', (route) => route.abort());
   await page.route('https://api.openrouteservice.org/**', (route) => route.abort());
   await page.route('https://api.heigit.org/**', (route) => route.abort());
@@ -29,7 +31,11 @@ test.beforeEach(async ({ page }) => {
       url.hostname.endsWith('.mapbox.com')
     ) {
       forbiddenRequests.push(url.hostname);
-    } else if (url.pathname.startsWith('/api/')) {
+    } else if (
+      url.pathname.startsWith('/api/') &&
+      url.pathname !== '/api/routing-config' &&
+      !(allowUnavailableRoutingRequest && url.pathname === '/api/route')
+    ) {
       forbiddenRequests.push(url.pathname);
     }
   });
@@ -261,6 +267,7 @@ test.describe('core panels without a service worker', () => {
 test('missing routing key keeps the map usable but never substitutes a fake route', async ({
   page,
 }) => {
+  allowUnavailableRoutingRequest = true;
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
@@ -272,7 +279,7 @@ test('missing routing key keeps the map usable but never substitutes a fake rout
     await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
-  await expect(page.getByRole('alert')).toContainText('VITE_ORS_API_KEY');
+  await expect(page.getByRole('alert')).toContainText('ORS_API_KEY');
   await expect(page.getByRole('button', { name: 'Export' })).toBeDisabled();
 });
 test('manual drawing calculates and exports offline without a routing key', async ({

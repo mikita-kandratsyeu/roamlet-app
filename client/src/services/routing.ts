@@ -21,7 +21,7 @@ import {
 } from '../domain/routingOptions';
 import { calculateStats } from '../domain/stats';
 import { coordinateDistance, loopWaypoints } from './loops';
-import { openRouteServiceApiKey, openRouteServiceUrl } from './openrouteservice';
+import { openRouteServiceProfile } from './openrouteservice';
 
 export const profiles: Record<Activity, string> = {
   cycling: 'cycling-regular',
@@ -31,7 +31,30 @@ export const profiles: Record<Activity, string> = {
 class NoRouteError extends Error {}
 export async function checkRoutingConfiguration(signal?: AbortSignal): Promise<boolean> {
   if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
-  return Boolean(String(import.meta.env.VITE_ORS_API_KEY ?? '').trim());
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  signal?.addEventListener('abort', cancel, { once: true });
+  const timer = setTimeout(cancel, 8_000);
+  try {
+    const response = await fetch('/api/routing-config', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error('Routing configuration could not be checked.');
+    const data: unknown = await response.json();
+    if (
+      !data ||
+      typeof data !== 'object' ||
+      !('available' in data) ||
+      typeof data.available !== 'boolean'
+    )
+      throw new Error('Routing configuration could not be checked.');
+    return data.available;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', cancel);
+  }
 }
 const object = (value: unknown): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -52,21 +75,21 @@ export async function requestJson(
   options: RequestInit,
   signal?: AbortSignal,
 ): Promise<unknown> {
-  const target = openRouteServiceUrl(url);
-  const apiKey = openRouteServiceApiKey();
+  const profile = openRouteServiceProfile(url);
+  const body = { ...JSON.parse(String(options.body ?? '{}')), profile };
   const controller = new AbortController();
   const cancel = () => controller.abort();
   if (signal?.aborted) controller.abort();
   signal?.addEventListener('abort', cancel, { once: true });
   const timer = setTimeout(() => controller.abort(), 25_000);
   try {
-    const response = await fetch(target, {
-      ...options,
-      credentials: 'omit',
+    const response = await fetch('/api/route', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      credentials: 'same-origin',
       headers: {
         Accept: 'application/geo+json',
         'Content-Type': 'application/json',
-        Authorization: apiKey,
       },
       signal: controller.signal,
     });
@@ -79,14 +102,20 @@ export async function requestJson(
         throw new Error(
           'Routing quota reached. Wait a moment or check your provider account limits.',
         );
-      if (response.status >= 500)
-        throw new Error(
-          'The routing service is unavailable. Try again later; your saved routes are safe.',
-        );
     }
-    const data: unknown = await response.json();
+    const data: unknown = await response.json().catch(() => {
+      throw new Error(
+        response.ok
+          ? 'The service returned an invalid response.'
+          : 'The routing service is unavailable. Try again later; your saved routes are safe.',
+      );
+    });
     const error = data && typeof data === 'object' && 'error' in data ? data.error : undefined;
     if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'ROUTING_NOT_CONFIGURED')
+        throw new Error(
+          'Configure ORS_API_KEY on the server. GPX and saved routes remain available.',
+        );
       if (error.code === 2009 || error.code === 2010)
         throw new NoRouteError('No route was returned. Try a different location.');
       if (error.code === 2004)
@@ -135,7 +164,7 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
         ? { alternative_routes: { target_count: 2, weight_factor: 1.4, share_factor: 0.6 } }
         : {}),
     };
-    const cacheKey = JSON.stringify([profile, body, openRouteServiceApiKey()]);
+    const cacheKey = JSON.stringify([profile, body]);
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.time < 300_000) return structuredClone(cached.results);
     const data = object(

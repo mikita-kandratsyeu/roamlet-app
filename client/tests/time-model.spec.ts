@@ -35,7 +35,7 @@ test.beforeEach(async ({ page }) => {
       },
     }),
   );
-  await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) =>
+  await page.route('**/api/route', (route) =>
     route.fulfill({
       json: {
         type: 'FeatureCollection',
@@ -61,7 +61,7 @@ test('personal adjustments change the range without routing or replacing provide
 }) => {
   let requests = 0;
   page.on('request', (request) => {
-    if (request.url().includes('/v2/directions/')) requests += 1;
+    if (new URL(request.url()).pathname === '/api/route') requests += 1;
   });
   await addPoint(page, '47.26, 11.4');
   await addPoint(page, '47.27, 11.41');
@@ -108,7 +108,7 @@ test('hiking pace and climb allowance preserve split GPX tracks and original hei
 }) => {
   const requests: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/v2/directions/')) requests.push(request.url());
+    if (new URL(request.url()).pathname === '/api/route') requests.push(request.url());
   });
   await page.getByLabel('Import GPX file').setInputFiles({
     name: 'climb.gpx',

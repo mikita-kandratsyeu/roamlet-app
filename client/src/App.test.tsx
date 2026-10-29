@@ -180,6 +180,15 @@ describe('route export', () => {
 });
 
 describe('offline planner', () => {
+  it('checks server routing availability only after an offline start reconnects', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    render(<App />);
+    expect(checkRoutingConfiguration).not.toHaveBeenCalled();
+    setOnline(true);
+    await waitFor(() => expect(checkRoutingConfiguration).toHaveBeenCalledOnce());
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+  });
+
   it('preserves calculated geometry and export, blocks online editing, and does not recalculate on reconnect', async () => {
     await i18n.changeLanguage('en');
     render(<App />);
@@ -241,7 +250,7 @@ describe('route planner interactions', () => {
     render(<App />);
     expect(
       await screen.findByText(
-        'Configure an OpenRouteService API key in VITE_ORS_API_KEY. GPX and saved routes remain available.',
+        'Configure ORS_API_KEY on the server. GPX and saved routes remain available.',
       ),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Setup help' }));
@@ -250,9 +259,9 @@ describe('route planner interactions', () => {
       'href',
       'https://account.heigit.org/signup',
     );
-    expect(help).toHaveTextContent('VITE_ORS_API_KEY');
-    expect(help).toHaveTextContent('visible in the browser and built assets');
-    expect(help).toHaveTextContent('server proxy');
+    expect(help).toHaveTextContent('ORS_API_KEY');
+    expect(help).toHaveTextContent('never sent to the browser');
+    expect(help).toHaveTextContent('Vercel Firewall');
   });
   it.each([
     [
@@ -296,7 +305,7 @@ describe('route planner interactions', () => {
       ]),
     );
     expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
-    expect(screen.queryByText('VITE_ORS_API_KEY')).not.toBeInTheDocument();
+    expect(screen.queryByText('ORS_API_KEY')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Move first map point' }));
     expect(screen.getByTestId('map')).toHaveAttribute(
       'data-geometry',
@@ -739,7 +748,9 @@ describe('route planner interactions', () => {
     const saved = (await routeDb.routes.toArray())[0];
     expect(saved.source).toBe('openrouteservice');
     expect(saved.segments).toEqual([geometry]);
-    await routeDb.routes.update(saved.id, { tags: ['Scenic', 'Weekend', 'Forest', 'Water', 'Quiet'] });
+    await routeDb.routes.update(saved.id, {
+      tags: ['Scenic', 'Weekend', 'Forest', 'Water', 'Quiet'],
+    });
     cleanup();
     render(<App />);
     openMenu();

@@ -459,7 +459,7 @@ test('time controls have compact spacing and contained Russian dropdowns', async
 test('personal time allows clearing and retyping with localized validation', async ({ page }) => {
   const requests: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/v2/directions/')) requests.push(request.url());
+    if (new URL(request.url()).pathname === '/api/route') requests.push(request.url());
   });
   await clickMapTool(page, 'Manual drawing');
   for (const value of ['47.26, 11.4', '47.27, 11.41']) {

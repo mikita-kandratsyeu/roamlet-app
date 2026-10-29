@@ -1,10 +1,13 @@
 import { defineConfig } from 'vitest/config';
+const localApiModule = new URL('../scripts/local-routing-api.mjs', import.meta.url).href;
+const { localRoutingApi } = await import(/* @vite-ignore */ localApiModule);
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    localRoutingApi(),
     {
       name: 'versioned-offline-shell',
       apply: 'build',

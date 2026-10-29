@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OpenRouteServiceRoutingService, requestJson } from './routing';
 import * as routing from './routing';
-import { openRouteServiceUrl } from './openrouteservice';
+import { openRouteServiceProfile } from './openrouteservice';
 import type { Waypoint } from '../domain/types';
 const points: Waypoint[] = [
   { id: 'a', name: 'A', coordinate: [11.4, 47.26] },
@@ -32,33 +32,28 @@ function mockJson(data: unknown, status = 200) {
       }),
   );
 }
-beforeEach(() => vi.stubEnv('VITE_ORS_API_KEY', 'test-ors-key'));
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 describe('OpenRouteServiceRoutingService', () => {
-  it('reports a missing API key without fabricating geometry', async () => {
-    vi.stubEnv('VITE_ORS_API_KEY', '');
-    const fetcher = mockJson({});
+  it('reports missing server configuration without fabricating geometry', async () => {
+    const fetcher = mockJson({ error: { code: 'ROUTING_NOT_CONFIGURED' } }, 503);
     await expect(
       new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling'),
-    ).rejects.toThrow('VITE_ORS_API_KEY');
-    expect(fetcher).not.toHaveBeenCalled();
+    ).rejects.toThrow('ORS_API_KEY on the server');
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
-  it('calls OpenRouteService directly with header authentication and no cookies', async () => {
+  it('calls the same-origin proxy without browser credentials or a provider key', async () => {
     const fetcher = mockJson(response());
     await new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling');
-    const url = new URL(String(fetcher.mock.calls[0][0]));
-    expect(url.origin).toBe('https://api.heigit.org');
-    expect(url.pathname).toBe('/openrouteservice/v2/directions/cycling-regular/geojson');
-    expect(url.search).toBe('');
-    expect(fetcher.mock.calls[0][1]?.credentials).toBe('omit');
+    expect(fetcher.mock.calls[0][0]).toBe('/api/route');
+    expect(fetcher.mock.calls[0][1]?.credentials).toBe('same-origin');
     expect(fetcher.mock.calls[0][1]?.headers).toEqual({
       Accept: 'application/geo+json',
       'Content-Type': 'application/json',
-      Authorization: 'test-ors-key',
     });
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body)).profile).toBe('cycling-regular');
     await expect(requestJson('https://external.invalid/', {})).rejects.toThrow(
       'Unsupported OpenRouteService endpoint',
     );
@@ -68,6 +63,7 @@ describe('OpenRouteServiceRoutingService', () => {
     const result = await new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling');
     expect(fetcher.mock.calls[0][1]?.method).toBe('POST');
     expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({
+      profile: 'cycling-regular',
       coordinates: points.map((point) => point.coordinate),
       instructions: false,
       elevation: true,
@@ -87,7 +83,7 @@ describe('OpenRouteServiceRoutingService', () => {
   it('routes hiking with foot-hiking, not a cycling fallback', async () => {
     const fetcher = mockJson(response());
     await new OpenRouteServiceRoutingService().calculateRoute(points, 'hiking');
-    expect(String(fetcher.mock.calls[0][0])).toContain('/directions/foot-hiking/');
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body)).profile).toBe('foot-hiking');
   });
   it('returns unavailable elevation instead of invented heights', async () => {
     mockJson(
@@ -158,11 +154,7 @@ describe('OpenRouteServiceRoutingService', () => {
     expect(result[0].stats.descent).toBe(100);
     expect(result[0].elevationSource).toBe('openrouteservice');
     expect(fetcher.mock.calls.length).toBeLessThanOrEqual(6);
-    expect(
-      fetcher.mock.calls.every(([url]) =>
-        new URL(String(url)).pathname.startsWith('/openrouteservice/v2/directions/'),
-      ),
-    ).toBe(true);
+    expect(fetcher.mock.calls.every(([url]) => url === '/api/route')).toBe(true);
     const body = JSON.parse(String(fetcher.mock.calls[0][1]?.body));
     expect(body.coordinates).toHaveLength(4);
     expect(body.coordinates[0]).toEqual(body.coordinates.at(-1));
@@ -277,15 +269,13 @@ describe('OpenRouteServiceRoutingService', () => {
   it('does not expose an address search helper', () => {
     expect(routing).not.toHaveProperty('searchPlaces');
   });
-  it('checks a trimmed ORS key without requests or a Mapbox token prefix', async () => {
-    const fetcher = mockJson(response());
-    vi.stubEnv('VITE_ORS_API_KEY', '  ors-key  ');
+  it('checks only server availability and preserves cancellation', async () => {
+    const fetcher = mockJson({ available: true });
     expect(await routing.checkRoutingConfiguration()).toBe(true);
-    await new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling');
-    expect(fetcher.mock.calls[0][1]?.headers).toHaveProperty('Authorization', 'ors-key');
-    vi.stubEnv('VITE_ORS_API_KEY', '   ');
+    expect(fetcher.mock.calls[0][0]).toBe('/api/routing-config');
+    expect(fetcher.mock.calls[0][1]?.cache).toBe('no-store');
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ available: false })));
     expect(await routing.checkRoutingConfiguration()).toBe(false);
-    expect(fetcher).toHaveBeenCalledTimes(1);
     const controller = new AbortController();
     controller.abort();
     await expect(routing.checkRoutingConfiguration(controller.signal)).rejects.toMatchObject({
@@ -294,16 +284,22 @@ describe('OpenRouteServiceRoutingService', () => {
     await expect(
       new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling', controller.signal),
     ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
-  it('does not reuse cached results after the key is removed or changed', async () => {
+  it.each([{}, { available: 'true' }, null])(
+    'rejects invalid server availability %s',
+    async (data) => {
+      mockJson(data);
+      await expect(routing.checkRoutingConfiguration()).rejects.toThrow('could not be checked');
+    },
+  );
+  it('does not depend on a browser API key for routing or its cache', async () => {
     const fetcher = mockJson(response());
     const provider = new OpenRouteServiceRoutingService();
     await provider.calculateRoute(points, 'cycling');
-    vi.stubEnv('VITE_ORS_API_KEY', '');
-    await expect(provider.calculateRoute(points, 'cycling')).rejects.toThrow('VITE_ORS_API_KEY');
-    vi.stubEnv('VITE_ORS_API_KEY', 'another-test-key');
     await provider.calculateRoute(points, 'cycling');
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0][1]?.headers).not.toHaveProperty('Authorization');
   });
   it.each([2009, 2010])('retries ORS route/snap error %s', async (code) => {
     const fetcher = mockJson({ error: { code } }, 404);
@@ -363,7 +359,7 @@ describe('OpenRouteServiceRoutingService', () => {
     '/openrouteservice/v2/directions/cycling-regular/geojson#fragment',
   ])('rejects unsupported endpoint %s without making a request', async (path) => {
     const fetcher = mockJson({});
-    expect(() => openRouteServiceUrl(path)).toThrow('Unsupported OpenRouteService endpoint');
+    expect(() => openRouteServiceProfile(path)).toThrow('Unsupported OpenRouteService endpoint');
     await expect(requestJson(path, {})).rejects.toThrow('Unsupported OpenRouteService endpoint');
     expect(fetcher).not.toHaveBeenCalled();
   });

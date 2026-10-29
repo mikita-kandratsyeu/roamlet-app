@@ -61,14 +61,14 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://*.mapbox.com/**', (route) => route.abort());
   // Fixtures are confined to browser tests. Production never substitutes geometry.
   await page.route('https://api.heigit.org/openrouteservice/**', (route) => route.abort());
-  await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) => {
+  await page.route('**/api/route', (route) => {
     const request = route.request();
     expect(request.method()).toBe('POST');
     expect(request.headers()).toMatchObject({
       accept: 'application/geo+json',
       'content-type': 'application/json',
-      authorization: 'test-only-not-a-real-ors-key',
     });
+    expect(request.headers()).not.toHaveProperty('authorization');
     expect(request.postDataJSON()).toMatchObject({ instructions: false, elevation: true });
     return route.fulfill({ json: fixture });
   });
@@ -146,7 +146,7 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
 }) => {
   const directions: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/v2/directions/')) directions.push(request.url());
+    if (new URL(request.url()).pathname === '/api/route') directions.push(request.url());
   });
   const tool = await mapTool(page, 'Manual drawing');
   await expect(tool).toHaveCount(1);
@@ -269,7 +269,7 @@ test('manual controls keep logical order and remain reachable at 320px in Russia
 test('manual routes retain exact points when saved, reopened and edited', async ({ page }) => {
   const directions: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/v2/directions/')) directions.push(request.url());
+    if (new URL(request.url()).pathname === '/api/route') directions.push(request.url());
   });
   await clickMapTool(page, 'Manual drawing');
   await addPoint(page, '47.2692, 11.4041');
@@ -458,12 +458,13 @@ test('coordinate input replaces paid search; hiking and service failures are hon
   await addPoint(page, '47.2692, 11.4041');
   await page.getByRole('radio', { name: 'Hiking', exact: true }).click();
   const request = page.waitForRequest(
-    'https://api.heigit.org/openrouteservice/v2/directions/foot-hiking/geojson',
+    '**/api/route',
   );
   await addPoint(page, '47.271, 11.411');
   const hikingRequest = await request;
   expect(hikingRequest.method()).toBe('POST');
   expect(hikingRequest.postDataJSON()).toEqual({
+    profile: 'foot-hiking',
     coordinates: [
       [11.4041, 47.2692],
       [11.411, 47.271],
@@ -472,7 +473,7 @@ test('coordinate input replaces paid search; hiking and service failures are hon
     elevation: true,
   });
   await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();
-  await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) =>
+  await page.route('**/api/route', (route) =>
     route.fulfill({ status: 429, json: { error: { message: 'quota' } } }),
   );
   await addPoint(page, '47.28, 11.42');
@@ -487,12 +488,13 @@ test('round trips route intermediate points with bounded search; responsive cont
   await addPoint(page, '47.2692, 11.4041');
   let attempts = 0;
   await page.route(
-    'https://api.heigit.org/openrouteservice/v2/directions/*/geojson',
+    '**/api/route',
     async (route) => {
       attempts += 1;
       const points = route.request().postDataJSON().coordinates;
       expect(route.request().method()).toBe('POST');
       expect(route.request().postDataJSON()).toEqual({
+        profile: 'cycling-regular',
         coordinates: points,
         instructions: false,
         elevation: true,
