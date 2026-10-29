@@ -102,6 +102,33 @@ export function Statistics({
     () => (samples.length && route ? elevationChartSamples(route.segments) : []),
     [route, samples.length],
   );
+  const previewPaths = useMemo(() => {
+    const paths: { line: string; area: string }[] = [];
+    let points: { x: number; y: number }[] = [];
+    const finishSegment = () => {
+      if (!points.length) return;
+      const line = points
+        .map(({ x, y }, index) => `${index ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`)
+        .join(' ');
+      paths.push({
+        line,
+        area: `${line} L${points.at(-1)!.x.toFixed(2)},32 L${points[0].x.toFixed(2)},32 Z`,
+      });
+      points = [];
+    };
+    for (const sample of chartSamples) {
+      if (sample.elevation === null) {
+        finishSegment();
+      } else {
+        points.push({
+          x: (sample.distance / total) * 160,
+          y: maximum === minimum ? 16 : 29 - ((sample.elevation - minimum) / (maximum - minimum)) * 26,
+        });
+      }
+    }
+    finishSegment();
+    return paths;
+  }, [chartSamples, minimum, maximum, total]);
   const linkedSamples = chartSamples.filter((sample) => sample.coordinate);
   const hoverSample = (index: number | string | null | undefined, active = true) => {
     const sample = index == null ? undefined : chartSamples[Number(index)];
@@ -121,6 +148,29 @@ export function Statistics({
         }}
       >
         <span>{t('Elevation profile')}</span>
+        {!profileOpen && (
+          <svg
+            className="elevation-preview"
+            viewBox="0 0 160 32"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            {previewPaths.map(({ line, area }, index) => (
+              <g key={index}>
+                <path d={area} fill="currentColor" fillOpacity={0.12} />
+                <path
+                  d={line}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </g>
+            ))}
+          </svg>
+        )}
         <span className="elevation-toggle" aria-hidden="true">
           <ChevronDown size={18} />
         </span>

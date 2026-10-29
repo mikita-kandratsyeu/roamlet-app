@@ -278,9 +278,7 @@ it('changes supported styles and restores actual geometry without resetting the 
   render(<RouteMap {...props} segments={segments} />);
   act(() => mocks.handlers.get('load')?.());
   const fitCalls = mocks.fit.mock.calls.length;
-  fireEvent.change(screen.getByRole('combobox', { name: 'Map style' }), {
-    target: { value: 'https://tiles.openfreemap.org/styles/bright' },
-  });
+  fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
   expect(mocks.setStyle).toHaveBeenCalledWith('https://tiles.openfreemap.org/styles/bright');
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
   act(() => mocks.handlers.get('style.load')?.());
@@ -326,16 +324,14 @@ it('orders navigation before drawing and offers a single ruler tool with context
   expect(undo).toHaveBeenCalledTimes(2);
 });
 
-it('orders Standard before Light and uses distinct map and sun icons', () => {
+it('orders icon-only Standard before Light and keeps accessible map and sun labels', () => {
   render(<RouteMap {...props} />);
-  expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+  expect(screen.queryByRole('combobox', { name: 'Map style' })).not.toBeInTheDocument();
+  expect(screen.getAllByRole('radio').map((item) => item.getAttribute('aria-label'))).toEqual([
     'Standard',
     'Light',
   ]);
-  expect(screen.getAllByRole('radio').map((item) => item.textContent)).toEqual([
-    'Standard',
-    'Light',
-  ]);
+  expect(screen.getAllByRole('radio').map((item) => item.textContent)).toEqual(['', '']);
   for (const [label, iconClass] of [
     ['Standard', 'lucide-map'],
     ['Light', 'lucide-sun'],
@@ -354,15 +350,12 @@ it.each(['standard', 'custom'] as const)(
     vi.stubEnv('VITE_MAP_STYLE', '/custom-style.json');
     savePreferences({ style });
     render(<RouteMap {...props} />);
-    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+    expect(screen.queryByRole('combobox', { name: 'Map style' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('radio').map((item) => item.getAttribute('aria-label'))).toEqual([
       'Standard',
       'Light',
     ]);
-    expect(screen.getAllByRole('radio').map((item) => item.textContent)).toEqual([
-      'Standard',
-      'Light',
-    ]);
-    expect(screen.getByRole('combobox', { name: 'Map style' })).toHaveValue('/custom-style.json');
+    expect(screen.getAllByRole('radio').map((item) => item.textContent)).toEqual(['', '']);
     expect(screen.getByRole('radio', { name: 'Standard' })).toHaveAttribute('data-state', 'on');
     expect(screen.getByRole('radio', { name: 'Standard' }).querySelector('svg')).toHaveClass(
       'lucide-map',
@@ -379,10 +372,8 @@ it.each(['standard', 'custom'] as const)(
 it('keeps both options distinct when the configured provider is Bright', () => {
   vi.stubEnv('VITE_MAP_STYLE', BRIGHT_MAP_STYLE);
   render(<RouteMap {...props} />);
-  expect(screen.getAllByRole('option').map((option) => option.getAttribute('value'))).toEqual([
-    '/osm-standard.json',
-    BRIGHT_MAP_STYLE,
-  ]);
+  expect(screen.getAllByRole('radio')).toHaveLength(2);
+  expect(screen.getByRole('radio', { name: 'Standard' })).toHaveAttribute('data-state', 'off');
   expect(screen.getByRole('radio', { name: 'Light' })).toHaveAttribute('data-state', 'on');
 });
 
@@ -393,7 +384,7 @@ it('shows the Standard selection after an invalid saved provider falls back to O
   expect(mocks.options).toHaveBeenCalledWith(
     expect.objectContaining({ style: '/osm-standard.json' }),
   );
-  expect(screen.getByRole('combobox', { name: 'Map style' })).toHaveValue('/osm-standard.json');
+  expect(screen.queryByRole('combobox', { name: 'Map style' })).not.toBeInTheDocument();
   expect(screen.getByRole('radio', { name: 'Standard' })).toHaveAttribute('data-state', 'on');
   expect(
     screen.getByText('The saved map style is unavailable. The standard map is being used.'),

@@ -808,6 +808,10 @@ test('matches Figma planner geometry while preserving branding and responsive el
     await expect(page.locator('.statistics .elevation-box')).toHaveCount(1);
     await page.locator('.mobile-sheet-toggle').click();
     await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
+    if ((await page.locator('.mobile-sheet-toggle').getAttribute('aria-expanded')) === 'false')
+      await page.locator('.mobile-sheet-toggle').click();
+    await expect(page.locator('.elevation-preview')).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('collapsed-elevation-preview.png') });
   } else {
     await expect(page.locator('#map-elevation-root .elevation-box')).toHaveAttribute('open');
     const chart = await page.locator('#map-elevation-root').boundingBox();
@@ -822,7 +826,10 @@ test('matches Figma planner geometry while preserving branding and responsive el
     await summary.click();
     await expect(page.locator('.elevation-box')).not.toHaveAttribute('open');
     await expect(page.locator('.elevation-chart')).not.toBeVisible();
+    await expect(summary.locator('.elevation-preview')).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('collapsed-elevation-preview.png') });
     await summary.press('Enter');
+    await expect(page.locator('.elevation-preview')).toHaveCount(0);
     await expect(page.locator('.elevation-box')).toHaveAttribute('open');
     await expect(page.locator('.elevation-chart')).toBeVisible();
     await page.getByRole('button', { name: 'Hide planner' }).click();

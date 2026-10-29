@@ -7,6 +7,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView } from '../domain/mapView';
+import { mapPadding } from '../domain/mapPadding';
 import { locationAccuracy } from '../domain/locationAccuracy';
 import {
   loadPreferences,
@@ -51,21 +52,15 @@ const mapMotionDuration = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 450;
 
 function mapFitPadding(container: HTMLElement | null) {
-  const viewport = container?.getBoundingClientRect();
-  const planner = document.getElementById('route-planner')?.getBoundingClientRect();
-  if (
-    !viewport?.width ||
-    !planner?.width ||
-    planner.top >= viewport.bottom ||
-    planner.bottom <= viewport.top
-  )
-    return 65;
-  const left = Math.min(planner.right - viewport.left + 24, viewport.width - 140);
-  const elevation = document.getElementById('map-elevation-root')?.getBoundingClientRect();
-  const bottom = elevation?.height
-    ? Math.min(viewport.bottom - elevation.top + 24, viewport.height / 2)
-    : 65;
-  return { top: 65, bottom: Math.max(65, bottom), left: Math.max(65, left), right: 65 };
+  const region = container?.parentElement;
+  return mapPadding({
+    viewport: container?.getBoundingClientRect(),
+    planner: document.getElementById('route-planner')?.getBoundingClientRect(),
+    elevation: document.getElementById('map-elevation-root')?.getBoundingClientRect(),
+    stylePicker: region?.querySelector<HTMLElement>('.map-style-picker')?.getBoundingClientRect(),
+    controls: region?.querySelector<HTMLElement>('.map-extra-controls')?.getBoundingClientRect(),
+    compactPlanner: window.innerWidth <= 1024,
+  });
 }
 
 interface Props {
@@ -915,7 +910,7 @@ export function RouteMap(props: Props) {
         </span>
       )}
       {(mapError || preferenceWarning) && (
-        <Alert className="map-warning map-notice" role={mapError ? 'alert' : 'status'}>
+        <Alert className="map-warning map-notice" role="status">
           <div className="map-notice-heading">
             <MapIcon size={18} aria-hidden="true" />
             <strong>{t(mapError ? 'Map error' : 'Notification')}</strong>
