@@ -33,24 +33,26 @@ export function draftWriter(onError: () => void, delay = 500) {
     );
     return queue;
   }
-  function flush(): Promise<boolean> {
-    clearTimeout(timer);
-    const captured = pending;
-    pending = null;
-    if (captured)
-      enqueue(async () => {
-        if (captured.generation !== generation) return;
-        validateSnapshot(captured.snapshot);
-        await routeDb
-          .table('drafts')
-          .put({
+  async function flush(): Promise<boolean> {
+    for (;;) {
+      clearTimeout(timer);
+      const captured = pending;
+      pending = null;
+      if (captured)
+        enqueue(async () => {
+          if (captured.generation !== generation) return;
+          validateSnapshot(captured.snapshot);
+          await routeDb.table('drafts').put({
             id: 'current',
             version: 1,
             updatedAt: new Date().toISOString(),
             snapshot: captured.snapshot,
           });
-      });
-    return queue;
+        });
+      const writing = queue;
+      if (!(await writing)) return false;
+      if (!pending && queue === writing) return true;
+    }
   }
   return {
     schedule(snapshot: EditorSnapshot) {

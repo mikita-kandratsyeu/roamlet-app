@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest';
+import Dexie from 'dexie';
 import { routeDb } from './storage';
 import { draftWriter, loadDraft } from './drafts';
 import { initialEditor, validateSnapshot } from './editorSnapshot';
