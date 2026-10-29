@@ -186,8 +186,6 @@ test('clicking an editable route inserts an ordered stop and one undo removes it
   const last = (await markers.nth(1).boundingBox())!;
   const x = (first.x + first.width / 2 + last.x + last.width / 2) / 2;
   const y = (first.y + first.height / 2 + last.y + last.height / 2) / 2;
-  const addPointsTool = page.getByRole('button', { name: 'Add points on map', exact: true });
-  if (await addPointsTool.isVisible()) await addPointsTool.click();
   await page.mouse.click(x, y);
   await expect(markers).toHaveCount(3);
   const xml = await readDownload(page, 'Export');

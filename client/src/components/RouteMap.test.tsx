@@ -1028,19 +1028,15 @@ it('highlights the hit area and projected insertion point, clearing on leave and
   expect(mocks.paint).toHaveBeenLastCalledWith('route-hover', 'line-opacity', 0);
 });
 
-it('requires an explicit mobile add-points toggle and disables edits when toggled off', () => {
+it('adds points directly on mobile without an extra toolbar button and respects readonly mode', () => {
   vi.stubGlobal('matchMedia', () => ({ matches: true }));
-  render(<RouteMap {...props} />);
+  const { rerender } = render(<RouteMap {...props} />);
   act(() => mocks.handlers.get('load')?.());
+  expect(screen.queryByRole('button', { name: 'Add points on map' })).not.toBeInTheDocument();
   const click = () => mocks.handlers.get('click')?.({ lngLat: { lng: 1, lat: 2 } });
   act(click);
-  expect(props.onAdd).not.toHaveBeenCalled();
-  const toggle = screen.getByRole('button', { name: 'Add points on map' });
-  fireEvent.click(toggle);
-  expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  act(click);
   expect(props.onAdd).toHaveBeenCalledOnce();
-  fireEvent.click(toggle);
+  rerender(<RouteMap {...props} editable={false} />);
   act(click);
   expect(props.onAdd).toHaveBeenCalledOnce();
 });

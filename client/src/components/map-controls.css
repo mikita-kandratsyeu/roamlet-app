@@ -30,11 +30,6 @@
   margin-top: 0;
   border-radius: 0 0 8px 8px;
 }
-.map-extra-controls .map-control.map-add-points-tool {
-  flex: 0 0 auto;
-  width: auto;
-  padding-inline: 10px;
-}
 .map-waypoint-actions {
   position: absolute;
   z-index: 5;

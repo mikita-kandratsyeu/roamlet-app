@@ -159,32 +159,12 @@ export function RouteMap(props: Props) {
   const [zoom, setZoom] = useState(10);
   const [insertionPreview, setInsertionPreview] = useState<Coordinate | null>(null);
   const [routeHovered, setRouteHovered] = useState(false);
-  const [mobile, setMobile] = useState(
-    () => Boolean(window.matchMedia?.('(pointer: coarse)').matches) || window.innerWidth <= 700,
-  );
-  const [addPoints, setAddPoints] = useState(false);
-  const allowMapEdits = useRef(!mobile);
   const [menuWaypointId, setMenuWaypointId] = useState<string | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   useEffect(() => {
-    const media = window.matchMedia?.('(pointer: coarse)');
-    const update = () => {
-      const next = Boolean(media?.matches) || window.innerWidth <= 700;
-      setMobile(next);
-      setAddPoints(false);
-    };
-    media?.addEventListener?.('change', update);
-    window.addEventListener('resize', update);
-    return () => {
-      media?.removeEventListener?.('change', update);
-      window.removeEventListener('resize', update);
-    };
-  }, []);
-  useEffect(() => {
-    allowMapEdits.current = editable && (!mobile || addPoints);
     setInsertionPreview(null);
     setRouteHovered(false);
-  }, [editable, mobile, addPoints]);
+  }, [editable]);
   useEffect(() => {
     const region = container.current?.parentElement;
     const workspace = region?.closest<HTMLElement>('.workspace');
@@ -550,7 +530,6 @@ export function RouteMap(props: Props) {
       const current = latest.current;
       if (
         !current.editable ||
-        !allowMapEdits.current ||
         Date.now() < suppressClickUntil.current ||
         (event.originalEvent?.target instanceof Element &&
           event.originalEvent.target.closest('.waypoint-marker'))
@@ -578,12 +557,11 @@ export function RouteMap(props: Props) {
       setRouteHovered(false);
       setInsertionPreview(null);
       instance.getCanvas().style.cursor =
-        latest.current.manualDrawing && allowMapEdits.current ? 'crosshair' : '';
+        latest.current.manualDrawing && latest.current.editable ? 'crosshair' : '';
     };
     instance.on('mousemove', (event) => {
       const current = latest.current;
       if (
-        !allowMapEdits.current ||
         !current.editable ||
         !event.point ||
         !instance.queryRenderedFeatures(event.point, { layers: ['route-hit'] }).length
@@ -783,10 +761,7 @@ export function RouteMap(props: Props) {
   useEffect(() => {
     if (!ready || !map.current) return;
     const canvas = map.current.getCanvas();
-    canvas.style.cursor =
-      (manualDrawing || (mobile && addPoints)) && editable && allowMapEdits.current
-        ? 'crosshair'
-        : '';
+    canvas.style.cursor = manualDrawing && editable ? 'crosshair' : '';
     const undo = (event: KeyboardEvent) => {
       if (!editable || !(event.ctrlKey || event.metaKey)) return;
       const key = event.key.toLowerCase();
@@ -809,7 +784,7 @@ export function RouteMap(props: Props) {
       canvas.style.cursor = '';
       canvas.removeEventListener('keydown', undo);
     };
-  }, [ready, manualDrawing, editable, onUndo, onRedo, canUndo, canRedo, mobile, addPoints]);
+  }, [ready, manualDrawing, editable, onUndo, onRedo, canUndo, canRedo]);
   function locate() {
     if (!navigator.geolocation) {
       props.onError(
@@ -1005,19 +980,6 @@ export function RouteMap(props: Props) {
             ↑<small>N</small>
           </span>
         </Button>
-        {mobile && editable && (
-          <Button
-            variant={addPoints ? 'default' : 'outline'}
-            className="map-control map-add-points-tool"
-            aria-label={t('Add points on map')}
-            aria-pressed={addPoints}
-            disabled={!ready}
-            onClick={() => setAddPoints((enabled) => !enabled)}
-          >
-            <Plus size={18} />
-            {t('Add points on map')}
-          </Button>
-        )}
         <Button
           variant="outline"
           size="icon"
@@ -1123,14 +1085,9 @@ export function RouteMap(props: Props) {
               <div className="map-hint">
                 <MousePointer2 size={16} aria-hidden="true" />
                 <span>
-                  {mobile && !addPoints
-                    ? t('Enable Add points on map to edit. Drag pins to refine.')
-                    : props.manualDrawing
-                      ? t('Click to draw straight lines. Drag points to adjust.')
-                      : t('Click the map to add a stop. Drag pins to refine.')}
-                  {props.onInsert &&
-                    (!mobile || addPoints) &&
-                    ` ${t('Click the route line to insert a stop.')}`}
+                  {props.manualDrawing
+                    ? t('Click to draw straight lines. Drag points to adjust.')
+                    : t('Click the map to add a stop. Drag pins to refine.')}
                 </span>
               </div>
             </div>

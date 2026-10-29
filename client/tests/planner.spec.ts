@@ -93,8 +93,6 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   await tool.click();
   await expect(tool).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('group', { name: 'Route style' })).toHaveCount(0);
-  const addPointsTool = page.getByRole('button', { name: 'Add points on map', exact: true });
-  if (await addPointsTool.isVisible()) await addPointsTool.click();
   const canvas = page.locator('.maplibregl-canvas');
   await expect(canvas).toHaveCSS('cursor', 'crosshair');
   const box = (await canvas.boundingBox())!;
