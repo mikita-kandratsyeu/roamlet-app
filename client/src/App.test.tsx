@@ -987,9 +987,11 @@ describe('route planner interactions', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Routing quota reached.');
     expect(document.querySelectorAll('.planner-route-status')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
-    expect(screen.getByText(
-      'Previous route shown. Recalculate successfully before saving or exporting.',
-    )).toBeVisible();
+    expect(
+      screen.getByText(
+        'Previous route shown. Recalculate successfully before saving or exporting.',
+      ),
+    ).toBeVisible();
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
   });
   it('validates coordinate bounds without calling a service', () => {
