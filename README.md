@@ -8,6 +8,8 @@ Roamlet keeps routes, preferences and the current unsaved draft on this device. 
 
 Automatic routing uses hosted OpenRouteService (ORS) through a same-origin server proxy at `/api/route`. The browser never receives the provider API key. MapLibre GL JS with OpenFreeMap supplies basemaps; manual straight-line planning remains local and independent of ORS and its API key. Only routing requires Vercel Functions; no application database, external draw plugin or offline basemaps are added. Manual geometry uses the existing MapLibre GeoJSON rendering and statistics pipeline. See service-dependent limitations below.
 
+“Report a map issue” is available in the map’s “More map tools” (⋯) menu on desktop and mobile, rather than as an overlay on the map.
+
 ## Development
 
 Use Yarn 4.18.1 (the latest stable release verified on 28 October 2026), pinned in `packageManager` and bundled in `.yarn/releases`. `.yarnrc.yml` selects the standard npm registry and the familiar `node_modules` linker. Corepack uses the pin; existing Yarn Classic installations forward to the bundled release via `.yarnrc`. Without either launcher, use `node .yarn/releases/yarn-4.18.1.cjs` instead of `yarn`:

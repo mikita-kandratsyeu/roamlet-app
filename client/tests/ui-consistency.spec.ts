@@ -131,6 +131,27 @@ test('back to map stays a themed navigation control on narrow and desktop screen
   }
 });
 
+test('map issue reporting stays in the tools menu at every screen size', async ({ page }) => {
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const report = page.getByRole('link', { name: 'Report a map issue ↗' });
+    await expect(report).toHaveCount(0);
+    await expect(page.locator('.map-issue')).toHaveCount(0);
+    const trigger = page.getByRole('button', { name: 'More map tools' });
+    await expect(trigger).toBeInViewport();
+    await trigger.click();
+    const panel = page.getByRole('dialog', { name: 'Map controls' });
+    await expect(panel).toBeInViewport();
+    await expect(report).toHaveCount(1);
+    await expect(report).toBeInViewport();
+    await expect(report).toHaveAttribute('href', 'https://www.openstreetmap.org/');
+    await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toHaveCount(1);
+    await panel.getByRole('button', { name: 'Close map tools' }).click();
+    await expect(report).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  }
+});
+
 test('compact map controls keep three touch targets and all tools available', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 800 });
   const controls = page.getByRole('group', { name: 'Map controls' });
@@ -169,7 +190,7 @@ test('compact map controls keep three touch targets and all tools available', as
   await trigger.click();
   await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(panel).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'More map tools' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'More map tools' })).toBeVisible();
   await expect(controls.getByRole('button', { name: 'Zoom in' })).toBeVisible();
 });
 

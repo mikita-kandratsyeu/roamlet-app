@@ -311,6 +311,7 @@ it('orders navigation before drawing and offers a single ruler tool with context
     'Fit route',
     'Manual drawing',
     'Undo last point',
+    'More map tools',
   ]);
   expect(screen.getAllByRole('button', { name: 'Manual drawing' })).toHaveLength(1);
   const tool = screen.getByRole('button', { name: 'Manual drawing' });
@@ -730,6 +731,31 @@ it('does not duplicate the planner GPX import action on the map', () => {
   render(<RouteMap {...props} />);
   expect(screen.queryByRole('button', { name: 'Import GPX on map' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Import GPX' })).not.toBeInTheDocument();
+});
+
+it.each([false, true])('keeps the map issue link only in the tools menu (compact: %s)', async (compact) => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: compact && query === '(max-width: 700px)',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  const user = userEvent.setup();
+  const { container } = render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')!());
+  expect(container.querySelector('.map-issue')).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Report a map issue ↗' })).not.toBeInTheDocument();
+  const trigger = screen.getByRole('button', { name: 'More map tools' });
+  await user.click(trigger);
+  const panel = screen.getByRole('dialog', { name: 'Map controls' });
+  const report = within(panel).getByRole('link', { name: 'Report a map issue ↗' });
+  expect(report).toHaveAttribute('href', 'https://www.openstreetmap.org/');
+  expect(report).toHaveAttribute('target', '_blank');
+  expect(report).toHaveAttribute('rel', 'noreferrer');
+  expect(screen.getAllByRole('link', { name: 'Report a map issue ↗' })).toHaveLength(1);
+  expect(screen.getAllByRole('button', { name: 'Zoom in' })).toHaveLength(1);
+  await user.keyboard('{Escape}');
+  expect(screen.queryByRole('link', { name: 'Report a map issue ↗' })).not.toBeInTheDocument();
+  expect(trigger).toHaveFocus();
 });
 
 it('keeps two primary mobile controls and exposes secondary tools in a dismissible panel', async () => {

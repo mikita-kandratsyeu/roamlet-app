@@ -1135,49 +1135,46 @@ export function RouteMap(props: Props) {
         >
           <Scan size={18} />
         </Button>
-        {compactControls ? (
-          <Popover.Root open={toolsOpen} onOpenChange={setToolsOpen}>
-            <Popover.Trigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="map-control map-tools-trigger"
-                aria-label={t('More map tools')}
-                title={t('More map tools')}
-              >
-                <MoreHorizontal size={20} aria-hidden="true" />
-              </Button>
-            </Popover.Trigger>
-            <Popover.Portal>
-              <Popover.Content
-                className="map-tools-panel"
-                side="top"
-                align="end"
-                sideOffset={8}
-                collisionPadding={12}
-                aria-label={t('Map controls')}
-              >
-                <div className="map-tools-heading">
-                  <strong>{t('Map controls')}</strong>
-                  <Popover.Close asChild>
-                    <Button variant="ghost" size="icon" aria-label={t('Close map tools')}>
-                      <X size={18} aria-hidden="true" />
-                    </Button>
-                  </Popover.Close>
-                </div>
-                {navigationControls}
-                {editingControls}
-                {ready && (
-                  <a href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">
-                    {t('Report a map issue ↗')}
-                  </a>
-                )}
-              </Popover.Content>
-            </Popover.Portal>
-          </Popover.Root>
-        ) : (
-          editingControls
-        )}
+        {!compactControls && editingControls}
+        <Popover.Root open={toolsOpen} onOpenChange={setToolsOpen}>
+          <Popover.Trigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="map-control map-tools-trigger"
+              aria-label={t('More map tools')}
+              title={t('More map tools')}
+            >
+              <MoreHorizontal size={20} aria-hidden="true" />
+            </Button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              className="map-tools-panel"
+              side="top"
+              align="end"
+              sideOffset={8}
+              collisionPadding={12}
+              aria-label={t('Map controls')}
+            >
+              <div className="map-tools-heading">
+                <strong>{t('Map controls')}</strong>
+                <Popover.Close asChild>
+                  <Button variant="ghost" size="icon" aria-label={t('Close map tools')}>
+                    <X size={18} aria-hidden="true" />
+                  </Button>
+                </Popover.Close>
+              </div>
+              {compactControls && navigationControls}
+              {compactControls && editingControls}
+              {ready && (
+                <a href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">
+                  {t('Report a map issue ↗')}
+                </a>
+              )}
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
       </div>
       <div className="map-bottom-toolbar">
         <div className="map-bottom-leading">
@@ -1192,18 +1189,6 @@ export function RouteMap(props: Props) {
                 </span>
               </div>
             </div>
-          )}
-        </div>
-        <div className="map-bottom-trailing">
-          {ready && (
-            <a
-              className="map-issue"
-              href="https://www.openstreetmap.org/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              {t('Report a map issue ↗')}
-            </a>
           )}
         </div>
       </div>
