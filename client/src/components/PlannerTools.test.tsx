@@ -51,7 +51,9 @@ it('groups accessible text controls without duplicate history buttons', () => {
   expect(container.querySelector('.personal-time-section')).toHaveAttribute('open');
   expect(container.querySelectorAll('.personal-time-field')).toHaveLength(4);
   expect(screen.getByRole('button', { name: 'Fitness level' })).toHaveTextContent('Regular');
-  expect(screen.getByRole('button', { name: 'Surface' })).toHaveTextContent('Unknown surface');
+  expect(screen.getByRole('button', { name: 'Surface' })).toHaveTextContent('Unknown');
+  expect(container.querySelectorAll('.personal-time-row')).toHaveLength(2);
+  expect(container.querySelectorAll('.personal-time-error')).toHaveLength(0);
   expect(speed).toHaveValue('18');
   expect(stops).toHaveValue('5');
   expect(speed).toHaveAttribute('inputmode', 'decimal');
@@ -92,7 +94,12 @@ it('rejects empty, zero, negative and nonfinite speeds only on commit and clears
     fireEvent.keyDown(speed, { key: 'Enter' });
     expect(speed).toHaveAttribute('aria-invalid', 'true');
     expect(speed).toHaveAttribute('aria-describedby', 'personal-speed-error');
-    expect(screen.getByRole('alert')).toHaveClass('personal-time-error');
+    expect(screen.getByRole('alert')).toHaveClass(
+      'personal-time-error',
+      'text-xs',
+      'leading-[18px]',
+    );
+    expect(speed.closest('.personal-time-row')).toHaveAttribute('data-errors', 'true');
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a speed greater than 0.');
     expect(speed).toHaveValue(value);
   }
@@ -103,13 +110,8 @@ it('rejects empty, zero, negative and nonfinite speeds only on commit and clears
   expect(onSpeed).toHaveBeenCalledWith(6);
   expect(speed).not.toHaveAttribute('aria-invalid', 'true');
   expect(speed).toHaveClass('aria-invalid:border-destructive');
-  expect(document.getElementById('personal-speed-error')).toHaveClass(
-    'personal-time-error',
-    'text-xs',
-    'font-normal',
-    'leading-[18px]',
-    'text-destructive',
-  );
+  expect(document.getElementById('personal-speed-error')).toBeNull();
+  expect(speed.closest('.personal-time-row')).not.toHaveAttribute('data-errors');
 });
 it('rejects empty, negative and nonfinite stops while accepting zero minutes', () => {
   const { stops, onStops } = controlledTools();
@@ -223,7 +225,9 @@ it('localizes hiking pace and explicit choices in Russian', async () => {
   );
   expect(screen.getByLabelText('Темп ходьбы (мин/км)')).toHaveValue('12');
   expect(screen.getByRole('button', { name: 'Подготовка' })).toHaveTextContent('Обычная');
-  expect(screen.getByRole('button', { name: 'Покрытие' })).toHaveTextContent(
-    'Неизвестное покрытие',
-  );
+  expect(screen.getByRole('button', { name: 'Покрытие' })).toHaveTextContent('Неизвестно');
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Покрытие' }), { key: 'Enter' });
+  expect(
+    await screen.findByRole('menuitemradio', { name: 'Неизвестное покрытие' }),
+  ).toBeInTheDocument();
 });

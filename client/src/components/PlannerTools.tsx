@@ -46,11 +46,11 @@ function TimeChoice({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="personal-time-choice" aria-label={t(label)}>
-            <span>{t(options[value])}</span>
+            <span>{t(value === 'unknown' ? 'Unknown' : options[value])}</span>
             <ChevronDown size={14} aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="personal-time-menu">
+        <DropdownMenuContent align="start" collisionPadding={12} className="personal-time-menu">
           <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
             {Object.entries(options).map(([key, text]) => (
               <DropdownMenuRadioItem key={key} value={key}>
@@ -111,80 +111,82 @@ export function PlannerTools({
         <ChevronDown className="personal-time-toggle" size={16} aria-hidden="true" />
       </summary>
       <div className="personal-time-fields">
-        <div className="personal-time-field">
-          <Label htmlFor="personal-speed">
-            {t(hiking ? 'Walking pace (min/km)' : 'Personal speed (km/h)')}
-          </Label>
-          <Input
-            id="personal-speed"
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            aria-invalid={speedInvalid || undefined}
-            aria-describedby={speedInvalid ? 'personal-speed-error' : 'personal-pace-help'}
-            {...speedField}
-          />
-          <p
-            id="personal-speed-error"
-            className="personal-time-error text-xs font-normal leading-[18px] text-destructive"
-            role={speedInvalid ? 'alert' : undefined}
-            aria-hidden={!speedInvalid}
-          >
-            {speedInvalid
-              ? t(
+        <div className="personal-time-row" data-errors={speedInvalid || stopsInvalid || undefined}>
+          <div className="personal-time-field">
+            <Label htmlFor="personal-speed">
+              {t(hiking ? 'Walking pace (min/km)' : 'Personal speed (km/h)')}
+            </Label>
+            <Input
+              id="personal-speed"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              aria-invalid={speedInvalid || undefined}
+              aria-describedby={speedInvalid ? 'personal-speed-error' : 'personal-pace-help'}
+              {...speedField}
+            />
+            {speedInvalid && (
+              <p
+                id="personal-speed-error"
+                className="personal-time-error text-xs font-normal leading-[18px] text-destructive"
+                role="alert"
+              >
+                {t(
                   hiking
                     ? 'Enter a pace greater than 0.'
                     : 'Enter a finite speed greater than zero.',
-                )
-              : '\u00a0'}
-          </p>
+                )}
+              </p>
+            )}
+          </div>
+          <div className="personal-time-field">
+            <Label htmlFor="stops-minutes">{t('Stops (minutes)')}</Label>
+            <Input
+              id="stops-minutes"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              aria-invalid={stopsInvalid || undefined}
+              aria-describedby={stopsInvalid ? 'stops-minutes-error' : undefined}
+              {...stopsField}
+            />
+            {stopsInvalid && (
+              <p
+                id="stops-minutes-error"
+                className="personal-time-error text-xs font-normal leading-[18px] text-destructive"
+                role="alert"
+              >
+                {t('Enter a finite stop duration of zero or more.')}
+              </p>
+            )}
+          </div>
         </div>
-        <div className="personal-time-field">
-          <Label htmlFor="stops-minutes">{t('Stops (minutes)')}</Label>
-          <Input
-            id="stops-minutes"
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            aria-invalid={stopsInvalid || undefined}
-            aria-describedby={stopsInvalid ? 'stops-minutes-error' : undefined}
-            {...stopsField}
+        <div className="personal-time-row">
+          <TimeChoice
+            label="Fitness level"
+            value={fitness}
+            options={fitnessLabels}
+            onChange={(value) => {
+              if (isFitness(value)) onFitness(value);
+            }}
           />
-          <p
-            id="stops-minutes-error"
-            className="personal-time-error text-xs font-normal leading-[18px] text-destructive"
-            role={stopsInvalid ? 'alert' : undefined}
-            aria-hidden={!stopsInvalid}
-          >
-            {stopsInvalid ? t('Enter a finite stop duration of zero or more.') : '\u00a0'}
-          </p>
+          <TimeChoice
+            label="Surface"
+            value={surface}
+            options={surfaceLabels}
+            onChange={(value) => {
+              if (isSurface(value)) onSurface(value);
+            }}
+          />
         </div>
-        <TimeChoice
-          label="Fitness level"
-          value={fitness}
-          options={fitnessLabels}
-          onChange={(value) => {
-            if (isFitness(value)) onFitness(value);
-          }}
-        />
-        <TimeChoice
-          label="Surface"
-          value={surface}
-          options={surfaceLabels}
-          onChange={(value) => {
-            if (isSurface(value)) onSurface(value);
-          }}
-        />
       </div>
       <p id="personal-pace-help" className="personal-time-help">
-        {t(
-          'Use your normal flat-ground average. Fitness adjusts climbing and uncertainty, not this measured pace.',
-        )}
+        {t('Use your measured flat-ground average; fitness affects climbing and range.')}
       </p>
       <p className="personal-time-help">
         {t(
           surface === 'unknown'
-            ? 'Surface is unknown: no surface penalty applied; the range is wider.'
+            ? 'Unknown surface widens the range; terrain is not detected.'
             : 'Surface is your choice, not detected from the route.',
         )}
       </p>

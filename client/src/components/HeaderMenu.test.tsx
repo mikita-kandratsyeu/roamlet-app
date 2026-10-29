@@ -56,7 +56,7 @@ it('shows Figma preference order, selected checks and explanatory notes', async 
   const { user, trigger } = setup();
   await user.click(trigger);
   const choices = screen.getAllByRole('menuitemradio');
-  expect(choices.map((choice) => choice.textContent)).toEqual([
+  expect(choices.map((choice) => choice.getAttribute('aria-label') ?? choice.textContent)).toEqual([
     'Русский',
     'English',
     'Light',
@@ -75,6 +75,39 @@ it('shows Figma preference order, selected checks and explanatory notes', async 
   expect(
     screen.getByText('Theme and language do not change the route, calculation or map position.'),
   ).toBeInTheDocument();
+});
+
+it('uses labeled icon choices with horizontal keyboard navigation without changing theme on focus', async () => {
+  const { user, trigger } = setup();
+  await user.click(trigger);
+  const light = screen.getByRole('menuitemradio', { name: 'Light' });
+  const dark = screen.getByRole('menuitemradio', { name: 'Dark' });
+  const system = screen.getByRole('menuitemradio', { name: 'System' });
+  for (const choice of [light, dark, system]) {
+    expect(choice).toHaveAttribute('title', choice.getAttribute('aria-label'));
+    expect(choice).toHaveTextContent('');
+    expect(choice).toHaveClass('header-menu-theme-option');
+    expect(choice.parentElement).toBe(light.parentElement);
+  }
+  light.focus();
+  await user.keyboard('{ArrowRight}');
+  expect(dark).toHaveFocus();
+  await user.keyboard('{ArrowRight}');
+  expect(system).toHaveFocus();
+  await user.keyboard('{ArrowRight}');
+  expect(light).toHaveFocus();
+  await user.keyboard('{ArrowLeft}');
+  expect(system).toHaveFocus();
+  expect(system).toHaveAttribute('aria-checked', 'true');
+  expect(light).toHaveAttribute('aria-checked', 'false');
+  await user.keyboard('{ArrowDown}');
+  expect(screen.getByRole('menuitem', { name: 'Reset settings' })).toHaveFocus();
+  await user.keyboard('d');
+  expect(dark).toHaveFocus();
+  await user.keyboard('{Enter}');
+  expect(document.documentElement).toHaveClass('dark');
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  expect(trigger).toHaveFocus();
 });
 
 it('supports arrows, wrapping, Home/End, type-ahead and Escape with focus restoration', async () => {

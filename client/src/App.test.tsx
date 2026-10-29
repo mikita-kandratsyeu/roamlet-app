@@ -838,7 +838,7 @@ describe('route planner interactions', () => {
     fireEvent.change(screen.getByLabelText('Stops (minutes)'), { target: { value: '10' } });
     fireEvent.blur(screen.getByLabelText('Stops (minutes)'));
     expect(await screen.findByText('Total time with stops')).toBeInTheDocument();
-    expect(screen.getByText('Original time estimate')).toBeInTheDocument();
+    expect(screen.getByText('Provider estimate')).toBeInTheDocument();
     expect(provider.calculateRoute).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {

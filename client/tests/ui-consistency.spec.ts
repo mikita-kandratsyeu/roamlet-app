@@ -18,6 +18,44 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
 });
 
+test('theme icons stay in one accessible row on narrow and desktop screens', async ({ page }, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 800 }
+      : { width: 1440, height: 1000 },
+  );
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page.getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' }).click();
+    for (const theme of ['light', 'dark', 'system']) {
+      await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+      const options = page.locator('.header-menu-theme-option');
+      await expect(options).toHaveCount(3);
+      const boxes = await Promise.all(
+        (await options.all()).map((option) => option.boundingBox()),
+      );
+      for (const box of boxes) {
+        expect(box).not.toBeNull();
+        expect(box!.width).toBeGreaterThanOrEqual(44);
+        expect(box!.height).toBeGreaterThanOrEqual(44);
+        expect(box!.y).toBeCloseTo(boxes[0]!.y, 1);
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+      }
+      const choice = options.locator(`[data-state='checked']`);
+      await expect(choice).toHaveCount(1);
+      await expect(choice.locator('.preference-check')).toBeVisible();
+      await expect(page.locator('.header-menu-panel')).toBeInViewport();
+      await page.screenshot({ path: testInfo.outputPath(`theme-row-${language}-${theme}.png`) });
+      const index = ['light', 'dark', 'system'].indexOf(theme);
+      await options.nth(index).click();
+      await expect(page.getByRole('menu')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^(Menu|Меню)$/ })).toBeFocused();
+      await expect(page.locator('html')).toHaveCSS('color-scheme', theme === 'dark' ? 'dark' : 'light');
+    }
+  }
+});
+
 test('history controls exist only on the map', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Undo', exact: true })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Redo', exact: true })).toHaveCount(1);
@@ -112,14 +150,22 @@ test('personal time allows clearing and retyping with localized validation', asy
 });
 
 test('library loading overlays the editor without moving the map', async ({ page }) => {
-  let release: () => void = () => {};
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await page.route('**/src/components/Library.tsx*', async (route) => {
-    await gate;
-    await route.continue();
-  });
+  await page.evaluate(async (path) => {
+    const { routeDb } = await import(path);
+    let prototype = Object.getPrototypeOf(routeDb.routes.orderBy('updatedAt'));
+    while (!Object.hasOwn(prototype, 'toArray')) prototype = Object.getPrototypeOf(prototype);
+    const original = prototype.toArray;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    prototype.toArray = function (this: unknown, ...args: unknown[]) {
+      return gate.then(() => original.apply(this, args));
+    };
+    (window as Window & { releaseLibraryRead: () => void }).releaseLibraryRead = () => {
+      prototype.toArray = original;
+      release();
+    };
+  }, '/src/domain/storage.ts');
+  const release = () => page.evaluate(() => (window as Window & { releaseLibraryRead?: () => void }).releaseLibraryRead?.());
   const canvas = page.locator('.maplibregl-canvas');
   const before = await canvas.boundingBox();
   try {
@@ -128,14 +174,14 @@ test('library loading overlays the editor without moving the map', async ({ page
     await expect(page.locator('.global-map-loader__orbit')).toBeVisible();
     expect(await canvas.boundingBox()).toEqual(before);
     await expect(page.getByTestId('global-map-loader')).toHaveCSS('position', 'fixed');
-    release();
+    await release();
     await expect(page.locator('.library-screen')).toBeVisible();
     await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
     await page.getByRole('button', { name: 'Back to map', exact: true }).click();
     await expect(canvas).toBeVisible();
     expect(await canvas.boundingBox()).toEqual(before);
   } finally {
-    release();
+    await release();
   }
 });
 

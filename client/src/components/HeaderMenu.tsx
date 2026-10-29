@@ -228,36 +228,48 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator className="header-menu-separator" />
-          <DropdownMenuLabel className="header-menu-label">{t('Theme')}</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            aria-label={t('Theme')}
-            value={theme}
-            onValueChange={(value) => {
-              if (isTheme(value)) activate(() => setTheme(value));
-            }}
-          >
-            <DropdownMenuRadioItem className="header-menu-item" value="light">
-              <Sun size={18} aria-hidden="true" />
-              <span>{t('Light')}</span>
-              {theme === 'light' && (
-                <Check className="preference-check" size={18} aria-hidden="true" />
-              )}
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem className="header-menu-item" value="dark">
-              <Moon size={18} aria-hidden="true" />
-              <span>{t('Dark')}</span>
-              {theme === 'dark' && (
-                <Check className="preference-check" size={18} aria-hidden="true" />
-              )}
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem className="header-menu-item" value="system">
-              <Monitor size={18} aria-hidden="true" />
-              <span>{t('System')}</span>
-              {theme === 'system' && (
-                <Check className="preference-check" size={18} aria-hidden="true" />
-              )}
-            </DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
+          <div className="header-menu-theme-row">
+            <DropdownMenuLabel className="header-menu-label">{t('Theme')}</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              className="header-menu-theme-options"
+              aria-label={t('Theme')}
+              value={theme}
+              onKeyDown={(event) => {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                event.preventDefault();
+                event.stopPropagation();
+                const items = Array.from(
+                  event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+                );
+                const index = items.indexOf(document.activeElement as HTMLElement);
+                const direction = event.key === 'ArrowRight' ? 1 : -1;
+                items[(index + direction + items.length) % items.length]?.focus();
+              }}
+              onValueChange={(value) => {
+                if (isTheme(value)) activate(() => setTheme(value));
+              }}
+            >
+              {([
+                ['light', 'Light', Sun],
+                ['dark', 'Dark', Moon],
+                ['system', 'System', Monitor],
+              ] as const).map(([value, label, Icon]) => (
+                <DropdownMenuRadioItem
+                  key={value}
+                  className="header-menu-item header-menu-theme-option"
+                  value={value}
+                  aria-label={t(label)}
+                  title={t(label)}
+                  textValue={t(label)}
+                >
+                  <Icon size={18} aria-hidden="true" />
+                  {theme === value && (
+                    <Check className="preference-check" size={18} aria-hidden="true" />
+                  )}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </div>
           <p className="header-menu-note">
             {t('System theme follows OS settings. Language and theme are saved locally.')}
           </p>

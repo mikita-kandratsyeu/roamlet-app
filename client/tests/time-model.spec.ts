@@ -61,14 +61,16 @@ test('personal adjustments change the range without routing or replacing provide
   await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
   const statistics = page.getByRole('region', { name: 'Route statistics', exact: true });
   await expect(statistics.getByText('Provider estimate', { exact: true })).toBeVisible();
-  await expect(statistics.getByText('1 h 0 min', { exact: true })).toBeVisible();
+  const providerTime = statistics.locator('dt').filter({ hasText: /^Provider estimate$/ }).locator('xpath=following-sibling::dd[1]');
+  await expect(providerTime).toHaveText('1 h 0 min');
+  await expect(statistics.getByText('Planning reference', { exact: true })).toBeVisible();
   const original = await statistics.innerText();
   await choose(page, 'Surface', 'Rough surface');
   await expect.poll(() => statistics.innerText()).not.toBe(original);
   const rough = await statistics.innerText();
   await choose(page, 'Fitness level', 'Trained');
   await expect.poll(() => statistics.innerText()).not.toBe(rough);
-  await expect(statistics.getByText('1 h 0 min', { exact: true })).toBeVisible();
+  await expect(providerTime).toHaveText('1 h 0 min');
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('textbox', { name: 'Route name' }).fill('Model reference');
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();

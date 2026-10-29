@@ -160,6 +160,83 @@ for (const viewport of [
   }
 }
 
+test.describe('core panels without a service worker', () => {
+  test.use({ serviceWorkers: 'block' });
+  for (const language of ['en', 'ru'] as const) {
+    test(`saved routes and manual coordinates work on their first offline use (${language})`, async ({
+      page,
+      context,
+    }) => {
+      await page.addInitScript(
+        (value) => localStorage.setItem('roamlet-language', value),
+        language,
+      );
+      const copy =
+        language === 'ru'
+          ? {
+              save: 'Сохранить маршрут',
+              librarySave: 'Сохранить в библиотеку',
+              library: 'Мои маршруты',
+              back: 'Назад к карте',
+              manual: 'Новый маршрут по координатам',
+              coordinates: 'Широта, долгота',
+              add: 'Добавить координаты',
+              export: 'Экспорт GPX',
+            }
+          : {
+              save: 'Save route',
+              librarySave: 'Save to library',
+              library: 'My routes',
+              back: 'Back to map',
+              manual: 'New manual route',
+              coordinates: 'Latitude, longitude',
+              add: 'Add coordinates',
+              export: 'Export GPX',
+            };
+      await page.goto('/');
+      await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+      await page
+        .getByLabel(language === 'ru' ? 'Импорт файла GPX' : 'Import GPX file')
+        .setInputFiles({
+          name: 'saved.gpx',
+          mimeType: 'application/gpx+xml',
+          buffer: Buffer.from(gpx),
+        });
+      await page.getByRole('button', { name: copy.save, exact: true }).click();
+      await page.getByRole('button', { name: copy.librarySave, exact: true }).click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await page.route('**/assets/*.js', (route) => route.abort());
+      await context.setOffline(true);
+      try {
+        await page
+          .getByRole('region', {
+            name: language === 'ru' ? 'Интерактивная карта маршрута' : 'Interactive route map',
+          })
+          .getByRole('button', { name: copy.library, exact: true })
+          .click();
+        await expect(page.getByTestId('panel-loader')).toHaveCount(0);
+        await page.getByRole('button', { name: /^Offline escape/ }).click();
+        await expect(
+          page.getByRole('heading', { name: 'Offline escape', exact: true }),
+        ).toBeVisible();
+        await expect(page.getByRole('button', { name: copy.export, exact: true })).toBeEnabled();
+        await page.getByRole('button', { name: copy.manual, exact: true }).click();
+        for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
+          await page.getByRole('textbox', { name: copy.coordinates, exact: true }).fill(value);
+          await page.getByRole('button', { name: copy.add, exact: true }).click();
+        }
+        await expect(page.getByTestId('panel-loader')).toHaveCount(0);
+        const pending = page.waitForEvent('download');
+        await page.getByRole('button', { name: copy.export, exact: true }).click();
+        const xml = await readFile((await (await pending).path())!, 'utf8');
+        expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
+      } finally {
+        await context.setOffline(false);
+      }
+    });
+  }
+});
+
 test('missing routing key keeps the map usable but never substitutes a fake route', async ({
   page,
 }) => {

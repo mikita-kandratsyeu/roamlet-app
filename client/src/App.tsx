@@ -15,25 +15,12 @@ import { usePointRouting } from './hooks/usePointRouting';
 import { PlannerTools } from './components/PlannerTools';
 import { DraftPrompt } from './components/DraftPrompt';
 import { initialEditor, newIdentity } from './domain/editorSnapshot';
-import type { Fitness, Surface } from './domain/time';
 import { draftWriter, loadDraft, type DraftRecord } from './domain/drafts';
 import { loadPreferences, savePreferences } from './domain/preferences';
-import { optionalLazy } from './components/OptionalPanel';
+import { Library } from './components/Library';
+import { Statistics } from './components/Statistics';
 import { formatDistance, formatDuration } from './domain/format';
 import { useAppUpdate } from './hooks/useAppUpdate';
-const Statistics = optionalLazy<{
-  route: PlannedRoute | null;
-  emptyHint?: string;
-  speedKmh?: number;
-  stopsMinutes?: number;
-  fitness?: Fitness;
-  surface?: Surface;
-  mapAvailable?: boolean;
-}>(() => import('./components/Statistics').then((m) => ({ default: m.Statistics })));
-const Library = optionalLazy<{ onClose: () => void; onOpen: (route: PlannedRoute) => void }>(
-  () => import('./components/Library').then((m) => ({ default: m.Library })),
-  'screen',
-);
 import {
   MapPinPlus,
   Plus,
@@ -894,14 +881,29 @@ export default function App() {
               <strong>{t('No internet connection')}</strong>
               <span>
                 {t(
-                  'Saved routes, GPX and manual drawing are available. Maps and automatic routing need internet.',
+                  'Saved routes and GPX are available. Manual drawing uses entered coordinates; drawing on the map and automatic routing need internet.',
                 )}
               </span>
             </div>
             <div className="offline-banner-actions">
-              {mode === 'manual' && planningMode !== 'manual' && (
-                <Button variant="outline" onClick={() => changePlanningMode('manual')}>
-                  {t('Use manual drawing')}
+              {(mode !== 'manual' || planningMode !== 'manual') && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (mode === 'manual') changePlanningMode('manual');
+                    else if (result?.source === 'manual') editSnapshot();
+                    else
+                      guard(() => {
+                        newRoute();
+                        setPlanningMode('manual');
+                      });
+                  }}
+                >
+                  {t(
+                    mode === 'snapshot' && result?.source !== 'manual'
+                      ? 'New manual route'
+                      : 'Use manual drawing',
+                  )}
                 </Button>
               )}
               <Button variant="outline" onClick={checkConnection}>
