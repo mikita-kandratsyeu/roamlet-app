@@ -596,6 +596,27 @@ describe('route planner interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete route' }));
     await waitFor(async () => expect(await routeDb.routes.count()).toBe(1));
   });
+  it('keeps the editor mounted and inert behind the library screen, restores focus, and isolates history shortcuts', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    addCoordinate('47.26, 11.4'); addCoordinate('47.27, 11.41');
+    const map = screen.getByTestId('map'), geometryBefore = map.getAttribute('data-geometry');
+    const libraryButton = screen.getByRole('button', { name: 'My routes' });
+    libraryButton.focus();
+    fireEvent.click(libraryButton);
+    expect(await screen.findByRole('region', { name: 'Saved routes' })).toBeInTheDocument();
+    expect(document.querySelector('.editor-screen')).toHaveAttribute('inert');
+    expect(document.querySelector('.editor-screen')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('map')).toBe(map);
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(map).toHaveAttribute('data-geometry', geometryBefore!);
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to map' }));
+    await waitFor(() => expect(libraryButton).toHaveFocus());
+    expect(document.querySelector('.editor-screen')).not.toHaveAttribute('inert');
+    fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(map).toHaveAttribute('data-geometry', geometryBefore!);
+  });
   it('undoes and redoes ready geometry without issuing a third request and ignores native text undo', async () => {
     render(<App />);
     await plan();

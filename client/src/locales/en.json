@@ -397,5 +397,10 @@
   "Loading panel…": "Loading panel…",
   "Most recently updated": "Most recently updated",
   "Name (A–Z)": "Name (A–Z)",
-  "Distance (shortest first)": "Distance (shortest first)"
+  "Distance (shortest first)": "Distance (shortest first)",
+  "Back to map": "Back to map",
+  "Route length (km)": "Route length (km)",
+  "Min": "Min",
+  "Max": "Max",
+  "Actions for {{name}}": "Actions for {{name}}"
 }

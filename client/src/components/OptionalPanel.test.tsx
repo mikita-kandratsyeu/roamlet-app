@@ -1,6 +1,22 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { optionalLazy } from './OptionalPanel';
+import type { ComponentType } from 'react';
+it('portals a screen loader without adding a flow element to the mounted editor', async () => {
+  let finish!: (value: { default: ComponentType<{ onClose: () => void }> }) => void;
+  const loader = () => new Promise<{ default: ComponentType<{ onClose: () => void }> }>(resolve => { finish = resolve; });
+  const Panel = optionalLazy<{ onClose: () => void }>(loader, 'screen');
+  const onClose = vi.fn();
+  const { container } = render(<div data-testid="editor"><div data-testid="canvas" /><Panel onClose={onClose} /></div>);
+  expect(await screen.findByTestId('panel-loader')).toBeInTheDocument();
+  expect(container.querySelector('.panel-loading-overlay')).toBeNull();
+  expect(document.querySelector('.optional-screen-overlay')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Back to map' })).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: 'Back to map' }));
+  expect(onClose).toHaveBeenCalledOnce();
+  finish({ default: () => <p>Library ready</p> });
+  expect(await screen.findByText('Library ready')).toBeInTheDocument();
+});
 afterEach(cleanup);
 it('keeps the surrounding UI usable and retries an optional loader after failure', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => {});

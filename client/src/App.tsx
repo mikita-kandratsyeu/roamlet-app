@@ -137,10 +137,10 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(preferences.collapsed);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   useEffect(() => {
-    if (libraryWasOpen.current && !libraryOpen && !confirmation) {
+    if (libraryWasOpen.current && !libraryOpen) {
       const previous = libraryReturnFocus.current;
       const target = previous?.isConnected && !previous.closest('[hidden], [inert], [aria-hidden="true"]') ? previous : libraryTrigger.current;
-      target?.focus({ preventScroll: true });
+      queueMicrotask(() => (confirmation ? confirmationCancel.current : target)?.focus({ preventScroll: true }));
     }
     libraryWasOpen.current = libraryOpen;
   }, [libraryOpen, confirmation]);

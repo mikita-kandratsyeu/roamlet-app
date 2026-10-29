@@ -397,5 +397,10 @@
   "Loading panel…": "Загрузка панели…",
   "Most recently updated": "Сначала обновлённые",
   "Name (A–Z)": "По названию (А–Я)",
-  "Distance (shortest first)": "Сначала короткие"
+  "Distance (shortest first)": "Сначала короткие",
+  "Back to map": "Назад к карте",
+  "Route length (km)": "Длина маршрута (км)",
+  "Min": "Мин.",
+  "Max": "Макс.",
+  "Actions for {{name}}": "Действия для {{name}}"
 }
