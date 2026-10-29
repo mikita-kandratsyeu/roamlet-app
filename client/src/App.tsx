@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouteEditor } from './hooks/useRouteEditor';
 import { usePointRouting } from './hooks/usePointRouting';
 import { PlannerTools } from './components/PlannerTools';
+import { CoordinateInput, type CoordinateInputHandle } from './components/CoordinateInput';
 import { DraftPrompt } from './components/DraftPrompt';
 import { initialEditor, newIdentity } from './domain/editorSnapshot';
 import { draftWriter, loadDraft, type DraftRecord } from './domain/drafts';
@@ -161,7 +162,6 @@ export default function App() {
     kind?: 'routing' | 'map';
   } | null>(null);
   const [mapRetryToken, setMapRetryToken] = useState(0);
-  const [query, setQuery] = useState('');
   const [searchTarget, setSearchTarget] = useState<string | null>(null);
   const [fitToken, setFitToken] = useState(0);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -199,7 +199,7 @@ export default function App() {
   const fileInput = useRef<HTMLInputElement>(null);
   const routeNameInput = useRef<HTMLInputElement>(null);
   const confirmationCancel = useRef<HTMLButtonElement>(null);
-  const searchInput = useRef<HTMLInputElement>(null);
+  const searchInput = useRef<CoordinateInputHandle>(null);
   const request = useRef<AbortController | null>(null);
   const fail = (text: string, kind?: 'routing' | 'map') => setNotice({ text, error: true, kind });
   const [draft, setDraft] = useState<DraftRecord | null>(null);
@@ -453,7 +453,7 @@ export default function App() {
     const change = () => {
       invalidate();
       setSearchTarget(null);
-      setQuery('');
+      searchInput.current?.clear();
       if (next !== 'manual') editor.setAutomaticMode(next);
       setPlanningMode(next);
       if (next === 'loop') setWaypoints(points.slice(0, 1));
@@ -497,7 +497,7 @@ export default function App() {
       );
       return;
     }
-    setQuery('');
+    searchInput.current?.clear();
     setSearchTarget(null);
   }
   function reorderStop(fromId: string, toId: string) {
@@ -549,7 +549,7 @@ export default function App() {
     setCollapsed(false);
     editor.setAutomaticMode(defaults.planningMode === 'loop' ? 'loop' : 'point');
     setDirty(false);
-    setQuery('');
+    searchInput.current?.clear();
     setSearchTarget(null);
   }
   function openRoute(route: PlannedRoute) {
@@ -581,7 +581,7 @@ export default function App() {
     setPanelHidden(false);
     setFitToken((token) => token + 1);
     setSearchTarget(null);
-    setQuery('');
+    searchInput.current?.clear();
   }
   function currentRoute(): PlannedRoute | null {
     return result
@@ -660,27 +660,6 @@ export default function App() {
     } catch (error) {
       fail(errorMessage(error));
     }
-  }
-  function addCoordinates(event: React.FormEvent) {
-    event.preventDefault();
-    setNotice(null);
-    const match = query.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
-    if (!match) {
-      fail('Enter coordinates as latitude, longitude.');
-      return;
-    }
-    const latitude = Number(match[1]),
-      longitude = Number(match[2]);
-    if (
-      !Number.isFinite(latitude) ||
-      !Number.isFinite(longitude) ||
-      Math.abs(latitude) > 90 ||
-      Math.abs(longitude) > 180
-    ) {
-      fail('Use latitude −90 to 90 and longitude −180 to 180.');
-      return;
-    }
-    addLocation([longitude, latitude]);
   }
   function changeActivity(next: Activity) {
     if (
@@ -1101,37 +1080,14 @@ export default function App() {
                       {t('Straight lines between points. No road snapping.')}
                     </p>
                   )}
-                  <Label className="search-label" htmlFor="place-search-input">
-                    {t('Enter coordinates')}
-                  </Label>
-                  <form className="place-search" onSubmit={addCoordinates}>
-                    <MapPinPlus size={16} aria-hidden="true" />
-                    <Input
-                      ref={searchInput}
-                      id="place-search-input"
-                      aria-label={t('Latitude, longitude')}
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                      placeholder={
-                        searchTarget
-                          ? t('Replacement latitude, longitude…')
-                          : t('Latitude, longitude…')
-                      }
-                      maxLength={200}
-                    />
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      aria-label={t('Add coordinates')}
-                      disabled={!query.trim()}
-                    >
-                      <span className="search-submit-label">{t('Add')}</span>
-                      <Plus className="search-submit-icon" size={18} />
-                    </Button>
-                  </form>
-                  <p className="search-help">
-                    <span>{t('Add with the button or Enter · latitude, longitude')}</span>
-                  </p>
+                  <CoordinateInput
+                    ref={searchInput}
+                    replacing={Boolean(searchTarget)}
+                    onAdd={(coordinate) => {
+                      setNotice(null);
+                      addLocation(coordinate);
+                    }}
+                  />
                   {searchTarget && (
                     <Button
                       variant="ghost"

@@ -2,19 +2,29 @@ import { useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it } from 'vitest';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from './dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from './dropdown-menu';
 
 function Example() {
   const [value, setValue] = useState('paved');
-  return <DropdownMenu>
-    <DropdownMenuTrigger asChild><button>Surface choice</button></DropdownMenuTrigger>
-    <DropdownMenuContent>
-      <DropdownMenuRadioGroup value={value} onValueChange={setValue}>
-        <DropdownMenuRadioItem value="paved">Paved</DropdownMenuRadioItem>
-        <DropdownMenuRadioItem value="mixed">Mixed</DropdownMenuRadioItem>
-      </DropdownMenuRadioGroup>
-    </DropdownMenuContent>
-  </DropdownMenu>;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button>Surface choice</button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuRadioGroup value={value} onValueChange={setValue}>
+          <DropdownMenuRadioItem value="paved">Paved</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="mixed">Mixed</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 it('uses a checkmark rather than a dot and preserves single selection', async () => {

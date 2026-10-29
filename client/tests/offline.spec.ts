@@ -179,7 +179,7 @@ test.describe('core panels without a service worker', () => {
               library: 'Мои маршруты',
               back: 'Назад к карте',
               manual: 'Новый маршрут по координатам',
-              coordinates: 'Широта, долгота',
+              coordinates: 'Широта',
               add: 'Добавить координаты',
               export: 'Экспорт GPX',
             }
@@ -189,7 +189,7 @@ test.describe('core panels without a service worker', () => {
               library: 'My routes',
               back: 'Back to map',
               manual: 'New manual route',
-              coordinates: 'Latitude, longitude',
+              coordinates: 'Latitude',
               add: 'Add coordinates',
               export: 'Export GPX',
             };
@@ -248,7 +248,7 @@ test('missing routing key keeps the map usable but never substitutes a fake rout
     page.getByRole('region', { name: 'Interactive route map' }).getByRole('status'),
   ).toHaveCount(0);
   for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
-    await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+    await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
   await expect(page.getByRole('alert')).toContainText('VITE_ORS_API_KEY');
@@ -265,7 +265,7 @@ test('manual drawing calculates and exports offline without a routing key', asyn
   try {
     await page.getByRole('button', { name: 'Use manual drawing', exact: true }).click();
     for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
-      await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+      await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
       await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
     }
     await expect(page.getByRole('button', { name: 'Export GPX', exact: true })).toBeEnabled();
@@ -292,7 +292,7 @@ test('offline reload restores an unsaved draft and exposes library backup withou
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
   for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
-    await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+    await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
   await page.waitForTimeout(1200);
@@ -339,7 +339,7 @@ test('confirming a waiting update saves the current draft before reloading', asy
     await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
     await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
     for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
-      await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+      await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
       await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
     }
     await page.evaluate(async (name) => {

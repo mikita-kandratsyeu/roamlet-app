@@ -18,7 +18,9 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
 });
 
-test('theme icons stay in one accessible row on narrow and desktop screens', async ({ page }, testInfo) => {
+test('theme icons stay in one accessible row on narrow and desktop screens', async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize(
     testInfo.project.name === 'mobile'
       ? { width: 320, height: 800 }
@@ -26,15 +28,15 @@ test('theme icons stay in one accessible row on narrow and desktop screens', asy
   );
   for (const language of ['en', 'ru']) {
     await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
-    await page.getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' })
+      .click();
     for (const theme of ['light', 'dark', 'system']) {
       await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
       const options = page.locator('.header-menu-theme-option');
       await expect(options).toHaveCount(3);
       await expect(page.locator('.header-menu-panel')).toHaveCSS('scale', '1');
-      const boxes = await Promise.all(
-        (await options.all()).map((option) => option.boundingBox()),
-      );
+      const boxes = await Promise.all((await options.all()).map((option) => option.boundingBox()));
       for (const box of boxes) {
         expect(box).not.toBeNull();
         expect(box!.width).toBeGreaterThanOrEqual(44);
@@ -54,7 +56,9 @@ test('theme icons stay in one accessible row on narrow and desktop screens', asy
       await expect(options.locator('.preference-check')).toHaveCount(0);
       await expect(choice).not.toHaveCSS('box-shadow', 'none');
       const reset = page.getByRole('menuitem', { name: /^(Reset settings|Сбросить настройки)$/ });
-      const help = page.getByRole('menuitem', { name: /^(Help and data sources|Помощь и источники данных)$/ });
+      const help = page.getByRole('menuitem', {
+        name: /^(Help and data sources|Помощь и источники данных)$/,
+      });
       const library = page.getByRole('menuitem', { name: /^(My routes|Мои маршруты)$/ });
       const actions = [library, reset, help];
       if (testInfo.project.name === 'mobile') {
@@ -77,7 +81,10 @@ test('theme icons stay in one accessible row on narrow and desktop screens', asy
       await options.nth(index).click();
       await expect(page.getByRole('menu')).toHaveCount(0);
       await expect(page.getByRole('button', { name: /^(Menu|Меню)$/ })).toBeFocused();
-      await expect(page.locator('html')).toHaveCSS('color-scheme', theme === 'dark' ? 'dark' : 'light');
+      await expect(page.locator('html')).toHaveCSS(
+        'color-scheme',
+        theme === 'dark' ? 'dark' : 'light',
+      );
     }
   }
 });
@@ -102,7 +109,7 @@ test('personal time fields follow planner sizing without duplicate history butto
   );
   await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
   for (const value of ['47.26, 11.4', '47.27, 11.41']) {
-    await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+    await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
   const speed = page.getByLabel('Personal speed (km/h)', { exact: true });
@@ -135,7 +142,7 @@ test('time controls have compact spacing and contained Russian dropdowns', async
   await page.getByRole('menuitemradio', { name: 'Dark', exact: true }).click();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
-  for(const width of [320,390]) {
+  for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 900 });
     const surface = page.getByRole('button', { name: 'Покрытие', exact: true });
     await surface.scrollIntoViewIfNeeded();
@@ -145,13 +152,19 @@ test('time controls have compact spacing and contained Russian dropdowns', async
     expect(surfaceBox.x).toBeGreaterThanOrEqual(cardBox.x + 10);
     expect(surfaceBox.x + surfaceBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width - 10);
     await expect(surface.locator('svg').last()).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
     await surface.click();
     const menu = page.getByRole('menu');
     const menuBox = (await menu.boundingBox())!;
     expect(menuBox.x).toBeGreaterThanOrEqual(0);
     expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(width);
-    await expect(page.getByRole('menuitemradio', { name: 'Неизвестное покрытие', exact: true })).toBeVisible();
+    const selected = page.getByRole('menuitemradio', { name: 'Неизвестное покрытие', exact: true });
+    await expect(selected).toBeVisible();
+    await expect(selected).toHaveAttribute('aria-checked', 'true');
+    await expect(selected.locator('svg.lucide-check')).toBeVisible();
+    await expect(menu.locator('svg.lucide-circle')).toHaveCount(0);
     await page.keyboard.press('Escape');
   }
 });
@@ -163,7 +176,7 @@ test('personal time allows clearing and retyping with localized validation', asy
   });
   await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
   for (const value of ['47.26, 11.4', '47.27, 11.41']) {
-    await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+    await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
   const speed = page.getByLabel('Personal speed (km/h)', { exact: true });
@@ -216,7 +229,9 @@ test('library loading overlays the editor without moving the map', async ({ page
     while (!Object.hasOwn(prototype, 'toArray')) prototype = Object.getPrototypeOf(prototype);
     const original = prototype.toArray;
     let release: () => void = () => {};
-    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     prototype.toArray = function (this: unknown, ...args: unknown[]) {
       return gate.then(() => original.apply(this, args));
     };
@@ -225,7 +240,10 @@ test('library loading overlays the editor without moving the map', async ({ page
       release();
     };
   }, '/src/domain/storage.ts');
-  const release = () => page.evaluate(() => (window as Window & { releaseLibraryRead?: () => void }).releaseLibraryRead?.());
+  const release = () =>
+    page.evaluate(() =>
+      (window as Window & { releaseLibraryRead?: () => void }).releaseLibraryRead?.(),
+    );
   const canvas = page.locator('.maplibregl-canvas');
   const before = await canvas.boundingBox();
   try {
@@ -304,7 +322,7 @@ test('saved route cards keep uniform heights and aligned actions with long names
 
 test('draft recovery uses the same compact confirmation layout', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill('47.26, 11.4');
+  await page.getByRole('textbox', { name: 'Latitude' }).fill('47.26, 11.4');
   await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   await page.waitForTimeout(1200);
   await page.reload();

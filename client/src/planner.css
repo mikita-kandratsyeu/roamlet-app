@@ -202,68 +202,60 @@
   gap: 8px;
   max-width: 100%;
 }
-.search-label {
-  display: block;
-  margin: 0 0 5px;
+.coordinate-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 8px;
+  row-gap: 6px;
+  margin-bottom: 12px;
+}
+.coordinate-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.coordinate-field label {
   font-size: 11px;
-  line-height: 1.45;
+  line-height: 16px;
   color: var(--muted-foreground);
   font-weight: 400;
 }
-.place-search {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
-  gap: 8px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  position: relative;
-}
-.place-search > svg {
-  position: relative;
-  left: 10px;
-  z-index: 1;
-}
-.place-search input {
-  grid-column: 1 / 3;
-  grid-row: 1;
+.coordinate-field input {
+  width: 100%;
+  min-width: 0;
   height: 44px;
-  padding: 10px 10px 10px 34px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 12px;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
 }
-.place-search > svg {
-  grid-column: 1;
-  grid-row: 1;
-}
-.place-search button {
-  grid-column: 3;
-  grid-row: 1;
-  min-width: 68px;
-  width: auto;
+.coordinate-entry .coordinate-add {
+  margin-top: 21px;
   height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--foreground);
+  padding: 0 12px;
+  gap: 6px;
   font-size: 13px;
 }
-.search-submit-icon {
-  display: none;
-}
-.place-search:has(input:focus) {
-  outline: 0;
-}
-.place-search input:focus {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-.search-help {
-  margin: 5px 0 10px;
-  font-size: 10px;
+.coordinate-help,
+.coordinate-error,
+.coordinate-replacing {
+  margin: 0;
+  font-size: 11px;
   line-height: 1.45;
+}
+.coordinate-help,
+.coordinate-replacing {
+  grid-column: 1 / -1;
+  color: var(--muted-foreground);
+}
+.coordinate-error {
+  color: var(--destructive);
+}
+.coordinate-field input[aria-invalid='true'] {
+  border-color: var(--destructive);
 }
 .stops-empty {
   flex-direction: column;
@@ -1013,26 +1005,14 @@
   .planning-tabs button {
     font-size: 12px;
   }
-  .search-help {
-    display: none;
+  .coordinate-entry {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    row-gap: 8px;
   }
-  .place-search {
-    margin-bottom: 10px;
-  }
-  .place-search input {
-    font-size: 16px;
-    padding-left: 10px;
-  }
-  .place-search > svg,
-  .search-submit-label {
-    display: none;
-  }
-  .search-submit-icon {
-    display: block;
-  }
-  .place-search button {
-    min-width: 44px;
-    padding: 0;
+  .coordinate-entry .coordinate-add {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-top: 0;
   }
   .waypoint-list {
     gap: 0;

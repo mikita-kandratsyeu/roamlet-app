@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { calculateStats } from '../src/domain/stats';
 
 async function addPoint(page: Page, value: string) {
-  await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+  await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
   await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
 }
 async function choose(page: Page, label: string, option: string) {
@@ -61,7 +61,10 @@ test('personal adjustments change the range without routing or replacing provide
   await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
   const statistics = page.getByRole('region', { name: 'Route statistics', exact: true });
   await expect(statistics.getByText('Provider estimate', { exact: true })).toBeVisible();
-  const providerTime = statistics.locator('dt').filter({ hasText: /^Provider estimate$/ }).locator('xpath=following-sibling::dd[1]');
+  const providerTime = statistics
+    .locator('dt')
+    .filter({ hasText: /^Provider estimate$/ })
+    .locator('xpath=following-sibling::dd[1]');
   await expect(providerTime).toHaveText('1 h 0 min');
   await expect(statistics.getByText('Planning reference', { exact: true })).toBeVisible();
   const original = await statistics.innerText();
@@ -77,7 +80,18 @@ test('personal adjustments change the range without routing or replacing provide
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
   await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
   const backup = JSON.parse(await download(page, 'Export library'));
-  expect(backup.routes[0].stats.distance).toBeCloseTo(calculateStats([[[11.4, 47.26], [11.41, 47.27]]], 'cycling').distance, 6);
+  expect(backup.routes[0].stats.distance).toBeCloseTo(
+    calculateStats(
+      [
+        [
+          [11.4, 47.26],
+          [11.41, 47.27],
+        ],
+      ],
+      'cycling',
+    ).distance,
+    6,
+  );
   expect(backup.routes[0].stats.duration).toBe(3600);
   expect(requests).toBe(1);
 });
@@ -89,15 +103,13 @@ test('hiking pace and climb allowance preserve split GPX tracks and original hei
   page.on('request', (request) => {
     if (request.url().includes('/v2/directions/')) requests.push(request.url());
   });
-  await page
-    .getByLabel('Import GPX file')
-    .setInputFiles({
-      name: 'climb.gpx',
-      mimeType: 'application/gpx+xml',
-      buffer: Buffer.from(
-        '<gpx version="1.1"><metadata><name>Mountain split</name></metadata><trk><trkseg><trkpt lat="47.26" lon="11.4"><ele>100</ele></trkpt><trkpt lat="47.27" lon="11.41"><ele>400</ele></trkpt></trkseg><trkseg><trkpt lat="48" lon="12"><ele>500</ele></trkpt><trkpt lat="48.01" lon="12.01"><ele>800</ele></trkpt></trkseg></trk></gpx>',
-      ),
-    });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'climb.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(
+      '<gpx version="1.1"><metadata><name>Mountain split</name></metadata><trk><trkseg><trkpt lat="47.26" lon="11.4"><ele>100</ele></trkpt><trkpt lat="47.27" lon="11.41"><ele>400</ele></trkpt></trkseg><trkseg><trkpt lat="48" lon="12"><ele>500</ele></trkpt><trkpt lat="48.01" lon="12.01"><ele>800</ele></trkpt></trkseg></trk></gpx>',
+    ),
+  });
   const pace = page.getByLabel('Walking pace (min/km)', { exact: true });
   await expect(pace).toBeVisible();
   const statistics = page.getByRole('region', { name: 'Route statistics', exact: true });

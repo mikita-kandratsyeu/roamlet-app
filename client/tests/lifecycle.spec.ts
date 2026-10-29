@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 const gpx =
   '<gpx version="1.1"><metadata><name>Segmented ride</name></metadata><trk><trkseg><trkpt lat="47.26" lon="11.4"><ele>600</ele></trkpt><trkpt lat="47.27" lon="11.41"><ele>620</ele></trkpt></trkseg><trkseg><trkpt lat="48" lon="12"><ele>800</ele></trkpt><trkpt lat="48.01" lon="12.01"><ele>790</ele></trkpt></trkseg></trk></gpx>';
 async function addPoint(page: Page, value: string) {
-  await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(value);
+  await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
   await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
 }
 async function library(page: Page) {
@@ -45,7 +45,7 @@ test('manual edits undo and redo, retain native text undo, and recover after rel
   await expect(page.locator('.waypoint-marker')).toHaveCount(1);
   await page.keyboard.press('Control+Shift+z');
   await expect(page.locator('.waypoint-marker')).toHaveCount(2);
-  const coordinates = page.getByRole('textbox', { name: 'Latitude, longitude' });
+  const coordinates = page.getByRole('textbox', { name: 'Latitude' });
   await coordinates.fill('47.28, 11.42');
   await coordinates.press('Control+z');
   await expect(page.locator('.waypoint-marker')).toHaveCount(2);

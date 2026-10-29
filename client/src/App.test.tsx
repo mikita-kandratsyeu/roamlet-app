@@ -96,7 +96,7 @@ function selectLanguage(label: string) {
   fireEvent.click(screen.getByRole('menuitemradio', { name: label }));
 }
 function addCoordinate(text: string) {
-  fireEvent.change(screen.getByRole('textbox', { name: 'Latitude, longitude' }), {
+  fireEvent.change(screen.getByRole('textbox', { name: 'Latitude' }), {
     target: { value: text },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Add coordinates' }));
@@ -121,7 +121,7 @@ describe('offline planner', () => {
     setOnline(false);
     expect(screen.getByText('No internet connection')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Update route' })).toBeDisabled();
-    expect(screen.getByRole('textbox', { name: 'Latitude, longitude' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeDisabled();
     expect(screen.getByRole('radio', { name: 'Cycling' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
@@ -158,7 +158,7 @@ describe('offline planner', () => {
     addCoordinate('47.26, 11.4');
     addCoordinate('47.27, 11.41');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled());
-    expect(screen.getByRole('textbox', { name: 'Latitude, longitude' })).toBeEnabled();
+    expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeEnabled();
     expect(
       screen.getByText('Enter coordinates to draw straight lines without an online map.'),
     ).toBeVisible();
@@ -528,13 +528,13 @@ describe('route planner interactions', () => {
 
   it('accepts only coordinates and never offers address search', () => {
     render(<App />);
-    fireEvent.change(screen.getByRole('textbox', { name: 'Latitude, longitude' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Latitude' }), {
       target: { value: 'Minsk' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Add coordinates' }));
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Enter coordinates as latitude, longitude.',
-    );
+    expect(screen.getByText('Enter a number, for example 47.26.')).toHaveAttribute('role', 'alert');
+    expect(screen.getByText('Enter longitude.')).toHaveAttribute('role', 'alert');
+    expect(screen.getByRole('textbox', { name: 'Latitude' })).toHaveFocus();
     expect(provider.calculateRoute).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: /^Search$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Search results' })).not.toBeInTheDocument();
@@ -756,7 +756,7 @@ describe('route planner interactions', () => {
         ],
       ]),
     );
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Latitude, longitude' }), {
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Latitude' }), {
       key: 'z',
       ctrlKey: true,
     });
@@ -789,7 +789,7 @@ describe('route planner interactions', () => {
     await routeDb.table('drafts').put({ id: 'current', version: 999 });
     render(<App />);
     expect(await screen.findByRole('alert')).toHaveTextContent('draft could not');
-    expect(screen.getByRole('textbox', { name: 'Latitude, longitude' })).toBeEnabled();
+    expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Delete draft' }));
     await waitFor(async () => expect(await routeDb.table('drafts').count()).toBe(0));
     expect(await routeDb.routes.count()).toBe(0);
@@ -810,7 +810,7 @@ describe('route planner interactions', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save to library' }));
     await waitFor(() => expect(save).toHaveBeenCalledOnce());
-    fireEvent.change(screen.getByLabelText('Latitude, longitude'), {
+    fireEvent.change(screen.getByLabelText('Latitude'), {
       target: { value: '47.28, 11.42' },
     });
     fireEvent.click(screen.getByLabelText('Add coordinates'));

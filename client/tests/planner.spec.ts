@@ -19,7 +19,7 @@ const fixture = {
 const gpx =
   '<?xml version="1.0"?><gpx version="1.1" creator="Roamlet test" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>Mountain morning</name></metadata><wpt lat="47.2692" lon="11.4041"><name>Meeting point</name></wpt><trk><name>Mountain morning</name><trkseg><trkpt lat="47.2692" lon="11.4041"><ele>600</ele></trkpt><trkpt lat="47.2697" lon="11.405"><ele>620</ele></trkpt></trkseg><trkseg><trkpt lat="47.27" lon="11.409"><ele>630</ele></trkpt><trkpt lat="47.271" lon="11.411"><ele>610</ele></trkpt></trkseg></trk></gpx>';
 async function addPoint(page: Page, text: string) {
-  await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill(text);
+  await page.getByRole('textbox', { name: 'Latitude' }).fill(text);
   await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
 }
 async function requestNewRoute(page: Page) {
@@ -307,9 +307,10 @@ test('coordinate input replaces paid search; hiking and service failures are hon
     if (url.pathname.includes('/search/geocode/') || url.pathname.includes('terrain-rgb'))
       paidRequests.push(url.pathname);
   });
-  await page.getByRole('textbox', { name: 'Latitude, longitude' }).fill('Innsbruck');
+  await page.getByRole('textbox', { name: 'Latitude' }).fill('Innsbruck');
   await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Enter coordinates');
+  await expect(page.getByRole('textbox', { name: 'Latitude' })).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByText('Enter a number, for example 47.26.')).toBeVisible();
   await addPoint(page, '47.2692, 11.4041');
   await page.getByRole('radio', { name: 'Hiking', exact: true }).click();
   const request = page.waitForRequest(
@@ -407,7 +408,7 @@ test('Onest loads Latin and Cyrillic faces and keeps Russian controls within a 3
   await page.getByRole('button', { name: 'Меню', exact: true }).click();
   for (const element of [
     page.locator('body'),
-    page.getByRole('textbox', { name: 'Широта, долгота' }),
+    page.getByRole('textbox', { name: 'Широта' }),
     page.getByRole('menuitem', { name: 'Мои маршруты' }),
     page.locator('.maplibregl-map'),
   ]) {
@@ -520,17 +521,19 @@ test('header supports desktop creation and an accessible compact menu', async ({
 test('focus indicators are single and keyboard focus follows fields, dialogs, library actions and map controls', async ({
   page,
 }) => {
-  const search = page.getByRole('textbox', { name: 'Latitude, longitude' });
+  const search = page.getByRole('textbox', { name: 'Latitude' });
   await search.fill('Innsbruck');
   await expect(search).toHaveCSS('outline-width', '2px');
-  await expect(page.locator('.place-search')).toHaveCSS('outline-width', '0px');
+  await expect(page.locator('.coordinate-entry')).toHaveCSS('outline-width', '0px');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('textbox', { name: 'Longitude' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Add coordinates', exact: true })).toBeFocused();
   await expect(page.getByRole('button', { name: 'Add coordinates', exact: true })).toHaveCSS(
     'outline-width',
     '2px',
   );
-  await expect(page.locator('.place-search')).toHaveCSS('outline-style', 'none');
+  await expect(page.locator('.coordinate-entry')).toHaveCSS('outline-style', 'none');
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
   await menu.press('ArrowDown');
   const menuLibrary = page.getByRole('menuitem', { name: 'My routes' });
