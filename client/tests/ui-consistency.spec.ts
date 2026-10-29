@@ -488,8 +488,8 @@ test('time controls have compact spacing and contained Russian dropdowns', async
     const card = surface.locator('xpath=ancestor::details[1]');
     const cardBox = (await card.boundingBox())!;
     const surfaceBox = (await surface.boundingBox())!;
-    expect(surfaceBox.x).toBeGreaterThanOrEqual(cardBox.x + 10);
-    expect(surfaceBox.x + surfaceBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width - 10);
+    expect(surfaceBox.x).toBeGreaterThanOrEqual(cardBox.x);
+    expect(surfaceBox.x + surfaceBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width);
     await expect(surface.locator('svg').last()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,

@@ -670,23 +670,13 @@
 .personal-time-heading::-webkit-details-marker {
   display: none;
 }
-.personal-time-heading > span {
+.personal-time-heading > span:first-child {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: var(--foreground);
   font-size: var(--font-size-label);
   font-weight: 600;
-}
-.personal-time-heading > span > svg {
-  color: var(--primary);
-}
-.personal-time-toggle {
-  color: var(--muted-foreground);
-  transition: transform 150ms ease;
-}
-.personal-time-section[open] .personal-time-toggle {
-  transform: rotate(180deg);
 }
 .personal-time-fields {
   display: grid;
@@ -885,6 +875,24 @@
 }
 .elevation-box[open] .elevation-toggle svg {
   transform: rotate(180deg);
+}
+.planner-scroll > :is(.personal-time-section, .planner-details),
+.planner-scroll > .statistics > :is(.time-explanation, .elevation-box) {
+  margin: 0;
+  padding: 8px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+.planner-scroll > :is(.personal-time-section, .planner-details) > summary.section-heading,
+.planner-scroll > .statistics > :is(.time-explanation, .elevation-box) > summary.section-heading {
+  min-height: 44px;
+  gap: 12px;
+  font-size: var(--font-size-control);
+}
+.planner-scroll > .personal-time-section > summary > span:first-child {
+  font: inherit;
 }
 .map-top-label {
   display: none;

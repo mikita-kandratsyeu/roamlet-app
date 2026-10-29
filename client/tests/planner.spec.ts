@@ -862,6 +862,39 @@ test('centers the saved-route empty-state icon above its text', async ({ page })
   expect(Math.abs(icon!.x + icon!.width / 2 - (empty!.x + empty!.width / 2))).toBeLessThan(1);
 });
 
+test('planner disclosure rows have uniform spacing and chevrons', async ({ page }, testInfo) => {
+  await page.setViewportSize(testInfo.project.name === 'mobile'
+    ? { width: 390, height: 900 } : { width: 1440, height: 1000 });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'spacing.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from(gpx),
+  });
+  const sheet = page.locator('.mobile-sheet-toggle');
+  if ((await sheet.isVisible()) && (await sheet.getAttribute('aria-expanded')) === 'false')
+    await sheet.click();
+  await page.locator('.elevation-box > summary').click();
+  const rows = page.locator('.planner-scroll > .personal-time-section, .planner-scroll > .planner-details, .planner-scroll > .statistics > .time-explanation, .planner-scroll > .statistics > .elevation-box');
+  await expect(rows).toHaveCount(5);
+  for (const row of await rows.all()) {
+    await expect(row).not.toHaveAttribute('open');
+    await expect(row).toHaveCSS('padding-top', '8px');
+    await expect(row).toHaveCSS('padding-bottom', '8px');
+    await expect(row).toHaveCSS('margin-top', '0px');
+    await expect(row.locator(':scope > summary')).toHaveCSS('min-height', '44px');
+    const box = (await row.boundingBox())!;
+    expect(box.height).toBeCloseTo(61, 0);
+  }
+  const geometry = await rows.evaluateAll((elements) => elements.map((element) => {
+    const row = element.getBoundingClientRect();
+    const toggle = element.querySelector(':scope > summary .disclosure-toggle')!.getBoundingClientRect();
+    return { left: row.left, right: row.right, toggleRight: toggle.right };
+  }));
+  for (const row of geometry) {
+    expect(row.left).toBeCloseTo(geometry[0].left, 0);
+    expect(row.right).toBeCloseTo(geometry[0].right, 0);
+    expect(row.toggleRight).toBeCloseTo(geometry[0].toggleRight, 0);
+  }
+});
+
 test('route overview precedes collapsed details and settings survive disclosure toggles', async ({ page }) => {
   await page.getByLabel('Import GPX file').setInputFiles({
     name: 'overview.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from(gpx),

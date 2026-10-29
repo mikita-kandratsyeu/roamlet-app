@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Clock3 } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { useDecimalField } from '../hooks/useDecimalField';
@@ -95,10 +95,11 @@ export function PlannerTools({
       onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary className="section-heading personal-time-heading">
         <span>
-          <Clock3 size={16} aria-hidden="true" />
           {t('Personal time')}
         </span>
-        <ChevronDown className="personal-time-toggle" size={16} aria-hidden="true" />
+        <span className="disclosure-toggle" aria-hidden="true">
+          <ChevronDown size={18} />
+        </span>
       </summary>
       <div className="personal-time-fields">
         <div className="personal-time-row" data-errors={speedInvalid || stopsInvalid || undefined}>
