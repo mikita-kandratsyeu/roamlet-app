@@ -49,7 +49,10 @@ it('renders calculated metrics, thresholds and distinctly labels net grade', () 
   expect(screen.getAllByRole('button')).toHaveLength(2);
   expect(screen.getAllByText('Filtered ascent (net gain): 30 m')).toHaveLength(2);
   expect(screen.getAllByText('Average grade (net gain / length): 9%')).toHaveLength(2);
-  expect(screen.getByText('≥300 m · ≥20 m gain')).toHaveAttribute('data-slot', 'badge');
+  const thresholds = screen.getByText('≥300 m · ≥20 m gain');
+  expect(thresholds.tagName).toBe('P');
+  expect(thresholds).toHaveClass('fine-print', 'climb-analysis__thresholds');
+  expect(thresholds).not.toHaveAttribute('data-slot', 'badge');
   expect(screen.getByRole('region', { name: 'Climb analysis' })).toHaveAccessibleDescription(
     '≥300 m · ≥20 m gain',
   );

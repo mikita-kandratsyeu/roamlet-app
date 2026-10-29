@@ -133,6 +133,21 @@ test('disclosure arrows align and mobile route actions have labels and 44px targ
   await expect(page.getByText('How climbs are detected', { exact: true })).toBeVisible();
   expect(await page.locator('.time-explanation').getAttribute('open')).toBeNull();
   expect(await page.locator('.climb-analysis details').getAttribute('open')).toBeNull();
+  const headerLayout = await climb.evaluate((section) => {
+    const title = section.querySelector('h2')!.getBoundingClientRect();
+    const thresholds = section
+      .querySelector('.climb-analysis__thresholds')!
+      .getBoundingClientRect();
+    const statistics = section.previousElementSibling!.getBoundingClientRect();
+    return {
+      gap: title.top - statistics.bottom,
+      thresholdGap: thresholds.top - title.bottom,
+      alignment: Math.abs(title.left - thresholds.left),
+    };
+  });
+  expect(headerLayout.gap).toBeGreaterThanOrEqual(16);
+  expect(headerLayout.thresholdGap).toBeGreaterThanOrEqual(4);
+  expect(headerLayout.alignment).toBeLessThanOrEqual(1);
   if (testInfo.project.name !== 'mobile') return;
   const positions = await page
     .locator('#route-planner .planner-disclosure > summary .disclosure-toggle')

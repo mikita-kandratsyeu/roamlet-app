@@ -1,7 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
-import { Badge } from './ui/badge';
 import { analyzeClimbs, CLIMB_THRESHOLDS } from '../domain/climbs';
 import type { Coordinate, PlannedRoute } from '../domain/types';
 import './ClimbAnalysis.css';
@@ -44,12 +43,12 @@ export function ClimbAnalysis({ route, onHighlight }: ClimbAnalysisProps) {
     >
       <header className="section-heading climb-analysis__header">
         <h2 id={headingId}>{t('Climb analysis')}</h2>
-        <Badge id={explanationId} variant="secondary">
+        <p id={explanationId} className="fine-print climb-analysis__thresholds">
           {t('≥{{length}} m · ≥{{ascent}} m gain', {
             length: number(CLIMB_THRESHOLDS.minimumLengthMeters),
             ascent: number(CLIMB_THRESHOLDS.minimumAscentMeters),
           })}
-        </Badge>
+        </p>
       </header>
       {!analysis.available ? (
         <p className="fine-print">
