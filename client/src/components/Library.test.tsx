@@ -528,9 +528,39 @@ it('opens import preview in a separate dialog and Escape cancels preview rather 
   expect(importBackup).not.toHaveBeenCalled();
 });
 
+it('renders three short tags as compact badges with complete accessible labels', async () => {
+  const tags = ['234e234', '23423423423', '2'];
+  vi.mocked(listRoutes).mockResolvedValue([{ ...alpine, tags }, woodland]);
+  await openLibrary();
+  const body = screen.getByRole('button', { name: /Alpine loop Cycling/ });
+  const tagRow = body.querySelector('.library-route-tags')!;
+  const badges = tagRow.querySelectorAll('[data-slot="badge"]');
+  expect(badges).toHaveLength(3);
+  for (const [index, badge] of Array.from(badges).entries()) {
+    expect(badge).toHaveTextContent(tags[index]);
+    expect(badge).toHaveAttribute('title', tags[index]);
+    expect(badge).toHaveAttribute('data-variant', 'secondary');
+    expect(badge).toHaveAttribute('aria-hidden', 'true');
+  }
+  expect(body).toHaveAccessibleName(expect.stringContaining(tags.join(', ')));
+  expect(tagRow.querySelector('.library-route-tag-overflow')).toBeNull();
+});
+
+it('reserves an empty tag row without badges for absent and empty tags', async () => {
+  vi.mocked(listRoutes).mockResolvedValue([alpine, { ...woodland, tags: [] }]);
+  await openLibrary();
+  const rows = screen.getByRole('list', { name: 'Saved routes' })
+    .querySelectorAll('.library-route-tags');
+  expect(rows).toHaveLength(2);
+  for (const row of rows) {
+    expect(row).toHaveTextContent(/^$/);
+    expect(row.querySelector('[data-slot="badge"]')).toBeNull();
+  }
+});
+
 it('keeps complete long route names/tags/details accessible in consistently reserved card content slots', async () => {
   const longName = `Alpine loop ${'(copy) '.repeat(35)}`;
-  const longTags = ['mountains'.repeat(30), 'weekend', 'forest'];
+  const longTags = ['mountains'.repeat(30), 'weekend', 'forest', 'lake', 'coast', 'city', 'trail', 'hidden-tag'];
   const longDescription = 'Very detailed route notes. '.repeat(80);
   const longRoute = { ...alpine, name: longName, tags: longTags, description: longDescription };
   vi.mocked(listRoutes).mockResolvedValue([longRoute, { ...woodland, description: '' }]);
@@ -549,6 +579,15 @@ it('keeps complete long route names/tags/details accessible in consistently rese
     'title',
     longTags.join(' · '),
   );
+  const tagRow = longBody.querySelector('.library-route-tags')!;
+  expect(tagRow.querySelectorAll('[data-slot="badge"]')).toHaveLength(4);
+  expect(tagRow.querySelectorAll('.library-route-tag-label')).toHaveLength(3);
+  expect(tagRow.querySelector('.library-route-tag-label')).toHaveTextContent(longTags[0]);
+  expect(tagRow.querySelector('.library-route-tag-overflow')).toHaveTextContent('+5');
+  expect(tagRow.querySelector('.library-route-tag-overflow')).toHaveAttribute(
+    'title', longTags.slice(3).join(', '),
+  );
+  expect(longBody).toHaveAccessibleName(expect.stringContaining(longTags.join(', ')));
   expect(longBody.querySelector('.route-description')).toHaveAttribute('title', longDescription);
   for (const body of bodies) {
     expect(body.querySelector('.library-route-title')).toBeInTheDocument();
@@ -569,4 +608,10 @@ it('keeps complete long route names/tags/details accessible in consistently rese
   );
   fireEvent.click(longBody);
   expect(onOpen).toHaveBeenCalledWith(longRoute);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search saved routes' }), {
+    target: { value: 'hidden-tag' },
+  });
+  expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+  fireEvent.click(within(actions).getByRole('button', { name: `Edit ${longName.trim()}` }));
+  expect(screen.getByRole('textbox', { name: 'Tags' })).toHaveValue(longTags.join(', '));
 });

@@ -699,12 +699,6 @@
   border-radius: 50%;
   background: var(--surface);
 }
-.route-library .library-route-tags {
-  color: var(--library-quiet);
-  font-size: var(--font-size-helper);
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
 .route-library .library-route {
   grid-template-columns: 40px minmax(0, 1fr) auto;
   padding: 16px;
@@ -837,12 +831,6 @@
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
-.library-screen .library-back-button {
-  min-height: 40px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: var(--font-size-control);
-}
 .library-screen-scroll {
   flex: 1;
   min-height: 0;
@@ -934,12 +922,6 @@
   .library-screen-heading > svg {
     display: none;
   }
-  .library-screen .library-back-button {
-    min-width: 0;
-    padding: 8px;
-    font-size: var(--font-size-control);
-    white-space: normal;
-  }
   .library-screen-scroll {
     padding: 16px 12px max(16px, env(safe-area-inset-bottom));
   }
@@ -964,7 +946,6 @@
 }
 .route-library .library-route-title,
 .route-library .library-route-meta,
-.route-library .library-route-tags,
 .route-library .route-description {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -985,11 +966,49 @@
   min-height: 1.45em;
 }
 .route-library .library-route-tags {
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 24px;
+  min-height: 24px;
+  overflow: hidden;
+}
+.route-library .library-route-tag {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: 24px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--library-tint);
+  color: var(--primary);
+  font-size: var(--font-size-label);
   line-height: 1.45;
-  height: 1.45em;
-  min-height: 1.45em;
+}
+.route-library .library-route-tag-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.route-library .library-route-tag-overflow {
+  flex-shrink: 0;
+  background: var(--muted);
+  color: var(--library-quiet);
+}
+.route-library .library-route-tags-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 .route-library .route-description {
   -webkit-line-clamp: 1;

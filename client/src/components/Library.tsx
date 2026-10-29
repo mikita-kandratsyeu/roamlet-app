@@ -1,4 +1,5 @@
 import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
@@ -48,6 +49,8 @@ import {
 import { thumbnailPaths } from './routeThumbnail';
 import { Dialog } from './Dialog';
 import { locale, translateMessage } from '../i18n';
+
+const MAX_VISIBLE_ROUTE_TAGS = 3;
 
 type RouteSort = 'updated' | 'name' | 'distance';
 const sortLabels: Record<RouteSort, string> = {
@@ -315,7 +318,7 @@ export function Library({
           <FolderHeart size={22} aria-hidden="true" />
           <h1>{t('Your route library')}</h1>
         </div>
-        <Button variant="outline" className="library-back-button" disabled={busy} onClick={onClose}>
+        <Button variant="ghost" className="back-to-map-button" disabled={busy} onClick={onClose}>
           <ArrowLeft size={18} aria-hidden="true" />
           {t('Back to map')}
         </Button>
@@ -695,7 +698,30 @@ export function Library({
                       </span>
                     </span>
                     <span className="library-route-tags" title={(route.tags ?? []).join(' · ')}>
-                      {(route.tags ?? []).join(' · ')}
+                      <span className="library-route-tags-accessible">
+                        {(route.tags ?? []).join(', ')}
+                      </span>
+                      {(route.tags ?? []).slice(0, MAX_VISIBLE_ROUTE_TAGS).map((tag, index) => (
+                        <Badge
+                          key={`${index}:${tag}`}
+                          variant="secondary"
+                          className="library-route-tag"
+                          title={tag}
+                          aria-hidden="true"
+                        >
+                          <span className="library-route-tag-label">{tag}</span>
+                        </Badge>
+                      ))}
+                      {(route.tags?.length ?? 0) > MAX_VISIBLE_ROUTE_TAGS && (
+                        <Badge
+                          variant="secondary"
+                          className="library-route-tag library-route-tag-overflow"
+                          title={route.tags?.slice(MAX_VISIBLE_ROUTE_TAGS).join(', ')}
+                          aria-hidden="true"
+                        >
+                          +{(route.tags?.length ?? 0) - MAX_VISIBLE_ROUTE_TAGS}
+                        </Badge>
+                      )}
                     </span>
                     <span className="route-description" title={route.description}>
                       {route.description}

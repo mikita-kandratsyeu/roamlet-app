@@ -1,3 +1,100 @@
+.workspace .map-style-picker.map-top-label {
+  display: inline-flex;
+  top: var(--map-style-top, var(--space));
+  padding: 4px;
+  gap: 4px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-surface);
+}
+
+.map-style-picker .map-style-option {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  color: var(--foreground);
+  border-radius: 6px;
+}
+
+.map-style-picker .map-style-option[data-state='on'] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.workspace .map-warning.map-notice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  top: var(--map-message-top, 76px);
+  font-size: var(--font-size-body, 14px);
+}
+
+.map-notice-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.map-notice-heading > svg {
+  flex-shrink: 0;
+}
+
+.map-notice-heading > strong {
+  flex: 1;
+  min-width: 0;
+}
+
+.map-notice .map-notice-description {
+  display: block;
+  grid-column: 1;
+  min-width: 0;
+  color: inherit;
+  font-size: var(--font-size-body, 14px);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.map-notice .map-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.workspace .map-warning.map-notice button {
+  width: auto;
+  height: auto;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: var(--font-size-control, 14px);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.workspace .map-warning.map-notice .map-notice-dismiss {
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.map-notice-actions > button {
+  flex: 1;
+}
+
+@media (max-width: 1024px) {
+  .workspace .map-style-picker.map-top-label {
+    left: var(--space);
+  }
+}
+
+@media (max-width: 700px) {
+  .workspace .map-region .map-extra-controls {
+    gap: 4px;
+  }
+}
+
 .waypoint-marker.waypoint-marker-selected {
   outline: 3px solid #f0b44c;
   outline-offset: 3px;

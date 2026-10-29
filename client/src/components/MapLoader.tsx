@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import './MapLoader.css';
 
@@ -130,7 +131,8 @@ export function MapLoader(props: Props = {}) {
           <span />
         </div>
         {library && selected.onCancel && (
-          <Button variant="outline" onClick={selected.onCancel}>
+          <Button variant="ghost" className="back-to-map-button" onClick={selected.onCancel}>
+            <ArrowLeft size={18} aria-hidden="true" />
             {t('Back to map')}
           </Button>
         )}

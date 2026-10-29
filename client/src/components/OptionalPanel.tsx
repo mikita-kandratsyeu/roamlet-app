@@ -40,7 +40,7 @@ function PanelFallback({
   return createPortal(
     <section className="optional-screen-overlay" role="region" aria-label={t('Saved routes')}>
       <header>
-        <Button variant="ghost" onClick={onClose} autoFocus>
+        <Button variant="ghost" className="back-to-map-button" onClick={onClose} autoFocus>
           <ArrowLeft size={18} aria-hidden="true" />
           {t('Back to map')}
         </Button>

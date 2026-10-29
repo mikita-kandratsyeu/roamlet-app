@@ -39,11 +39,11 @@ import {
   FileUp,
   RefreshCw,
   Library,
+  Layers,
 } from 'lucide-react';
 import { waypointKind } from './waypointStyle';
 import { useTheme } from '../theme';
-import { Alert } from './ui/alert';
-import { Badge } from './ui/badge';
+import { Alert, AlertDescription } from './ui/alert';
 import { MapLoader } from './MapLoader';
 import i18n, { formatNumber, translateMessage } from '../i18n';
 
@@ -915,9 +915,29 @@ export function RouteMap(props: Props) {
         </span>
       )}
       {(mapError || preferenceWarning) && (
-        <Alert className="map-warning" role="status">
-          <span>{translateMessage(mapError || preferenceWarning)}</span>
+        <Alert className="map-warning map-notice" role={mapError ? 'alert' : 'status'}>
+          <div className="map-notice-heading">
+            <MapIcon size={18} aria-hidden="true" />
+            <strong>{t(mapError ? 'Map error' : 'Notification')}</strong>
+            {!configurationError && (
+              <Button
+                variant="ghost"
+                className="map-notice-dismiss"
+                onClick={() => {
+                  setMapError('');
+                  setPreferenceWarning('');
+                }}
+                aria-label={t('Dismiss map notice')}
+              >
+                <X size={16} aria-hidden="true" />
+              </Button>
+            )}
+          </div>
+          <AlertDescription className="map-notice-description">
+            {translateMessage(mapError || preferenceWarning)}
+          </AlertDescription>
           {mapError && !configurationError && (
+            <div className="map-notice-actions">
             <Button
               variant="outline"
               onClick={() => {
@@ -932,38 +952,31 @@ export function RouteMap(props: Props) {
             >
               {t('Retry map')}
             </Button>
-          )}
-          {!configurationError && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setMapError('');
-                setPreferenceWarning('');
-              }}
-              aria-label={t('Dismiss map notice')}
-            >
-              <X size={16} />
-            </Button>
+            </div>
           )}
         </Alert>
       )}
       {loading && !mapError && <MapLoader />}
-      <Badge variant="secondary" className="map-top-label">
-        <Layers size={18} aria-hidden="true" />
-        <select
-          className="map-style-select"
-          aria-label={t('Map style')}
-          value={style}
-          disabled={!map.current}
-          onChange={(event) => changeStyle(event.target.value)}
-        >
-          {styles.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-      </Badge>
+      <ToggleGroup
+        type="single"
+        className="map-style-picker map-top-label"
+        aria-label={t('Map style')}
+        value={style}
+        onValueChange={changeStyle}
+        disabled={!map.current}
+      >
+        {styles.map((item) => (
+          <ToggleGroupItem
+            key={item.value}
+            value={item.value}
+            className="map-style-option"
+            aria-label={item.label}
+            title={item.label}
+          >
+            <item.icon size={20} aria-hidden="true" />
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
 
       <div className="map-extra-controls" role="group" aria-label={t('Map controls')}>
         <Button
@@ -1103,21 +1116,6 @@ export function RouteMap(props: Props) {
               </div>
             </div>
           )}
-          <ToggleGroup
-            type="single"
-            className="map-style-tabs"
-            aria-label={t('Map style')}
-            value={style}
-            onValueChange={changeStyle}
-            disabled={!map.current}
-          >
-            {styles.map((item) => (
-              <ToggleGroupItem key={item.value} value={item.value}>
-                <item.icon size={18} aria-hidden="true" />
-                {item.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
         </div>
         <div className="map-bottom-trailing">
           {props.onImport && (

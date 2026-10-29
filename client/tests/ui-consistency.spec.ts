@@ -89,6 +89,47 @@ test('theme icons stay in one accessible row on narrow and desktop screens', asy
   }
 });
 
+test('back to map stays a themed navigation control on narrow and desktop screens', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 800 }
+      : { width: 1440, height: 1000 },
+  );
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' })
+      .click();
+    for (const theme of ['light', 'dark']) {
+      await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+      await page.locator('.header-menu-theme-option').nth(theme === 'dark' ? 1 : 0).click();
+      await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+      await page.getByRole('menuitem', { name: /^(My routes|Мои маршруты)$/ }).click();
+      await expect(page.getByTestId('panel-loader')).toHaveCount(0);
+      const back = page.locator('.library-screen').getByRole('button', {
+        name: /^(Back to map|Назад к карте)$/,
+      });
+      await expect(back).toBeEnabled();
+      await expect(back).toHaveAttribute('data-variant', 'ghost');
+      await expect(back).toHaveCSS('border-top-width', '0px');
+      await expect(back).toHaveCSS('box-shadow', 'none');
+      await expect(back).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      const box = (await back.boundingBox())!;
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+      await back.focus();
+      await expect(back).toHaveCSS('outline-style', 'solid');
+      await expect(back).toHaveCSS('outline-width', '2px');
+      await page.screenshot({ path: testInfo.outputPath(`back-to-map-${language}-${theme}.png`) });
+      await back.click();
+      await expect(page.locator('.library-screen')).toHaveCount(0);
+    }
+  }
+});
+
 test('coordinate fields support pair paste, inline correction and aligned mobile actions', async ({
   page,
 }, testInfo) => {
