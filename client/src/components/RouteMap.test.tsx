@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   query: vi.fn<() => unknown[]>(() => []),
   layer: vi.fn(),
   sourceInstalled: false,
+  accuracyInstalled: false,
+  source: vi.fn(),
+  accuracyData: vi.fn(),
   jump: vi.fn(),
   markerOptions: vi.fn(),
   markerPosition: vi.fn(),
@@ -55,14 +58,18 @@ vi.mock('maplibre-gl', () => ({
       getCanvas() {
         return this.canvas;
       }
-      addSource() {
-        mocks.sourceInstalled = true;
+      addSource(id: string, options: unknown) {
+        mocks.source(id, options);
+        if (id === 'location-accuracy') mocks.accuracyInstalled = true;
+        else mocks.sourceInstalled = true;
       }
       addLayer = mocks.layer;
       queryRenderedFeatures = mocks.query;
       jumpTo = mocks.jump;
       resize() {}
-      getSource() {
+      getSource(id: string) {
+        if (id === 'location-accuracy')
+          return mocks.accuracyInstalled ? { setData: mocks.accuracyData } : undefined;
         return mocks.sourceInstalled ? { setData: mocks.data } : undefined;
       }
       getCenter() {
@@ -144,6 +151,7 @@ beforeEach(() => {
   mocks.theme = 'light';
   mocks.query.mockReturnValue([]);
   mocks.sourceInstalled = false;
+  mocks.accuracyInstalled = false;
   mocks.zoom = 10;
   mocks.handlers.clear();
   mocks.markerDrag.length = 0;
@@ -554,6 +562,47 @@ it('updates a single location dot, preserves closer zoom and removes the dot on 
   expect(props.onMove).not.toHaveBeenCalled();
   unmount();
   expect(mocks.markerRemove).toHaveBeenCalledOnce();
+});
+
+it('updates the accuracy circle and restores it after changing map style', () => {
+  let accuracy = 250;
+  vi.stubGlobal('navigator', {
+    geolocation: {
+      getCurrentPosition: (success: PositionCallback) =>
+        success({ coords: { longitude: 13, latitude: 49, accuracy } } as GeolocationPosition),
+    },
+  });
+  render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')!());
+  expect(mocks.layer).toHaveBeenCalledWith({
+    id: 'location-accuracy-fill',
+    type: 'fill',
+    source: 'location-accuracy',
+    paint: { 'fill-color': '#2684ff', 'fill-opacity': 0.16 },
+  });
+  const button = screen.getByRole('button', { name: 'Use my location' });
+  fireEvent.click(button);
+  const first = mocks.accuracyData.mock.lastCall![0];
+  expect(first.features[0].geometry.coordinates[0]).toHaveLength(65);
+  accuracy = 100;
+  fireEvent.click(button);
+  const updated = mocks.accuracyData.mock.lastCall![0];
+  expect(updated).not.toEqual(first);
+  mocks.sourceInstalled = false;
+  mocks.accuracyInstalled = false;
+  act(() => mocks.handlers.get('style.load')!());
+  expect(mocks.source).toHaveBeenCalledWith('location-accuracy', {
+    type: 'geojson',
+    data: updated,
+  });
+  accuracy = NaN;
+  fireEvent.click(button);
+  expect(mocks.accuracyData).toHaveBeenLastCalledWith({
+    type: 'FeatureCollection',
+    features: [],
+  });
+  expect(mocks.markerOptions).toHaveBeenCalledOnce();
+  expect(props.onAdd).not.toHaveBeenCalled();
 });
 
 it('ignores a location response after the map is unmounted', () => {

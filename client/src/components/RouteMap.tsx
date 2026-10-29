@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView } from '../domain/mapView';
+import { locationAccuracy } from '../domain/locationAccuracy';
 import {
   loadPreferences,
   savePreferences,
@@ -94,6 +95,7 @@ export function RouteMap(props: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const locationMarker = useRef<maplibregl.Marker | null>(null);
+  const locationArea = useRef(locationAccuracy([0, 0], 0));
   const latest = useRef(props);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -337,6 +339,18 @@ export function RouteMap(props: Props) {
     window.addEventListener('pagehide', persistOnHide);
     instance.addControl(new maplibregl.AttributionControl({ compact: false }), 'bottom-right');
     const installRouteLayers = () => {
+      if (!instance.getSource('location-accuracy')) {
+        instance.addSource('location-accuracy', {
+          type: 'geojson',
+          data: locationArea.current,
+        });
+        instance.addLayer({
+          id: 'location-accuracy-fill',
+          type: 'fill',
+          source: 'location-accuracy',
+          paint: { 'fill-color': '#2684ff', 'fill-opacity': 0.16 },
+        });
+      }
       if (!instance.getSource('route')) {
         instance.addSource('route', {
           type: 'geojson',
@@ -433,6 +447,7 @@ export function RouteMap(props: Props) {
       if (moved) persistView();
       locationMarker.current?.remove();
       locationMarker.current = null;
+      locationArea.current = locationAccuracy([0, 0], 0);
       instance.remove();
       map.current = null;
     };
@@ -564,6 +579,11 @@ export function RouteMap(props: Props) {
           locationMarker.current = new maplibregl.Marker({ element });
         }
         locationMarker.current.setLngLat(coordinate).addTo(instance);
+        locationArea.current = locationAccuracy(coordinate, position.coords.accuracy);
+        const source = instance.getSource('location-accuracy') as
+          | maplibregl.GeoJSONSource
+          | undefined;
+        source?.setData(locationArea.current);
         instance.flyTo({
           center: coordinate,
           zoom: Math.max(instance.getZoom(), 14),
