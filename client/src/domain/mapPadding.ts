@@ -28,7 +28,11 @@ export function mapPadding({
     bounds.right > viewport.left && bounds.top < viewport.bottom && bounds.bottom > viewport.top,
   );
   let top = 65, bottom = 65, left = 65, right = 65;
-  if (intersects(stylePicker)) top = Math.max(top, stylePicker.bottom - viewport.top + 12);
+  if (intersects(stylePicker)) {
+    if (stylePicker.top >= viewport.top + viewport.height / 2)
+      bottom = Math.max(bottom, viewport.bottom - stylePicker.top + 12);
+    else top = Math.max(top, stylePicker.bottom - viewport.top + 12);
+  }
   if (intersects(elevation)) bottom = Math.max(bottom, viewport.bottom - elevation.top + 24);
   if (intersects(planner)) {
     if (compactPlanner) bottom = Math.max(bottom, viewport.bottom - planner.top + 24);

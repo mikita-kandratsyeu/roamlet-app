@@ -894,9 +894,9 @@
     --space: 16px;
   }
   .planner {
-    top: 126px;
+    top: var(--space);
     max-height: calc(
-      100% - 126px - max(var(--space), calc(var(--map-attribution-height, 24px) + 16px))
+      100% - var(--space) - max(var(--space), calc(var(--map-attribution-height, 24px) + 16px))
     );
   }
   .map-top-label {

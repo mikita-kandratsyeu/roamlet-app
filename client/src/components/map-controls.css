@@ -1,5 +1,6 @@
 .workspace .map-style-picker.map-top-label {
   display: inline-flex;
+  left: var(--map-style-left, calc(var(--panel-width) + var(--space) * 2));
   top: var(--map-style-top, var(--space));
   padding: 4px;
   gap: 4px;
@@ -83,9 +84,25 @@
   flex: 1;
 }
 
-@media (max-width: 1024px) {
+@media (min-width: 701px) {
   .workspace .map-style-picker.map-top-label {
-    left: var(--space);
+    top: auto;
+    left: auto;
+    right: var(--space);
+    bottom: var(--map-bottom-reserved, 110px);
+  }
+}
+@media (min-width: 1025px) {
+  .workspace #map-elevation-root {
+    width: min(714px, calc(100% - var(--panel-width) - var(--space) * 3 - 134px));
+  }
+  .workspace.desktop-panel-hidden #map-elevation-root {
+    width: min(714px, calc(100% - var(--space) * 2 - 134px));
+  }
+}
+@media (max-width: 700px) {
+  .workspace .map-style-picker.map-top-label {
+    left: var(--map-style-left, var(--space));
   }
 }
 

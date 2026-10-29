@@ -199,8 +199,9 @@ export function RouteMap(props: Props) {
           ? Math.max(0, (controls?.getBoundingClientRect().height || 44) - 44)
           : 0;
       const spacing = Number.parseFloat(getComputedStyle(region).getPropertyValue('--space')) || 12;
+      const smallScreen = window.matchMedia?.('(max-width: 700px)').matches ?? window.innerWidth <= 700;
       const pickerTop =
-        reopen && window.innerWidth <= 1024
+        reopen && smallScreen
           ? reopen.getBoundingClientRect().bottom - region.getBoundingClientRect().top + 8
           : spacing;
       workspace.style.setProperty('--map-attribution-height', `${attributionHeight}px`);
@@ -212,6 +213,8 @@ export function RouteMap(props: Props) {
         '--map-mobile-controls-bottom',
         `${attributionHeight + toolbarHeight + 24}px`,
       );
+      if (smallScreen) workspace.style.setProperty('--map-style-left', `${spacing}px`);
+      else workspace.style.removeProperty('--map-style-left');
       workspace.style.setProperty('--map-style-top', `${pickerTop}px`);
       workspace.style.setProperty(
         '--map-message-top',
@@ -230,6 +233,7 @@ export function RouteMap(props: Props) {
         '--map-bottom-reserved',
         '--map-mobile-controls-bottom',
         '--map-style-top',
+        '--map-style-left',
         '--map-message-top',
       ]) {
         workspace.style.removeProperty(property);

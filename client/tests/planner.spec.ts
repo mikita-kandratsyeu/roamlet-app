@@ -929,7 +929,9 @@ for (const hidden of [false, true]) {
             [1440, 1000],
             [1100, 740],
             [1025, 740],
+            [1024, 740],
             [768, 900],
+            [701, 740],
           ];
     await page.setViewportSize({ width: 1440, height: 1000 });
     if (hidden) {
@@ -991,6 +993,29 @@ for (const hidden of [false, true]) {
             { message: `Overlays at ${width}×${height}, route: ${withRoute}` },
           )
           .toEqual([]);
+        if (width > 700) {
+          const spacing = await page.locator('.map-region').evaluate((element) =>
+            Number.parseFloat(getComputedStyle(element).getPropertyValue('--space')),
+          );
+          await expect.poll(async () => {
+            const picker = (await page.locator('.map-style-picker').boundingBox())!;
+            return Math.round(picker.x + picker.width);
+          }).toBe(width - spacing);
+          const picker = (await page.locator('.map-style-picker').boundingBox())!;
+          expect(picker.y).toBeGreaterThan(height / 2);
+          if (await page.locator('.planner').isVisible()) {
+            const planner = (await page.locator('.planner').boundingBox())!;
+            const workspace = (await page.locator('.workspace').boundingBox())!;
+            expect(planner.y - workspace.y).toBeCloseTo(spacing, 0);
+          }
+        } else if (await page.locator('.planner-reopen').isVisible()) {
+          await expect.poll(async () => {
+            const picker = (await page.locator('.map-style-picker').boundingBox())!;
+            const reopen = (await page.locator('.planner-reopen').boundingBox())!;
+            return picker.y - reopen.y - reopen.height;
+          }).toBeGreaterThanOrEqual(8);
+        }
+        await page.screenshot({ path: testInfo.outputPath(`map-style-${width}-${withRoute}.png`) });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
           true,
         );

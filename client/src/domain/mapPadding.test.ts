@@ -20,6 +20,14 @@ it('reserves compact map controls rather than fitting the route behind their but
   expect(292 - padding.bottom).toBeLessThan(190);
 });
 
+it('reserves a bottom-right style picker below the route without wasting top space', () => {
+  expect(mapPadding({
+    viewport: bounds(0, 0, 1200, 800),
+    stylePicker: bounds(1080, 630, 104, 54),
+    compactPlanner: false,
+  })).toEqual({ top: 65, bottom: 182, left: 65, right: 65 });
+});
+
 it('reserves a bottom sheet below the route rather than a desktop left margin', () => {
   const padding = mapPadding({
     viewport: bounds(0, 0, 800, 800),
