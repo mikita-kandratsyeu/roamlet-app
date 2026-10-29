@@ -17,6 +17,7 @@ export function PlannerChoice<Value extends string>({
   disabled = false,
   className = '',
   menuClassName = '',
+  selectedLabel,
 }: {
   label: string;
   value: Value;
@@ -25,6 +26,7 @@ export function PlannerChoice<Value extends string>({
   disabled?: boolean;
   className?: string;
   menuClassName?: string;
+  selectedLabel?: string;
 }) {
   const { t } = useTranslation();
   const selected = options.find((option) => option.value === value);
@@ -37,7 +39,7 @@ export function PlannerChoice<Value extends string>({
           aria-label={label}
           disabled={disabled}
         >
-          <span>{selected ? t(selected.label) : value}</span>
+          <span>{selectedLabel ? t(selectedLabel) : selected ? t(selected.label) : value}</span>
           <ChevronDown size={14} aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>

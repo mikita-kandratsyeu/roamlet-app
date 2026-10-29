@@ -333,7 +333,17 @@ export default function App() {
     writingPreferences.current = true;
     savePreferences(patch);
     writingPreferences.current = false;
-  }, [activity, planningMode, targetKm, speeds, stopsMinutes, fitness, routingOptions, panelHidden, collapsed]);
+  }, [
+    activity,
+    planningMode,
+    targetKm,
+    speeds,
+    stopsMinutes,
+    fitness,
+    routingOptions,
+    panelHidden,
+    collapsed,
+  ]);
   useEffect(() => {
     const apply = (event: Event) => {
       if (writingPreferences.current) return;
@@ -547,7 +557,9 @@ export default function App() {
       coordinate,
     };
     if (searchTarget)
-      changeWaypoints(waypoints.map((w) => (w.id === searchTarget ? { ...w, ...point, id: w.id } : w)));
+      changeWaypoints(
+        waypoints.map((w) => (w.id === searchTarget ? { ...w, ...point, id: w.id } : w)),
+      );
     else if (planningMode === 'loop') changeWaypoints([point]);
     else if (waypoints.length < stopLimit) changeWaypoints([...waypoints, point]);
     else {
@@ -846,16 +858,19 @@ export default function App() {
     if (recordHistory && selectedAlternative === index && result) return;
     if (recordHistory) editor.checkpoint();
     const coordinates = calculated.segments[0];
-    const stops = planningMode === 'point' ? waypoints : [0, 0.25, 0.5, 0.75, 1].map((fraction, i) => ({
-      id: crypto.randomUUID(),
-      name:
-        i === 0
-          ? waypoints[0]?.name || i18n.t('Loop start')
-          : i === 4
-            ? i18n.t('Return to start')
-            : i18n.t('Loop stop {{number}}', { number: formatNumber(i) }),
-      coordinate: coordinates[Math.round(fraction * (coordinates.length - 1))],
-    }));
+    const stops =
+      planningMode === 'point'
+        ? waypoints
+        : [0, 0.25, 0.5, 0.75, 1].map((fraction, i) => ({
+            id: crypto.randomUUID(),
+            name:
+              i === 0
+                ? waypoints[0]?.name || i18n.t('Loop start')
+                : i === 4
+                  ? i18n.t('Return to start')
+                  : i18n.t('Loop stop {{number}}', { number: formatNumber(i) }),
+            coordinate: coordinates[Math.round(fraction * (coordinates.length - 1))],
+          }));
     setResult({
       ...routeIdentity.current,
       name: i18n.t('Untitled adventure'),
@@ -1194,26 +1209,32 @@ export default function App() {
                         </div>
                       )}
                       <div className="routing-avoid-options">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={routingOptions.avoidFerries ?? false}
-                          onChange={(event) =>
-                            changeRoutingOptions({ ...routingOptions, avoidFerries: event.target.checked })
-                          }
-                        />
-                        {t('Avoid ferries')}
-                      </label>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={routingOptions.avoidSteps ?? false}
-                          onChange={(event) =>
-                            changeRoutingOptions({ ...routingOptions, avoidSteps: event.target.checked })
-                          }
-                        />
-                        {t('Avoid steps')}
-                      </label>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={routingOptions.avoidFerries ?? false}
+                            onChange={(event) =>
+                              changeRoutingOptions({
+                                ...routingOptions,
+                                avoidFerries: event.target.checked,
+                              })
+                            }
+                          />
+                          {t('Avoid ferries')}
+                        </label>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={routingOptions.avoidSteps ?? false}
+                            onChange={(event) =>
+                              changeRoutingOptions({
+                                ...routingOptions,
+                                avoidSteps: event.target.checked,
+                              })
+                            }
+                          />
+                          {t('Avoid steps')}
+                        </label>
                       </div>
                       <p className="fine-print">
                         {t('Routing preferences do not guarantee road surface or access.')}
@@ -1370,7 +1391,9 @@ export default function App() {
                                     })}
                                     disabled={index === 0}
                                     onClick={() => {
-                                      changeWaypoints(reorderWaypoints(waypoints, index, index - 1));
+                                      changeWaypoints(
+                                        reorderWaypoints(waypoints, index, index - 1),
+                                      );
                                     }}
                                   >
                                     <ArrowUp size={13} />
@@ -1383,7 +1406,9 @@ export default function App() {
                                     })}
                                     disabled={index === waypoints.length - 1}
                                     onClick={() => {
-                                      changeWaypoints(reorderWaypoints(waypoints, index, index + 1));
+                                      changeWaypoints(
+                                        reorderWaypoints(waypoints, index, index + 1),
+                                      );
                                     }}
                                   >
                                     <ArrowDown size={13} />
@@ -1406,16 +1431,22 @@ export default function App() {
                           </Card>
                           {planningMode === 'point' && index < waypoints.length - 1 && (
                             <div className="leg-mode">
-                              <span>{t('Section {{number}}', { number: formatNumber(index + 1) })}</span>
+                              <span>
+                                {t('Section {{number}}', { number: formatNumber(index + 1) })}
+                              </span>
                               <PlannerChoice
-                                label={t('Section {{number}} mode', { number: formatNumber(index + 1) })}
+                                label={t('Section {{number}} mode', {
+                                  number: formatNumber(index + 1),
+                                })}
                                 value={point.legMode ?? 'automatic'}
                                 options={sectionChoices}
                                 disabled={offlineAutomatic}
                                 onChange={(legMode) =>
                                   changeWaypoints(
                                     waypoints.map((candidate) =>
-                                      candidate.id === point.id ? { ...candidate, legMode } : candidate,
+                                      candidate.id === point.id
+                                        ? { ...candidate, legMode }
+                                        : candidate,
                                     ),
                                   )
                                 }
@@ -1426,11 +1457,14 @@ export default function App() {
                       ))}
                     </ol>
                   )}
-                  {planningMode === 'point' && waypoints.slice(0, -1).some((point) => point.legMode === 'direct') && (
-                    <p className="fine-print">
-                      {t('Direct sections are unverified straight lines, not confirmed roads or trails.')}
-                    </p>
-                  )}
+                  {planningMode === 'point' &&
+                    waypoints.slice(0, -1).some((point) => point.legMode === 'direct') && (
+                      <p className="fine-print">
+                        {t(
+                          'Direct sections are unverified straight lines, not confirmed roads or trails.',
+                        )}
+                      </p>
+                    )}
                   <div className="waypoint-tools">
                     {planningMode !== 'loop' && waypoints.length < stopLimit && (
                       <Button
@@ -1507,7 +1541,12 @@ export default function App() {
                           variant="outline"
                           className="find-alternatives full-width"
                           aria-describedby="point-alternatives-help"
-                          disabled={!online || busy || waypoints.length !== 2 || waypoints[0]?.legMode === 'direct'}
+                          disabled={
+                            !online ||
+                            busy ||
+                            waypoints.length !== 2 ||
+                            waypoints[0]?.legMode === 'direct'
+                          }
                           onClick={() => void generatePointAlternatives()}
                         >
                           <Sparkles size={16} aria-hidden="true" />
@@ -1593,7 +1632,9 @@ export default function App() {
                                 <strong>{formatDistance(alternative.stats.distance)}</strong>
                                 <small className="route-distance-delta">
                                   {t('Difference from target: {{distance}}', {
-                                    distance: formatDistance(Math.abs(alternative.stats.distance - targetKm * 1000)),
+                                    distance: formatDistance(
+                                      Math.abs(alternative.stats.distance - targetKm * 1000),
+                                    ),
                                   })}
                                 </small>
                               </span>
@@ -1658,9 +1699,19 @@ export default function App() {
                   role={notice.error ? 'alert' : 'status'}
                 >
                   <div className="planner-notice-heading">
-                    {notice.error ? <TriangleAlert size={18} aria-hidden="true" /> : <Info size={18} aria-hidden="true" />}
+                    {notice.error ? (
+                      <TriangleAlert size={18} aria-hidden="true" />
+                    ) : (
+                      <Info size={18} aria-hidden="true" />
+                    )}
                     <strong>
-                      {t(notice.kind === 'map' ? 'Map error' : notice.kind === 'routing' ? 'Routing error' : 'Notification')}
+                      {t(
+                        notice.kind === 'map'
+                          ? 'Map error'
+                          : notice.kind === 'routing'
+                            ? 'Routing error'
+                            : 'Notification',
+                      )}
                     </strong>
                     <Button
                       variant="ghost"
@@ -1674,48 +1725,50 @@ export default function App() {
                   <AlertDescription className="planner-notice-description">
                     {translateMessage(notice.text)}
                   </AlertDescription>
-                  {notice.kind && <div className="planner-notice-actions">
-                  {notice.kind === 'routing' && (
-                    <Button
-                      variant="outline"
-                      className="planner-notice-retry"
-                      disabled={!online || busy}
-                      onClick={() => {
-                        if (planningMode === 'loop') void generateLoops();
-                        else {
-                          editor.routingAllowed.current = true;
-                          setRouteStale(true);
-                          setRouteRevision((revision) => revision + 1);
-                        }
-                      }}
-                    >
-                      {t('Retry routing')}
-                    </Button>
-                  )}
-                  {notice.kind === 'map' && (
-                    <Button
-                      variant="outline"
-                      className="planner-notice-retry"
-                      disabled={!online}
-                      onClick={() => {
-                        setMapRetryToken((value) => value + 1);
-                        setNotice(null);
-                      }}
-                    >
-                      {t('Retry map')}
-                    </Button>
-                  )}
                   {notice.kind && (
-                    <Button variant="ghost" onClick={openLibrary}>
-                      {t('Open library')}
-                    </Button>
+                    <div className="planner-notice-actions">
+                      {notice.kind === 'routing' && (
+                        <Button
+                          variant="outline"
+                          className="planner-notice-retry"
+                          disabled={!online || busy}
+                          onClick={() => {
+                            if (planningMode === 'loop') void generateLoops();
+                            else {
+                              editor.routingAllowed.current = true;
+                              setRouteStale(true);
+                              setRouteRevision((revision) => revision + 1);
+                            }
+                          }}
+                        >
+                          {t('Retry routing')}
+                        </Button>
+                      )}
+                      {notice.kind === 'map' && (
+                        <Button
+                          variant="outline"
+                          className="planner-notice-retry"
+                          disabled={!online}
+                          onClick={() => {
+                            setMapRetryToken((value) => value + 1);
+                            setNotice(null);
+                          }}
+                        >
+                          {t('Retry map')}
+                        </Button>
+                      )}
+                      {notice.kind && (
+                        <Button variant="ghost" onClick={openLibrary}>
+                          {t('Open library')}
+                        </Button>
+                      )}
+                      {notice.kind === 'routing' && (
+                        <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
+                          {t('Use manual drawing')}
+                        </Button>
+                      )}
+                    </div>
                   )}
-                  {notice.kind === 'routing' && (
-                    <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
-                      {t('Use manual drawing')}
-                    </Button>
-                  )}
-                  </div>}
                 </Alert>
               )}
               {online &&
@@ -1767,7 +1820,9 @@ export default function App() {
                 }}
               />
               {routeStale && result ? (
-                <p className="fine-print">{t('Route details will update after a successful calculation.')}</p>
+                <p className="fine-print">
+                  {t('Route details will update after a successful calculation.')}
+                </p>
               ) : result ? (
                 <Statistics
                   route={result}
@@ -1855,7 +1910,12 @@ export default function App() {
             directSegments={result?.source === 'manual' ? result.segments : result?.directSegments}
             alternativeSegments={alternatives.map((alternative) => alternative.segments)}
             selectedAlternativeIndex={selectedAlternative}
-            editable={mode === 'manual' && !busy && !offlineAutomatic && (planningMode !== 'loop' || !result)}
+            editable={
+              mode === 'manual' &&
+              !busy &&
+              !offlineAutomatic &&
+              (planningMode !== 'loop' || !result)
+            }
             manualDrawing={mode === 'manual' && planningMode === 'manual'}
             onToggleManualDrawing={
               mode === 'manual'
@@ -1879,11 +1939,13 @@ export default function App() {
                       );
                       return;
                     }
-                    changeWaypoints(insertWaypoint(waypoints, index, {
-                      id: crypto.randomUUID(),
-                      name: `${coordinate[1].toFixed(5)}, ${coordinate[0].toFixed(5)}`,
-                      coordinate,
-                    }));
+                    changeWaypoints(
+                      insertWaypoint(waypoints, index, {
+                        id: crypto.randomUUID(),
+                        name: `${coordinate[1].toFixed(5)}, ${coordinate[0].toFixed(5)}`,
+                        coordinate,
+                      }),
+                    );
                   }
                 : undefined
             }

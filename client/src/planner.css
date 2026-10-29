@@ -42,7 +42,7 @@
   flex-shrink: 0;
   padding: 0 12px;
   gap: 12px;
-  font-size: 14px;
+  font-size: var(--font-size-control);
   font-weight: 400;
   line-height: 1.45;
   color: var(--foreground);
@@ -104,7 +104,7 @@
 }
 .header-menu-panel .header-menu-label {
   padding: 0;
-  font-size: 11px;
+  font-size: var(--font-size-label);
   font-weight: 400;
   line-height: 1.45;
   text-transform: uppercase;
@@ -115,7 +115,7 @@
 }
 .header-menu-panel .header-menu-note {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--font-size-helper);
   line-height: 1.45;
   color: var(--muted-foreground);
 }
@@ -146,7 +146,7 @@
   margin-top: 2px;
 }
 .planner-kicker .muted {
-  font-size: 11px;
+  font-size: var(--font-size-helper);
 }
 .planner-heading-actions .icon-button {
   width: 44px;
@@ -167,7 +167,7 @@
   min-height: 44px;
   border: 1px solid transparent;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--font-size-control);
   font-weight: 400;
 }
 .activity-selector button.selected,
@@ -216,7 +216,7 @@
   min-width: 0;
 }
 .coordinate-field label {
-  font-size: 11px;
+  font-size: var(--font-size-label);
   line-height: 16px;
   color: var(--muted-foreground);
   font-weight: 400;
@@ -237,13 +237,13 @@
   height: 44px;
   padding: 0 12px;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-control);
 }
 .coordinate-help,
 .coordinate-error,
 .coordinate-replacing {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--font-size-helper);
   line-height: 1.45;
 }
 .coordinate-help,
@@ -273,7 +273,7 @@
 }
 .stops-empty p {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: var(--font-size-helper);
 }
 .waypoint-list {
   display: flex;
@@ -298,7 +298,7 @@
   border: 1.5px solid var(--primary);
   background: var(--surface);
   color: var(--primary);
-  font-size: 12px;
+  font-size: var(--font-size-helper);
 }
 .stop-badge.finish {
   border-radius: 6px;
@@ -341,7 +341,7 @@
   min-height: 44px;
   height: auto;
   padding: 0 12px;
-  font-size: 13px;
+  font-size: var(--font-size-control);
   color: var(--foreground);
 }
 .add-stop-empty {
@@ -354,7 +354,7 @@
   min-height: 44px;
   gap: 8px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--font-size-control);
 }
 .clear-stops {
   min-width: 44px;
@@ -370,7 +370,7 @@
 .secondary,
 .danger {
   min-height: 44px;
-  font-size: 13px;
+  font-size: var(--font-size-control);
   gap: 8px;
   padding: 10px 14px;
 }
@@ -407,14 +407,14 @@
 }
 .snapshot-panel .snapshot-notice strong {
   color: var(--primary);
-  font-size: 13px;
+  font-size: var(--font-size-label);
   font-weight: 600;
   line-height: 1.45;
 }
 .snapshot-panel .snapshot-notice p {
   margin: 0;
   color: var(--foreground);
-  font-size: 12px;
+  font-size: var(--font-size-body);
   line-height: 1.45;
 }
 .snapshot-edit {
@@ -422,7 +422,7 @@
   height: 44px;
   min-height: 44px;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-control);
   font-weight: 600;
 }
 .editor-screen {
@@ -470,7 +470,7 @@
   align-items: center;
   gap: 10px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   line-height: 1.45;
 }
 .panel-loading-overlay p {
@@ -504,7 +504,7 @@
   align-items: center;
   gap: 8px;
   color: var(--foreground);
-  font-size: 13px;
+  font-size: var(--font-size-label);
   font-weight: 600;
 }
 .personal-time-heading > span > svg {
@@ -546,14 +546,14 @@
   align-items: flex-start;
   margin: 0;
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: var(--font-size-label);
   font-weight: 500;
   line-height: 16px;
 }
 .personal-time-field .personal-time-error {
   margin: 0;
   color: var(--destructive);
-  font-size: 12px;
+  font-size: var(--font-size-body);
   font-weight: 400;
   line-height: 18px;
   overflow-wrap: anywhere;
@@ -577,7 +577,7 @@
   min-width: 0;
   height: 44px;
   min-height: 44px;
-  font-size: 13px;
+  font-size: var(--font-size-control);
 }
 .personal-time-choice > span {
   flex: 1;
@@ -601,7 +601,7 @@
 .personal-time-help {
   margin: 8px 0 0;
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: var(--font-size-helper);
   line-height: 18px;
 }
 .personal-time-assumptions {
@@ -611,7 +611,7 @@
   width: 100%;
   height: 44px;
   min-height: 44px;
-  font-size: 13px;
+  font-size: var(--font-size-control);
   font-variant-numeric: tabular-nums;
 }
 .statistics {
@@ -625,7 +625,7 @@
   background: var(--accent);
   color: var(--primary);
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--font-size-body);
   font-weight: 600;
 }
 .stat-grid {
@@ -642,7 +642,7 @@
   font-size: 16px;
 }
 .statistics > .fine-print {
-  font-size: 10px;
+  font-size: var(--font-size-helper);
   margin-top: 10px;
 }
 .planner-footer {
@@ -669,7 +669,7 @@
   color: var(--foreground);
   padding: 10px 0;
   min-height: 44px;
-  font-size: 12px;
+  font-size: var(--font-size-control);
 }
 .import-action span,
 .route-ready .import-action {
@@ -699,7 +699,7 @@
   min-height: 32px;
 }
 #map-elevation-root .elevation-box .fine-print {
-  font-size: 10px;
+  font-size: var(--font-size-helper);
 }
 .desktop-panel-hidden #map-elevation-root {
   left: var(--space);
@@ -748,7 +748,7 @@
   height: 44px;
   gap: 8px;
   padding: 0 14px;
-  font-size: 12px;
+  font-size: var(--font-size-control);
   border-radius: 6px;
   color: var(--foreground);
 }
@@ -765,7 +765,7 @@
   max-width: calc(100% - var(--panel-width) - var(--space) * 3 - 76px);
   min-height: 44px;
   color: var(--foreground);
-  font-size: 12px;
+  font-size: var(--font-size-helper);
 }
 .workspace:has(#map-elevation-root:not(:empty)) .map-hint {
   display: none;
@@ -813,7 +813,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--font-size-control);
   z-index: 2;
 }
 .maplibregl-ctrl-bottom-right {
@@ -994,7 +994,7 @@
     font-weight: 600;
   }
   .sheet-identity small {
-    font-size: 11px;
+    font-size: var(--font-size-helper);
     color: var(--muted-foreground);
   }
   .planner-scroll {
@@ -1003,7 +1003,7 @@
   }
   .activity-selector button,
   .planning-tabs button {
-    font-size: 12px;
+    font-size: var(--font-size-control);
   }
   .coordinate-entry {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1049,7 +1049,7 @@
     gap: 4px;
   }
   .stat-card:nth-child(n + 3) dd {
-    font-size: 12px;
+    font-size: var(--font-size-body);
     font-weight: 400;
   }
   .map-issue {
@@ -1057,7 +1057,7 @@
     top: 12px;
     bottom: auto;
     right: 12px;
-    font-size: 9px;
+    font-size: var(--font-size-helper);
     max-width: 120px;
   }
   .planner-footer {
@@ -1067,7 +1067,7 @@
     grid-template-columns: 1fr 1fr;
   }
   .route-actions button {
-    font-size: 12px;
+    font-size: var(--font-size-control);
     padding: 10px 8px;
   }
   .panel-collapsed .planner {
@@ -1142,7 +1142,7 @@
   gap: 8px 12px;
   padding: 12px var(--space);
   border-radius: 0;
-  font-size: 13px;
+  font-size: var(--font-size-body);
 }
 .app-status-banner > span {
   flex: 1;
@@ -1162,7 +1162,7 @@
   border-radius: 0;
   background: var(--offline-surface);
   color: var(--foreground);
-  font-size: 13px;
+  font-size: var(--font-size-body);
   line-height: 1.45;
 }
 .offline-banner > svg {
@@ -1198,7 +1198,7 @@
   background: var(--offline-surface);
   border: 0;
   color: var(--foreground);
-  font-size: 12px;
+  font-size: var(--font-size-body);
   line-height: 1.45;
 }
 .offline-planner-notice > svg {
@@ -1207,7 +1207,7 @@
 }
 .offline-planner-notice strong {
   color: var(--offline-foreground);
-  font-size: 13px;
+  font-size: var(--font-size-label);
 }
 .offline-planner-notice p {
   margin-top: 5px;
@@ -1251,12 +1251,12 @@
 }
 .offline-map-content p {
   color: var(--muted-foreground);
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.45;
 }
 .offline-map-content small {
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: var(--font-size-helper);
   line-height: 1.45;
 }
 @media (max-width: 1024px) {
@@ -1272,14 +1272,14 @@
   }
   .offline-banner-copy {
     flex-basis: calc(100% - 26px);
-    font-size: 12px;
+    font-size: var(--font-size-body);
   }
   .offline-banner-actions {
     width: 100%;
   }
   .offline-banner-actions button {
     flex: 1;
-    font-size: 12px;
+    font-size: var(--font-size-control);
   }
   .workspace-offline {
     overflow-y: auto;
@@ -1301,7 +1301,7 @@
     font-size: 20px;
   }
   .offline-map-content small {
-    font-size: 11px;
+    font-size: var(--font-size-helper);
   }
   .workspace-offline .planner {
     flex: none;

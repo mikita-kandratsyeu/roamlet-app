@@ -99,7 +99,7 @@ export function Statistics({
   const linkedSamples = chartSamples.filter((sample) => sample.coordinate);
   const hoverSample = (index: number | string | null | undefined, active = true) => {
     const sample = index == null ? undefined : chartSamples[Number(index)];
-    onElevationHover?.(active ? sample?.coordinate ?? null : null);
+    onElevationHover?.(active ? (sample?.coordinate ?? null) : null);
   };
   const elevationProfile = showElevation ? (
     <details className="elevation-box" open={!compact}>
@@ -143,7 +143,7 @@ export function Statistics({
                   ? formatDistance(distance)
                   : formatNumber(distance / 1000, { maximumFractionDigits: 1 })
               }
-              tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+              tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
               axisLine={false}
               tickLine={false}
               height={20}
@@ -152,10 +152,10 @@ export function Statistics({
               dataKey="elevation"
               domain={['dataMin - 5', 'dataMax + 5']}
               tickFormatter={(elevation: number) => `${formatNumber(elevation)} ${t('m')}`}
-              tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+              tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
               axisLine={false}
               tickLine={false}
-              width={44}
+              width={52}
             />
             <ChartTooltip
               content={
@@ -204,9 +204,11 @@ export function Statistics({
           <span>{formatDistance(total)}</span>
         </div>
         <p className="fine-print">
-          {t(route?.elevationSource === 'openrouteservice'
-            ? 'Elevation: OpenRouteService terrain estimate, not a ground survey.'
-            : 'Elevation: GPX file, when available.')}
+          {t(
+            route?.elevationSource === 'openrouteservice'
+              ? 'Elevation: OpenRouteService terrain estimate, not a ground survey.'
+              : 'Elevation: GPX file, when available.',
+          )}
         </p>
       </>
     </details>
@@ -236,10 +238,10 @@ export function Statistics({
               route.source === 'mixed'
                 ? 'Combined time estimate'
                 : provider
-                ? 'Provider estimate'
-                : speedKmh === undefined
-                  ? 'Est. moving time'
-                  : 'Original time estimate',
+                  ? 'Provider estimate'
+                  : speedKmh === undefined
+                    ? 'Est. moving time'
+                    : 'Original time estimate',
             )}
           </dt>
           <dd>{formatDuration(route.stats.duration)}</dd>
@@ -299,7 +301,9 @@ export function Statistics({
       </p>
       {route.source === 'mixed' && (
         <p className="fine-print">
-          {t('Combined time uses ORS estimates for routed sections and average speed for direct sections.')}
+          {t(
+            'Combined time uses ORS estimates for routed sections and average speed for direct sections.',
+          )}
         </p>
       )}
       {personal && (

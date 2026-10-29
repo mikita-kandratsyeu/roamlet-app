@@ -65,12 +65,10 @@ describe('mixed direct and automatic routing', () => {
         }),
       ),
     );
-    const stops = points
-      .slice(0, 3)
-      .map((point, index) => ({
-        ...point,
-        legMode: index === 1 ? ('direct' as const) : ('automatic' as const),
-      }));
+    const stops = points.slice(0, 3).map((point, index) => ({
+      ...point,
+      legMode: index === 1 ? ('direct' as const) : ('automatic' as const),
+    }));
     const result = await new OpenRouteServiceRoutingService().calculateRoute(stops, 'hiking');
     expect(result.segments[0].at(-1)?.[0]).toBe(11.409);
     expect(result.segments[1][0][0]).toBe(11.41);
@@ -114,12 +112,10 @@ describe('mixed direct and automatic routing', () => {
   it('ignores the last outgoing mode and caches unchanged automatic portions after direct edits', async () => {
     const fetcher = mockProvider();
     const provider = new OpenRouteServiceRoutingService();
-    const stops = points
-      .slice(0, 4)
-      .map((point, index) => ({
-        ...point,
-        legMode: index >= 1 ? ('direct' as const) : ('automatic' as const),
-      }));
+    const stops = points.slice(0, 4).map((point, index) => ({
+      ...point,
+      legMode: index >= 1 ? ('direct' as const) : ('automatic' as const),
+    }));
     await provider.calculateRoute(stops, 'cycling');
     await provider.calculateRoute(
       stops.map((point, index) =>

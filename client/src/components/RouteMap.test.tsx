@@ -1,7 +1,12 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MAP_VIEW_KEY, defaultMapView } from '../domain/mapView';
-import { PREFERENCES_KEY, loadPreferences, savePreferences, resetPreferences } from '../domain/preferences';
+import {
+  PREFERENCES_KEY,
+  loadPreferences,
+  savePreferences,
+  resetPreferences,
+} from '../domain/preferences';
 import { BRIGHT_MAP_STYLE } from '../domain/mapTiles';
 import { RouteMap } from './RouteMap';
 import i18n from '../i18n';
@@ -121,7 +126,9 @@ vi.mock('maplibre-gl', () => ({
       remove = mocks.markerRemove;
     },
     ScaleControl: class {
-      constructor(options: unknown) { mocks.scale(options); }
+      constructor(options: unknown) {
+        mocks.scale(options);
+      }
     },
     AttributionControl: class {
       constructor(options: unknown) {
@@ -608,9 +615,7 @@ it('updates a single location dot, preserves closer zoom and removes the dot on 
   act(() => success({ coords: { longitude: 14, latitude: 50 } } as GeolocationPosition));
   expect(mocks.markerOptions).toHaveBeenCalledOnce();
   expect(mocks.markerPosition).toHaveBeenLastCalledWith([14, 50]);
-  expect(mocks.fly).toHaveBeenLastCalledWith(
-    expect.objectContaining({ center: [14, 50] }),
-  );
+  expect(mocks.fly).toHaveBeenLastCalledWith(expect.objectContaining({ center: [14, 50] }));
   expect(props.onAdd).not.toHaveBeenCalled();
   expect(props.onMove).not.toHaveBeenCalled();
   unmount();
@@ -946,12 +951,28 @@ const annotationWaypoints = [
   { id: 'a', name: 'Start', coordinate: [0, 0] as [number, number] },
   { id: 'b', name: 'Finish', coordinate: [0.02, 0] as [number, number] },
 ];
-const annotationSegments: [number, number][][] = [[[0, 0], [0.02, 0]]];
+const annotationSegments: [number, number][][] = [
+  [
+    [0, 0],
+    [0.02, 0],
+  ],
+];
 
 it('selects accessible waypoint buttons, exposes actions and focuses only on explicit request', () => {
-  const onSelectWaypoint = vi.fn(), onRemoveWaypoint = vi.fn(), onReplaceWaypoint = vi.fn(), onStartWaypoint = vi.fn();
-  const options = { ...props, waypoints: annotationWaypoints, selectedWaypointId: 'a', focusWaypointToken: 0,
-    onSelectWaypoint, onRemoveWaypoint, onReplaceWaypoint, onStartWaypoint };
+  const onSelectWaypoint = vi.fn(),
+    onRemoveWaypoint = vi.fn(),
+    onReplaceWaypoint = vi.fn(),
+    onStartWaypoint = vi.fn();
+  const options = {
+    ...props,
+    waypoints: annotationWaypoints,
+    selectedWaypointId: 'a',
+    focusWaypointToken: 0,
+    onSelectWaypoint,
+    onRemoveWaypoint,
+    onReplaceWaypoint,
+    onStartWaypoint,
+  };
   const { rerender } = render(<RouteMap {...options} />);
   act(() => mocks.handlers.get('load')?.());
   const marker = mocks.markerOptions.mock.calls[0][0].element as HTMLButtonElement;
@@ -973,20 +994,37 @@ it('selects accessible waypoint buttons, exposes actions and focuses only on exp
 });
 
 it('highlights the hit area and projected insertion point, clearing on leave and read-only changes', () => {
-  const options = { ...props, segments: annotationSegments, waypoints: annotationWaypoints, onInsert: vi.fn() };
+  const options = {
+    ...props,
+    segments: annotationSegments,
+    waypoints: annotationWaypoints,
+    onInsert: vi.fn(),
+  };
   const { rerender } = render(<RouteMap {...options} />);
   act(() => mocks.handlers.get('load')?.());
   mocks.query.mockReturnValue([{}]);
-  act(() => mocks.handlers.get('mousemove')?.({ lngLat: { lng: 0.01, lat: 0.001 }, point: { x: 1, y: 1 } }));
+  act(() =>
+    mocks.handlers.get('mousemove')?.({ lngLat: { lng: 0.01, lat: 0.001 }, point: { x: 1, y: 1 } }),
+  );
   expect(mocks.paint).toHaveBeenCalledWith('route-hover', 'line-opacity', 0.25);
-  expect(mocks.extraData.get('route-insertion')).toHaveBeenLastCalledWith(expect.objectContaining({
-    features: [expect.objectContaining({ geometry: { type: 'Point', coordinates: [0.01, 0] } })],
-  }));
+  expect(mocks.extraData.get('route-insertion')).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      features: [expect.objectContaining({ geometry: { type: 'Point', coordinates: [0.01, 0] } })],
+    }),
+  );
   fireEvent.mouseLeave(mocks.canvas!);
-  expect(mocks.extraData.get('route-insertion')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
-  act(() => mocks.handlers.get('mousemove')?.({ lngLat: { lng: 0.01, lat: 0 }, point: { x: 1, y: 1 } }));
+  expect(mocks.extraData.get('route-insertion')).toHaveBeenLastCalledWith({
+    type: 'FeatureCollection',
+    features: [],
+  });
+  act(() =>
+    mocks.handlers.get('mousemove')?.({ lngLat: { lng: 0.01, lat: 0 }, point: { x: 1, y: 1 } }),
+  );
   rerender(<RouteMap {...options} editable={false} />);
-  expect(mocks.extraData.get('route-insertion')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  expect(mocks.extraData.get('route-insertion')).toHaveBeenLastCalledWith({
+    type: 'FeatureCollection',
+    features: [],
+  });
   expect(mocks.paint).toHaveBeenLastCalledWith('route-hover', 'line-opacity', 0);
 });
 
@@ -1008,35 +1046,71 @@ it('requires an explicit mobile add-points toggle and disables edits when toggle
 });
 
 it('renders isolated direct, inactive alternative and elevation geometry without camera jumps', () => {
-  const alternatives = [annotationSegments, [[[10, 0], [10.02, 0]]] as [number, number][][]];
-  const options = { ...props, segments: annotationSegments, directSegments: annotationSegments,
-    alternativeSegments: alternatives, selectedAlternativeIndex: 0, elevationCoordinate: [0.01, 0] as [number, number], routeStale: true };
+  const alternatives = [
+    annotationSegments,
+    [
+      [
+        [10, 0],
+        [10.02, 0],
+      ],
+    ] as [number, number][][],
+  ];
+  const options = {
+    ...props,
+    segments: annotationSegments,
+    directSegments: annotationSegments,
+    alternativeSegments: alternatives,
+    selectedAlternativeIndex: 0,
+    elevationCoordinate: [0.01, 0] as [number, number],
+    routeStale: true,
+  };
   const { rerender } = render(<RouteMap {...options} />);
   act(() => mocks.handlers.get('load')?.());
-  expect(mocks.extraData.get('route-direct')).toHaveBeenLastCalledWith(expect.objectContaining({
-    features: [expect.objectContaining({ geometry: { type: 'LineString', coordinates: annotationSegments[0] } })],
-  }));
-  expect(mocks.extraData.get('route-alternatives')).toHaveBeenLastCalledWith(expect.objectContaining({
-    features: [expect.objectContaining({ geometry: { type: 'LineString', coordinates: alternatives[1][0] } })],
-  }));
-  expect(mocks.extraData.get('route-elevation')).toHaveBeenLastCalledWith(expect.objectContaining({
-    features: [expect.objectContaining({ geometry: { type: 'Point', coordinates: [0.01, 0] } })],
-  }));
+  expect(mocks.extraData.get('route-direct')).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      features: [
+        expect.objectContaining({
+          geometry: { type: 'LineString', coordinates: annotationSegments[0] },
+        }),
+      ],
+    }),
+  );
+  expect(mocks.extraData.get('route-alternatives')).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      features: [
+        expect.objectContaining({
+          geometry: { type: 'LineString', coordinates: alternatives[1][0] },
+        }),
+      ],
+    }),
+  );
+  expect(mocks.extraData.get('route-elevation')).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      features: [expect.objectContaining({ geometry: { type: 'Point', coordinates: [0.01, 0] } })],
+    }),
+  );
   expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-opacity', 0.4);
   mocks.query.mockImplementation((...args: unknown[]) => {
     const options = args[1] as { layers: string[] };
     return options.layers[0] === 'route-alternatives-line' ? [{}] : [];
   });
-  act(() => mocks.handlers.get('click')?.({ lngLat: { lng: 10.01, lat: 0 }, point: { x: 1, y: 1 } }));
+  act(() =>
+    mocks.handlers.get('click')?.({ lngLat: { lng: 10.01, lat: 0 }, point: { x: 1, y: 1 } }),
+  );
   expect(props.onAdd).not.toHaveBeenCalled();
   rerender(<RouteMap {...options} routeStale={false} />);
   expect(screen.queryByText('Elevation location')).not.toBeInTheDocument();
   expect(document.querySelector('.map-annotation-status')).not.toBeInTheDocument();
-  expect(mocks.extraData.get('route-elevation')).toHaveBeenLastCalledWith(expect.objectContaining({
-    features: [expect.objectContaining({ geometry: { type: 'Point', coordinates: [0.01, 0] } })],
-  }));
+  expect(mocks.extraData.get('route-elevation')).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      features: [expect.objectContaining({ geometry: { type: 'Point', coordinates: [0.01, 0] } })],
+    }),
+  );
   rerender(<RouteMap {...options} elevationCoordinate={null} routeStale={false} />);
-  expect(mocks.extraData.get('route-elevation')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  expect(mocks.extraData.get('route-elevation')).toHaveBeenLastCalledWith({
+    type: 'FeatureCollection',
+    features: [],
+  });
   expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-opacity', 1);
   expect(mocks.fly).not.toHaveBeenCalled();
   expect(mocks.fit).not.toHaveBeenCalled();
@@ -1058,32 +1132,55 @@ it.each([
   [1, 'Location permission was denied. Enable location access in your browser settings.'],
   [2, 'Your position is unavailable. Enter coordinates or click the map instead.'],
   [3, 'Location request timed out. Try again.'],
-])('reports distinct geolocation failure %s without requesting it automatically', (code, message) => {
-  const getCurrentPosition = vi.fn((_success: PositionCallback, failure: PositionErrorCallback) => failure({ code } as GeolocationPositionError));
-  vi.stubGlobal('navigator', { geolocation: { getCurrentPosition } });
-  render(<RouteMap {...props} />);
-  act(() => mocks.handlers.get('load')?.());
-  expect(getCurrentPosition).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Use my location' }));
-  expect(props.onError).toHaveBeenCalledWith(message);
-  expect(screen.getByRole('button', { name: 'Use my location' })).toBeEnabled();
-});
+])(
+  'reports distinct geolocation failure %s without requesting it automatically',
+  (code, message) => {
+    const getCurrentPosition = vi.fn((_success: PositionCallback, failure: PositionErrorCallback) =>
+      failure({ code } as GeolocationPositionError),
+    );
+    vi.stubGlobal('navigator', { geolocation: { getCurrentPosition } });
+    render(<RouteMap {...props} />);
+    act(() => mocks.handlers.get('load')?.());
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Use my location' }));
+    expect(props.onError).toHaveBeenCalledWith(message);
+    expect(screen.getByRole('button', { name: 'Use my location' })).toBeEnabled();
+  },
+);
 
 it('fits reported accuracy bounds and reports precision rather than forcing zoom 14', () => {
-  vi.stubGlobal('navigator', { geolocation: { getCurrentPosition: (success: PositionCallback) =>
-    success({ coords: { longitude: 13, latitude: 49, accuracy: 2000 } } as GeolocationPosition) } });
+  vi.stubGlobal('navigator', {
+    geolocation: {
+      getCurrentPosition: (success: PositionCallback) =>
+        success({ coords: { longitude: 13, latitude: 49, accuracy: 2000 } } as GeolocationPosition),
+    },
+  });
   render(<RouteMap {...props} />);
   act(() => mocks.handlers.get('load')?.());
   fireEvent.click(screen.getByRole('button', { name: 'Use my location' }));
-  expect(mocks.fit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ maxZoom: 16 }));
+  expect(mocks.fit).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ maxZoom: 16 }),
+  );
   expect(screen.getByText('Location accuracy: ±2,000 m')).toHaveClass('sr-only');
-  expect(screen.getByRole('button', { name: 'Use my location' })).toHaveAccessibleDescription('Location accuracy: ±2,000 m');
+  expect(screen.getByRole('button', { name: 'Use my location' })).toHaveAccessibleDescription(
+    'Location accuracy: ±2,000 m',
+  );
   expect(document.querySelector('.map-annotation-status')).not.toBeInTheDocument();
   expect(mocks.fly).not.toHaveBeenCalled();
 });
 
 it('recomputes distance annotations on zoom without joining disconnected geometry', () => {
-  const segments: [number, number][][] = [[[0, 0], [0.2, 0]], [[10, 0], [10.2, 0]]];
+  const segments: [number, number][][] = [
+    [
+      [0, 0],
+      [0.2, 0],
+    ],
+    [
+      [10, 0],
+      [10.2, 0],
+    ],
+  ];
   render(<RouteMap {...props} segments={segments} />);
   act(() => mocks.handlers.get('load')?.());
   const source = mocks.extraData.get('route-annotations')!;
@@ -1092,15 +1189,27 @@ it('recomputes distance annotations on zoom without joining disconnected geometr
   act(() => mocks.handlers.get('zoomend')?.());
   expect(source.mock.lastCall![0].features.length).toBeGreaterThan(initialCount);
   expect(mocks.data.mock.lastCall![0].features).toHaveLength(2);
-  expect(mocks.layer).toHaveBeenCalledWith(expect.objectContaining({ id: 'route-direct-line',
-    paint: expect.objectContaining({ 'line-dasharray': [2, 2] }) }));
+  expect(mocks.layer).toHaveBeenCalledWith(
+    expect.objectContaining({
+      id: 'route-direct-line',
+      paint: expect.objectContaining({ 'line-dasharray': [2, 2] }),
+    }),
+  );
   expect(mocks.fit).not.toHaveBeenCalled();
 });
 
 it('allows read-only waypoint selection but never offers mutating actions', () => {
-  const onSelectWaypoint = vi.fn(), onRemoveWaypoint = vi.fn();
-  render(<RouteMap {...props} waypoints={annotationWaypoints} editable={false}
-    onSelectWaypoint={onSelectWaypoint} onRemoveWaypoint={onRemoveWaypoint} />);
+  const onSelectWaypoint = vi.fn(),
+    onRemoveWaypoint = vi.fn();
+  render(
+    <RouteMap
+      {...props}
+      waypoints={annotationWaypoints}
+      editable={false}
+      onSelectWaypoint={onSelectWaypoint}
+      onRemoveWaypoint={onRemoveWaypoint}
+    />,
+  );
   act(() => mocks.handlers.get('load')?.());
   fireEvent.click(mocks.markerOptions.mock.calls[0][0].element);
   expect(onSelectWaypoint).toHaveBeenCalledWith('a');
@@ -1109,7 +1218,9 @@ it('allows read-only waypoint selection but never offers mutating actions', () =
 });
 
 it('restores keyboard focus when selected marker styling changes', () => {
-  const { rerender } = render(<RouteMap {...props} waypoints={annotationWaypoints} selectedWaypointId="a" />);
+  const { rerender } = render(
+    <RouteMap {...props} waypoints={annotationWaypoints} selectedWaypointId="a" />,
+  );
   act(() => mocks.handlers.get('load')?.());
   const element = mocks.markerOptions.mock.calls[0][0].element as HTMLButtonElement;
   document.body.append(element);

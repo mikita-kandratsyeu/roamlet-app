@@ -39,6 +39,7 @@ function TimeChoice({
       <PlannerChoice
         label={t(label)}
         value={value}
+        selectedLabel={value === 'unknown' ? 'Unknown' : undefined}
         options={Object.entries(options).map(([key, text]) => ({ value: key, label: text }))}
         onChange={onChange}
         className="personal-time-choice"

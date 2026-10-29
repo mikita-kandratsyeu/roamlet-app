@@ -64,7 +64,7 @@
   margin: 18px 0 8px;
 }
 .global-map-loader__content p {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   line-height: 1.6;
   color: var(--muted-foreground, #68756b);
   margin: 0;

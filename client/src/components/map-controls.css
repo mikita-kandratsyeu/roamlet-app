@@ -14,7 +14,9 @@
   line-height: 1;
   font-size: 20px;
 }
-.map-north-control small { font-size: 9px; }
+.map-north-control small {
+  font-size: 12px;
+}
 .map-extra-controls .map-control.map-north-control {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -50,7 +52,9 @@
   background: var(--background);
   box-shadow: 0 4px 16px #0002;
 }
-.map-waypoint-actions strong { overflow-wrap: anywhere; }
+.map-waypoint-actions strong {
+  overflow-wrap: anywhere;
+}
 @media (max-width: 700px) {
   .map-extra-controls .map-control.map-zoom-in,
   .map-extra-controls .map-control.map-zoom-out {
@@ -58,5 +62,8 @@
     border-radius: 8px;
     margin-top: 0;
   }
-  .map-waypoint-actions { right: 12px; max-width: calc(100% - 24px); }
+  .map-waypoint-actions {
+    right: 12px;
+    max-width: calc(100% - 24px);
+  }
 }

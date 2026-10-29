@@ -59,7 +59,7 @@
 .roamlet-dialog .dialog-description {
   margin-top: 4px;
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: var(--font-size-helper);
   line-height: 1.45;
 }
 
@@ -85,7 +85,7 @@
 
 .roamlet-dialog .dialog-body {
   min-height: 0;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -108,7 +108,7 @@
   gap: 6px;
   margin: 0;
   color: var(--foreground);
-  font-size: 13px;
+  font-size: var(--font-size-label);
   font-weight: 600;
   line-height: 1.45;
 }
@@ -122,7 +122,7 @@
   border-radius: 8px;
   background: var(--surface);
   color: var(--foreground);
-  font-size: 13px;
+  font-size: var(--font-size-control);
   font-weight: 400;
   line-height: 1.45;
 }
@@ -167,7 +167,7 @@
   height: auto;
   padding: 12px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-control);
   font-weight: 600;
   line-height: 1.45;
   white-space: normal;
@@ -203,7 +203,7 @@
 
 .roamlet-dialog .error-inline {
   color: var(--destructive);
-  font-size: 12px;
+  font-size: var(--font-size-body);
 }
 
 .dialog.roamlet-dialog.compact {

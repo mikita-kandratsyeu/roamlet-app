@@ -767,7 +767,11 @@ describe('route planner interactions', () => {
     await screen.findByRole('alert');
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
     expect(screen.getByTestId('map')).toHaveAttribute('data-segments', '1');
-    expect(screen.getByText('Previous route shown. Recalculate successfully before saving or exporting.')).toBeVisible();
+    expect(
+      screen.getByText(
+        'Previous route shown. Recalculate successfully before saving or exporting.',
+      ),
+    ).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
   });
@@ -976,9 +980,14 @@ describe('map and routing improvements', () => {
     const start = screen.getByRole('button', { name: /^Start 47/ });
     expect(start).toHaveAttribute('aria-pressed', 'true');
     expect(start.closest('li')).toHaveClass('selected-stop');
-    expect(screen.queryByRole('button', { name: 'Replace stop coordinates' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Replace stop coordinates' }),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Finish 47/ }));
-    expect(screen.getByRole('button', { name: /^Finish 47/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /^Finish 47/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Replace first map point' }));
     expect(screen.getByRole('textbox', { name: 'Latitude' })).toHaveFocus();
     expect(screen.getByRole('button', { name: 'Replace stop coordinates' })).toBeVisible();
@@ -989,14 +998,24 @@ describe('map and routing improvements', () => {
     render(<App />);
     await plan();
     const previous = screen.getByTestId('map').getAttribute('data-geometry');
-    let resolve!: (value: { segments: number[][][]; stats: { distance: number; duration: number } }) => void;
-    provider.calculateRoute.mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    let resolve!: (value: {
+      segments: number[][][];
+      stats: { distance: number; duration: number };
+    }) => void;
+    provider.calculateRoute.mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
     addCoordinate('47.28, 11.42');
     expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', previous);
     expect(screen.getByTestId('map')).toHaveAttribute('data-stale', 'true');
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
-    await act(async () => resolve({ segments: [geometry], stats: { distance: 1500, duration: 500 } }));
+    await act(async () =>
+      resolve({ segments: [geometry], stats: { distance: 1500, duration: 500 } }),
+    );
     expect(screen.getByTestId('map')).toHaveAttribute('data-stale', 'false');
     expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
   });
@@ -1008,16 +1027,34 @@ describe('map and routing improvements', () => {
     choosePlannerOption('Cycling route profile', 'Road cycling');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Avoid ferries' }));
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
-    expect(provider.calculateRoute.mock.calls[1][3]).toMatchObject({ cyclingProfile: 'cycling-road', avoidFerries: true });
+    expect(provider.calculateRoute.mock.calls[1][3]).toMatchObject({
+      cyclingProfile: 'cycling-road',
+      avoidFerries: true,
+    });
     provider.calculatePointAlternatives.mockResolvedValueOnce([
       { segments: [geometry], stats: { distance: 1000, duration: 300 } },
-      { segments: [[[11.4, 47.26], [11.42, 47.27], [11.41, 47.27]]], stats: { distance: 1300, duration: 400 } },
+      {
+        segments: [
+          [
+            [11.4, 47.26],
+            [11.42, 47.27],
+            [11.41, 47.27],
+          ],
+        ],
+        stats: { distance: 1300, duration: 400 },
+      },
     ]);
     fireEvent.click(screen.getByRole('button', { name: 'Find alternatives' }));
     await waitFor(() => expect(provider.calculatePointAlternatives).toHaveBeenCalledOnce());
-    expect(screen.getByRole('button', { name: /Option 1/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Option 1/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     fireEvent.click(screen.getByRole('button', { name: /Option 2/ }));
-    expect(screen.getByRole('button', { name: /Option 2/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Option 2/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(screen.getAllByRole('button', { name: /^(Start|Finish) 47/ })).toHaveLength(2);
     addCoordinate('47.28, 11.42');
     expect(screen.getByRole('button', { name: 'Find alternatives' })).toBeDisabled();
@@ -1032,9 +1069,15 @@ describe('map and routing improvements', () => {
     choosePlannerOption('Section 2 mode', 'Direct line — unverified');
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(3));
     fireEvent.click(screen.getByRole('button', { name: 'Reverse' }));
-    expect(screen.getByRole('button', { name: 'Section 1 mode' })).toHaveTextContent('Direct line — unverified');
-    expect(screen.getByRole('button', { name: 'Section 2 mode' })).toHaveTextContent('Road/path routing');
+    expect(screen.getByRole('button', { name: 'Section 1 mode' })).toHaveTextContent(
+      'Direct line — unverified',
+    );
+    expect(screen.getByRole('button', { name: 'Section 2 mode' })).toHaveTextContent(
+      'Road/path routing',
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(screen.getByRole('button', { name: 'Section 2 mode' })).toHaveTextContent('Direct line — unverified');
+    expect(screen.getByRole('button', { name: 'Section 2 mode' })).toHaveTextContent(
+      'Direct line — unverified',
+    );
   });
 });

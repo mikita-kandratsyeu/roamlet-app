@@ -84,7 +84,11 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   });
   const tool = page.getByRole('button', { name: 'Manual drawing', exact: true });
   await expect(tool).toHaveCount(1);
-  await expect(page.getByRole('group', { name: 'Map controls' }).getByRole('button', { name: 'Reset north', exact: true })).toHaveCount(1);
+  await expect(
+    page
+      .getByRole('group', { name: 'Map controls' })
+      .getByRole('button', { name: 'Reset north', exact: true }),
+  ).toHaveCount(1);
   await expect(page.getByRole('radio', { name: 'Manual', exact: true })).toHaveCount(0);
   await tool.click();
   await expect(tool).toHaveAttribute('aria-pressed', 'true');

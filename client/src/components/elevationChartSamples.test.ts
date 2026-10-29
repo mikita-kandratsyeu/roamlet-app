@@ -4,9 +4,15 @@ import type { Coordinate } from '../domain/types';
 
 it('links samples to exact coordinates without joining separate tracks', () => {
   const segments: Coordinate[][] = [
-    [[11, 47, 100], [11.01, 47, 120]],
+    [
+      [11, 47, 100],
+      [11.01, 47, 120],
+    ],
     [],
-    [[12, 48, 130], [12.01, 48, 110]],
+    [
+      [12, 48, 130],
+      [12.01, 48, 110],
+    ],
   ];
   const before = structuredClone(segments);
   const samples = elevationChartSamples(segments);
@@ -19,11 +25,22 @@ it('links samples to exact coordinates without joining separate tracks', () => {
 });
 
 it('does not invent unavailable heights', () => {
-  expect(elevationChartSamples([[[11, 47, 100], [11.01, 47]]])).toEqual([]);
+  expect(
+    elevationChartSamples([
+      [
+        [11, 47, 100],
+        [11.01, 47],
+      ],
+    ]),
+  ).toEqual([]);
 });
 
 it('keeps every segment endpoint when decimating the chart', () => {
-  const segment: Coordinate[] = Array.from({ length: 1000 }, (_, index) => [index / 1000, 47, index]);
+  const segment: Coordinate[] = Array.from({ length: 1000 }, (_, index) => [
+    index / 1000,
+    47,
+    index,
+  ]);
   const samples = elevationChartSamples([segment]);
   expect(samples.length).toBeLessThan(400);
   expect(samples[0].coordinate).toEqual(segment[0]);

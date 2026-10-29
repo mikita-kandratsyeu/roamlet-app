@@ -1,13 +1,19 @@
 import { test, expect, type Page } from '@playwright/test';
 
-const points = [[30, 52, 100], [30.005, 52.005, 120], [30.01, 52.01, 110]];
+const points = [
+  [30, 52, 100],
+  [30.005, 52.005, 120],
+  [30.01, 52.01, 110],
+];
 const fixture = {
   type: 'FeatureCollection',
-  features: [{
-    type: 'Feature',
-    geometry: { type: 'LineString', coordinates: points },
-    properties: { summary: { distance: 1342, duration: 480 } },
-  }],
+  features: [
+    {
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates: points },
+      properties: { summary: { distance: 1342, duration: 480 } },
+    },
+  ],
 };
 async function addPoint(page: Page, value: string) {
   await page.getByRole('textbox', { name: 'Широта', exact: true }).fill(value);
@@ -21,11 +27,17 @@ async function plan(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('roamlet-language', 'ru'));
-  await page.route('**/__fixtures__/map-style.json', (route) => route.fulfill({ json: {
-    version: 8,
-    sources: {},
-    layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } }],
-  } }));
+  await page.route('**/__fixtures__/map-style.json', (route) =>
+    route.fulfill({
+      json: {
+        version: 8,
+        sources: {},
+        layers: [
+          { id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } },
+        ],
+      },
+    }),
+  );
   await page.route('https://api.heigit.org/openrouteservice/**', (route) => route.abort());
   await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', (route) => {
     expect(route.request().postDataJSON()).toMatchObject({ elevation: true, instructions: false });
@@ -36,17 +48,29 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
 
-test('planner choices share translated accessible menus and remain inside the viewport', async ({ page }, info) => {
+test('planner choices share translated accessible menus and remain inside the viewport', async ({
+  page,
+}, info) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await expect(page.getByRole('checkbox', { name: 'Избегать лестниц' })).toBeVisible();
   await expect(page.getByText('Avoid steps', { exact: true })).toHaveCount(0);
   const profile = page.getByRole('button', { name: 'Велосипедный профиль', exact: true });
   expect((await profile.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await expect(profile).toHaveCSS('font-size', '14px');
+  for (const button of await page
+    .locator('.coordinate-add, .add-stop, .calculate-action > button')
+    .all())
+    await expect(button).toHaveCSS('font-size', '14px');
   await profile.press('ArrowDown');
   const menu = page.getByRole('menu');
   await expect(menu).toHaveClass(/planner-choice-menu/);
-  await expect(page.getByRole('menuitemradio', { name: 'Обычный велосипед', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(
+    page.getByRole('menuitemradio', { name: 'Обычный велосипед', exact: true }),
+  ).toHaveCSS('font-size', '14px');
+  await expect(
+    page.getByRole('menuitemradio', { name: 'Обычный велосипед', exact: true }),
+  ).toHaveAttribute('aria-checked', 'true');
   const bounds = (await menu.boundingBox())!;
   expect(bounds.x).toBeGreaterThanOrEqual(0);
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(page.viewportSize()!.width);
@@ -59,15 +83,24 @@ test('planner choices share translated accessible menus and remain inside the vi
   const profileDetails = page.locator('.elevation-box');
   if ((await profileDetails.getAttribute('open')) === null)
     await profileDetails.locator('summary').click();
-  const elevationPosition = page.getByRole('slider', { name: 'Положение на профиле высот', exact: true });
+  const elevationPosition = page.getByRole('slider', {
+    name: 'Положение на профиле высот',
+    exact: true,
+  });
   await elevationPosition.focus();
   await elevationPosition.press('ArrowRight');
+  await expect(page.locator('.recharts-cartesian-axis-tick-value').first()).toHaveCSS(
+    'font-size',
+    '12px',
+  );
   await expect(page.locator('.map-annotation-status')).toHaveCount(0);
   await expect(page.getByText('Точка профиля высот', { exact: true })).toHaveCount(0);
   const section = page.getByRole('button', { name: 'Режим участка 1', exact: true });
   await section.click();
   await expect(page.getByRole('menu')).toHaveClass(/planner-choice-menu/);
-  await page.getByRole('menuitemradio', { name: 'Прямая линия — без проверки', exact: true }).click();
+  await page
+    .getByRole('menuitemradio', { name: 'Прямая линия — без проверки', exact: true })
+    .click();
   await expect(section).toHaveText(/Прямая линия — без проверки/);
   const alternatives = page.getByRole('button', { name: 'Найти альтернативы', exact: true });
   await expect(alternatives).toBeDisabled();
@@ -88,19 +121,30 @@ test('planner choices share translated accessible menus and remain inside the vi
   await page.keyboard.press('Escape');
   await expect(page.locator('.planner')).toBeVisible();
   expect(errors).toEqual([]);
-  await page.screenshot({ path: `/Users/Mikita_Kandratsyeu1/.copilot/session-state/39c6be71-a7dc-4e0f-a0f5-e2fac6eb8700/files/routing-ui-${info.project.name}.png` });
+  await page.screenshot({
+    path: `/Users/Mikita_Kandratsyeu1/.copilot/session-state/39c6be71-a7dc-4e0f-a0f5-e2fac6eb8700/files/routing-ui-${info.project.name}.png`,
+  });
 });
 
-test('recalculation notice has readable width and disabled alternatives explain their prerequisites', async ({ page }) => {
+test('recalculation notice has readable width and disabled alternatives explain their prerequisites', async ({
+  page,
+}) => {
   await plan(page);
   let release!: () => void;
   let received!: () => void;
-  const started = new Promise<void>((resolve) => { received = resolve; });
-  await page.route('https://api.heigit.org/openrouteservice/v2/directions/*/geojson', async (route) => {
-    received();
-    await new Promise<void>((resolve) => { release = resolve; });
-    await route.fulfill({ json: fixture });
+  const started = new Promise<void>((resolve) => {
+    received = resolve;
   });
+  await page.route(
+    'https://api.heigit.org/openrouteservice/v2/directions/*/geojson',
+    async (route) => {
+      received();
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await route.fulfill({ json: fixture });
+    },
+  );
   await addPoint(page, '52.02, 30.02');
   await started;
   const note = page.locator('.stale-route-note');
@@ -136,10 +180,12 @@ test('routing errors keep text, recovery actions and dismissal separate', async 
   const card = (await notice.boundingBox())!;
   const buttons = notice.locator('.planner-notice-actions button');
   await expect(buttons).toHaveCount(3);
-  const bounds = await buttons.evaluateAll((elements) => elements.map((element) => {
-    const rect = element.getBoundingClientRect();
-    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-  }));
+  const bounds = await buttons.evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    }),
+  );
   for (const button of bounds) {
     expect(button.height).toBeGreaterThanOrEqual(44);
     expect(button.y).toBeGreaterThanOrEqual(description.y + description.height);
@@ -148,8 +194,14 @@ test('routing errors keep text, recovery actions and dismissal separate', async 
   }
   for (let first = 0; first < bounds.length; first++) {
     for (let next = first + 1; next < bounds.length; next++) {
-      const a = bounds[first], b = bounds[next];
-      expect(a.y + a.height <= b.y + 1 || b.y + b.height <= a.y + 1 || a.x + a.width <= b.x + 1 || b.x + b.width <= a.x + 1).toBe(true);
+      const a = bounds[first],
+        b = bounds[next];
+      expect(
+        a.y + a.height <= b.y + 1 ||
+          b.y + b.height <= a.y + 1 ||
+          a.x + a.width <= b.x + 1 ||
+          b.x + b.width <= a.x + 1,
+      ).toBe(true);
     }
   }
   await expect(page.locator('.map-annotation-status')).toHaveCount(0);
