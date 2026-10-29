@@ -7,7 +7,12 @@ export function parseDecimalValue(raw: string, allowZero: boolean): number | nul
   return Number.isFinite(value) && (allowZero ? value >= 0 : value > 0) ? value : null;
 }
 
-export function useDecimalField(value: number, onCommit: (value: number) => void, allowZero: boolean, contextKey?: string) {
+export function useDecimalField(
+  value: number,
+  onCommit: (value: number) => void,
+  allowZero: boolean,
+  contextKey?: string,
+) {
   const [buffer, setBuffer] = useState(String(value));
   const [invalid, setInvalid] = useState(false);
   const focused = useRef(false);
@@ -41,13 +46,18 @@ export function useDecimalField(value: number, onCommit: (value: number) => void
   return {
     value: buffer,
     invalid,
-    onFocus: () => { focused.current = true; },
+    onFocus: () => {
+      focused.current = true;
+    },
     onChange: (event: ChangeEvent<HTMLInputElement>) => {
       edited.current = true;
       setBuffer(event.target.value);
       setInvalid(false);
     },
-    onBlur: () => { focused.current = false; commit(); },
+    onBlur: () => {
+      focused.current = false;
+      commit();
+    },
     onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
         event.preventDefault();

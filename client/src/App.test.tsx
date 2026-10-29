@@ -768,7 +768,9 @@ describe('route planner interactions', () => {
     fireEvent.keyDown(speed, { key: 'Enter' });
     expect(speed).toHaveValue('');
     expect(speed).toHaveAttribute('aria-invalid', 'true');
-    await waitFor(async () => expect((await routeDb.table('drafts').get('current'))?.snapshot.speeds.cycling).toBe(18));
+    await waitFor(async () =>
+      expect((await routeDb.table('drafts').get('current'))?.snapshot.speeds.cycling).toBe(18),
+    );
     fireEvent.change(speed, { target: { value: '6' } });
     fireEvent.blur(speed);
     fireEvent.change(screen.getByLabelText('Stops (minutes)'), { target: { value: '10' } });

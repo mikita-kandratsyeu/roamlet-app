@@ -5,7 +5,9 @@ import { PlannerTools } from './PlannerTools';
 import styles from '../planner.css?raw';
 import i18n from '../i18n';
 it('localizes the personal-time heading and concise validation message in Russian', async () => {
-  await act(async () => { await i18n.changeLanguage('ru'); });
+  await act(async () => {
+    await i18n.changeLanguage('ru');
+  });
   render(<PlannerTools speed={18} stops={0} onSpeed={vi.fn()} onStops={vi.fn()} />);
   expect(screen.getByText('Оценка времени')).toBeInTheDocument();
   const speed = screen.getByLabelText('Личная скорость (км/ч)');
@@ -16,13 +18,34 @@ it('localizes the personal-time heading and concise validation message in Russia
 });
 afterEach(cleanup);
 function controlledTools() {
-  const onSpeed = vi.fn(), onStops = vi.fn();
+  const onSpeed = vi.fn(),
+    onStops = vi.fn();
   function Controlled() {
-    const [speed, setSpeed] = useState(18), [stops, setStops] = useState(5);
-    return <PlannerTools speed={speed} stops={stops} onSpeed={value => { onSpeed(value); setSpeed(value); }} onStops={value => { onStops(value); setStops(value); }} />;
+    const [speed, setSpeed] = useState(18),
+      [stops, setStops] = useState(5);
+    return (
+      <PlannerTools
+        speed={speed}
+        stops={stops}
+        onSpeed={(value) => {
+          onSpeed(value);
+          setSpeed(value);
+        }}
+        onStops={(value) => {
+          onStops(value);
+          setStops(value);
+        }}
+      />
+    );
   }
   const view = render(<Controlled />);
-  return { ...view, onSpeed, onStops, speed: screen.getByLabelText('Personal speed (km/h)'), stops: screen.getByLabelText('Stops (minutes)') };
+  return {
+    ...view,
+    onSpeed,
+    onStops,
+    speed: screen.getByLabelText('Personal speed (km/h)'),
+    stops: screen.getByLabelText('Stops (minutes)'),
+  };
 }
 it('groups accessible text controls without duplicate history buttons', () => {
   const { container, speed, stops } = controlledTools();
@@ -104,12 +127,18 @@ it('rejects empty, negative and nonfinite stops while accepting zero minutes', (
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 it('syncs external settings and sessions without overwriting a focused edit', () => {
-  const onSpeed = vi.fn(), onStops = vi.fn();
-  const { rerender } = render(<PlannerTools speed={18} stops={0} contextKey="cycling" onSpeed={onSpeed} onStops={onStops} />);
-  const speed = screen.getByLabelText('Personal speed (km/h)'), stops = screen.getByLabelText('Stops (minutes)');
+  const onSpeed = vi.fn(),
+    onStops = vi.fn();
+  const { rerender } = render(
+    <PlannerTools speed={18} stops={0} contextKey="cycling" onSpeed={onSpeed} onStops={onStops} />,
+  );
+  const speed = screen.getByLabelText('Personal speed (km/h)'),
+    stops = screen.getByLabelText('Stops (minutes)');
   fireEvent.focus(speed);
   fireEvent.change(speed, { target: { value: '12,5' } });
-  rerender(<PlannerTools speed={5} stops={10} contextKey="hiking" onSpeed={onSpeed} onStops={onStops} />);
+  rerender(
+    <PlannerTools speed={5} stops={10} contextKey="hiking" onSpeed={onSpeed} onStops={onStops} />,
+  );
   expect(speed).toHaveValue('12,5');
   expect(stops).toHaveValue('10');
   fireEvent.blur(speed);
@@ -118,16 +147,22 @@ it('syncs external settings and sessions without overwriting a focused edit', ()
   fireEvent.change(speed, { target: { value: '' } });
   fireEvent.blur(speed);
   expect(speed).toHaveAttribute('aria-invalid', 'true');
-  rerender(<PlannerTools speed={5} stops={10} contextKey="restored" onSpeed={onSpeed} onStops={onStops} />);
+  rerender(
+    <PlannerTools speed={5} stops={10} contextKey="restored" onSpeed={onSpeed} onStops={onStops} />,
+  );
   expect(speed).toHaveValue('5');
   expect(speed).not.toHaveAttribute('aria-invalid', 'true');
 });
 it('does not write a stale focused value over an external reset when it was not edited', () => {
   const onSpeed = vi.fn();
-  const { rerender } = render(<PlannerTools speed={18} stops={0} contextKey="before" onSpeed={onSpeed} onStops={vi.fn()} />);
+  const { rerender } = render(
+    <PlannerTools speed={18} stops={0} contextKey="before" onSpeed={onSpeed} onStops={vi.fn()} />,
+  );
   const speed = screen.getByLabelText('Personal speed (km/h)');
   fireEvent.focus(speed);
-  rerender(<PlannerTools speed={5} stops={0} contextKey="reset" onSpeed={onSpeed} onStops={vi.fn()} />);
+  rerender(
+    <PlannerTools speed={5} stops={0} contextKey="reset" onSpeed={onSpeed} onStops={vi.fn()} />,
+  );
   expect(speed).toHaveValue('18');
   fireEvent.blur(speed);
   expect(speed).toHaveValue('5');
