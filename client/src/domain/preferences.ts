@@ -1,4 +1,5 @@
 import { detectLanguage, LANGUAGE_KEY, saveLanguage } from '../i18n';
+import { isFitness, type Fitness } from './time';
 import { isTheme, saveTheme, storedTheme, THEME_STORAGE_KEY, type Theme } from '../theme';
 import { initialMapView, MAP_VIEW_KEY, saveMapView, validMapView, type MapView } from './mapView';
 
@@ -9,6 +10,7 @@ export interface Preferences {
   targetKm: number;
   speeds: { cycling: number; hiking: number };
   stopsMinutes: number;
+  fitness: Fitness;
   panelHidden: boolean;
   collapsed: boolean;
   library: {
@@ -34,6 +36,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   targetKm: 20,
   speeds: { cycling: 18, hiking: 5 },
   stopsMinutes: 0,
+  fitness: 'regular',
   panelHidden: false,
   collapsed: false,
   library: {
@@ -57,6 +60,7 @@ const fields = [
   'targetKm',
   'speeds',
   'stopsMinutes',
+  'fitness',
   'panelHidden',
   'collapsed',
   'library',
@@ -92,6 +96,7 @@ function valid(value: Preferences): boolean {
     positive(value.speeds.cycling) &&
     positive(value.speeds.hiking) &&
     nonnegative(value.stopsMinutes) &&
+    isFitness(value.fitness) &&
     typeof value.panelHidden === 'boolean' &&
     typeof value.collapsed === 'boolean' &&
     !!library &&
@@ -140,9 +145,14 @@ export function loadPreferences(): Preferences {
       Array.isArray(record.preferences)
     )
       throw new Error('Invalid preferences');
+    const stored = persistentFields(record.preferences);
+    if (Object.hasOwn(stored, 'fitness') && !isFitness(stored.fitness)) {
+      stored.fitness = defaults.fitness;
+      notify(PREFERENCES_ERROR_EVENT);
+    }
     const merged = {
       ...defaults,
-      ...persistentFields(record.preferences),
+      ...stored,
       theme: defaults.theme,
       language: defaults.language,
       camera: defaults.camera,

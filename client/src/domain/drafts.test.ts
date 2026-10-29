@@ -96,3 +96,42 @@ it('rejects invalid points, identity, modes and time parameters', () => {
     expect(() => validateSnapshot({ ...initialEditor(), ...patch })).toThrow();
   }
 });
+
+it('migrates previous drafts with custom pace and ready geometry without invalidating the snapshot', async () => {
+  const snapshot = initialEditor();
+  snapshot.speeds = { cycling: 12.5, hiking: 4.8 };
+  snapshot.stopsMinutes = 15;
+  snapshot.mode = 'snapshot';
+  snapshot.result = {
+    ...snapshot.identity,
+    name: 'Ready',
+    description: '',
+    activity: 'cycling',
+    waypoints: [],
+    segments: [
+      [
+        [0, 0],
+        [0.01, 0],
+      ],
+    ],
+    stats: { distance: 1344, duration: 3600 },
+    source: 'openrouteservice',
+    updatedAt: snapshot.identity.createdAt,
+  };
+  const { fitness: _fitness, surface: _surface, ...old } = snapshot;
+  void _fitness;
+  void _surface;
+  await routeDb
+    .table('drafts')
+    .put({ id: 'current', version: 1, updatedAt: new Date().toISOString(), snapshot: old });
+  expect((await loadDraft())?.snapshot).toEqual({ ...old, fitness: 'regular', surface: 'unknown' });
+});
+it('persists explicit draft fitness/surface and rejects unsupported choices', async () => {
+  const writer = draftWriter(vi.fn());
+  const snapshot = { ...initialEditor(), fitness: 'trained' as const, surface: 'rough' as const };
+  writer.schedule(snapshot);
+  expect(await writer.flush()).toBe(true);
+  expect((await loadDraft())?.snapshot).toEqual(snapshot);
+  expect(() => validateSnapshot({ ...snapshot, fitness: 'expert' })).toThrow();
+  expect(() => validateSnapshot({ ...snapshot, surface: 'gravel' })).toThrow();
+});

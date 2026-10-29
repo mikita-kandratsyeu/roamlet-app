@@ -1,5 +1,5 @@
 import { routeDb } from './storage';
-import { validateSnapshot, type EditorSnapshot } from './editorSnapshot';
+import { migrateSnapshot, validateSnapshot, type EditorSnapshot } from './editorSnapshot';
 export interface DraftRecord {
   id: 'current';
   version: 1;
@@ -15,8 +15,7 @@ export async function loadDraft(): Promise<DraftRecord | null> {
     !Number.isFinite(Date.parse(record.updatedAt))
   )
     throw new Error('Invalid draft data.');
-  validateSnapshot(record.snapshot);
-  return record;
+  return { ...record, snapshot: migrateSnapshot(record.snapshot) };
 }
 export function draftWriter(onError: () => void, delay = 500) {
   let generation = 0;

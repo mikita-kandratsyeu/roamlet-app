@@ -8,18 +8,42 @@ import type { PlannedRoute } from '../domain/types';
 import { elevationSamples } from '../domain/stats';
 import { formatNumber } from '../i18n';
 import { formatDistance, formatDuration } from '../domain/format';
-import { estimateTime } from '../domain/time';
+import {
+  estimatePersonalTime,
+  outwardMinutes,
+  type Fitness,
+  type Surface,
+  type TimeRange,
+  type TimeWarning,
+} from '../domain/time';
+function formatTimeRange(range: TimeRange) {
+  const rounded = outwardMinutes(range)!;
+  return `${formatDuration(rounded.lower * 60)}–${formatDuration(rounded.upper * 60)}`;
+}
+const warningLabels: Record<TimeWarning, string> = {
+  'unknown-surface': 'Surface is unknown: no surface penalty applied; the range is wider.',
+  'missing-elevation':
+    'Complete GPX heights unavailable: climbing is not included; the range is wider.',
+  'manual-distance': 'Manual straight-line distance may underestimate the actual path.',
+  'cycling-climb': 'Cycling climb allowance is a rough heuristic, not Naismith’s walking rule.',
+};
 export { formatDistance, formatDuration } from '../domain/format';
 export function Statistics({
   route,
   emptyHint,
   speedKmh,
   stopsMinutes = 0,
+  fitness = 'regular',
+  surface = 'unknown',
+  mapAvailable = true,
 }: {
   route: PlannedRoute | null;
   emptyHint?: string;
   speedKmh?: number;
   stopsMinutes?: number;
+  fitness?: Fitness;
+  surface?: Surface;
+  mapAvailable?: boolean;
 }) {
   const { t } = useTranslation();
   const [elevationTarget, setElevationTarget] = useState<HTMLElement | null>(null);
@@ -29,7 +53,9 @@ export function Statistics({
     if (!media) return;
     const mobile = window.matchMedia('(max-width: 700px)');
     const updateTarget = () => {
-      setElevationTarget(media.matches ? document.getElementById('map-elevation-root') : null);
+      setElevationTarget(
+        mapAvailable && media.matches ? document.getElementById('map-elevation-root') : null,
+      );
       setCompact(mobile.matches);
     };
     updateTarget();
@@ -39,7 +65,7 @@ export function Statistics({
       media.removeEventListener('change', updateTarget);
       mobile.removeEventListener('change', updateTarget);
     };
-  }, []);
+  }, [mapAvailable]);
   const samples = useMemo(
     () => (route?.source === 'gpx' ? elevationSamples(route.segments) : []),
     [route],
@@ -146,7 +172,10 @@ export function Statistics({
       </section>
     );
   const personal =
-    speedKmh === undefined ? null : estimateTime(route.stats.distance, speedKmh, stopsMinutes);
+    speedKmh === undefined
+      ? null
+      : estimatePersonalTime(route, { speedKmh, stopsMinutes, fitness, surface });
+  const provider = route.source === 'openrouteservice' || route.source === 'mapbox';
   return (
     <section className="statistics" aria-label={t('Route statistics')}>
       <dl className="stat-grid">
@@ -155,20 +184,34 @@ export function Statistics({
           <dd>{formatDistance(route.stats.distance)}</dd>
         </div>
         <div className="stat-card">
-          <dt>{t(speedKmh === undefined ? 'Est. moving time' : 'Original time estimate')}</dt>
+          <dt>
+            {t(
+              provider
+                ? 'Provider estimate'
+                : speedKmh === undefined
+                  ? 'Est. moving time'
+                  : 'Original time estimate',
+            )}
+          </dt>
           <dd>{formatDuration(route.stats.duration)}</dd>
         </div>
         {personal && (
           <>
             <div className="stat-card">
               <dt>{t('Personal moving time')}</dt>
-              <dd>{formatDuration(personal.moving)}</dd>
+              <dd>{formatTimeRange(personal.movingRange)}</dd>
             </div>
             <div className="stat-card">
               <dt>{t('Total time with stops')}</dt>
-              <dd>{formatDuration(personal.total)}</dd>
+              <dd>{formatTimeRange(personal.totalRange)}</dd>
             </div>
           </>
+        )}
+        {personal?.planningReference !== null && personal?.planningReference !== undefined && (
+          <div className="stat-card">
+            <dt>{t('Planning reference')}</dt>
+            <dd>{formatDuration(Math.ceil(personal.planningReference / 60) * 60)}</dd>
+          </div>
         )}
         {showElevation && (
           <>
@@ -203,6 +246,56 @@ export function Statistics({
                 : 'OpenRouteService'}
         </span>
       </p>
+      {personal && (
+        <div className="personal-time-assumptions">
+          <p className="fine-print">
+            {t('Heuristic planning range, not a confidence interval or guarantee.')}
+          </p>
+          {provider && (
+            <p className="fine-print">
+              {t(
+                'Planning reference uses the larger of provider and personal moving estimates, plus stops once. Not a guarantee.',
+              )}
+            </p>
+          )}
+          <p className="fine-print">
+            {t(
+              'Flat-ground speed {{speed}} km/h; surface factor ×{{factor}}; stops {{stops}} min added once.',
+              {
+                speed: formatNumber(speedKmh!, { maximumFractionDigits: 2 }),
+                factor: formatNumber(personal.surfaceFactor, { maximumFractionDigits: 2 }),
+                stops: formatNumber(stopsMinutes),
+              },
+            )}
+          </p>
+          {personal.ascentMetres !== null && (
+            <p className="fine-print">
+              {t(
+                'GPX ascent {{ascent}} m after 3 m noise filtering; climb allowance {{minutes}} min. No downhill bonus.',
+                {
+                  ascent: formatNumber(Math.round(personal.ascentMetres)),
+                  minutes: formatNumber(personal.climbSeconds / 60, { maximumFractionDigits: 1 }),
+                },
+              )}
+            </p>
+          )}
+          {personal.warnings.map((warning) => (
+            <p className="fine-print" key={warning}>
+              {t(warningLabels[warning])}
+            </p>
+          ))}
+          <p className="fine-print">
+            {t(
+              'Weather, wind, load and access are not inferred. Original route statistics remain unchanged.',
+            )}
+          </p>
+        </div>
+      )}
+      {speedKmh !== undefined && !personal && (
+        <p className="fine-print" role="status">
+          {t('Personal estimate unavailable for these inputs.')}
+        </p>
+      )}
       {elevationTarget ? createPortal(elevationProfile, elevationTarget) : elevationProfile}
     </section>
   );

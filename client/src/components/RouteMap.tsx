@@ -35,6 +35,8 @@ import {
   Layers,
   LoaderCircle,
   FileUp,
+  RefreshCw,
+  Library,
 } from 'lucide-react';
 import { waypointKind } from './waypointStyle';
 import { useTheme } from '../theme';
@@ -65,6 +67,9 @@ function mapFitPadding(container: HTMLElement | null) {
 }
 
 interface Props {
+  online?: boolean;
+  onLibrary?: () => void;
+  onCheckConnection?: () => void;
   segments: Coordinate[][];
   waypoints: Waypoint[];
   editable: boolean;
@@ -85,7 +90,7 @@ interface Props {
 export function RouteMap(props: Props) {
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
-  const { manualDrawing, editable, onUndo, onRedo, canUndo, canRedo } = props;
+  const { manualDrawing, editable, onUndo, onRedo, canUndo, canRedo, online = true } = props;
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const locationMarker = useRef<maplibregl.Marker | null>(null);
@@ -191,7 +196,7 @@ export function RouteMap(props: Props) {
         workspace.style.removeProperty(property);
       }
     };
-  }, [ready, props.plannerHidden, t]);
+  }, [ready, online, props.plannerHidden, t]);
   function changeStyle(next: string) {
     if (!next || next === style) return;
     activeStyle.current = next;
@@ -215,7 +220,12 @@ export function RouteMap(props: Props) {
     latest.current = props;
   });
   useEffect(() => {
-    if (!container.current) return;
+    setReady(false);
+    setMapError('');
+    setPreferenceWarning('');
+    setLoading(online);
+    lastFitToken.current = 0;
+    if (!online || !container.current) return;
     let tiles: ReturnType<typeof mapTiles>;
     try {
       tiles = mapTiles({ VITE_MAP_STYLE: activeStyle.current });
@@ -426,7 +436,7 @@ export function RouteMap(props: Props) {
       instance.remove();
       map.current = null;
     };
-  }, [mapAttempt, styleUrl]);
+  }, [mapAttempt, styleUrl, online]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const dark = resolvedTheme === 'dark';
@@ -568,6 +578,38 @@ export function RouteMap(props: Props) {
         );
       },
       { timeout: 10000 },
+    );
+  }
+  if (!online) {
+    return (
+      <section className="map-region map-offline" aria-label={t('Interactive route map')}>
+        <div className="offline-map-content" role="status">
+          <MapIcon size={44} strokeWidth={1.25} aria-hidden="true" />
+          <h2>{t('Map unavailable offline')}</h2>
+          <p>
+            {t(
+              'Roamlet does not download map regions. Connect to the internet to see the map and calculate routes again.',
+            )}
+          </p>
+          <div className="offline-map-actions">
+            <Button variant="outline" onClick={props.onCheckConnection}>
+              <RefreshCw size={18} aria-hidden="true" />
+              {t('Retry map')}
+            </Button>
+            {props.onLibrary && (
+              <Button onClick={props.onLibrary}>
+                <Library size={18} aria-hidden="true" />
+                {t('My routes')}
+              </Button>
+            )}
+          </div>
+          <small>
+            {t(
+              'Open and export local routes without an online map. Elevation is available only when saved in the route or GPX. No offline map is stored.',
+            )}
+          </small>
+        </div>
+      </section>
     );
   }
   return (

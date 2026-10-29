@@ -63,8 +63,16 @@ it('shows personal movement and total while retaining the original duration esti
   render(<Statistics route={snapshot} speedKmh={18} stopsMinutes={15} />);
   expect(screen.getByText('Original time estimate')).toBeInTheDocument();
   expect(screen.getByText('30 min')).toBeInTheDocument();
-  expect(screen.getByText('1 h 0 min')).toBeInTheDocument();
-  expect(screen.getByText('1 h 15 min')).toBeInTheDocument();
+  expect(screen.getByText('42 min–1 h 30 min')).toBeInTheDocument();
+  expect(screen.getByText('57 min–1 h 45 min')).toBeInTheDocument();
+  expect(
+    screen.getByText('Heuristic planning range, not a confidence interval or guarantee.'),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      'Complete GPX heights unavailable: climbing is not included; the range is wider.',
+    ),
+  ).toBeInTheDocument();
   expect(snapshot.stats.duration).toBe(1800);
 });
 
@@ -118,3 +126,107 @@ for (const desktop of [false, true]) {
     expect(portal).toBeEmptyDOMElement();
   });
 }
+
+it.each(['openrouteservice', 'mapbox'] as const)(
+  'shows %s provider duration independently while personal settings change',
+  (source) => {
+    const snapshot = {
+      ...route([
+        [
+          [0, 0, 0],
+          [0.01, 0, 600],
+        ],
+      ]),
+      source,
+      stats: { distance: 18000, duration: 1800, ascent: 600 },
+    };
+    const original = structuredClone(snapshot);
+    const { rerender } = render(
+      <Statistics
+        route={snapshot}
+        speedKmh={18}
+        stopsMinutes={15}
+        fitness="regular"
+        surface="paved"
+      />,
+    );
+    expect(screen.getByText('Provider estimate')).toBeInTheDocument();
+    expect(screen.getByText('30 min')).toBeInTheDocument();
+    expect(screen.getByText('48 min–1 h 24 min')).toBeInTheDocument();
+    rerender(
+      <Statistics
+        route={snapshot}
+        speedKmh={12}
+        stopsMinutes={20}
+        fitness="beginner"
+        surface="rough"
+      />,
+    );
+    expect(screen.getByText('30 min')).toBeInTheDocument();
+    expect(screen.queryByText('48 min–1 h 24 min')).not.toBeInTheDocument();
+    expect(snapshot).toEqual(original);
+  },
+);
+it('states manual straight-distance and missing-height limitations without changing original data', () => {
+  const snapshot = {
+    ...route([
+      [
+        [0, 0],
+        [0.01, 0],
+      ],
+    ]),
+    source: 'manual' as const,
+  };
+  const original = structuredClone(snapshot);
+  render(<Statistics route={snapshot} speedKmh={18} />);
+  expect(
+    screen.getByText('Manual straight-line distance may underestimate the actual path.'),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      'Complete GPX heights unavailable: climbing is not included; the range is wider.',
+    ),
+  ).toBeInTheDocument();
+  expect(snapshot).toEqual(original);
+});
+it('shows finite-estimate fallback instead of infinity when inputs overflow', () => {
+  render(
+    <Statistics
+      route={route([
+        [
+          [0, 0],
+          [0.01, 0],
+        ],
+      ])}
+      speedKmh={Number.MIN_VALUE}
+    />,
+  );
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'Personal estimate unavailable for these inputs.',
+  );
+  expect(screen.queryByText('Personal moving time')).not.toBeInTheDocument();
+});
+
+it('uses the larger provider estimate as an explicit planning reference even for fast personal pace', () => {
+  const snapshot = {
+    ...route([
+      [
+        [0, 0],
+        [0.01, 0],
+      ],
+    ]),
+    source: 'openrouteservice' as const,
+    stats: { distance: 1344, duration: 3600 },
+  };
+  render(<Statistics route={snapshot} speedKmh={18} stopsMinutes={15} />);
+  expect(screen.getByText('Provider estimate')).toBeInTheDocument();
+  expect(screen.getByText('1 h 0 min')).toBeInTheDocument();
+  expect(screen.getByText('Planning reference')).toBeInTheDocument();
+  expect(screen.getByText('1 h 15 min')).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      'Planning reference uses the larger of provider and personal moving estimates, plus stops once. Not a guarantee.',
+    ),
+  ).toBeInTheDocument();
+  expect(snapshot.stats.duration).toBe(3600);
+});

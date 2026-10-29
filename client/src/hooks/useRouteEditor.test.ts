@@ -60,3 +60,46 @@ describe('editor history', () => {
     expect(result.current.canRedo).toBe(false);
   });
 });
+
+it('personal changes preserve ready snapshot geometry, routing permission and history restoration', async () => {
+  const initial = initialEditor();
+  const ready: PlannedRoute = {
+    ...initial.identity,
+    name: '',
+    description: '',
+    activity: 'cycling',
+    segments: [
+      [
+        [0, 0],
+        [0.01, 0],
+      ],
+    ],
+    waypoints: [],
+    stats: { distance: 1000, duration: 200 },
+    source: 'openrouteservice',
+    updatedAt: new Date().toISOString(),
+  };
+  initial.result = ready;
+  initial.mode = 'snapshot';
+  const { result } = renderHook(() => useRouteEditor(initial));
+  act(() => {
+    result.current.checkpoint();
+    result.current.setFitness('trained');
+    result.current.setSurface('rough');
+    result.current.setSpeeds({ cycling: 12.5, hiking: 4.8 });
+    result.current.setStopsMinutes(15);
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(result.current.result).toBe(ready);
+  expect(result.current.routingAllowed.current).toBe(false);
+  act(() => result.current.undo());
+  expect(result.current.fitness).toBe('regular');
+  expect(result.current.surface).toBe('unknown');
+  expect(result.current.result).toEqual(ready);
+  act(() => result.current.redo());
+  expect(result.current.surface).toBe('rough');
+  expect(result.current.fitness).toBe('trained');
+  expect(result.current.result).toEqual(ready);
+});

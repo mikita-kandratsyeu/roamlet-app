@@ -1,6 +1,7 @@
 import type { Activity, PlannedRoute, Waypoint } from './types';
 import { validateRoute } from './routeValidation';
 import { calculateStats } from './stats';
+import { isFitness, isSurface, type Fitness, type Surface } from './time';
 
 export interface EditorSnapshot {
   identity: { id: string; createdAt: string };
@@ -17,6 +18,8 @@ export interface EditorSnapshot {
   description: string;
   speeds: Record<Activity, number>;
   stopsMinutes: number;
+  fitness: Fitness;
+  surface: Surface;
 }
 export const newIdentity = () => ({ id: crypto.randomUUID(), createdAt: new Date().toISOString() });
 export function initialEditor(): EditorSnapshot {
@@ -34,6 +37,8 @@ export function initialEditor(): EditorSnapshot {
     description: '',
     speeds: { cycling: 18, hiking: 5 },
     stopsMinutes: 0,
+    fitness: 'regular',
+    surface: 'unknown',
   };
 }
 export function validateSnapshot(value: unknown): asserts value is EditorSnapshot {
@@ -58,7 +63,9 @@ export function validateSnapshot(value: unknown): asserts value is EditorSnapsho
     !s.speeds ||
     ![s.speeds.cycling, s.speeds.hiking].every((n) => Number.isFinite(n) && n > 0) ||
     !Number.isFinite(s.stopsMinutes) ||
-    s.stopsMinutes < 0
+    s.stopsMinutes < 0 ||
+    (s.fitness !== undefined && !isFitness(s.fitness)) ||
+    (s.surface !== undefined && !isSurface(s.surface))
   )
     throw new Error('Invalid draft data.');
   if (
@@ -85,4 +92,9 @@ export function validateSnapshot(value: unknown): asserts value is EditorSnapsho
     calculateStats([[p.coordinate]], s.activity);
   }
   if (s.result !== null) validateRoute(s.result);
+}
+
+export function migrateSnapshot(value: unknown): EditorSnapshot {
+  validateSnapshot(value);
+  return { ...value, fitness: value.fitness ?? 'regular', surface: value.surface ?? 'unknown' };
 }

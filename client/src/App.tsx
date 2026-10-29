@@ -15,6 +15,7 @@ import { usePointRouting } from './hooks/usePointRouting';
 import { PlannerTools } from './components/PlannerTools';
 import { DraftPrompt } from './components/DraftPrompt';
 import { initialEditor, newIdentity } from './domain/editorSnapshot';
+import type { Fitness, Surface } from './domain/time';
 import { draftWriter, loadDraft, type DraftRecord } from './domain/drafts';
 import { loadPreferences, savePreferences } from './domain/preferences';
 import { optionalLazy } from './components/OptionalPanel';
@@ -25,6 +26,9 @@ const Statistics = optionalLazy<{
   emptyHint?: string;
   speedKmh?: number;
   stopsMinutes?: number;
+  fitness?: Fitness;
+  surface?: Surface;
+  mapAvailable?: boolean;
 }>(() => import('./components/Statistics').then((m) => ({ default: m.Statistics })));
 const Library = optionalLazy<{ onClose: () => void; onOpen: (route: PlannedRoute) => void }>(
   () => import('./components/Library').then((m) => ({ default: m.Library })),
@@ -54,6 +58,8 @@ import {
   GripVertical,
   Ruler,
   Library as LibraryIcon,
+  WifiOff,
+  TriangleAlert,
 } from 'lucide-react';
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
 import { importGpx, exportGpx, gpxFilename } from './domain/gpx';
@@ -89,6 +95,7 @@ export default function App() {
     targetKm: preferences.targetKm,
     speeds: preferences.speeds,
     stopsMinutes: preferences.stopsMinutes,
+    fitness: preferences.fitness,
   }));
   const editor = useRouteEditor(editorInitial);
   const {
@@ -113,6 +120,10 @@ export default function App() {
     setSpeeds,
     stopsMinutes,
     setStopsMinutes,
+    fitness,
+    setFitness,
+    surface,
+    setSurface,
   } = editor;
   const [panelHidden, setPanelHidden] = useState(preferences.panelHidden);
   const hidePlannerButton = useRef<HTMLButtonElement>(null);
@@ -212,6 +223,8 @@ export default function App() {
   latestSnapshot.current = editor.snapshot;
   const update = useAppUpdate(writer.flush);
   const [online, setOnline] = useState(navigator.onLine);
+  const offlineAutomatic = !online && planningMode !== 'manual';
+  const checkConnection = () => setOnline(navigator.onLine);
   useEffect(() => {
     let active = true;
     loadDraft()
@@ -252,6 +265,7 @@ export default function App() {
     targetKm,
     speeds,
     stopsMinutes,
+    fitness,
     panelHidden,
     collapsed,
   });
@@ -262,6 +276,7 @@ export default function App() {
       targetKm,
       speeds,
       stopsMinutes,
+      fitness,
       panelHidden,
       collapsed,
     };
@@ -281,7 +296,7 @@ export default function App() {
     writingPreferences.current = true;
     savePreferences(patch);
     writingPreferences.current = false;
-  }, [activity, planningMode, targetKm, speeds, stopsMinutes, panelHidden, collapsed]);
+  }, [activity, planningMode, targetKm, speeds, stopsMinutes, fitness, panelHidden, collapsed]);
   useEffect(() => {
     const apply = (event: Event) => {
       if (writingPreferences.current) return;
@@ -297,6 +312,7 @@ export default function App() {
             'targetKm',
             'speeds',
             'stopsMinutes',
+            'fitness',
             'panelHidden',
             'collapsed',
           ].includes(key),
@@ -317,6 +333,8 @@ export default function App() {
       }
       setSpeeds(next.speeds);
       setStopsMinutes(next.stopsMinutes);
+      setFitness(next.fitness);
+      if (detail?.reset) setSurface('unknown');
       setPanelHidden(next.panelHidden);
       setCollapsed(next.collapsed);
       setTargetKm(next.targetKm);
@@ -341,6 +359,8 @@ export default function App() {
     setActivity,
     setSpeeds,
     setStopsMinutes,
+    setFitness,
+    setSurface,
     setTargetKm,
     setPlanningMode,
     setAutomaticMode,
@@ -377,9 +397,14 @@ export default function App() {
     return () => window.removeEventListener('keydown', key);
   });
 
+  useEffect(() => {
+    if (!online) setNotice((current) => (current?.kind ? null : current));
+  }, [online]);
+
   usePointRouting({
     snapshot: editor.snapshot,
     revision: routeRevision,
+    online,
     allowed: editor.routingAllowed,
     request,
     setBusy,
@@ -426,11 +451,12 @@ export default function App() {
     setDirty(true);
   }
   function changeWaypoints(next: Waypoint[]) {
+    if (offlineAutomatic) return;
     invalidate();
     setWaypoints(next);
   }
   function changePlanningMode(next: PlanningMode) {
-    if (next === planningMode) return;
+    if (next === planningMode || (!online && next !== 'manual')) return;
     const points =
       next === 'manual' && planningMode === 'loop' && result ? result.waypoints : waypoints;
     if (next === 'point' && waypoints.length > 25) {
@@ -527,6 +553,7 @@ export default function App() {
       targetKm: defaults.targetKm,
       speeds: defaults.speeds,
       stopsMinutes: defaults.stopsMinutes,
+      fitness: defaults.fitness,
     });
     setAlternatives([]);
     setSelectedAlternative(-1);
@@ -546,6 +573,7 @@ export default function App() {
     setDraft(null);
     editor.reset({
       ...editor.snapshot,
+      surface: 'unknown',
       identity: { id: route.id, createdAt: route.createdAt },
       savedRouteId: route.id,
       routeMetadata: { favorite: route.favorite, tags: route.tags },
@@ -668,7 +696,12 @@ export default function App() {
     addLocation([longitude, latitude]);
   }
   function changeActivity(next: Activity) {
-    if (next === activity) return;
+    if (
+      next === activity ||
+      (!online && result?.source === 'openrouteservice') ||
+      (offlineAutomatic && mode === 'manual')
+    )
+      return;
     if (mode === 'snapshot' && (result?.source === 'gpx' || result?.source === 'manual')) {
       editor.checkpoint();
       setActivity(next);
@@ -691,7 +724,7 @@ export default function App() {
     }
   }
   function editSnapshot() {
-    if (!result) return;
+    if (!result || (!online && result.source !== 'manual')) return;
     if (!result.segments.some((segment) => segment.length >= 2)) {
       fail(
         'This GPX contains only isolated points. They are preserved for saving and export; start a new route to plan between locations.',
@@ -732,6 +765,7 @@ export default function App() {
     });
   }
   async function generateLoops() {
+    if (!online) return;
     if (!waypoints.length) {
       fail('Choose a starting point on the map or enter coordinates first.');
       return;
@@ -854,22 +888,30 @@ export default function App() {
           </nav>
         </header>
         {!online && (
-          <Alert role="status">
-            <span>
-              {t(
-                'Offline: saved routes, GPX and manual drawing remain available. Routing and basemaps need internet.',
+          <Alert className="offline-banner" role="status">
+            <WifiOff size={18} aria-hidden="true" />
+            <div className="offline-banner-copy">
+              <strong>{t('No internet connection')}</strong>
+              <span>
+                {t(
+                  'Saved routes, GPX and manual drawing are available. Maps and automatic routing need internet.',
+                )}
+              </span>
+            </div>
+            <div className="offline-banner-actions">
+              {mode === 'manual' && planningMode !== 'manual' && (
+                <Button variant="outline" onClick={() => changePlanningMode('manual')}>
+                  {t('Use manual drawing')}
+                </Button>
               )}
-            </span>
-            <Button variant="ghost" onClick={openLibrary}>
-              {t('My routes')}
-            </Button>
-            <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
-              {t('Use manual drawing')}
-            </Button>
+              <Button variant="outline" onClick={checkConnection}>
+                {t('Check connection')}
+              </Button>
+            </div>
           </Alert>
         )}
         {update.available && (
-          <Alert role="status">
+          <Alert className="app-status-banner" role="status">
             <span>{t('An app update is ready.')}</span>
             <Button
               disabled={update.installing}
@@ -889,12 +931,12 @@ export default function App() {
           </Alert>
         )}
         {update.failed && (
-          <Alert role="alert">
+          <Alert className="app-status-banner" role="alert">
             {t('The update could not save your draft. Please retry; the app has not reloaded.')}
           </Alert>
         )}
         {draftError && (
-          <Alert role="alert">
+          <Alert className="app-status-banner" role="alert">
             <span>
               {t('The draft could not be loaded or saved. Your routes and settings are unchanged.')}
             </span>
@@ -910,7 +952,7 @@ export default function App() {
           </Alert>
         )}
         <main
-          className={`workspace ${collapsed ? 'panel-collapsed' : ''} ${panelHidden ? 'desktop-panel-hidden' : ''}`}
+          className={`workspace ${!online ? 'workspace-offline' : ''} ${collapsed ? 'panel-collapsed' : ''} ${panelHidden ? 'desktop-panel-hidden' : ''}`}
         >
           {panelHidden && (
             <Button
@@ -988,6 +1030,12 @@ export default function App() {
               <ToggleGroup
                 type="single"
                 value={activity}
+                disabled={
+                  !online &&
+                  (mode === 'manual'
+                    ? planningMode !== 'manual'
+                    : result?.source === 'openrouteservice')
+                }
                 onValueChange={(value) => {
                   if (value === 'cycling' || value === 'hiking') changeActivity(value);
                 }}
@@ -1004,8 +1052,23 @@ export default function App() {
                   {t('Hiking')}
                 </ToggleGroupItem>
               </ToggleGroup>
+              {!online && (
+                <Alert className="offline-planner-notice" role="note">
+                  <TriangleAlert size={18} aria-hidden="true" />
+                  <div>
+                    <strong>{t('Automatic routing is unavailable offline')}</strong>
+                    <p>
+                      {planningMode === 'manual'
+                        ? t('Enter coordinates to draw straight lines without an online map.')
+                        : t(
+                            'Connect to the internet to calculate routes. Saved geometry, statistics and GPX remain available.',
+                          )}
+                    </p>
+                  </div>
+                </Alert>
+              )}
               {mode === 'manual' ? (
-                <>
+                <fieldset className="planner-edit-fields" disabled={offlineAutomatic}>
                   {planningMode !== 'manual' && (
                     <ToggleGroup
                       type="single"
@@ -1297,7 +1360,7 @@ export default function App() {
                     <div className="calculate-action">
                       <Button
                         className="primary full-width"
-                        disabled={busy || waypoints.length < 2}
+                        disabled={!online || busy || waypoints.length < 2}
                         onClick={() => {
                           editor.routingAllowed.current = true;
                           editor.checkpoint();
@@ -1332,6 +1395,7 @@ export default function App() {
                       <Slider
                         id="distance"
                         aria-label={t('Target loop distance')}
+                        disabled={!online}
                         min={2}
                         max={100}
                         step={1}
@@ -1349,7 +1413,7 @@ export default function App() {
                       </p>
                       <Button
                         className="primary full-width"
-                        disabled={busy || !waypoints.length}
+                        disabled={!online || busy || !waypoints.length}
                         onClick={() => void generateLoops()}
                       >
                         <Sparkles size={17} />
@@ -1378,7 +1442,7 @@ export default function App() {
                       )}
                     </div>
                   )}
-                </>
+                </fieldset>
               ) : (
                 <div className="snapshot-panel">
                   <Alert className="snapshot-notice" role="note">
@@ -1395,6 +1459,7 @@ export default function App() {
                   <Button
                     variant="outline"
                     className="secondary snapshot-edit"
+                    disabled={!online && result?.source !== 'manual'}
                     onClick={editSnapshot}
                   >
                     <Pencil size={18} aria-hidden="true" />
@@ -1465,7 +1530,8 @@ export default function App() {
                   </Button>
                 </Alert>
               )}
-              {planningMode !== 'manual' &&
+              {online &&
+                planningMode !== 'manual' &&
                 (routingConfigured === false || configurationUnavailable) &&
                 !notice?.error && (
                   <div className="configuration-note">
@@ -1492,6 +1558,17 @@ export default function App() {
                 contextKey={`${editor.identity.id}:${activity}:${timeSyncRevision}`}
                 speed={speeds[activity]}
                 stops={stopsMinutes}
+                activity={activity}
+                fitness={fitness}
+                surface={surface}
+                onFitness={(value) => {
+                  setFitness(value);
+                  if (waypoints.length || result) setDirty(true);
+                }}
+                onSurface={(value) => {
+                  setSurface(value);
+                  if (waypoints.length || result) setDirty(true);
+                }}
                 onSpeed={(value) => {
                   setSpeeds((previous) => ({ ...previous, [activity]: value }));
                   if (waypoints.length || result) setDirty(true);
@@ -1504,8 +1581,11 @@ export default function App() {
               {result ? (
                 <Statistics
                   route={result}
+                  mapAvailable={online}
                   speedKmh={speeds[activity]}
                   stopsMinutes={stopsMinutes}
+                  fitness={fitness}
+                  surface={surface}
                   emptyHint={
                     planningMode === 'loop'
                       ? t('Choose a start and find round trips to see route details.')
@@ -1560,6 +1640,9 @@ export default function App() {
           <div id="map-elevation-root" />
           <RouteMap
             key={mapRetryToken}
+            online={online}
+            onLibrary={openLibrary}
+            onCheckConnection={checkConnection}
             plannerHidden={panelHidden}
             onImport={() => fileInput.current?.click()}
             segments={result?.segments || emptySegments}

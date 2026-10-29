@@ -7,6 +7,7 @@ import i18n from '../i18n';
 interface Options {
   snapshot: EditorSnapshot;
   revision: number;
+  online: boolean;
   allowed: MutableRefObject<boolean>;
   request: MutableRefObject<AbortController | null>;
   setBusy: Dispatch<SetStateAction<boolean>>;
@@ -18,6 +19,7 @@ interface Options {
 export function usePointRouting({
   snapshot,
   revision,
+  online,
   allowed,
   request,
   setBusy,
@@ -26,6 +28,12 @@ export function usePointRouting({
 }: Options) {
   const { activity, waypoints, mode, planningMode, identity, routeMetadata } = snapshot;
   useEffect(() => {
+    if (!online && planningMode !== 'manual') {
+      allowed.current = false;
+      request.current?.abort();
+      setBusy(false);
+      return;
+    }
     if (!allowed.current || mode !== 'manual' || planningMode === 'loop' || waypoints.length < 2)
       return;
     const route = (
@@ -83,6 +91,7 @@ export function usePointRouting({
     identity,
     routeMetadata,
     revision,
+    online,
     allowed,
     request,
     setBusy,

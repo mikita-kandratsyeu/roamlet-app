@@ -49,7 +49,9 @@ function controlledTools() {
 it('groups accessible text controls without duplicate history buttons', () => {
   const { container, speed, stops } = controlledTools();
   expect(container.querySelector('.personal-time-section')).toHaveAttribute('open');
-  expect(container.querySelectorAll('.personal-time-field')).toHaveLength(2);
+  expect(container.querySelectorAll('.personal-time-field')).toHaveLength(4);
+  expect(screen.getByRole('button', { name: 'Fitness level' })).toHaveTextContent('Regular');
+  expect(screen.getByRole('button', { name: 'Surface' })).toHaveTextContent('Unknown surface');
   expect(speed).toHaveValue('18');
   expect(stops).toHaveValue('5');
   expect(speed).toHaveAttribute('inputmode', 'decimal');
@@ -101,7 +103,13 @@ it('rejects empty, zero, negative and nonfinite speeds only on commit and clears
   expect(onSpeed).toHaveBeenCalledWith(6);
   expect(speed).not.toHaveAttribute('aria-invalid', 'true');
   expect(speed).toHaveClass('aria-invalid:border-destructive');
-  expect(document.getElementById('personal-speed-error')).toHaveClass('personal-time-error', 'text-xs', 'font-normal', 'leading-[18px]', 'text-destructive');
+  expect(document.getElementById('personal-speed-error')).toHaveClass(
+    'personal-time-error',
+    'text-xs',
+    'font-normal',
+    'leading-[18px]',
+    'text-destructive',
+  );
 });
 it('rejects empty, negative and nonfinite stops while accepting zero minutes', () => {
   const { stops, onStops } = controlledTools();
@@ -162,4 +170,60 @@ it('does not write a stale focused value over an external reset when it was not 
   fireEvent.blur(speed);
   expect(speed).toHaveValue('5');
   expect(onSpeed).not.toHaveBeenCalled();
+});
+
+it('edits hiking min/km as a string buffer and commits converted km/h with comma decimals', () => {
+  const onSpeed = vi.fn();
+  render(
+    <PlannerTools activity="hiking" speed={5} stops={0} onSpeed={onSpeed} onStops={vi.fn()} />,
+  );
+  const pace = screen.getByLabelText('Walking pace (min/km)');
+  expect(pace).toHaveValue('12');
+  fireEvent.focus(pace);
+  fireEvent.change(pace, { target: { value: '' } });
+  expect(onSpeed).not.toHaveBeenCalled();
+  fireEvent.change(pace, { target: { value: '12,5' } });
+  fireEvent.keyDown(pace, { key: 'Enter' });
+  expect(onSpeed).toHaveBeenCalledWith(4.8);
+  fireEvent.blur(pace);
+  expect(onSpeed).toHaveBeenCalledTimes(1);
+  fireEvent.change(pace, { target: { value: '0' } });
+  fireEvent.blur(pace);
+  expect(screen.getByRole('alert')).toHaveTextContent('Enter a pace greater than 0.');
+  expect(onSpeed).toHaveBeenCalledTimes(1);
+});
+it('offers explicit accessible fitness and surface choices without committing numeric buffers', async () => {
+  const onFitness = vi.fn(),
+    onSurface = vi.fn(),
+    onSpeed = vi.fn();
+  render(
+    <PlannerTools
+      speed={18}
+      stops={0}
+      onSpeed={onSpeed}
+      onStops={vi.fn()}
+      onFitness={onFitness}
+      onSurface={onSurface}
+    />,
+  );
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Fitness level' }), { key: 'Enter' });
+  fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Trained' }));
+  expect(onFitness).toHaveBeenCalledWith('trained');
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Surface' }), { key: 'Enter' });
+  fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Rough surface' }));
+  expect(onSurface).toHaveBeenCalledWith('rough');
+  expect(onSpeed).not.toHaveBeenCalled();
+});
+it('localizes hiking pace and explicit choices in Russian', async () => {
+  await act(async () => {
+    await i18n.changeLanguage('ru');
+  });
+  render(
+    <PlannerTools activity="hiking" speed={5} stops={0} onSpeed={vi.fn()} onStops={vi.fn()} />,
+  );
+  expect(screen.getByLabelText('Темп ходьбы (мин/км)')).toHaveValue('12');
+  expect(screen.getByRole('button', { name: 'Подготовка' })).toHaveTextContent('Обычная');
+  expect(screen.getByRole('button', { name: 'Покрытие' })).toHaveTextContent(
+    'Неизвестное покрытие',
+  );
 });

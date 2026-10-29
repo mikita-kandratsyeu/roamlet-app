@@ -162,6 +162,56 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
+it('shows an offline empty state without loading a map, with working local recovery actions', () => {
+  const onLibrary = vi.fn();
+  const onCheckConnection = vi.fn();
+  render(
+    <RouteMap
+      {...props}
+      online={false}
+      onLibrary={onLibrary}
+      onCheckConnection={onCheckConnection}
+    />,
+  );
+  expect(mocks.options).not.toHaveBeenCalled();
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Map unavailable offline' })).toBeVisible();
+  expect(screen.queryByRole('group', { name: 'Map controls' })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Map style')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'My routes' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Retry map' }));
+  expect(onLibrary).toHaveBeenCalledOnce();
+  expect(onCheckConnection).toHaveBeenCalledOnce();
+});
+
+it('recreates the map and restores route layers when connectivity returns', () => {
+  const segments: [number, number][][] = [
+    [
+      [11.4, 47.26],
+      [11.41, 47.27],
+    ],
+  ];
+  const { rerender } = render(<RouteMap {...props} segments={segments} />);
+  act(() => mocks.handlers.get('load')?.());
+  rerender(<RouteMap {...props} segments={segments} online={false} />);
+  expect(mocks.remove).toHaveBeenCalledOnce();
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+  rerender(<RouteMap {...props} segments={segments} online />);
+  expect(mocks.options).toHaveBeenCalledTimes(2);
+  act(() => mocks.handlers.get('load')?.());
+  expect(
+    screen.queryByRole('heading', { name: 'Map unavailable offline' }),
+  ).not.toBeInTheDocument();
+  expect(mocks.data).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      features: [
+        expect.objectContaining({ geometry: { type: 'LineString', coordinates: segments[0] } }),
+      ],
+    }),
+  );
+  expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+});
+
 it('shows a global loader until the map loads, not just until its style loads', () => {
   const { container } = render(<RouteMap {...props} />);
   expect(screen.getByTestId('global-map-loader').parentElement).toBe(document.body);

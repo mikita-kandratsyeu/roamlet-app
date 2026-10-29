@@ -12,6 +12,7 @@ export function useDecimalField(
   onCommit: (value: number) => void,
   allowZero: boolean,
   contextKey?: string,
+  validate?: (value: number) => boolean,
 ) {
   const [buffer, setBuffer] = useState(String(value));
   const [invalid, setInvalid] = useState(false);
@@ -34,7 +35,7 @@ export function useDecimalField(
       return;
     }
     const parsed = parseDecimalValue(buffer, allowZero);
-    if (parsed === null) {
+    if (parsed === null || (validate && !validate(parsed))) {
       setInvalid(true);
       return;
     }

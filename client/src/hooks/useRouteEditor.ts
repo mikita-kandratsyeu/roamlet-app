@@ -1,6 +1,6 @@
 import { useMemo, useReducer, useRef } from 'react';
 import type { SetStateAction } from 'react';
-import { initialEditor, type EditorSnapshot } from '../domain/editorSnapshot';
+import { initialEditor, migrateSnapshot, type EditorSnapshot } from '../domain/editorSnapshot';
 
 export interface EditorHistory {
   present: EditorSnapshot;
@@ -25,7 +25,7 @@ export function editorReducer(state: EditorHistory, action: Action): EditorHisto
       future: [],
     };
   if (action.type === 'reset')
-    return { present: structuredClone(action.snapshot), past: [], future: [] };
+    return { present: structuredClone(migrateSnapshot(action.snapshot)), past: [], future: [] };
   if (action.type === 'undo' && state.past.length)
     return {
       present: state.past.at(-1)!,
@@ -59,6 +59,8 @@ export function useRouteEditor(initial: EditorSnapshot = initialEditor()) {
       setDescription: setter('description'),
       setSpeeds: setter('speeds'),
       setStopsMinutes: setter('stopsMinutes'),
+      setFitness: setter('fitness'),
+      setSurface: setter('surface'),
       setSavedRouteId: setter('savedRouteId'),
       setIdentity: setter('identity'),
     };

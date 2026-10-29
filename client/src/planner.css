@@ -519,7 +519,8 @@
   flex-direction: column;
   gap: 4px;
 }
-.personal-time-field > label {
+.personal-time-field > label,
+.personal-time-label {
   align-items: flex-start;
   min-height: 32px;
   color: var(--muted-foreground);
@@ -544,6 +545,30 @@
   border-color: var(--destructive);
   outline: 2px solid var(--destructive);
   outline-offset: 2px;
+}
+.personal-time-choice {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  font-size: 13px;
+}
+.personal-time-choice > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.personal-time-menu [role='menuitemradio'] {
+  min-height: 44px;
+}
+.personal-time-help {
+  margin: 10px 0 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 18px;
+}
+.personal-time-assumptions {
+  margin-top: 10px;
 }
 .personal-time-field > input {
   width: 100%;
@@ -1073,6 +1098,193 @@
 @media (forced-colors: active) {
   :root {
     --focus-ring: Highlight;
+  }
+}
+
+:root {
+  --offline-surface: #f8f2e5;
+  --offline-foreground: #805c25;
+}
+.dark {
+  --offline-surface: #302a1e;
+  --offline-foreground: #e6c68e;
+}
+.app-status-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: 8px 12px;
+  padding: 12px var(--space);
+  border-radius: 0;
+  font-size: 13px;
+}
+.app-status-banner > span {
+  flex: 1;
+  min-width: 180px;
+}
+.app-status-banner > button {
+  flex: none;
+}
+.offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 12px var(--space);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--offline-surface);
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.offline-banner > svg {
+  flex-shrink: 0;
+  color: var(--offline-foreground);
+}
+.offline-banner-copy {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-width: 0;
+}
+.offline-banner-copy strong {
+  font-weight: 600;
+}
+.offline-banner-actions,
+.offline-map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.offline-banner-actions button {
+  white-space: normal;
+}
+.offline-planner-notice {
+  display: flex;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 12px;
+  background: var(--offline-surface);
+  border: 0;
+  color: var(--foreground);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.offline-planner-notice > svg {
+  flex-shrink: 0;
+  color: var(--offline-foreground);
+}
+.offline-planner-notice strong {
+  color: var(--offline-foreground);
+  font-size: 13px;
+}
+.offline-planner-notice p {
+  margin-top: 5px;
+}
+.planner-edit-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.planner-edit-fields:disabled input {
+  opacity: 0.55;
+}
+.map-offline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px var(--space) 32px calc(var(--panel-width) + var(--space) * 3);
+  background: var(--background);
+  overflow-y: auto;
+}
+.desktop-panel-hidden .map-offline {
+  padding-left: var(--space);
+}
+.offline-map-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 490px;
+  text-align: center;
+}
+.offline-map-content > svg {
+  color: var(--muted-foreground);
+}
+.offline-map-content h2 {
+  font-size: 24px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+.offline-map-content p {
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.offline-map-content small {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.45;
+}
+@media (max-width: 1024px) {
+  .map-offline {
+    padding: 24px;
+  }
+}
+@media (max-width: 700px) {
+  .offline-banner {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .offline-banner-copy {
+    flex-basis: calc(100% - 26px);
+    font-size: 12px;
+  }
+  .offline-banner-actions {
+    width: 100%;
+  }
+  .offline-banner-actions button {
+    flex: 1;
+    font-size: 12px;
+  }
+  .workspace-offline {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .workspace-offline .map-offline {
+    flex: none;
+    min-height: 280px;
+    overflow: visible;
+  }
+  .offline-map-content {
+    gap: 12px;
+  }
+  .offline-map-content > svg {
+    width: 32px;
+    height: 32px;
+  }
+  .offline-map-content h2 {
+    font-size: 20px;
+  }
+  .offline-map-content small {
+    font-size: 11px;
+  }
+  .workspace-offline .planner {
+    flex: none;
+    height: auto;
+    max-height: none;
+  }
+  .workspace-offline .planner-scroll {
+    overflow: visible;
   }
 }
 @media (max-height: 550px) and (max-width: 700px) {

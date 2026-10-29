@@ -85,6 +85,7 @@ beforeEach(async () => {
 });
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 function openMenu() {
@@ -105,6 +106,67 @@ async function plan() {
   addCoordinate('47.27, 11.41');
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
 }
+function setOnline(online: boolean) {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(online);
+  act(() => window.dispatchEvent(new Event(online ? 'online' : 'offline')));
+}
+
+describe('offline planner', () => {
+  it('preserves calculated geometry and export, blocks online editing, and does not recalculate on reconnect', async () => {
+    await i18n.changeLanguage('en');
+    render(<App />);
+    await plan();
+    const original = screen.getByTestId('map').getAttribute('data-geometry');
+    provider.calculateRoute.mockClear();
+    setOnline(false);
+    expect(screen.getByText('No internet connection')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Update route' })).toBeDisabled();
+    expect(screen.getByRole('textbox', { name: 'Latitude, longitude' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'Cycling' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Move first map point' }));
+    expect(screen.getByTestId('map').getAttribute('data-geometry')).toBe(original);
+    setOnline(true);
+    expect(screen.getByRole('button', { name: 'Update route' })).toBeEnabled();
+    expect(screen.queryByText('No internet connection')).not.toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+    expect(screen.getByTestId('map').getAttribute('data-geometry')).toBe(original);
+  });
+
+  it('cancels pending automatic routing when the connection is lost', async () => {
+    await i18n.changeLanguage('en');
+    provider.calculateRoute.mockImplementation(() => new Promise(() => {}));
+    render(<App />);
+    addCoordinate('47.26, 11.4');
+    addCoordinate('47.27, 11.41');
+    await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledOnce());
+    const signal = provider.calculateRoute.mock.calls[0][2] as AbortSignal;
+    setOnline(false);
+    expect(signal.aborted).toBe(true);
+    expect(screen.queryByText('Calculating route…')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Calculate route' })).toBeDisabled();
+  });
+
+  it('allows coordinate-based manual routes offline and hides online setup errors', async () => {
+    await i18n.changeLanguage('en');
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.mocked(checkRoutingConfiguration).mockResolvedValue(false);
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Use manual drawing' }));
+    addCoordinate('47.26, 11.4');
+    addCoordinate('47.27, 11.41');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Export GPX' })).toBeEnabled());
+    expect(screen.getByRole('textbox', { name: 'Latitude, longitude' })).toBeEnabled();
+    expect(
+      screen.getByText('Enter coordinates to draw straight lines without an online map.'),
+    ).toBeVisible();
+    expect(document.querySelector('.configuration-note')).toBeNull();
+    expect(provider.calculateRoute).not.toHaveBeenCalled();
+  });
+});
+
 describe('route planner interactions', () => {
   it('shows exact missing-key guidance and hosted ORS setup without requiring a key for the map', async () => {
     vi.mocked(checkRoutingConfiguration).mockResolvedValue(false);

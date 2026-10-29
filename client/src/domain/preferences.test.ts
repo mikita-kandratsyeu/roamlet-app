@@ -147,3 +147,44 @@ it('rolls back a partial reset and emits no successful reset when removal fails'
   expect(changed).not.toHaveBeenCalled();
   expect(failed).toHaveBeenCalled();
 });
+
+it('migrates old preferences without losing custom speed or stop values and persists fitness once', () => {
+  storage.set(
+    PREFERENCES_KEY,
+    JSON.stringify({
+      version: 1,
+      preferences: { speeds: { cycling: 12.5, hiking: 4.8 }, stopsMinutes: 15 },
+    }),
+  );
+  expect(loadPreferences()).toMatchObject({
+    speeds: { cycling: 12.5, hiking: 4.8 },
+    stopsMinutes: 15,
+    fitness: 'regular',
+  });
+  expect(savePreferences({ fitness: 'trained' })).toBe(true);
+  expect(loadPreferences()).toMatchObject({
+    speeds: { cycling: 12.5, hiking: 4.8 },
+    stopsMinutes: 15,
+    fitness: 'trained',
+  });
+  expect(JSON.parse(storage.get(PREFERENCES_KEY)!).preferences).not.toHaveProperty('surface');
+  expect(storage.size).toBe(1);
+  expect(savePreferences({ fitness: 'expert' } as never)).toBe(false);
+  expect(loadPreferences().fitness).toBe('trained');
+});
+
+it('defaults unsupported stored fitness without losing existing valid custom speeds', () => {
+  storage.set(
+    PREFERENCES_KEY,
+    JSON.stringify({
+      version: 1,
+      preferences: { speeds: { cycling: 12.5, hiking: 4.8 }, stopsMinutes: 15, fitness: 'expert' },
+    }),
+  );
+  expect(loadPreferences()).toMatchObject({
+    speeds: { cycling: 12.5, hiking: 4.8 },
+    stopsMinutes: 15,
+    fitness: 'regular',
+  });
+  expect(failed).toHaveBeenCalled();
+});
