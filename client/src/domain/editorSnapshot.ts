@@ -30,7 +30,7 @@ export function validateSnapshot(value: unknown): asserts value is EditorSnapsho
       !Number.isFinite(Date.parse(s.identity.createdAt)) ||
       !(s.savedRouteId === null || typeof s.savedRouteId === 'string') ||
       !['cycling', 'hiking'].includes(s.activity) || !['manual', 'snapshot'].includes(s.mode) ||
-      !['point', 'loop', 'manual'].includes(s.planningMode) || !Number.isFinite(s.targetKm) || s.targetKm < 2 || s.targetKm > 100 ||
+      !['point', 'loop', 'manual'].includes(s.planningMode) || !Number.isFinite(s.targetKm) || s.targetKm <= 0 ||
       typeof s.name !== 'string' || typeof s.description !== 'string' || !Array.isArray(s.waypoints) || s.waypoints.length > 1000 ||
       !s.speeds || ![s.speeds.cycling, s.speeds.hiking].every(n => Number.isFinite(n) && n > 0) ||
       !Number.isFinite(s.stopsMinutes) || s.stopsMinutes < 0) throw new Error('Invalid draft data.');

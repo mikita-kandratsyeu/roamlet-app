@@ -42,12 +42,12 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      const keys = await caches.keys();
-      await Promise.all(
-        keys
-          .filter((key) => key.startsWith('roamlet-shell-') && key !== CACHE)
-          .map((key) => caches.delete(key)),
-      );
+      const windows = await self.clients.matchAll({ type: 'window' });
+      // Other open tabs can still need their old, not-yet-loaded chunks.
+      if (windows.length <= 1) {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter((key) => key.startsWith('roamlet-shell-') && key !== CACHE).map((key) => caches.delete(key)));
+      }
       await self.clients.claim();
     })(),
   );
