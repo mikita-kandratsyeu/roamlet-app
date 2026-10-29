@@ -689,14 +689,11 @@ it('switches map controls and existing warnings without recreating or refitting 
   await act(async () => {
     await i18n.changeLanguage('ru');
   });
-  expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+  expect(screen.getAllByRole('radio').map((item) => item.getAttribute('aria-label'))).toEqual([
     'Стандартная',
     'Светлая',
   ]);
-  expect(screen.getAllByRole('radio').map((item) => item.textContent)).toEqual([
-    'Стандартная',
-    'Светлая',
-  ]);
+  expect(screen.getAllByRole('radio').map((item) => item.textContent)).toEqual(['', '']);
   expect(screen.getByRole('button', { name: 'Моё местоположение' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Показать весь маршрут' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Приблизить' })).toHaveAttribute('title', 'Приблизить');
@@ -925,7 +922,8 @@ it('preserves the configured style during unrelated planner/theme changes', () =
     savePreferences({ targetKm: 30, theme: 'dark' });
   });
   expect(mocks.setStyle).not.toHaveBeenCalled();
-  expect(screen.getByRole('combobox', { name: 'Map style' })).toHaveValue('/custom-style.json');
+  expect(screen.getByRole('radio', { name: 'Standard' })).toHaveAttribute('data-state', 'on');
+  expect(mocks.options).toHaveBeenCalledWith(expect.objectContaining({ style: '/custom-style.json' }));
 });
 it('allows explicit retry after map construction fails without reviving an endless loader', () => {
   mocks.options.mockImplementationOnce(() => {

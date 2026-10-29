@@ -1,3 +1,4 @@
+import { clickMapTool } from './mapControls';
 import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { calculateStats } from '../src/domain/stats';
@@ -52,7 +53,7 @@ test.beforeEach(async ({ page }) => {
     }),
   );
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
 });
 
 test('personal adjustments change the range without routing or replacing provider statistics', async ({
@@ -141,7 +142,7 @@ test('hiking pace and climb allowance preserve split GPX tracks and original hei
 });
 
 test('draft recovery retains fitness, explicit surface and personal pace', async ({ page }) => {
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   await addPoint(page, '47.26, 11.4');
   await addPoint(page, '47.27, 11.41');
   await choose(page, 'Fitness level', 'Trained');

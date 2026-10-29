@@ -1,3 +1,4 @@
+import { clickMapTool, mapTool } from './mapControls';
 import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
@@ -36,13 +37,13 @@ test.beforeEach(async ({ page }) => {
   );
   await page.route('https://api.heigit.org/**', (route) => route.abort());
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
 });
 
 test('manual edits undo and redo, retain native text undo, and recover after reload', async ({
   page,
 }) => {
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   await addPoint(page, '47.26, 11.4');
   await addPoint(page, '47.27, 11.41');
   const canvas = page.locator('.maplibregl-canvas');
@@ -60,7 +61,7 @@ test('manual edits undo and redo, retain native text undo, and recover after rel
   await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
   await expect(page.locator('.waypoint-marker')).toHaveCount(2);
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
-  await expect(page.getByRole('button', { name: 'Manual drawing', exact: true })).toHaveAttribute(
+  await expect(await mapTool(page, 'Manual drawing')).toHaveAttribute(
     'aria-pressed',
     'true',
   );
@@ -176,7 +177,7 @@ test('favorites, tags and combined library filters survive reload and backup', a
 test('clicking an editable route inserts an ordered stop and one undo removes it', async ({
   page,
 }) => {
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   await addPoint(page, '47.26, 11.4');
   await addPoint(page, '47.27, 11.41');
   await page.getByRole('button', { name: 'Fit route', exact: true }).click();
@@ -264,7 +265,7 @@ test('language, appearance and map view persist without automatic geolocation', 
     ),
   );
   await page.reload();
-  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await clickMapTool(page, 'Zoom in');
   await expect
     .poll(() =>
       page.evaluate(() => JSON.parse(localStorage.getItem('roamlet:map-view:v1') || 'null')?.zoom),
@@ -301,7 +302,7 @@ test('reset settings confirms without deleting a draft or saved routes', async (
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
   await page.locator('.brand').click();
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   await addPoint(page, '47.26, 11.4');
   await addPoint(page, '47.27, 11.41');
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
@@ -320,14 +321,14 @@ test('reset settings confirms without deleting a draft or saved routes', async (
 });
 
 test('discarding a draft leaves manual preference and library intact', async ({ page }) => {
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   await addPoint(page, '47.26, 11.4');
   await addPoint(page, '47.27, 11.41');
   await page.waitForTimeout(1200);
   await page.reload();
   await page.getByRole('button', { name: 'Delete draft', exact: true }).click();
   await expect(page.locator('.waypoint-marker')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Manual drawing', exact: true })).toHaveAttribute(
+  await expect(await mapTool(page, 'Manual drawing')).toHaveAttribute(
     'aria-pressed',
     'true',
   );

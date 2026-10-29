@@ -1,3 +1,4 @@
+import { clickMapTool } from './mapControls';
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
@@ -15,7 +16,7 @@ test.beforeEach(async ({ page }) => {
   );
   await page.route('https://api.heigit.org/**', (route) => route.abort());
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
 });
 
 test('theme icons stay in one accessible row on narrow and desktop screens', async ({
@@ -138,7 +139,7 @@ test('coordinate fields support pair paste, inline correction and aligned mobile
       ? { width: 320, height: 900 }
       : { width: 1440, height: 1000 },
   );
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   for (const language of ['en', 'ru']) {
     if (language === 'ru') {
       await page.getByRole('button', { name: 'Menu', exact: true }).click();
@@ -225,7 +226,7 @@ test('personal time fields follow planner sizing without duplicate history butto
       ? { width: 320, height: 900 }
       : { width: 1440, height: 1000 },
   );
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   for (const value of ['47.26, 11.4', '47.27, 11.41']) {
     await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
@@ -248,7 +249,7 @@ test('personal time fields follow planner sizing without duplicate history butto
 });
 
 test('time controls have compact spacing and contained Russian dropdowns', async ({ page }) => {
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   const speed = page.getByLabel('Personal speed (km/h)', { exact: true });
   const fitnessLabel = page.getByText('Fitness level', { exact: true });
   await speed.scrollIntoViewIfNeeded();
@@ -292,7 +293,7 @@ test('personal time allows clearing and retyping with localized validation', asy
   page.on('request', (request) => {
     if (request.url().includes('/v2/directions/')) requests.push(request.url());
   });
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   for (const value of ['47.26, 11.4', '47.27, 11.41']) {
     await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
@@ -439,7 +440,7 @@ test('saved route cards keep uniform heights and aligned actions with long names
 });
 
 test('draft recovery uses the same compact confirmation layout', async ({ page }, testInfo) => {
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   await page.getByRole('textbox', { name: 'Latitude' }).fill('47.26, 11.4');
   await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   await page.waitForTimeout(1200);

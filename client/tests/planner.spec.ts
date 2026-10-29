@@ -1,3 +1,4 @@
+import { clickMapTool, mapTool } from './mapControls';
 import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 const coordinates = [
@@ -72,7 +73,7 @@ test.beforeEach(async ({ page }) => {
     return route.fulfill({ json: fixture });
   });
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
 test('manual drawing uses one ruler tool, direct map points and local undo without Directions', async ({
@@ -82,13 +83,9 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   page.on('request', (request) => {
     if (request.url().includes('/v2/directions/')) directions.push(request.url());
   });
-  const tool = page.getByRole('button', { name: 'Manual drawing', exact: true });
+  const tool = await mapTool(page, 'Manual drawing');
   await expect(tool).toHaveCount(1);
-  await expect(
-    page
-      .getByRole('group', { name: 'Map controls' })
-      .getByRole('button', { name: 'Reset north', exact: true }),
-  ).toHaveCount(1);
+  await expect(await mapTool(page, 'Reset north')).toHaveCount(1);
   await expect(page.getByRole('radio', { name: 'Manual', exact: true })).toHaveCount(0);
   await tool.click();
   await expect(tool).toHaveAttribute('aria-pressed', 'true');
@@ -114,7 +111,7 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   await page.keyboard.press('Control+z');
   await expect(page.locator('.waypoint-marker')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await clickMapTool(page, 'Undo');
   await expect(page.locator('.waypoint-marker')).toHaveCount(0);
   expect(directions).toEqual([]);
 });
@@ -182,7 +179,7 @@ test('manual controls keep logical order and remain reachable at 320px in Russia
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 740 });
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'Dark', exact: true }).click();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
@@ -209,7 +206,7 @@ test('manual routes retain exact points when saved, reopened and edited', async 
   page.on('request', (request) => {
     if (request.url().includes('/v2/directions/')) directions.push(request.url());
   });
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   await addPoint(page, '47.2692, 11.4041');
   await addPoint(page, '47.271, 11.411');
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
@@ -268,7 +265,7 @@ test('global map loader covers the viewport and releases controls after loading'
     release();
     await expect(loader).toHaveCount(0);
     await expect(page.locator('#root')).not.toHaveAttribute('inert');
-    await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
   } finally {
     release();
   }
@@ -460,7 +457,7 @@ test('round trips route intermediate points with bounded search; responsive cont
     await page.locator('.mobile-sheet-toggle').click();
     await expect(page.locator('.planner-scroll')).not.toBeVisible();
     await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Zoom in' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Use my location' })).toBeVisible();
     await page.locator('.mobile-sheet-toggle').click();
     await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
   }
@@ -681,7 +678,7 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await expect(librarySearch).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(menu).toBeFocused();
-  const zoom = page.getByRole('button', { name: 'Zoom in', exact: true });
+  const zoom = await mapTool(page, 'Zoom in');
   await zoom.focus();
   await expect(zoom).toHaveCSS('outline-width', '2px');
   await expect(zoom).toHaveCSS('outline-offset', '-2px');
@@ -742,7 +739,7 @@ test('persists light and dark themes across reloads and themes dialogs and map c
   expect(await page.locator('body').evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(
     viewport.width,
   );
-  const zoom = page.getByRole('button', { name: 'Zoom in', exact: true });
+  const zoom = await mapTool(page, 'Zoom in');
   await expect(zoom).toHaveAttribute('data-slot', 'button');
   const bounds = await zoom.boundingBox();
   expect(bounds?.width).toBeGreaterThanOrEqual(44);
@@ -845,7 +842,7 @@ test('point edits preserve the camera and location does not add stops', async ({
   const mapView = () => page.evaluate(() => localStorage.getItem('roamlet:map-view:v1'));
   await expect.poll(mapView).not.toBeNull();
   const initialZoom = JSON.parse((await mapView())!).zoom;
-  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await clickMapTool(page, 'Zoom in');
   await expect.poll(async () => JSON.parse((await mapView())!).zoom).toBe(initialZoom + 1);
   const original = await mapView();
   await createRoute(page);

@@ -1,3 +1,4 @@
+import { clickMapTool } from './mapControls';
 import { test, expect } from '@playwright/test';
 const key = 'roamlet:map-view:v1';
 test.use({ timezoneId: 'Europe/Minsk', locale: 'en-US' });
@@ -51,7 +52,7 @@ test('uses timezone region first, restores last local view, and fits an imported
         logo.x + logo.width <= feedback.x ||
         feedback.x + feedback.width <= logo.x),
   ).toBe(true);
-  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await clickMapTool(page, 'Zoom in');
   await expect
     .poll(() =>
       page.evaluate(
@@ -67,7 +68,7 @@ test('uses timezone region first, restores last local view, and fits an imported
   expect(first.center[0]).toBeCloseTo(28);
   expect(first.center[1]).toBeCloseTo(53.5);
   await page.reload();
-  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await clickMapTool(page, 'Zoom in');
   await expect
     .poll(() =>
       page.evaluate(

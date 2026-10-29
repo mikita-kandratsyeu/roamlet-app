@@ -1,3 +1,4 @@
+import { clickMapTool, mapTool } from './mapControls';
 import { test, expect } from '@playwright/test';
 import { readFile, writeFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -44,7 +45,7 @@ test('production shell keeps saved routes and GPX export available offline, with
   context,
 }) => {
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
   await expect(page.locator('.maplibregl-canvas')).toHaveCount(1);
   await page.evaluate(async () => {
@@ -155,7 +156,7 @@ for (const viewport of [
         await page.getByRole('button', { name: 'Back to map', exact: true }).click();
         await context.setOffline(false);
         await expect(page.getByRole('heading', { name: 'Map unavailable offline' })).toHaveCount(0);
-        await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+        await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
         const reconnected = page.waitForEvent('download');
         await page.getByRole('button', { name: 'Export', exact: true }).click();
         await page
@@ -261,7 +262,7 @@ test('missing routing key keeps the map usable but never substitutes a fake rout
   page,
 }) => {
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
   await expect(page.locator('.maplibregl-canvas')).toHaveCount(1);
   await expect(
@@ -279,7 +280,7 @@ test('manual drawing calculates and exports offline without a routing key', asyn
   context,
 }) => {
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
   await context.setOffline(true);
   try {
@@ -314,7 +315,7 @@ test('offline reload restores an unsaved draft and exposes library backup withou
     await navigator.serviceWorker.ready;
   });
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
-  await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+  await clickMapTool(page, 'Manual drawing');
   for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
     await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
@@ -361,7 +362,7 @@ test('confirming a waiting update saves the current draft before reloading', asy
       await navigator.serviceWorker.ready;
     });
     await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
-    await page.getByRole('button', { name: 'Manual drawing', exact: true }).click();
+    await clickMapTool(page, 'Manual drawing');
     for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
       await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
       await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
@@ -377,7 +378,7 @@ test('confirming a waiting update saves the current draft before reloading', asy
     await page.getByRole('button', { name: 'Reload app', exact: true }).click();
     await reloaded;
     await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Manual drawing', exact: true })).toHaveAttribute(
+    await expect(await mapTool(page, 'Manual drawing')).toHaveAttribute(
       'aria-pressed',
       'true',
     );

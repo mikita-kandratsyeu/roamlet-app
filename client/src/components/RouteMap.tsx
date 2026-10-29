@@ -2,6 +2,7 @@ import './map-controls.css';
 import { lineFeatures, pointFeature, routeAnnotations } from '../domain/mapAnnotations';
 import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { Popover } from 'radix-ui';
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
@@ -40,7 +41,7 @@ import {
   FileUp,
   RefreshCw,
   Library,
-  Layers,
+  MoreHorizontal,
 } from 'lucide-react';
 import { waypointKind } from './waypointStyle';
 import { useTheme } from '../theme';
@@ -155,6 +156,21 @@ export function RouteMap(props: Props) {
   const [routeHovered, setRouteHovered] = useState(false);
   const [menuWaypointId, setMenuWaypointId] = useState<string | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [compactControls, setCompactControls] = useState(
+    () => window.matchMedia?.('(max-width: 700px)').matches ?? false,
+  );
+  const [toolsOpen, setToolsOpen] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia?.('(max-width: 700px)');
+    if (!media) return;
+    const update = () => {
+      setCompactControls(media.matches);
+      setToolsOpen(false);
+    };
+    update();
+    media.addEventListener?.('change', update);
+    return () => media.removeEventListener?.('change', update);
+  }, []);
   useEffect(() => {
     setInsertionPreview(null);
     setRouteHovered(false);
@@ -868,6 +884,107 @@ export function RouteMap(props: Props) {
       </section>
     );
   }
+  const navigationControls = (
+    <>
+      <Button
+        variant="outline"
+        size="icon"
+        className="map-control map-north-control"
+        title={t('Reset north')}
+        aria-label={t('Reset north')}
+        disabled={!ready}
+        onClick={() => map.current?.easeTo?.({ bearing: 0, duration: mapMotionDuration() })}
+      >
+        <span className="map-compass" aria-hidden="true">
+          <small className="map-compass-label">N</small>
+          <svg
+            className="map-compass-needle size-6"
+            viewBox="0 0 24 24"
+            fill="none"
+            focusable="false"
+            style={{ transform: `rotate(${-bearing}deg)` }}
+          >
+            <path className="map-compass-south" d="M12 22 7 12h10Z" />
+            <path className="map-compass-north" d="M12 2 7 12h10Z" />
+            <path className="map-compass-facet" d="M12 2v10h5Z" />
+            <circle className="map-compass-pivot" cx="12" cy="12" r="1.5" />
+          </svg>
+        </span>
+        {compactControls && <span>{t('Reset north')}</span>}
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="map-control map-zoom-in"
+        title={t('Zoom in')}
+        aria-label={t('Zoom in')}
+        disabled={!ready}
+        onClick={() => map.current?.zoomIn({ duration: mapMotionDuration() })}
+      >
+        <Plus size={20} aria-hidden="true" />
+        {compactControls && <span>{t('Zoom in')}</span>}
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="map-control map-zoom-out"
+        title={t('Zoom out')}
+        aria-label={t('Zoom out')}
+        disabled={!ready}
+        onClick={() => map.current?.zoomOut({ duration: mapMotionDuration() })}
+      >
+        <Minus size={20} aria-hidden="true" />
+        {compactControls && <span>{t('Zoom out')}</span>}
+      </Button>
+    </>
+  );
+  const editingControls = (
+    <>
+      <Button
+        variant={props.manualDrawing ? 'default' : 'outline'}
+        size="icon"
+        className="map-control map-manual-tool"
+        aria-label={t('Manual drawing')}
+        title={t('Manual drawing')}
+        aria-pressed={Boolean(props.manualDrawing)}
+        disabled={!props.onToggleManualDrawing}
+        onClick={props.onToggleManualDrawing}
+      >
+        <Ruler size={20} aria-hidden="true" />
+        {compactControls && <span>{t('Manual drawing')}</span>}
+      </Button>
+      {props.editable && (props.onUndo || props.canUndo !== undefined) && (
+        <Button
+          className="map-control map-undo-tool"
+          variant="outline"
+          size="icon"
+          aria-label={t(props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo')}
+          title={t(props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo')}
+          disabled={!props.onUndo || props.canUndo === false}
+          onClick={props.onUndo}
+        >
+          <Undo2 size={18} aria-hidden="true" />
+          {compactControls && (
+            <span>{t(props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo')}</span>
+          )}
+        </Button>
+      )}
+      {props.editable && (props.onRedo || props.canRedo !== undefined) && (
+        <Button
+          className="map-control map-redo-tool"
+          variant="outline"
+          size="icon"
+          aria-label={t('Redo')}
+          title={t('Redo')}
+          disabled={!props.onRedo || props.canRedo === false}
+          onClick={props.onRedo}
+        >
+          <Redo2 size={18} aria-hidden="true" />
+          {compactControls && <span>{t('Redo')}</span>}
+        </Button>
+      )}
+    </>
+  );
   return (
     <section className="map-region" aria-label={t('Interactive route map')}>
       <div ref={container} className="map-canvas" />
@@ -974,53 +1091,7 @@ export function RouteMap(props: Props) {
       </ToggleGroup>
 
       <div className="map-extra-controls" role="group" aria-label={t('Map controls')}>
-        <Button
-          variant="outline"
-          size="icon"
-          className="map-control map-north-control"
-          title={t('Reset north')}
-          aria-label={t('Reset north')}
-          disabled={!ready}
-          onClick={() => map.current?.easeTo?.({ bearing: 0, duration: mapMotionDuration() })}
-        >
-          <span className="map-compass" aria-hidden="true">
-            <small className="map-compass-label">N</small>
-            <svg
-              className="map-compass-needle size-6"
-              viewBox="0 0 24 24"
-              fill="none"
-              focusable="false"
-              style={{ transform: `rotate(${-bearing}deg)` }}
-            >
-              <path className="map-compass-south" d="M12 22 7 12h10Z" />
-              <path className="map-compass-north" d="M12 2 7 12h10Z" />
-              <path className="map-compass-facet" d="M12 2v10h5Z" />
-              <circle className="map-compass-pivot" cx="12" cy="12" r="1.5" />
-            </svg>
-          </span>
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="map-control map-zoom-in"
-          title={t('Zoom in')}
-          aria-label={t('Zoom in')}
-          disabled={!ready}
-          onClick={() => map.current?.zoomIn({ duration: mapMotionDuration() })}
-        >
-          <Plus size={20} />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="map-control map-zoom-out"
-          title={t('Zoom out')}
-          aria-label={t('Zoom out')}
-          disabled={!ready}
-          onClick={() => map.current?.zoomOut({ duration: mapMotionDuration() })}
-        >
-          <Minus size={20} />
-        </Button>
+        {!compactControls && navigationControls}
         <Button
           variant="ghost"
           className="map-control"
@@ -1054,47 +1125,48 @@ export function RouteMap(props: Props) {
         >
           <Scan size={18} />
         </Button>
-        <Button
-          variant={props.manualDrawing ? 'default' : 'outline'}
-          size="icon"
-          className="map-control map-manual-tool"
-          aria-label={t('Manual drawing')}
-          title={t('Manual drawing')}
-          aria-pressed={Boolean(props.manualDrawing)}
-          disabled={!props.onToggleManualDrawing}
-          onClick={props.onToggleManualDrawing}
-        >
-          <Ruler size={20} aria-hidden="true" />
-        </Button>
-        {props.editable && (props.onUndo || props.canUndo !== undefined) && (
-          <Button
-            className="map-control map-undo-tool"
-            variant="outline"
-            size="icon"
-            aria-label={t(
-              props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo',
-            )}
-            title={t(
-              props.manualDrawing && props.canUndo === undefined ? 'Undo last point' : 'Undo',
-            )}
-            disabled={!props.onUndo || props.canUndo === false}
-            onClick={props.onUndo}
-          >
-            <Undo2 size={18} aria-hidden="true" />
-          </Button>
-        )}
-        {props.editable && (props.onRedo || props.canRedo !== undefined) && (
-          <Button
-            className="map-control map-redo-tool"
-            variant="outline"
-            size="icon"
-            aria-label={t('Redo')}
-            title={t('Redo')}
-            disabled={!props.onRedo || props.canRedo === false}
-            onClick={props.onRedo}
-          >
-            <Redo2 size={18} aria-hidden="true" />
-          </Button>
+        {compactControls ? (
+          <Popover.Root open={toolsOpen} onOpenChange={setToolsOpen}>
+            <Popover.Trigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="map-control map-tools-trigger"
+                aria-label={t('More map tools')}
+                title={t('More map tools')}
+              >
+                <MoreHorizontal size={20} aria-hidden="true" />
+              </Button>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content
+                className="map-tools-panel"
+                side="top"
+                align="end"
+                sideOffset={8}
+                collisionPadding={12}
+                aria-label={t('Map controls')}
+              >
+                <div className="map-tools-heading">
+                  <strong>{t('Map controls')}</strong>
+                  <Popover.Close asChild>
+                    <Button variant="ghost" size="icon" aria-label={t('Close map tools')}>
+                      <X size={18} aria-hidden="true" />
+                    </Button>
+                  </Popover.Close>
+                </div>
+                {navigationControls}
+                {editingControls}
+                {ready && (
+                  <a href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">
+                    {t('Report a map issue ↗')}
+                  </a>
+                )}
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+        ) : (
+          editingControls
         )}
       </div>
       <div className="map-bottom-toolbar">
