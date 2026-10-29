@@ -57,7 +57,6 @@ function mapFitPadding(container: HTMLElement | null) {
   return mapPadding({
     viewport: container?.getBoundingClientRect(),
     planner: screen?.querySelector('#route-planner')?.getBoundingClientRect(),
-    elevation: screen?.querySelector('#map-elevation-root')?.getBoundingClientRect(),
     stylePicker: region?.querySelector<HTMLElement>('.map-style-picker')?.getBoundingClientRect(),
     controls: region?.querySelector<HTMLElement>('.map-extra-controls')?.getBoundingClientRect(),
     compactPlanner: window.innerWidth <= 1024,
@@ -189,7 +188,6 @@ export function RouteMap(props: Props) {
     ];
     const stylePicker = region.querySelector<HTMLElement>('.map-top-label');
     const controls = region.querySelector<HTMLElement>('.map-extra-controls');
-    const elevation = workspace.querySelector<HTMLElement>('#map-elevation-root');
     const reopen = workspace.querySelector<HTMLElement>('.planner-reopen');
     const measure = () => {
       const attributionHeight = Math.max(
@@ -215,10 +213,6 @@ export function RouteMap(props: Props) {
           : spacing;
       workspace.style.setProperty('--map-attribution-height', `${attributionHeight}px`);
       workspace.style.setProperty(
-        '--map-elevation-height',
-        `${elevation?.getBoundingClientRect().height || 0}px`,
-      );
-      workspace.style.setProperty(
         '--map-bottom-reserved',
         `${attributionHeight + toolbarHeight + wrappedControlsHeight + 32}px`,
       );
@@ -241,7 +235,6 @@ export function RouteMap(props: Props) {
       ...attribution,
       stylePicker,
       controls,
-      elevation,
       reopen,
     ]) {
       if (element) observer.observe(element);
@@ -251,7 +244,6 @@ export function RouteMap(props: Props) {
       observer.disconnect();
       for (const property of [
         '--map-attribution-height',
-        '--map-elevation-height',
         '--map-bottom-reserved',
         '--map-mobile-controls-bottom',
         '--map-style-top',

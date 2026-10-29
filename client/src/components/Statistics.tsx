@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { useMemo, useId, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from './ui/chart';
 import { ChevronDown, Info } from 'lucide-react';
@@ -55,7 +54,6 @@ export function Statistics({
   onElevationOpenChange?: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const [elevationTarget, setElevationTarget] = useState<HTMLElement | null>(null);
   const [compact, setCompact] = useState(false);
   const [profilePosition, setProfilePosition] = useState(0);
   const [localElevationOpen, setLocalElevationOpen] = useState<boolean | undefined>(undefined);
@@ -66,23 +64,13 @@ export function Statistics({
     return () => onElevationHover?.(null);
   }, [route?.segments, onElevationHover]);
   useEffect(() => {
-    const media = window.matchMedia?.('(min-width: 1025px)');
-    if (!media) return;
-    const mobile = window.matchMedia('(max-width: 700px)');
-    const updateTarget = () => {
-      setElevationTarget(
-        mapAvailable && media.matches ? document.getElementById('map-elevation-root') : null,
-      );
-      setCompact(mobile.matches);
-    };
-    updateTarget();
-    media.addEventListener('change', updateTarget);
-    mobile.addEventListener('change', updateTarget);
-    return () => {
-      media.removeEventListener('change', updateTarget);
-      mobile.removeEventListener('change', updateTarget);
-    };
-  }, [mapAvailable]);
+    const mobile = window.matchMedia?.('(max-width: 700px)');
+    if (!mobile) return;
+    const updateCompact = () => setCompact(mobile.matches);
+    updateCompact();
+    mobile.addEventListener('change', updateCompact);
+    return () => mobile.removeEventListener('change', updateCompact);
+  }, []);
   const samples = useMemo(
     () =>
       route && (route.source === 'gpx' || route.elevationSource === 'openrouteservice')
@@ -458,7 +446,7 @@ export function Statistics({
           {t('Personal estimate unavailable for these inputs.')}
         </p>
       )}
-      {elevationTarget ? createPortal(elevationProfile, elevationTarget) : elevationProfile}
+      {elevationProfile}
     </section>
   );
 }

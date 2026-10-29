@@ -862,6 +862,58 @@ test('centers the saved-route empty-state icon above its text', async ({ page })
   expect(Math.abs(icon!.x + icon!.width / 2 - (empty!.x + empty!.width / 2))).toBeLessThan(1);
 });
 
+test('planner never scrolls horizontally with long content, elevation and viewport changes', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'long-route.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx.replaceAll('Mountain morning', 'LongRouteName'.repeat(30))),
+  });
+  await expect(page.locator('.planner .elevation-box')).toHaveCount(1);
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English', exact: true })
+      .click();
+    for (const width of [320, 390, 700, 844, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      const sheet = page.locator('.mobile-sheet-toggle');
+      if ((await sheet.isVisible()) && (await sheet.getAttribute('aria-expanded')) === 'false')
+        await sheet.click();
+      for (const open of [true, false]) {
+        const profile = page.locator('.planner .elevation-box');
+        if (((await profile.getAttribute('open')) !== null) !== open)
+          await profile.locator('summary').click();
+        await expect
+          .poll(() =>
+            page.locator('.planner, .planner-scroll, .planner-footer, .elevation-box').evaluateAll(
+              (elements) =>
+                elements
+                  .filter((element) => element.scrollWidth > element.clientWidth)
+                  .map((element) => element.className),
+            ),
+          )
+          .toEqual([]);
+        await expect(page.locator('.planner-scroll')).toHaveCSS('overflow-x', 'hidden');
+        expect(
+          await page.locator('.planner-scroll').evaluate((element) => {
+            element.scrollLeft = 100;
+            return element.scrollLeft;
+          }),
+        ).toBe(0);
+      }
+    }
+  }
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.context().setOffline(true);
+  await expect(page.locator('.workspace-offline')).toBeVisible();
+  await expect
+    .poll(() => page.locator('.planner-scroll').evaluate((element) => element.scrollWidth - element.clientWidth))
+    .toBeLessThanOrEqual(0);
+});
+
 test('matches Figma planner geometry while preserving branding and responsive elevation', async ({
   page,
 }, testInfo) => {
@@ -898,10 +950,8 @@ test('matches Figma planner geometry while preserving branding and responsive el
     await expect(page.locator('.elevation-preview')).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('collapsed-elevation-preview.png') });
   } else {
-    await expect(page.locator('#map-elevation-root .elevation-box')).toHaveAttribute('open');
-    const chart = await page.locator('#map-elevation-root').boundingBox();
-    expect(chart!.x + chart!.width).toBe(1440 - 24);
-    expect(chart?.width).toBe(714);
+    await expect(page.locator('.planner .statistics .elevation-box')).toHaveAttribute('open');
+    await expect(page.locator('#map-elevation-root')).toHaveCount(0);
     const summary = page.locator('.elevation-box summary');
     await expect(summary).toHaveText('Elevation profile');
     await expect(summary.locator('.elevation-toggle')).toHaveCSS('width', '32px');
@@ -918,7 +968,9 @@ test('matches Figma planner geometry while preserving branding and responsive el
     await expect(page.locator('.elevation-box')).toHaveAttribute('open');
     await expect(page.locator('.elevation-chart')).toBeVisible();
     await page.getByRole('button', { name: 'Hide planner' }).click();
-    await expect(page.locator('#map-elevation-root .elevation-box')).toBeVisible();
+    await expect(page.locator('.planner .elevation-box')).not.toBeVisible();
+    await page.getByRole('button', { name: 'Show planner' }).click();
+    await expect(page.locator('.planner .elevation-box')).toBeVisible();
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -1035,7 +1087,6 @@ for (const hidden of [false, true]) {
       '.map-style-tabs',
       '.map-issue',
       '.map-extra-controls',
-      '#map-elevation-root',
       '.maplibregl-ctrl-attrib',
     ];
     for (const withRoute of [false, true]) {
@@ -1094,10 +1145,6 @@ for (const hidden of [false, true]) {
             .toBe(width - spacing);
           const picker = (await page.locator('.map-style-picker').boundingBox())!;
           expect(picker.y).toBeGreaterThan(height / 2);
-          if (width > 1024 && (await page.locator('#map-elevation-root').isVisible())) {
-            const elevation = (await page.locator('#map-elevation-root').boundingBox())!;
-            expect(elevation.x + elevation.width).toBeCloseTo(width - spacing, 0);
-          }
           if (await page.locator('.planner').isVisible()) {
             const planner = (await page.locator('.planner').boundingBox())!;
             const workspace = (await page.locator('.workspace').boundingBox())!;

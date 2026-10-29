@@ -1974,7 +1974,6 @@ export default function App() {
               </Button>
             </footer>
           </aside>
-          <div id="map-elevation-root" />
           <RouteMap
             key={mapRetryToken}
             online={online}

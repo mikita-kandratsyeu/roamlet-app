@@ -123,6 +123,8 @@
   display: none;
 }
 .planner {
+  min-width: 0;
+  max-width: 100%;
   bottom: auto;
   max-height: calc(
     100% - var(--space) - max(var(--space), calc(var(--map-attribution-height, 24px) + 16px))
@@ -130,7 +132,14 @@
 }
 .planner-scroll {
   flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
   padding: 16px;
+}
+.planner-scroll > * {
+  min-width: 0;
+  max-width: 100%;
 }
 .planner-heading {
   margin-bottom: 10px;
@@ -737,8 +746,12 @@
   font-weight: 600;
 }
 .stat-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 8px;
   margin: 0;
+}
+.stat-card {
+  min-width: 0;
 }
 .stat-card dd {
   margin-top: 3px;
@@ -783,39 +796,21 @@
 .route-ready .import-action {
   display: none;
 }
-#map-elevation-root {
-  position: absolute;
-  bottom: var(--map-bottom-reserved, 110px);
-  left: calc(var(--panel-width) + var(--space) * 2 + 10px);
-  width: min(714px, calc(100% - var(--panel-width) - var(--space) * 3 - 74px));
-  z-index: 2;
+.elevation-box {
+  min-width: 0;
+  max-width: 100%;
 }
-#map-elevation-root:empty {
-  display: none;
-}
-#map-elevation-root .elevation-box {
-  padding: 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: var(--shadow-surface);
-}
-#map-elevation-root .elevation-chart {
-  height: 112px;
-}
-#map-elevation-root .elevation-box summary {
-  min-height: 32px;
-}
-#map-elevation-root .elevation-box .fine-print {
-  font-size: var(--font-size-helper);
-}
-.desktop-panel-hidden #map-elevation-root {
-  left: var(--space);
-  width: min(714px, calc(100% - var(--space) * 2 - 74px));
+.elevation-chart {
+  min-width: 0;
+  max-width: 100%;
 }
 .elevation-box summary {
   min-height: 32px;
   gap: 12px;
+}
+.elevation-box summary > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .elevation-box summary::after,
 .elevation-box[open] summary::after {
@@ -874,9 +869,6 @@
   min-height: 44px;
   color: var(--foreground);
   font-size: var(--font-size-helper);
-}
-.workspace:has(#map-elevation-root:not(:empty)) .map-hint {
-  display: none;
 }
 .map-extra-controls {
   border: 0;
@@ -1438,7 +1430,8 @@
     max-height: none;
   }
   .workspace-offline .planner-scroll {
-    overflow: visible;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 }
 @media (max-height: 550px) and (max-width: 700px) {

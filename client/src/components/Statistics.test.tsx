@@ -125,10 +125,11 @@ for (const desktop of [false, true]) {
         [11.01, 47.01, 0],
       ],
     ];
-    const { rerender } = render(<Statistics route={route(complete)} />);
+    const { container, rerender } = render(<Statistics route={route(complete)} />);
     expect(screen.getByText('Elevation profile')).toBeInTheDocument();
     expect(screen.getByTestId('elevation-chart')).toBeInTheDocument();
-    expect(portal.querySelector('.elevation-box') !== null).toBe(desktop);
+    expect(container.querySelector('.statistics .elevation-box')).toBeInTheDocument();
+    expect(portal).toBeEmptyDOMElement();
     for (const segments of [
       [
         [

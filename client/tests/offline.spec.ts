@@ -136,7 +136,7 @@ for (const viewport of [
         await expect(page.getByRole('group', { name: 'Map controls' })).toHaveCount(0);
         await expect(page.locator('.configuration-note')).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Edit waypoints' })).toBeDisabled();
-        await expect(page.locator('#map-elevation-root')).toBeEmpty();
+        await expect(page.locator('#map-elevation-root')).toHaveCount(0);
         await expect(page.locator('.planner .elevation-box')).toHaveCount(1);
         await page.screenshot({ path: test.info().outputPath('offline.png') });
         await page.getByRole('button', { name: 'Retry map', exact: true }).click();
