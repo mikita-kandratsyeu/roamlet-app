@@ -44,6 +44,26 @@ describe('OpenRouteServiceRoutingService', () => {
     ).rejects.toThrow('ORS_API_KEY on the server');
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+  it('reports provider quota exhaustion without retrying loop candidates', async () => {
+    const fetcher = mockJson({ error: { code: 'UPSTREAM_RATE_LIMITED' } }, 503);
+    await expect(
+      new OpenRouteServiceRoutingService().calculateAlternatives(points[0], 'cycling', 20000),
+    ).rejects.toThrow('quota');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('reports server-side timeouts without waiting for the browser timeout', async () => {
+    const fetcher = mockJson({ error: { code: 'UPSTREAM_TIMEOUT' } }, 504);
+    await expect(
+      new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling'),
+    ).rejects.toThrow('took too long');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('reports bounded-response errors without fabricating route geometry', async () => {
+    mockJson({ error: { code: 'UPSTREAM_RESPONSE_TOO_LARGE' } }, 502);
+    await expect(
+      new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling'),
+    ).rejects.toThrow('unavailable');
+  });
   it('calls the same-origin proxy without browser credentials or a provider key', async () => {
     const fetcher = mockJson(response());
     await new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling');

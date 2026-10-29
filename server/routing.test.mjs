@@ -35,6 +35,7 @@ beforeEach((t) => {
     else process.env.ORS_API_KEY = previous;
   });
   t.mock.method(globalThis, 'fetch', async () => Response.json(geojson()));
+  t.mock.method(console, 'info', () => {});
 });
 
 async function invoke(handler = routeHandler, overrides = {}) {
@@ -246,8 +247,9 @@ for (const status of [401, 403, 429, 500]) {
   test(`sanitizes upstream HTTP ${status} without leaking messages`, async (t) => {
     t.mock.method(globalThis, 'fetch', async () => new Response(SECRET, { status }));
     const result = await invoke();
-    assert.equal(result.status, status === 500 ? 502 : status);
-    assert.deepEqual(Object.keys(result.data.error), ['message']);
+    assert.equal(result.status, status === 500 ? 502 : 503);
+    assert.equal(result.data.error.code, status === 429 ? 'UPSTREAM_RATE_LIMITED' : 'UPSTREAM_UNAVAILABLE');
+    assert.deepEqual(Object.keys(result.data.error), ['code', 'message']);
   });
 }
 
@@ -264,17 +266,27 @@ for (const code of [2004, 2009, 2010]) {
   });
 }
 
-test('unknown upstream codes and exception text are never returned or logged', async (t) => {
+test('unknown upstream codes and exception text are excluded from responses and metadata logs', async (t) => {
   const logs = ['log', 'warn', 'error', 'info', 'debug'].map((name) => t.mock.method(console, name, () => {}));
   for (const code of [SECRET, 'ROUTING_NOT_CONFIGURED']) {
     t.mock.method(globalThis, 'fetch', async () => Response.json({ error: { code, message: SECRET } }, { status: 400 }));
-    assert.deepEqual(Object.keys((await invoke()).data.error), ['message']);
+    assert.equal((await invoke()).data.error.code, 'INVALID_REQUEST');
   }
   for (const error of [new TypeError(SECRET), new Error(SECRET)]) {
     t.mock.method(globalThis, 'fetch', async () => { throw error; });
     assert.equal((await invoke()).status, 502);
   }
-  for (const log of logs) assert.equal(log.mock.calls.length, 0);
+  for (const log of logs) {
+    if (log === console.info) {
+      assert.equal(log.mock.calls.length, 4);
+      for (const call of log.mock.calls) {
+        const entry = JSON.parse(call.arguments[0]);
+        assert.deepEqual(Object.keys(entry), ['event', 'requestId', 'durationMs', 'status', 'category']);
+        assert.ok(!call.arguments[0].includes(SECRET));
+        assert.ok(!call.arguments[0].includes('ROUTING_NOT_CONFIGURED'));
+      }
+    } else assert.equal(log.mock.calls.length, 0);
+  }
 });
 
 test('upstream timeout is 20 seconds and aborts even a noncooperative fetch', async (t) => {

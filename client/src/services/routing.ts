@@ -95,14 +95,14 @@ export async function requestJson(
     });
     if (!response.ok) {
       if (response.status === 401 || response.status === 403)
-        throw new Error(
-          'The routing request was rejected. Check the OpenRouteService API key and account permissions.',
-        );
+        throw new Error('The routing request was rejected. Reload the app and try again.');
       if (response.status === 429)
         throw new Error(
           'Routing quota reached. Wait a moment or check your provider account limits.',
         );
     }
+    if (response.status === 504)
+      throw new Error('The service took too long to respond. Please try again.');
     const data: unknown = await response.json().catch(() => {
       throw new Error(
         response.ok
@@ -112,6 +112,10 @@ export async function requestJson(
     });
     const error = data && typeof data === 'object' && 'error' in data ? data.error : undefined;
     if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'UPSTREAM_RATE_LIMITED')
+        throw new Error(
+          'Routing quota reached. Wait a moment or check your provider account limits.',
+        );
       if (error.code === 'ROUTING_NOT_CONFIGURED')
         throw new Error(
           'Configure ORS_API_KEY on the server. GPX and saved routes remain available.',

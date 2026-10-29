@@ -47,7 +47,32 @@ yarn preview
 4. Monitor aggregate ORS daily/per-minute usage and Vercel function usage; IP limits are not an account-wide budget. Restrict deployment access or disable the key if protection or quota monitoring is unavailable. Do not log coordinates, keys or raw upstream errors.
 5. Verify two real deployments: service-worker update, draft recovery, routing and offline/manual workflows. Test the permanent production domain before users save routes; browser storage is origin-specific.
 
-The proxy accepts only four cycling/hiking profiles, 2–25 longitude/latitude points, the supported ferry/step avoidance options and bounded point alternatives. It enforces JSON/body limits and an upstream timeout, sanitizes responses/errors, disables API caching and rejects cross-origin browser requests. These checks protect the key and constrain requests, but **do not replace Firewall rate limits**. Maps and GPX stay client-side.
+The proxy accepts only four cycling/hiking profiles, 2–25 longitude/latitude points, the supported ferry/step avoidance options and bounded point alternatives. It enforces a 16 KiB request-body limit, an 8 MiB upstream-body limit, a 4 MiB final serialized JSON response limit (leaving headroom for Vercel), and a 20-second timeout covering both the provider request and response-body consumption. It sanitizes responses/errors, disables API caching and rejects cross-origin browser requests. These checks protect the key and constrain requests, but **do not replace Firewall rate limits**. Maps and GPX stay client-side.
+
+#### API implementation and error contract
+
+The files in `api/` remain thin Vercel entry points. Shared implementation lives outside that directory:
+
+- `server/routing.mjs`: HTTP handlers and metadata-only request logging; `createRoutingHandlers` accepts an API-key getter, ORS client and logger for isolated tests.
+- `server/routing-contract.mjs`: input validation and sanitized GeoJSON output.
+- `server/routing-http.mjs`: bounded body parsing, same-origin checks and JSON responses.
+- `server/ors-client.mjs`: provider transport, bounded stream consumption and cancellation; `createOrsClient` accepts a fetch implementation and timeout.
+- `server/routing-config.mjs`: server-only environment access.
+
+Vite development/preview middleware and Vercel entry points use the same default handlers. Endpoint URLs and successful response shapes are unchanged. Errors use `{ "error": { "code": "…", "message": "…" } }`; ORS codes `2004`, `2009` and `2010` remain numeric for route-limit/no-route handling.
+
+| HTTP status     | Application code                                                            | Meaning                                                                 |
+| --------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 400 / 413 / 415 | `INVALID_REQUEST` / `REQUEST_TOO_LARGE` / `UNSUPPORTED_MEDIA_TYPE`          | Rejected input                                                          |
+| 403 / 405       | `FORBIDDEN` / `METHOD_NOT_ALLOWED`                                          | Origin or method rejected                                               |
+| 400 / 404 / 422 | Safe numeric ORS code or `INVALID_REQUEST` / `UPSTREAM_REJECTED`            | Provider rejected the route request                                     |
+| 502             | `UPSTREAM_UNAVAILABLE` / `UPSTREAM_RESPONSE_TOO_LARGE`                      | Provider/network/response failure                                       |
+| 503             | `ROUTING_NOT_CONFIGURED` / `UPSTREAM_UNAVAILABLE` / `UPSTREAM_RATE_LIMITED` | Missing key, provider credentials rejected, or provider quota exhausted |
+| 504             | `UPSTREAM_TIMEOUT`                                                          | Provider exceeded the time budget                                       |
+
+Provider `401`/`403` responses are not forwarded as user authorization failures. Provider `429` becomes `503` with `UPSTREAM_RATE_LIMITED`; the browser still reports quota exhaustion and does not retry loop candidates. Firewall-generated `429` remains a separate deployment-level rate limit, handled by the browser by status regardless of response format.
+
+Each route request returns a server-generated `X-Request-Id`. Structured function logs contain only the event name, that ID, duration in milliseconds, final HTTP status and a fixed outcome category. Coordinates, keys, request bodies and raw provider errors are excluded. Logging failures do not change the response. API caching remains disabled; no shared route cache or application database is introduced.
 
 ```sh
 yarn typecheck
