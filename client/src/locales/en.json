@@ -392,7 +392,7 @@
   "Manual route": "Manual route",
   "Undo last point": "Undo last point",
   "Click to draw straight lines. Drag points to adjust.": "Click to draw straight lines. Drag points or the line to adjust.",
-  "Preview only — release to add a waypoint. Escape cancels.": "Straight-line preview, not a calculated route. Release to add a stop. Escape cancels.",
+  "Preview only — release to apply. Escape cancels.": "Straight-line preview, not a calculated route. Release to apply. Esc cancels.",
   "Switch to manual drawing?": "Switch to manual drawing?",
   "Switch to automatic routing?": "Switch to automatic routing?",
   "Stops are kept, but the current geometry will be replaced by straight lines. Save or export the original first.": "Stops are kept, but the current geometry will be replaced by straight lines. Save or export the original first.",

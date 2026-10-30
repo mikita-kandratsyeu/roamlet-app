@@ -40,6 +40,7 @@ vi.mock('./components/RouteMap', () => ({
     highlightSegments,
     editingToolbar,
     onAdd,
+    fitToken,
   }: {
     segments: unknown[];
     manualDrawing?: boolean;
@@ -60,6 +61,7 @@ vi.mock('./components/RouteMap', () => ({
     highlightSegments?: unknown[];
     editingToolbar?: ReactNode;
     onAdd?: (coordinate: [number, number]) => void;
+    fitToken: number;
   }) => (
     <div
       data-testid="map"
@@ -72,6 +74,7 @@ vi.mock('./components/RouteMap', () => ({
       data-comparison={comparisonMode}
       data-comparison-layers={JSON.stringify(comparisonLayers ?? [])}
       data-highlight={JSON.stringify(highlightSegments ?? [])}
+      data-fit-token={fitToken}
     >
       Map
       {editingToolbar}
@@ -164,12 +167,14 @@ it('draws a local section detour, cancels losslessly and applies it as a single 
   addCoordinate('47.29, 11.42');
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
   const original = screen.getByTestId('map').getAttribute('data-geometry');
+  const originalFit = screen.getByTestId('map').getAttribute('data-fit-token');
   const originalCalls = provider.calculateRoute.mock.calls.length;
   const start = () => {
     fireEvent.keyDown(screen.getByRole('button', { name: 'Section 1 mode' }), { key: 'ArrowDown' });
     fireEvent.click(screen.getByRole('menuitem', { name: 'Draw a detour' }));
   };
   start();
+  expect(screen.getByTestId('map')).toHaveAttribute('data-fit-token', originalFit!);
   expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled();
   expect(document.querySelector('#route-planner')).toHaveAttribute('inert');
   fireEvent.click(screen.getByRole('button', { name: 'Add detour map point' }));

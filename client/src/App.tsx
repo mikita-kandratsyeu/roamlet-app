@@ -578,7 +578,6 @@ export default function App() {
     setPanelHidden(true);
     setSelectedWaypointId(null);
     setSearchTarget(null);
-    setFitToken((token) => token + 1);
     requestAnimationFrame(() => document.querySelector<HTMLCanvasElement>('.maplibregl-canvas')?.focus());
   }
   function finishDetour(apply: boolean) {

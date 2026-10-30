@@ -111,6 +111,32 @@ test('dragging a route line previews locally and creates one undoable waypoint o
   await touch?.detach();
 });
 
+test('moving an existing waypoint previews its adjacent line before release', async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await clickMapTool(page, 'Ручное рисование');
+  const canvas = page.locator('.maplibregl-canvas');
+  const bounds = (await canvas.boundingBox())!;
+  await page.mouse.click(bounds.x + bounds.width * 0.65, bounds.y + bounds.height * 0.15);
+  await page.mouse.click(bounds.x + bounds.width * 0.8, bounds.y + bounds.height * 0.23);
+  const markers = page.locator('.waypoint-marker');
+  await expect(markers).toHaveCount(2);
+  const original = (await markers.first().boundingBox())!;
+  const start = { x: original.x + original.width / 2, y: original.y + original.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x, start.y + 45, { steps: 8 });
+  await expect(canvas).toHaveCSS('cursor', 'grabbing');
+  await expect(page.locator('.map-hint')).toContainText('Предпросмотр прямыми линиями');
+  await expect(markers).toHaveCount(2);
+  await page.screenshot({ path: info.outputPath('waypoint-move-preview.png') });
+  await page.mouse.up();
+  await expect(page.locator('.map-hint')).not.toContainText('Предпросмотр прямыми линиями');
+  await expect(markers).toHaveCount(2);
+  await canvas.focus();
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => Math.abs((await markers.first().boundingBox())!.y - original.y)).toBeLessThan(1);
+});
+
 test('a section detour stays local until Done and keeps the other section automatically routed', async ({ page }, info) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const requests: number[][][] = [];
@@ -126,10 +152,26 @@ test('a section detour stays local until Done and keeps the other section automa
   await addPoint(page, '52.02, 30.02');
   await expect(page.getByRole('button', { name: 'Сохранить маршрут', exact: true })).toBeEnabled();
   const before = requests.length;
+  await clickMapTool(page, 'Показать весь маршрут');
   const start = async () => {
+    const positions = await Promise.all([0, 1].map((index) => page.locator('.waypoint-marker').nth(index).boundingBox()));
+    const beforeCanvas = (await page.locator('.maplibregl-canvas').boundingBox())!;
     await page.getByRole('button', { name: 'Режим участка 1', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Нарисовать обход', exact: true }).click();
     await expect(page.getByRole('group', { name: 'Нарисовать обход', exact: true })).toBeVisible();
+    await expect(page.locator('.waypoint-marker')).toHaveCount(2);
+    for (const [index, before] of positions.entries()) {
+      await expect.poll(async () => {
+        const after = (await page.locator('.waypoint-marker').nth(index).boundingBox())!;
+        const afterCanvas = (await page.locator('.maplibregl-canvas').boundingBox())!;
+        return Math.hypot(
+          (after.x + after.width / 2 - afterCanvas.x - afterCanvas.width / 2) -
+            (before!.x + before!.width / 2 - beforeCanvas.x - beforeCanvas.width / 2),
+          (after.y + after.height / 2 - afterCanvas.y - afterCanvas.height / 2) -
+            (before!.y + before!.height / 2 - beforeCanvas.y - beforeCanvas.height / 2),
+        );
+      }).toBeLessThan(1);
+    }
   };
   const addDetour = async () => {
     const markers = page.locator('.waypoint-marker');

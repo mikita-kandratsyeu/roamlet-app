@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
   markerPosition: vi.fn(),
   zoom: 10,
   markerDrag: [] as (() => void)[],
+  markerHandlers: [] as Map<string, () => void>[],
   markerRemove: vi.fn(),
   data: vi.fn(),
   control: vi.fn(),
@@ -112,8 +113,10 @@ vi.mock('maplibre-gl', () => ({
       setStyle = mocks.setStyle;
     },
     Marker: class {
+      handlers = new Map<string, () => void>();
       constructor(options: unknown) {
         mocks.markerOptions(options);
+        mocks.markerHandlers.push(this.handlers);
       }
       setLngLat(coordinate: unknown) {
         mocks.markerPosition(coordinate);
@@ -123,6 +126,7 @@ vi.mock('maplibre-gl', () => ({
         return this;
       }
       on(event: string, handler: () => void) {
+        this.handlers.set(event, handler);
         if (event === 'dragend') mocks.markerDrag.push(handler);
       }
       getLngLat() {
@@ -182,6 +186,7 @@ beforeEach(() => {
   mocks.extraData.clear();
   mocks.handlers.clear();
   mocks.markerDrag.length = 0;
+  mocks.markerHandlers.length = 0;
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -1048,6 +1053,45 @@ it('selects accessible waypoint buttons, exposes actions and focuses only on exp
   fireEvent.click(screen.getByRole('button', { name: 'Remove waypoint' }));
   expect(onRemoveWaypoint).toHaveBeenCalledWith('a');
   expect(screen.queryByRole('group', { name: 'Waypoint actions' })).not.toBeInTheDocument();
+});
+
+it.each([0, 1, 2])('previews adjacent lines when dragging existing waypoint %s and commits only on release', (index) => {
+  const waypoints = [annotationWaypoints[0],
+    { id: 'middle', name: 'Middle', coordinate: [0.01, 0] as [number, number] }, annotationWaypoints[1]];
+  render(<RouteMap {...props} waypoints={waypoints} segments={annotationSegments} />);
+  act(() => mocks.handlers.get('load')?.());
+  const handlers = mocks.markerHandlers[index];
+  act(() => handlers.get('dragstart')?.());
+  act(() => handlers.get('drag')?.());
+  const coordinates = [...(index > 0 ? [waypoints[index - 1].coordinate] : []), [13, 49],
+    ...(index < 2 ? [waypoints[index + 1].coordinate] : [])];
+  expect(mocks.extraData.get('route-drag-preview')).toHaveBeenLastCalledWith(
+    expect.objectContaining({ features: [expect.objectContaining({ geometry: {
+      type: 'LineString', coordinates,
+    } })] }),
+  );
+  expect(props.onMove).not.toHaveBeenCalled();
+  act(() => mocks.handlers.get('mousemove')?.({ lngLat: { lng: 13, lat: 49 }, point: { x: 20, y: 20 } }));
+  expect(mocks.canvas!.style.cursor).toBe('grabbing');
+  act(() => handlers.get('dragend')?.());
+  expect(props.onMove).toHaveBeenCalledExactlyOnceWith(waypoints[index].id, [13, 49]);
+  expect(mocks.extraData.get('route-drag-preview')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+});
+
+it.each(['escape', 'blur', 'readonly'])('cancels marker previews on %s without moving a waypoint', (reason) => {
+  const options = { ...props, segments: annotationSegments, waypoints: annotationWaypoints };
+  const { rerender } = render(<RouteMap {...options} />);
+  act(() => mocks.handlers.get('load')?.());
+  const handlers = mocks.markerHandlers[0];
+  act(() => handlers.get('dragstart')?.());
+  act(() => handlers.get('drag')?.());
+  if (reason === 'escape') fireEvent.keyDown(window, { key: 'Escape' });
+  if (reason === 'blur') fireEvent.blur(window);
+  if (reason === 'readonly') rerender(<RouteMap {...options} editable={false} />);
+  act(() => handlers.get('dragend')?.());
+  expect(props.onMove).not.toHaveBeenCalled();
+  expect(mocks.markerPosition).toHaveBeenLastCalledWith(annotationWaypoints[0].coordinate);
+  expect(mocks.extraData.get('route-drag-preview')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
 });
 
 it('locks detour endpoints while allowing intermediate point edits and a contextual toolbar', () => {

@@ -160,6 +160,8 @@ export function RouteMap(props: Props) {
   const [insertionPreview, setInsertionPreview] = useState<Coordinate | null>(null);
   const [dragPreview, setDragPreview] = useState<Coordinate[] | null>(null);
   const lineDrag = useRef<ReturnType<typeof installRouteLineDrag> | null>(null);
+  const markerDraggingId = useRef<string | null>(null);
+  const cancelMarkerDrag = useRef<(() => void) | null>(null);
   const [routeHovered, setRouteHovered] = useState(false);
   const [menuWaypointId, setMenuWaypointId] = useState<string | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
@@ -412,6 +414,7 @@ export function RouteMap(props: Props) {
     instance.on('zoomend', updateCameraControls);
     const installRouteLayers = () => {
       lineDrag.current?.cancel();
+      cancelMarkerDrag.current?.();
       if (!instance.getSource('location-accuracy')) {
         instance.addSource('location-accuracy', {
           type: 'geojson',
@@ -636,14 +639,14 @@ export function RouteMap(props: Props) {
       current.onAdd(coordinate);
     });
     const clearHover = () => {
-      if (lineDrag.current?.isActive()) return;
+      if (lineDrag.current?.isActive() || markerDraggingId.current) return;
       setRouteHovered(false);
       setInsertionPreview(null);
       instance.getCanvas().style.cursor =
         latest.current.manualDrawing && latest.current.editable ? 'crosshair' : '';
     };
     instance.on('mousemove', (event) => {
-      if (lineDrag.current?.isActive()) return;
+      if (lineDrag.current?.isActive() || markerDraggingId.current) return;
       const current = latest.current;
       if (
         !current.editable ||
@@ -678,6 +681,7 @@ export function RouteMap(props: Props) {
       window.removeEventListener(PREFERENCES_CHANGE_EVENT, preferencesChanged);
       observer.disconnect();
       drag.destroy();
+      cancelMarkerDrag.current?.();
       lineDrag.current = null;
       canvas.removeEventListener('mouseleave', clearHover);
       if (moved) persistView();
@@ -792,6 +796,16 @@ export function RouteMap(props: Props) {
   }, [ready, props.focusWaypointToken, props.selectedWaypointId, props.waypoints]);
   useEffect(() => {
     if (!ready || !map.current) return;
+    const clearMarkerPreview = () => {
+      markerDraggingId.current = null;
+      cancelMarkerDrag.current = null;
+      setDragPreview(null);
+      setInsertionPreview(null);
+      setRouteHovered(false);
+      suppressClickUntil.current = Date.now() + 250;
+      if (map.current) map.current.getCanvas().style.cursor =
+        latest.current.manualDrawing && latest.current.editable ? 'crosshair' : '';
+    };
     const markers = props.waypoints.map((point, index) => {
       const element = document.createElement('button');
       const selected = point.id === props.selectedWaypointId;
@@ -821,18 +835,62 @@ export function RouteMap(props: Props) {
         element.focus({ preventScroll: true });
         focusedWaypointId.current = null;
       }
+      let cancelled = false;
+      const previewMarker = () => {
+        if (cancelled || markerDraggingId.current !== point.id) return;
+        const current = latest.current;
+        const index = current.waypoints.findIndex((candidate) => candidate.id === point.id);
+        const position = marker.getLngLat();
+        const coordinate: Coordinate = [position.lng, position.lat];
+        const previous = current.waypoints[index - 1];
+        const next = current.waypoints[index + 1];
+        const coordinates = [...(previous ? [previous.coordinate] : []), coordinate,
+          ...(next ? [next.coordinate] : [])];
+        setDragPreview(coordinates.length >= 2 ? coordinates : null);
+        setInsertionPreview(coordinate);
+        setRouteHovered(false);
+      };
       marker.on('dragstart', () => {
+        if (!draggable) return;
+        lineDrag.current?.cancel();
+        cancelled = false;
+        markerDraggingId.current = point.id;
+        cancelMarkerDrag.current = () => {
+          cancelled = true;
+          marker.setLngLat([point.coordinate[0], point.coordinate[1]]);
+          clearMarkerPreview();
+        };
         suppressClickUntil.current = Infinity;
+        map.current!.getCanvas().style.cursor = 'grabbing';
+        previewMarker();
       });
+      marker.on('drag', previewMarker);
       marker.on('dragend', () => {
+        if (markerDraggingId.current === point.id) clearMarkerPreview();
         suppressClickUntil.current = Date.now() + 250;
+        if (cancelled) {
+          marker.setLngLat([point.coordinate[0], point.coordinate[1]]);
+          return;
+        }
         if (!latest.current.editable || latest.current.lockedWaypointIds?.includes(point.id)) return;
         const position = marker.getLngLat();
         latest.current.onMove(point.id, [position.lng, position.lat]);
       });
       return marker;
     });
+    const cancelOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !cancelMarkerDrag.current) return;
+      cancelMarkerDrag.current();
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const cancelOnBlur = () => cancelMarkerDrag.current?.();
+    window.addEventListener('keydown', cancelOnEscape, true);
+    window.addEventListener('blur', cancelOnBlur);
     return () => {
+      cancelMarkerDrag.current?.();
+      window.removeEventListener('keydown', cancelOnEscape, true);
+      window.removeEventListener('blur', cancelOnBlur);
       const active = document.activeElement;
       focusedWaypointId.current =
         active instanceof HTMLElement && active.classList.contains('waypoint-marker')
@@ -1285,7 +1343,7 @@ export function RouteMap(props: Props) {
                 <MousePointer2 size={16} aria-hidden="true" />
                 <span>
                   {dragPreview
-                    ? t('Preview only — release to add a waypoint. Escape cancels.')
+                    ? t('Preview only — release to apply. Escape cancels.')
                     : props.manualDrawing
                       ? t('Click to draw straight lines. Drag points to adjust.')
                       : t('Click the map to add a stop. Drag pins to refine.')}
