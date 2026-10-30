@@ -159,7 +159,7 @@
   "route…": "route…",
   "Dismiss notification": "Dismiss notification",
   "OpenRouteService configuration could not be checked. GPX and saved routes still work.": "Could not check automatic routing availability. Try again later; manual drawing, GPX and saved routes remain available.",
-  "Configure ORS_API_KEY on the server. GPX and saved routes remain available.": "Automatic routing is currently unavailable. You can draw manually, import GPX or open saved routes.",
+  "Configure ORS_API_KEY on the server. GPX and saved routes remain available.": "Routing service is unavailable. Try again later.",
   "Setup": "Help",
   "LESS SCROLLING. MORE STROLLING.": "PLAN OR IMPORT",
   "Start small. Take the scenic way.": "Add stops to calculate a route.",

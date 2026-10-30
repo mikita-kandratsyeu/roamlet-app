@@ -978,14 +978,11 @@ export default function App() {
     return result && planningMode === 'loop' ? result.waypoints : waypoints;
   }, [result, planningMode, waypoints]);
   const canUseRoute = isRouteResultCurrent(editor.snapshot) && !busy && !routeStale;
-  const routingError = !busy && notice?.kind === 'routing' && notice.error ? notice : null;
   const plannerStatus = busy
     ? routeStale && result
       ? t('Previous route shown while recalculating. Saving and export are paused.')
       : t('Unsaved changes')
-    : routingError
-      ? translateMessage(routingError.text)
-      : routeStale && result
+    : routeStale && result
         ? t('Previous route shown. Recalculate successfully before saving or exporting.')
         : dirty
           ? t('Unsaved changes')
@@ -1256,32 +1253,15 @@ export default function App() {
                   </Button>
                 </div>
               </div>
-              <div className={`planner-route-status ${routingError ? 'is-error' : routeStale && result ? 'is-stale' : ''}`}
-                role={routingError ? 'alert' : 'status'} aria-atomic="true">
+              <div className={`planner-route-status ${routeStale && result ? 'is-stale' : ''}`}
+                role="status" aria-atomic="true">
                 <div className="planner-route-status-copy">
-                  {routingError || routeStale && result ? <Info size={16} aria-hidden="true" />
+                  {routeStale && result ? <Info size={16} aria-hidden="true" />
                     : result && !dirty ? <Check size={16} aria-hidden="true" /> : null}
                   <div>
                     <p>{plannerStatus}</p>
-                    {routingError && routeStale && result && (
-                      <p className="planner-route-status-context">
-                        {t('Previous route shown. Recalculate successfully before saving or exporting.')}
-                      </p>
-                    )}
                   </div>
                 </div>
-                {routingError && (
-                  <div className="planner-route-status-actions">
-                    <Button variant="outline" disabled={!online} onClick={retryRouting}>
-                      {t('Retry routing')}
-                    </Button>
-                    <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
-                      {t('Use manual drawing')}
-                    </Button>
-                    <Button variant="ghost" onClick={openLibrary}>{t('Open library')}</Button>
-                    <Button variant="ghost" onClick={() => setNotice(null)}>{t('Dismiss notification')}</Button>
-                  </div>
-                )}
               </div>
               <RouteDescription
                 key={editor.identity.id}

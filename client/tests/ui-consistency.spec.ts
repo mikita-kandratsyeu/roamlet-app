@@ -1143,6 +1143,29 @@ test('notifications fit narrow, landscape and wide screens with an inset square 
   });
   const toast = page.locator('[data-sonner-toast][data-type="error"]');
   await expect(toast).toBeVisible();
+  for (const theme of ['Светлая', 'Тёмная']) {
+    await page.getByRole('button', { name: 'Меню', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: theme, exact: true }).click();
+    const colors = await toast.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const reference = document.createElement('div');
+      reference.style.backgroundColor = 'var(--popover)';
+      reference.style.color = 'var(--destructive)';
+      reference.style.borderColor = 'var(--border)';
+      element.append(reference);
+      const normal = getComputedStyle(reference);
+      const icon = getComputedStyle(element.querySelector('[data-icon]')!);
+      const colors = { background: style.backgroundColor, border: style.borderColor,
+        normalBackground: normal.backgroundColor, normalBorder: normal.borderColor,
+        icon: icon.color, destructive: normal.color };
+      reference.remove();
+      return colors;
+    });
+    expect(colors.background).not.toBe(colors.normalBackground);
+    expect(colors.border).not.toBe(colors.normalBorder);
+    expect(colors.icon).toBe(colors.destructive);
+    await page.screenshot({ path: testInfo.outputPath(`notification-error-${theme}.png`) });
+  }
   await toast.locator('.notification-message').evaluate((element) => {
     element.textContent =
       'Не удалось сохранить маршрут в этом браузере на этом устройстве. ' +

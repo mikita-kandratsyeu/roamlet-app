@@ -257,33 +257,16 @@
 .planner-route-status-copy p {
   margin: 0;
 }
-.planner-route-status-copy .planner-route-status-context {
-  margin-top: 6px;
-}
 .planner-route-status-copy svg {
   flex-shrink: 0;
   margin-top: 2px;
 }
-.planner-route-status:is(.is-stale, .is-error) {
+.planner-route-status.is-stale {
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--muted);
   color: var(--foreground);
-}
-.planner-route-status.is-error {
-  border-color: var(--destructive);
-}
-.planner-route-status-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-.planner-route-status-actions button {
-  min-height: 44px;
-  max-width: 100%;
-  white-space: normal;
 }
 .planner-details {
   margin-top: 12px;

@@ -1067,12 +1067,17 @@ describe('route planner interactions', () => {
     await plan();
     provider.calculateRoute.mockRejectedValueOnce(new Error('Routing quota reached.'));
     addCoordinate('47.28, 11.42');
-    await screen.findByRole('alert');
+    const error = await screen.findByText(i18n.t('Routing quota reached.'));
+    const toast = error.closest<HTMLElement>('[data-sonner-toast]')!;
+    expect(toast).toHaveAttribute('data-type', 'error');
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
     expect(screen.getByTestId('map')).toHaveAttribute('data-segments', '1');
-    expect(screen.getByRole('alert')).toHaveTextContent('Routing quota reached.');
-    expect(document.querySelectorAll('.planner-route-status')).toHaveLength(1);
-    fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Dismiss notification' }));
+    const status = document.querySelector('.planner-route-status')!;
+    expect(status).toHaveAttribute('role', 'status');
+    expect(status).not.toHaveTextContent('Routing quota reached.');
+    expect(status.querySelector('button')).toBeNull();
+    expect(screen.getAllByText(i18n.t('Routing quota reached.'))).toHaveLength(1);
+    fireEvent.click(within(toast).getByRole('button', { name: 'Dismiss notification' }));
     expect(
       screen.getByText(
         'Previous route shown. Recalculate successfully before saving or exporting.',
