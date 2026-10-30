@@ -1323,41 +1323,6 @@ it('isolates waypoint drag previews from persistent route layers', () => {
   expect(props.onMove).toHaveBeenCalledWith('a', [13, 49]);
 });
 
-it('selects accessible waypoint buttons, exposes actions and focuses only on explicit request', () => {
-  const onSelectWaypoint = vi.fn(),
-    onRemoveWaypoint = vi.fn(),
-    onReplaceWaypoint = vi.fn(),
-    onStartWaypoint = vi.fn();
-  const options = {
-    ...props,
-    waypoints: annotationWaypoints,
-    selectedWaypointId: 'a',
-    focusWaypointToken: 0,
-    onSelectWaypoint,
-    onRemoveWaypoint,
-    onReplaceWaypoint,
-    onStartWaypoint,
-  };
-  const { rerender } = render(<RouteMap {...options} />);
-  act(() => mocks.handlers.get('load')?.());
-  const marker = mocks.markerOptions.mock.calls[0][0].element as HTMLButtonElement;
-  expect(marker).toHaveAttribute('aria-pressed', 'true');
-  expect(marker).toHaveClass('waypoint-marker-selected');
-  expect(marker).toHaveAttribute('aria-label', expect.stringContaining('Start'));
-  fireEvent.click(marker);
-  expect(onSelectWaypoint).toHaveBeenCalledWith('a');
-  fireEvent.click(screen.getByRole('button', { name: 'Replace waypoint' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Start route here' }));
-  expect(onReplaceWaypoint).toHaveBeenCalledWith('a');
-  expect(onStartWaypoint).toHaveBeenCalledWith('a');
-  expect(mocks.fly).not.toHaveBeenCalled();
-  rerender(<RouteMap {...options} focusWaypointToken={1} />);
-  expect(mocks.fly).toHaveBeenCalledWith(expect.objectContaining({ center: [0, 0] }));
-  fireEvent.click(screen.getByRole('button', { name: 'Remove waypoint' }));
-  expect(onRemoveWaypoint).toHaveBeenCalledWith('a');
-  expect(screen.queryByRole('group', { name: 'Waypoint actions' })).not.toBeInTheDocument();
-});
-
 it('fits only the requested section geometry once and allows a close detour zoom', () => {
   const fitSegments: [number, number][][] = [[[0, 0], [0, 1], [1, 1]]];
   const options = { ...props, segments: [[[0, 0], [10, 10]]] as [number, number][][],
@@ -1750,25 +1715,6 @@ it('recomputes distance annotations on zoom without joining disconnected geometr
     }),
   );
   expect(mocks.fit).not.toHaveBeenCalled();
-});
-
-it('allows read-only waypoint selection but never offers mutating actions', () => {
-  const onSelectWaypoint = vi.fn(),
-    onRemoveWaypoint = vi.fn();
-  render(
-    <RouteMap
-      {...props}
-      waypoints={annotationWaypoints}
-      editable={false}
-      onSelectWaypoint={onSelectWaypoint}
-      onRemoveWaypoint={onRemoveWaypoint}
-    />,
-  );
-  act(() => mocks.handlers.get('load')?.());
-  fireEvent.click(mocks.markerOptions.mock.calls[0][0].element);
-  expect(onSelectWaypoint).toHaveBeenCalledWith('a');
-  expect(screen.queryByRole('button', { name: 'Remove waypoint' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Close waypoint actions' })).toBeInTheDocument();
 });
 
 it('restores keyboard focus when selected marker styling changes', () => {

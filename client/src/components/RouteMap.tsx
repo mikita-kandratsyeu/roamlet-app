@@ -1205,39 +1205,6 @@ export function RouteMap(props: Props) {
   return (
     <section className="map-region" aria-label={t('Interactive route map')}>
       <div ref={container} className="map-canvas" />
-      {ready && menuWaypoint && (
-        <div className="map-waypoint-actions" role="group" aria-label={t('Waypoint actions')}>
-          <strong>{menuWaypoint.name}</strong>
-          {menuEditable && props.onReplaceWaypoint && (
-            <Button variant="outline" onClick={() => props.onReplaceWaypoint?.(menuWaypoint.id)}>
-              {t('Replace waypoint')}
-            </Button>
-          )}
-          {menuEditable && props.onStartWaypoint && (
-            <Button variant="outline" onClick={() => props.onStartWaypoint?.(menuWaypoint.id)}>
-              {t('Start route here')}
-            </Button>
-          )}
-          {menuEditable && props.onRemoveWaypoint && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                props.onRemoveWaypoint?.(menuWaypoint.id);
-                setMenuWaypointId(null);
-              }}
-            >
-              {t('Remove waypoint')}
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            aria-label={t('Close waypoint actions')}
-            onClick={() => setMenuWaypointId(null)}
-          >
-            <X size={16} />
-          </Button>
-        </div>
-      )}
       {ready && accuracy !== null && (
         <span id={accuracyId} className="sr-only" role="status">
           {t('Location accuracy: ±{{meters}} m', { meters: formatNumber(Math.round(accuracy)) })}
