@@ -7,8 +7,18 @@
 }
 .route-schedule-departure,
 .route-schedule-pause { display: grid; gap: 6px; min-width: 0; }
+.route-schedule .personal-time-field {
+  grid-row: auto;
+  grid-template-rows: none;
+}
 .route-schedule input { min-width: 0; max-width: 100%; }
-.route-schedule [role="alert"] { color: var(--destructive); font-size: var(--font-size-helper, 12px); }
+.route-schedule [role="alert"] {
+  margin: 0;
+  color: var(--destructive);
+  font-size: var(--font-size-helper, 12px);
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
 .route-schedule-notice { margin: 0; font-size: var(--font-size-label, 13px); color: var(--muted-foreground); }
 .route-schedule-list { display: grid; gap: 12px; padding: 0; margin: 0; list-style: none; }
 .route-schedule-list > li { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; min-width: 0; }

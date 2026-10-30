@@ -141,6 +141,53 @@ test('schedule edits persist and do not reroute; arrivals cross midnight', async
   expect(requests).toBe(0);
 });
 
+test('schedule pause errors stay below editable inputs in English and Russian', async ({ page }) => {
+  await page.locator('.planner-details > summary').filter({ hasText: 'Route schedule' }).click();
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page.getByRole('menuitemradio', {
+      name: language === 'ru' ? 'Русский' : 'English', exact: true,
+    }).click();
+    const schedule = page.locator('.route-schedule');
+    const pauses = schedule.locator('.route-schedule-pause input');
+    for (const width of [230, 320]) {
+      await schedule.evaluate((element, value) => { element.style.width = `${value}px`; }, width);
+      for (let index = 0; index < 2; index++) {
+        await pauses.nth(index).fill(index === 0 ? '-1' : '10081');
+        await pauses.nth(index).press('Enter');
+        await expect(pauses.nth(index)).toHaveAttribute('aria-invalid', 'true');
+      }
+      const fields = schedule.locator('.route-schedule-pause');
+      for (let index = 0; index < 2; index++) {
+        const field = fields.nth(index);
+        await expect(field.getByRole('alert')).toBeVisible();
+        const layout = await field.evaluate((element) => {
+          const label = element.querySelector('label')!.getBoundingClientRect();
+          const input = element.querySelector('input')!.getBoundingClientRect();
+          const error = element.querySelector('[role="alert"]')!.getBoundingClientRect();
+          const bounds = element.getBoundingClientRect();
+          return {
+            inputHeight: input.height,
+            labelGap: input.top - label.bottom,
+            errorGap: error.top - input.bottom,
+            bottomGap: bounds.bottom - error.bottom,
+            horizontalOverflow: element.scrollWidth > element.clientWidth,
+          };
+        });
+        expect(layout.inputHeight).toBeGreaterThanOrEqual(44);
+        expect(layout.labelGap).toBeGreaterThanOrEqual(6);
+        expect(layout.errorGap).toBeGreaterThanOrEqual(6);
+        expect(layout.bottomGap).toBeGreaterThanOrEqual(0);
+        expect(layout.horizontalOverflow).toBe(false);
+        await pauses.nth(index).fill('5');
+        await pauses.nth(index).press('Enter');
+        await expect(field.getByRole('alert')).toHaveCount(0);
+        await expect(pauses.nth(index)).toHaveValue('5');
+      }
+    }
+  }
+});
+
 test('comparison preserves editor and closes back to the selected library routes', async ({
   page,
 }) => {
