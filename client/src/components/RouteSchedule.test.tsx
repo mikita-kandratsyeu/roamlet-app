@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { RouteSchedule, type RouteScheduleProps } from './RouteSchedule';
 import i18n from '../i18n';
 import type { PlannedRoute } from '../domain/types';
+import * as scheduleDomain from '../domain/schedule';
 const route: PlannedRoute = {
   id: 'route', name: 'Walk', description: '', activity: 'hiking', source: 'manual',
   segments: [[[0, 0], [0.01, 0]]],
@@ -17,6 +18,30 @@ const props = (): RouteScheduleProps => ({ route, waypoints: route.waypoints,
   onDepartureLocal: vi.fn(), onWaypointPause: vi.fn() });
 beforeEach(async () => { await act(async () => { await i18n.changeLanguage('en'); }); });
 afterEach(cleanup);
+it('reuses schedule calculations across unrelated parent renders', () => {
+  const calculate = vi.spyOn(scheduleDomain, 'estimateRouteSchedule');
+  const callbacks = props();
+  const { rerender } = render(<RouteSchedule {...callbacks} />);
+  calculate.mockClear();
+  rerender(<RouteSchedule {...callbacks} onWaypointPause={vi.fn()} />);
+  expect(calculate).not.toHaveBeenCalled();
+});
+it('reuses pin matching for timing edits but refreshes it for changed pin coordinates or geometry', () => {
+  const prepare = vi.spyOn(scheduleDomain, 'prepareRouteSchedule');
+  const callbacks = props();
+  const { rerender } = render(<RouteSchedule {...callbacks} />);
+  prepare.mockClear();
+  const waypoints = callbacks.waypoints.map((point) => ({ ...point, pauseMinutes: 20 }));
+  rerender(<RouteSchedule {...callbacks} waypoints={waypoints} departureLocal="2026-10-30T08:00" movingSeconds={1800} />);
+  expect(prepare).not.toHaveBeenCalled();
+  expect(screen.getAllByRole('listitem')[1].querySelector('time')).toHaveAttribute('datetime', '2026-10-30T08:50');
+  rerender(<RouteSchedule {...callbacks} waypoints={waypoints.map((point, index) =>
+    index ? { ...point, coordinate: [0.005, 0] } : point)} />);
+  expect(prepare).toHaveBeenCalledOnce();
+  prepare.mockClear();
+  rerender(<RouteSchedule {...callbacks} route={{ ...route, segments: [[[0, 0], [0.005, 0], [0.01, 0]]] }} />);
+  expect(prepare).toHaveBeenCalledOnce();
+});
 it('renders all arrival/departure rows with actual dates, next-day markers, and explicit timing semantics', () => {
   render(<RouteSchedule {...props()} />);
   const region = screen.getByRole('region', { name: 'Route schedule' });

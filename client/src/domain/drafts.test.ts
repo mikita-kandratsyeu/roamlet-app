@@ -72,6 +72,26 @@ it('does not resurrect an old write or delete a new session when resetting durin
   expect((await loadDraft())?.snapshot.identity).toEqual(next.identity);
   expect((await loadDraft())?.snapshot.name).toBe('After reset');
 });
+it('does not clone retained route geometry until the debounced draft is flushed', async () => {
+  const editor = initialEditor();
+  editor.mode = 'snapshot';
+  editor.result = {
+    ...editor.identity, name: 'Track', description: '', activity: 'hiking', source: 'gpx',
+    segments: [[[0, 0, 100], [0.01, 0, 110]]], waypoints: [],
+    stats: { distance: 1112, duration: 800 }, updatedAt: editor.identity.createdAt,
+  };
+  const clone = vi.spyOn(globalThis, 'structuredClone');
+  const writer = draftWriter(vi.fn());
+  writer.schedule(editor, true);
+  writer.schedule({ ...editor, name: 'Latest title' }, true);
+  expect(clone.mock.calls.some(([value]) =>
+    value && typeof value === 'object' && 'result' in value && value.result !== null,
+  )).toBe(false);
+  expect(clone.mock.calls.some(([value]) => value === editor.result)).toBe(false);
+  clone.mockRestore();
+  expect(await writer.flush()).toBe(true);
+  expect((await loadDraft())?.snapshot).toEqual({ ...editor, name: 'Latest title' });
+});
 it('captures snapshots before asynchronous writes and reports nonblocking errors', async () => {
   const onError = vi.fn();
   const writer = draftWriter(onError);

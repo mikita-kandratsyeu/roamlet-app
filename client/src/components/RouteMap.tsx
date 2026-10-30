@@ -743,41 +743,54 @@ export function RouteMap(props: Props) {
   }, [ready, resolvedTheme]);
   useEffect(() => {
     if (!ready || !map.current) return;
-    const source = map.current.getSource('route') as maplibregl.GeoJSONSource;
-    source.setData({
-      type: 'FeatureCollection',
-      features: props.segments
-        .filter((s) => s.length >= 2)
-        .map((coordinates) => ({
-          type: 'Feature',
-          properties: {},
-          geometry: { type: 'LineString', coordinates },
-        })),
-    });
+    const source = map.current.getSource('route') as maplibregl.GeoJSONSource | undefined;
+    source?.setData(lineFeatures(props.segments));
   }, [ready, props.segments]);
   useEffect(() => {
     if (!ready || !map.current) return;
-    const instance = map.current;
-    const update = (id: string, data: Parameters<maplibregl.GeoJSONSource['setData']>[0]) =>
-      (instance.getSource(id) as maplibregl.GeoJSONSource | undefined)?.setData(data);
-    update('route-direct', lineFeatures(props.directSegments ?? []));
-    update(
-      'route-alternatives',
+    const source = map.current.getSource('route-direct') as maplibregl.GeoJSONSource | undefined;
+    source?.setData(lineFeatures(props.directSegments ?? []));
+  }, [ready, props.directSegments]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const source = map.current.getSource('route-alternatives') as maplibregl.GeoJSONSource | undefined;
+    source?.setData(
       lineFeatures(
         (props.alternativeSegments ?? []).flatMap((segments, index) =>
           index === (props.selectedAlternativeIndex ?? 0) ? [] : segments,
         ),
       ),
     );
-    update('route-annotations', routeAnnotations(props.segments, zoom));
-    update('route-insertion', pointFeature(insertionPreview));
-    update('route-drag-preview', lineFeatures(dragPreview ? [dragPreview] : []));
-    update('route-elevation', pointFeature(props.elevationCoordinate));
-    update(
-      'route-highlight',
-      lineFeatures(props.routeStale ? [] : (props.highlightSegments ?? [])),
-    );
-    update('route-comparison', {
+  }, [ready, props.alternativeSegments, props.selectedAlternativeIndex]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const source = map.current.getSource('route-annotations') as maplibregl.GeoJSONSource | undefined;
+    source?.setData(routeAnnotations(props.segments, zoom));
+  }, [ready, props.segments, zoom]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const source = map.current.getSource('route-insertion') as maplibregl.GeoJSONSource | undefined;
+    source?.setData(pointFeature(insertionPreview));
+  }, [ready, insertionPreview]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const source = map.current.getSource('route-drag-preview') as maplibregl.GeoJSONSource | undefined;
+    source?.setData(lineFeatures(dragPreview ? [dragPreview] : []));
+  }, [ready, dragPreview]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const source = map.current.getSource('route-elevation') as maplibregl.GeoJSONSource | undefined;
+    source?.setData(pointFeature(props.elevationCoordinate));
+  }, [ready, props.elevationCoordinate]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const source = map.current.getSource('route-highlight') as maplibregl.GeoJSONSource | undefined;
+    source?.setData(lineFeatures(props.routeStale ? [] : (props.highlightSegments ?? [])));
+  }, [ready, props.highlightSegments, props.routeStale]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const source = map.current.getSource('route-comparison') as maplibregl.GeoJSONSource | undefined;
+    source?.setData({
       type: 'FeatureCollection',
       features: (props.comparisonLayers ?? []).flatMap(({ segments, color, dashed }) =>
         segments
@@ -789,30 +802,21 @@ export function RouteMap(props: Props) {
           })),
       ),
     });
+  }, [ready, props.comparisonLayers]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const instance = map.current;
     const opacity = props.comparisonMode ? 0 : props.routeStale ? 0.4 : 1;
     instance.setPaintProperty('route-line', 'line-opacity', opacity);
     instance.setPaintProperty('route-casing', 'line-opacity', opacity * 0.95);
     instance.setPaintProperty('route-direct-line', 'line-opacity', opacity);
     instance.setPaintProperty('route-directions', 'text-opacity', opacity);
     instance.setPaintProperty('route-kilometers', 'text-opacity', opacity);
-    instance.setPaintProperty('route-hover', 'line-opacity', routeHovered && editable ? 0.25 : 0);
-  }, [
-    ready,
-    props.directSegments,
-    props.alternativeSegments,
-    props.selectedAlternativeIndex,
-    props.elevationCoordinate,
-    props.highlightSegments,
-    props.comparisonLayers,
-    props.comparisonMode,
-    props.routeStale,
-    props.segments,
-    zoom,
-    insertionPreview,
-    dragPreview,
-    routeHovered,
-    editable,
-  ]);
+  }, [ready, props.comparisonMode, props.routeStale]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    map.current.setPaintProperty('route-hover', 'line-opacity', routeHovered && editable ? 0.25 : 0);
+  }, [ready, routeHovered, editable]);
   useEffect(() => {
     setInsertionPreview(null);
     setRouteHovered(false);

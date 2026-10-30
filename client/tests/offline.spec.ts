@@ -212,6 +212,53 @@ test('an unopened elevation chart loads on its first offline expansion', async (
   }
 });
 
+for (const language of ['en', 'ru'] as const) {
+  test(`GPX worker imports exact segments on its first offline use (${language})`, async ({ page, context }) => {
+    await page.addInitScript((value) => localStorage.setItem('roamlet-language', value), language);
+    if (language === 'ru') await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+    const workers = await page.evaluate(async () => {
+      const urls: string[] = [];
+      for (const key of await caches.keys()) {
+        const cache = await caches.open(key);
+        urls.push(...(await cache.keys()).map((request) => request.url));
+      }
+      return urls.filter((url) => /gpxImport\.worker-[^/]+\.js$/.test(url));
+    });
+    expect(workers).toHaveLength(1);
+    expect(page.workers().filter((worker) => /gpxImport\.worker-/.test(worker.url()))).toHaveLength(0);
+    await context.setOffline(true);
+    try {
+      await page.reload();
+      const xml = '<gpx><wpt lat="47" lon="11"/><trk><trkseg><trkpt lat="47" lon="11"><ele>100</ele></trkpt><trkpt lat="47.01" lon="11.01"><ele>120</ele></trkpt></trkseg><trkseg><trkpt lat="48" lon="12"/><trkpt lat="48.01" lon="12.01"><ele>90</ele></trkpt></trkseg></trk></gpx>';
+      const started = page.waitForEvent('worker');
+      await page.getByLabel(language === 'ru' ? 'Импорт файла GPX' : 'Import GPX file').setInputFiles({
+        name: 'first-offline.gpx 2', mimeType: 'application/octet-stream', buffer: Buffer.from(xml),
+      });
+      expect((await started).url()).toMatch(/gpxImport\.worker-/);
+      await expect(page.getByRole('heading', {
+        name: language === 'ru' ? 'Импортированный маршрут' : 'Imported route', exact: true,
+      })).toBeVisible();
+      const pending = page.waitForEvent('download');
+      await page.getByRole('button', { name: language === 'ru' ? 'Экспорт' : 'Export', exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', {
+        name: language === 'ru' ? 'Скачать GPX' : 'Download GPX', exact: true,
+      }).click();
+      const exported = await readFile((await (await pending).path())!, 'utf8');
+      expect(exported.match(/<trkseg>/g)).toHaveLength(2);
+      expect(exported.match(/<trkpt\s/g)).toHaveLength(4);
+      expect(exported.match(/<ele>/g)).toHaveLength(3);
+      expect(exported).toMatch(/<trkpt lat="48" lon="12">\s*<\/trkpt>/);
+      expect(exported).toContain(language === 'ru' ? '<name>Точка</name>' : '<name>Waypoint</name>');
+      expect(exported).toContain('<ele>90</ele>');
+    } finally {
+      await context.setOffline(false);
+    }
+  });
+}
+
 test.describe('core panels without a service worker', () => {
   test.use({ serviceWorkers: 'block' });
   for (const language of ['en', 'ru'] as const) {

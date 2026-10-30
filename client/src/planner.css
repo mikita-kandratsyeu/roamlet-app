@@ -741,6 +741,7 @@
   font-variant-numeric: tabular-nums;
 }
 .statistics {
+  container: route-statistics / inline-size;
   margin-top: 16px;
   padding-top: 10px;
 }
@@ -761,6 +762,7 @@
 }
 .stat-card {
   min-width: 0;
+  padding-inline: 12px;
 }
 .stat-card dd {
   margin-top: 3px;
@@ -768,12 +770,55 @@
   letter-spacing: 0;
   font-size: 22px;
 }
+.stat-card:nth-child(-n + 2) {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4px;
+}
+.stat-card:nth-child(-n + 2) dd {
+  margin-top: 0;
+}
 .stat-card:nth-child(n + 3) dd {
   font-size: 16px;
 }
+.stat-card-personal {
+  grid-column: 1 / -1;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.stat-card-personal dt {
+  color: var(--foreground);
+  line-height: 1.4;
+}
+.stat-card.stat-card-personal dd {
+  margin-top: 6px;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+.stat-time-bound {
+  white-space: nowrap;
+}
+.stat-card-total {
+  padding: 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.stat-card-total dd {
+  font-weight: 700;
+}
 .statistics > .fine-print {
+  padding-inline: 12px;
   font-size: var(--font-size-helper);
   margin-top: 10px;
+}
+@container route-statistics (max-width: 280px) {
+  .statistics .stat-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .planner-footer {
   display: flex;
@@ -1192,7 +1237,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: baseline;
     gap: 12px;
-    padding: 8px 0;
+    padding: 8px 12px;
     border-top: 1px solid var(--border);
   }
   .stat-card:nth-child(n + 3) dt {
@@ -1206,6 +1251,22 @@
     font-variant-numeric: tabular-nums;
     text-align: right;
     white-space: nowrap;
+  }
+  .stat-card.stat-card-personal {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 12px;
+  }
+  .stat-card.stat-card-personal dt {
+    overflow-wrap: normal;
+  }
+  .stat-card.stat-card-personal dd {
+    font-size: 18px;
+    text-align: left;
+    white-space: normal;
+  }
+  .stat-card.stat-card-total {
+    border: 0;
   }
   .map-issue {
     display: block;

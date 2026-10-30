@@ -1,14 +1,16 @@
-import { useId, useState, useEffect, useRef } from 'react';
+import { useId, useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Clock3 } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { useDecimalField } from '../hooks/useDecimalField';
 import {
-  estimateRouteSchedule, validDepartureLocal, validPauseMinutes,
+  estimateRouteSchedule, prepareRouteSchedule, validDepartureLocal, validPauseMinutes,
   type ScheduleUnavailable,
 } from '../domain/schedule';
-import type { PlannedRoute, Waypoint } from '../domain/types';
+import type { Coordinate, PlannedRoute, Waypoint } from '../domain/types';
+
+const emptySegments: Coordinate[][] = [];
 import './RouteSchedule.css';
 import './disclosures.css';
 
@@ -85,11 +87,19 @@ function PauseField({ waypoint, onCommit }: {
 export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds,
   geometryCurrent = true, contextKey, showHeading = true, onDepartureLocal, onWaypointPause }: RouteScheduleProps) {
   const { t, i18n } = useTranslation();
-  const schedule = estimateRouteSchedule({ segments: geometryCurrent ? route?.segments ?? [] : [],
-    waypoints, departureLocal }, movingSeconds ?? NaN);
-  const formatter = new Intl.DateTimeFormat(i18n.resolvedLanguage || 'en', {
+  const segments = geometryCurrent ? route?.segments ?? emptySegments : emptySegments;
+  const coordinatesKey = JSON.stringify(waypoints.map((point) => point.coordinate));
+  const coordinates = useMemo<Coordinate[]>(() => JSON.parse(coordinatesKey), [coordinatesKey]);
+  const timingAvailable = validDepartureLocal(departureLocal) && movingSeconds !== null &&
+    Number.isFinite(movingSeconds) && movingSeconds >= 0;
+  const prepared = useMemo(() => timingAvailable ? prepareRouteSchedule(segments, coordinates) : null,
+    [segments, coordinates, timingAvailable]);
+  const schedule = useMemo(() => estimateRouteSchedule({ segments, waypoints, departureLocal },
+    movingSeconds ?? NaN, prepared), [segments, waypoints, departureLocal, movingSeconds, prepared]);
+  const language = i18n.resolvedLanguage || 'en';
+  const formatter = useMemo(() => new Intl.DateTimeFormat(language, {
     dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC',
-  });
+  }), [language]);
   function time(value: string | null) {
     return value ? <time dateTime={value}>{formatter.format(new Date(`${value}:00Z`))}</time>
       : <span>{t('Unavailable')}</span>;

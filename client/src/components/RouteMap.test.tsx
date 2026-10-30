@@ -1066,6 +1066,263 @@ const annotationSegments: [number, number][][] = [
   ],
 ];
 
+const layerOptions = {
+  ...props,
+  segments: annotationSegments,
+  waypoints: annotationWaypoints,
+  directSegments: annotationSegments,
+  alternativeSegments: [
+    annotationSegments,
+    [
+      [
+        [10, 0],
+        [10.02, 0],
+      ],
+    ] as [number, number][][],
+  ],
+  highlightSegments: annotationSegments,
+  comparisonLayers: [{ segments: annotationSegments, color: '#2563eb', dashed: true }],
+  elevationCoordinate: [0.01, 0] as [number, number],
+};
+
+function expectUpdatedSources(...ids: string[]) {
+  const sources = new Map([
+    ['route', mocks.data],
+    ['location-accuracy', mocks.accuracyData],
+    ...mocks.extraData,
+  ]);
+  expect(
+    [...sources]
+      .filter(([, setData]) => setData.mock.calls.length)
+      .map(([id]) => id)
+      .sort(),
+  ).toEqual([...ids].sort());
+}
+
+it('updates only the elevation source when elevation hover moves or clears', () => {
+  const { rerender } = render(<RouteMap {...layerOptions} />);
+  act(() => mocks.handlers.get('load')?.());
+  for (const coordinate of [[0.015, 0] as [number, number], null]) {
+    vi.clearAllMocks();
+    rerender(<RouteMap {...layerOptions} elevationCoordinate={coordinate} />);
+    expectUpdatedSources('route-elevation');
+    expect(mocks.extraData.get('route-elevation')).toHaveBeenCalledExactlyOnceWith({
+      type: 'FeatureCollection',
+      features: coordinate
+        ? [
+            {
+              type: 'Feature',
+              properties: {},
+              geometry: { type: 'Point', coordinates: coordinate },
+            },
+          ]
+        : [],
+    });
+    expect(mocks.paint).not.toHaveBeenCalled();
+    expect(mocks.fit).not.toHaveBeenCalled();
+    expect(mocks.fly).not.toHaveBeenCalled();
+  }
+});
+
+it('updates only distance annotations on zoom and no sources on rotation or map pan', () => {
+  render(<RouteMap {...layerOptions} />);
+  act(() => mocks.handlers.get('load')?.());
+  vi.clearAllMocks();
+  mocks.zoom = 14;
+  act(() => mocks.handlers.get('zoomend')?.());
+  expectUpdatedSources('route-annotations');
+  expect(mocks.extraData.get('route-annotations')).toHaveBeenCalledOnce();
+  expect(mocks.paint).not.toHaveBeenCalled();
+  vi.clearAllMocks();
+  mocks.bearing = 90;
+  act(() => {
+    mocks.handlers.get('rotate')?.();
+    mocks.handlers.get('dragstart')?.();
+    mocks.handlers.get('dragend')?.();
+    mocks.handlers.get('moveend')?.();
+  });
+  expectUpdatedSources();
+  expect(mocks.paint).not.toHaveBeenCalled();
+});
+
+it('isolates line hover and drag previews from persistent route layers', () => {
+  render(<RouteMap {...layerOptions} onInsert={vi.fn()} />);
+  act(() => mocks.handlers.get('load')?.());
+  mocks.query.mockReturnValue([{}]);
+  vi.clearAllMocks();
+  act(() =>
+    mocks.handlers.get('mousemove')?.({
+      lngLat: { lng: 0.01, lat: 0 },
+      point: { x: 10, y: 0 },
+    }),
+  );
+  expectUpdatedSources('route-insertion');
+  expect(mocks.paint).toHaveBeenCalledExactlyOnceWith('route-hover', 'line-opacity', 0.25);
+  vi.clearAllMocks();
+  fireEvent.mouseLeave(mocks.canvas!);
+  expectUpdatedSources('route-insertion');
+  expect(mocks.paint).toHaveBeenCalledExactlyOnceWith('route-hover', 'line-opacity', 0);
+
+  mocks.canvas!.getBoundingClientRect = () => ({
+    left: 0,
+    top: 0,
+    right: 100,
+    bottom: 100,
+    width: 100,
+    height: 100,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+  const pointer = (type: string, x: number, y: number) => {
+    const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y });
+    Object.defineProperty(event, 'pointerId', { value: 1 });
+    act(() => (type === 'pointerdown' ? mocks.canvas! : window).dispatchEvent(event));
+  };
+  pointer('pointerdown', 10, 0);
+  for (const y of [20, 30]) {
+    vi.clearAllMocks();
+    pointer('pointermove', 10, y);
+    expectUpdatedSources('route-insertion', 'route-drag-preview');
+    expect(mocks.paint).not.toHaveBeenCalled();
+    expect(mocks.extraData.get('route-drag-preview')).toHaveBeenCalledExactlyOnceWith({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [0, 0],
+              [0.01, y / 1000],
+              [0.02, 0],
+            ],
+          },
+        },
+      ],
+    });
+  }
+  vi.clearAllMocks();
+  fireEvent.keyDown(window, { key: 'Escape' });
+  expectUpdatedSources('route-insertion', 'route-drag-preview');
+  expect(mocks.extraData.get('route-drag-preview')).toHaveBeenLastCalledWith({
+    type: 'FeatureCollection',
+    features: [],
+  });
+});
+
+it('updates stale highlights and opacity independently of comparison and alternative geometry', () => {
+  const { rerender } = render(<RouteMap {...layerOptions} />);
+  act(() => mocks.handlers.get('load')?.());
+  vi.clearAllMocks();
+  rerender(<RouteMap {...layerOptions} routeStale />);
+  expectUpdatedSources('route-highlight');
+  expect(mocks.extraData.get('route-highlight')).toHaveBeenCalledExactlyOnceWith({
+    type: 'FeatureCollection',
+    features: [],
+  });
+  for (const [layer, property, opacity] of [
+    ['route-line', 'line-opacity', 0.4],
+    ['route-casing', 'line-opacity', 0.4 * 0.95],
+    ['route-direct-line', 'line-opacity', 0.4],
+    ['route-directions', 'text-opacity', 0.4],
+    ['route-kilometers', 'text-opacity', 0.4],
+  ])
+    expect(mocks.paint).toHaveBeenCalledWith(layer, property, opacity);
+  expect(mocks.paint).toHaveBeenCalledTimes(5);
+  vi.clearAllMocks();
+  rerender(<RouteMap {...layerOptions} routeStale comparisonMode />);
+  expectUpdatedSources();
+  expect(mocks.paint).toHaveBeenCalledTimes(5);
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-opacity', 0);
+  vi.clearAllMocks();
+  rerender(<RouteMap {...layerOptions} routeStale comparisonMode selectedAlternativeIndex={1} />);
+  expectUpdatedSources('route-alternatives');
+  expect(mocks.extraData.get('route-alternatives')).toHaveBeenCalledExactlyOnceWith({
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates: annotationSegments[0] },
+      },
+    ],
+  });
+  expect(mocks.paint).not.toHaveBeenCalled();
+});
+
+it('waits for style readiness and restores all sources using the latest layer inputs', () => {
+  const { rerender } = render(<RouteMap {...layerOptions} />);
+  expectUpdatedSources();
+  act(() => mocks.handlers.get('load')?.());
+  const oldSources = [...mocks.extraData.values(), mocks.data, mocks.accuracyData];
+  mocks.setStyle.mockImplementationOnce(() => {
+    mocks.sourceInstalled = false;
+    mocks.accuracyInstalled = false;
+    mocks.extraData.clear();
+  });
+  fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
+  vi.clearAllMocks();
+  const elevationCoordinate: [number, number] = [0.015, 0];
+  rerender(<RouteMap {...layerOptions} elevationCoordinate={elevationCoordinate} routeStale />);
+  for (const source of oldSources) expect(source).not.toHaveBeenCalled();
+  expect(mocks.paint).not.toHaveBeenCalled();
+  act(() => mocks.handlers.get('style.load')?.());
+  expectUpdatedSources(
+    'route',
+    'route-direct',
+    'route-alternatives',
+    'route-annotations',
+    'route-insertion',
+    'route-drag-preview',
+    'route-elevation',
+    'route-highlight',
+    'route-comparison',
+  );
+  for (const source of oldSources.slice(0, -2)) expect(source).not.toHaveBeenCalled();
+  expect(mocks.extraData.get('route-elevation')).toHaveBeenCalledExactlyOnceWith({
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'Point', coordinates: elevationCoordinate },
+      },
+    ],
+  });
+  expect(mocks.extraData.get('route-highlight')).toHaveBeenCalledExactlyOnceWith({
+    type: 'FeatureCollection',
+    features: [],
+  });
+  expect(mocks.extraData.get('route-comparison')).toHaveBeenCalledExactlyOnceWith({
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: { color: '#2563eb', direct: true },
+        geometry: { type: 'LineString', coordinates: annotationSegments[0] },
+      },
+    ],
+  });
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-opacity', 0.4);
+  expect(mocks.options).not.toHaveBeenCalled();
+  expect(mocks.fit).not.toHaveBeenCalled();
+});
+
+it('isolates waypoint drag previews from persistent route layers', () => {
+  render(<RouteMap {...layerOptions} />);
+  act(() => mocks.handlers.get('load')?.());
+  const handlers = mocks.markerHandlers[0];
+  for (const event of ['dragstart', 'drag', 'dragend']) {
+    vi.clearAllMocks();
+    act(() => handlers.get(event)?.());
+    expectUpdatedSources('route-insertion', 'route-drag-preview');
+    expect(mocks.paint).not.toHaveBeenCalled();
+  }
+  expect(props.onMove).toHaveBeenCalledWith('a', [13, 49]);
+});
+
 it('selects accessible waypoint buttons, exposes actions and focuses only on explicit request', () => {
   const onSelectWaypoint = vi.fn(),
     onRemoveWaypoint = vi.fn(),

@@ -66,7 +66,7 @@ export function editorReducer(state: EditorHistory, action: Action): EditorHisto
         : { ...state.present, result: { ...state.present.result!,
           waypoints: state.present.result!.waypoints.map(update) } };
     }
-    return { present, past: [...state.past, structuredClone(state.present)].slice(-50), future: [],
+    return { present, past: [...state.past, state.present].slice(-50), future: [],
       pastTiming: [...timingFlags(state.past, state.pastTiming), true].slice(-50), futureTiming: [] };
   }
   if (action.type === 'patch') {
@@ -77,7 +77,7 @@ export function editorReducer(state: EditorHistory, action: Action): EditorHisto
   if (action.type === 'checkpoint')
     return {
       ...state,
-      past: [...state.past, structuredClone(state.present)].slice(-50),
+      past: [...state.past, state.present].slice(-50),
       future: [],
       pastTiming: [...timingFlags(state.past, state.pastTiming), false].slice(-50),
       futureTiming: [],
@@ -89,7 +89,7 @@ export function editorReducer(state: EditorHistory, action: Action): EditorHisto
       present: state.pastTiming?.at(-1)
         ? restoreTiming(state.present, state.past.at(-1)!) : state.past.at(-1)!,
       past: state.past.slice(0, -1),
-      future: [structuredClone(state.present), ...state.future].slice(0, 50),
+      future: [state.present, ...state.future].slice(0, 50),
       pastTiming: timingFlags(state.past, state.pastTiming).slice(0, -1),
       futureTiming: [state.pastTiming?.at(-1) ?? false,
         ...timingFlags(state.future, state.futureTiming)].slice(0, 50),
@@ -98,7 +98,7 @@ export function editorReducer(state: EditorHistory, action: Action): EditorHisto
     return {
       present: state.futureTiming?.[0]
         ? restoreTiming(state.present, state.future[0]) : state.future[0],
-      past: [...state.past, structuredClone(state.present)].slice(-50),
+      past: [...state.past, state.present].slice(-50),
       future: state.future.slice(1),
       pastTiming: [...timingFlags(state.past, state.pastTiming),
         state.futureTiming?.[0] ?? false].slice(-50),
@@ -153,14 +153,17 @@ export function useRouteEditor(initial: EditorSnapshot = initialEditor()) {
       setIdentity: setter('identity'),
     };
   }, []);
+  const { result, planningMode, waypoints } = history.present;
+  const scheduleWaypoints = useMemo(() => result && planningMode === 'loop'
+    ? withEditorSchedule(result, { waypoints }).waypoints : waypoints,
+    [result, planningMode, waypoints]);
   return {
     ...history.present,
     ...setters,
     routingOptions,
     routeStale: history.present.routeStale ?? false,
     snapshot: history.present,
-    scheduleWaypoints: history.present.result && history.present.planningMode === 'loop'
-      ? withEditorSchedule(history.present.result, history.present).waypoints : history.present.waypoints,
+    scheduleWaypoints,
     routingSnapshot,
     routingAllowed,
     canUndo: history.past.length > 0,

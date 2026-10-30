@@ -59,6 +59,108 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
 
+test('long personal time ranges remain readable in both languages and themes', async ({
+  page,
+}, testInfo) => {
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'long-route.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(
+      '<gpx version="1.1"><trk><trkseg><trkpt lat="47" lon="11"/><trkpt lat="48.1" lon="11"/></trkseg></trk></gpx>',
+    ),
+  });
+  const statistics = page.locator('.statistics:not(.statistics-empty)');
+  await expect(statistics.locator('.stat-card-personal')).toHaveCount(2);
+  const importNotice = page.locator('[data-sonner-toast][data-type="success"]');
+  await expect(importNotice).toBeVisible();
+  await importNotice.locator('[data-close-button]').click();
+  await expect(importNotice).toHaveCount(0);
+  for (const language of ['en', 'ru']) {
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(
+        ({ language, theme }) => {
+          localStorage.setItem('roamlet-language', language);
+          localStorage.setItem('roamlet-theme', theme);
+          window.dispatchEvent(new Event('roamlet-preferences-change'));
+        },
+        { language, theme },
+      );
+      await expect(page.locator('html')).toHaveAttribute('lang', language);
+      const movingLabel =
+        language === 'en' ? 'Personal moving time' : 'Время движения с вашей скоростью';
+      await expect(statistics.getByText(movingLabel, { exact: true })).toBeVisible();
+      await expect(statistics.locator('.stat-card-total')).toBeVisible();
+      for (const width of [null, 320, 280, 230]) {
+        await statistics.evaluate((element, width) => {
+          element.style.width = width === null ? '' : `${width}px`;
+        }, width);
+        const layout = await statistics.evaluate((element) => {
+          const grid = element.querySelector('.stat-grid')!;
+          const gridBounds = grid.getBoundingClientRect();
+          const cards = [...element.querySelectorAll<HTMLElement>('.stat-card-personal')];
+          const bounds = cards.map((card) => card.getBoundingClientRect());
+          const contentLeft = grid.querySelector('dt')!.getBoundingClientRect().left;
+          const alignedContent = [
+            ...cards.flatMap((card) => [...card.querySelectorAll('dt, dd')]),
+            element.querySelector('.fine-print')!,
+          ].every((item) => {
+            const left =
+              item.getBoundingClientRect().left +
+              (item.classList.contains('fine-print')
+                ? parseFloat(getComputedStyle(item).paddingLeft)
+                : 0);
+            return Math.abs(left - contentLeft) < 1;
+          });
+          const primaryCards = [...grid.querySelectorAll('.stat-card')].slice(0, 2);
+          const primaryBounds = primaryCards.map((card) => card.getBoundingClientRect());
+          const primaryValues = primaryCards.map((card) =>
+            card.querySelector('dd')!.getBoundingClientRect(),
+          );
+          const primaryAligned =
+            primaryBounds[1].top >= primaryBounds[0].bottom ||
+            Math.abs(primaryValues[0].bottom - primaryValues[1].bottom) < 1;
+          return {
+            alignedContent,
+            primaryAligned,
+            stackedLabels: cards.every(
+              (card) =>
+                card.querySelector('dd')!.getBoundingClientRect().top >=
+                card.querySelector('dt')!.getBoundingClientRect().bottom,
+            ),
+            fullWidth: bounds.every((card) => Math.abs(card.width - gridBounds.width) < 1),
+            separateRows: bounds[1].top >= bounds[0].bottom,
+            overflowing: cards.some((card) => card.scrollWidth > card.clientWidth),
+            intactDurations: [...element.querySelectorAll('.stat-time-bound')].every(
+              (bound) => getComputedStyle(bound).whiteSpace === 'nowrap',
+            ),
+            highlighted:
+              getComputedStyle(cards[1]).backgroundColor !==
+              getComputedStyle(cards[0]).backgroundColor,
+          };
+        });
+        expect(layout).toEqual({
+          alignedContent: true,
+          primaryAligned: true,
+          stackedLabels: true,
+          fullWidth: true,
+          separateRows: true,
+          overflowing: false,
+          intactDurations: true,
+          highlighted: true,
+        });
+        if (width === null || width === 230) {
+          await statistics.screenshot({
+            path: testInfo.outputPath(`statistics-${language}-${theme}-${width ?? 'default'}.png`),
+          });
+        }
+      }
+      await statistics.evaluate((element) => {
+        element.style.width = '';
+      });
+    }
+  }
+});
+
 test('personal adjustments change the range without routing or replacing provider statistics', async ({
   page,
 }) => {

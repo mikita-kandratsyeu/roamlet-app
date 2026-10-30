@@ -4,6 +4,7 @@ import type { Coordinate, PlannedRoute } from '../domain/types';
 import { calculateStats } from '../domain/stats';
 import { Statistics } from './Statistics';
 import i18n from '../i18n';
+import * as timeDomain from '../domain/time';
 
 vi.mock('./ui/chart', () => ({
   ChartContainer: () => <div data-testid="elevation-chart" />,
@@ -31,6 +32,18 @@ function route(segments: Coordinate[][]): PlannedRoute {
     source: 'gpx',
   };
 }
+
+it('does not recalculate personal time when only the elevation selection changes', () => {
+  const snapshot = route([[[11, 47, 100], [11.01, 47.01, 150]]]);
+  const calculate = vi.spyOn(timeDomain, 'estimatePersonalTime');
+  const { rerender } = render(<Statistics route={snapshot} speedKmh={18} elevationOpen={false} />);
+  calculate.mockClear();
+  rerender(<Statistics route={snapshot} speedKmh={18} elevationOpen={true} />);
+  expect(calculate).not.toHaveBeenCalled();
+  rerender(<Statistics route={snapshot} speedKmh={12} elevationOpen={true} />);
+  expect(calculate).toHaveBeenCalledOnce();
+  calculate.mockRestore();
+});
 
 it.each(['openrouteservice', 'mapbox'] as const)(
   'hides elevation metrics for %s snapshots even when old data contains heights',
@@ -99,8 +112,12 @@ it('shows personal movement and total while retaining the original duration esti
   render(<Statistics route={snapshot} speedKmh={18} stopsMinutes={15} />);
   expect(screen.getByText('Original time estimate')).toBeInTheDocument();
   expect(screen.getByText('30 min')).toBeInTheDocument();
-  expect(screen.getByText('42 min–1 h 30 min')).toBeInTheDocument();
-  expect(screen.getByText('57 min–1 h 45 min')).toBeInTheDocument();
+  const moving = screen.getByText('Personal moving time').closest('div')!;
+  const total = screen.getByText('Total time with stops').closest('div')!;
+  expect(moving).toHaveTextContent('42 min – 1 h 30 min');
+  expect(total).toHaveTextContent('57 min – 1 h 45 min');
+  expect(moving.querySelectorAll('.stat-time-bound')).toHaveLength(2);
+  expect(total.querySelectorAll('.stat-time-bound')).toHaveLength(2);
   expect(
     screen.getByText(
       'The range is a rough planning estimate, not a statistical confidence interval or a guarantee.',
@@ -191,7 +208,8 @@ it.each(['openrouteservice', 'mapbox'] as const)(
     );
     expect(screen.getByText('Provider estimate')).toBeInTheDocument();
     expect(screen.getByText('30 min')).toBeInTheDocument();
-    expect(screen.getByText('48 min–1 h 24 min')).toBeInTheDocument();
+    const moving = screen.getByText('Personal moving time').closest('div')!;
+    expect(moving).toHaveTextContent('48 min – 1 h 24 min');
     rerender(
       <Statistics
         route={snapshot}
@@ -202,7 +220,7 @@ it.each(['openrouteservice', 'mapbox'] as const)(
       />,
     );
     expect(screen.getByText('30 min')).toBeInTheDocument();
-    expect(screen.queryByText('48 min–1 h 24 min')).not.toBeInTheDocument();
+    expect(moving).not.toHaveTextContent('48 min – 1 h 24 min');
     expect(snapshot).toEqual(original);
   },
 );

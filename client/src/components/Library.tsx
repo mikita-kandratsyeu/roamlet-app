@@ -28,7 +28,6 @@ import {
   ChevronDown,
   ArrowUpRight,
   Save,
-  Info,
   Upload,
   Download,
   Star,

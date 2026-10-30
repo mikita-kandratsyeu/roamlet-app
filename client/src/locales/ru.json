@@ -167,6 +167,8 @@
   "Save route": "Сохранить маршрут",
   "Export GPX": "Экспорт GPX",
   "Import GPX": "Импорт GPX",
+  "Importing GPX…": "Импорт GPX…",
+  "Cancel GPX import": "Отменить импорт GPX",
   "or drop a file anywhere": "или перетащите файл GPX сюда",
   "Import GPX file": "Импорт файла GPX",
   "Save your adventure": "Сохранить маршрут",

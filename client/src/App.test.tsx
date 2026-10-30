@@ -7,6 +7,7 @@ import { routeDb } from './domain/storage';
 import * as storage from './domain/storage';
 import { exportGpx, importGpx } from './domain/gpx';
 import { checkRoutingConfiguration } from './services/routing';
+import { importGpxFile } from './services/gpxImport';
 import i18n, { detectLanguage, LANGUAGE_KEY } from './i18n';
 const provider = vi.hoisted(() => ({
   calculateRoute: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock('./services/routing', () => ({
   checkRoutingConfiguration: vi.fn().mockResolvedValue(true),
   routingProvider: provider,
 }));
+vi.mock('./services/gpxImport', () => ({ importGpxFile: vi.fn() }));
 vi.mock('./components/ExportRouteMap', () => ({
   ExportRouteMap: () => <figure aria-label="Route map preview" />,
 }));
@@ -122,6 +124,7 @@ beforeEach(async () => {
   });
   vi.clearAllMocks();
   vi.mocked(checkRoutingConfiguration).mockResolvedValue(true);
+  vi.mocked(importGpxFile).mockReset().mockImplementation(async (file) => importGpx(await file.text()));
   HTMLDialogElement.prototype.showModal = function () {
     this.setAttribute('open', '');
   };
@@ -268,6 +271,36 @@ describe('route preparation features', () => {
 });
 
 describe('GPX file selection', () => {
+  it('shows cancellable processing and leaves the route untouched after a late worker response', async () => {
+    let complete!: (route: ReturnType<typeof importGpx>) => void;
+    vi.mocked(importGpxFile).mockImplementationOnce(() => new Promise((resolve) => { complete = resolve; }));
+    render(<App />);
+    const original = screen.getByTestId('map').getAttribute('data-geometry');
+    fireEvent.change(screen.getByLabelText('Import GPX file'), { target: { files: [new File(['<gpx/>'], 'large.gpx')] } });
+    expect(await screen.findByText('Importing GPX…')).toHaveAttribute('role', 'status');
+    const signal = vi.mocked(importGpxFile).mock.calls[0][1]!;
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel GPX import' }));
+    expect(signal.aborted).toBe(true);
+    await act(async () => {
+      complete(importGpx('<gpx><trk><trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.01" lon="11.01"/></trkseg></trk></gpx>'));
+    });
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', original!);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Import GPX/ })).toHaveAttribute('aria-busy', 'false');
+  });
+  it('imports dropped GPX through the worker boundary and still confirms replacing unsaved work', async () => {
+    render(<App />);
+    await plan();
+    const original = screen.getByTestId('map').getAttribute('data-geometry');
+    const xml = '<gpx><trk><trkseg><trkpt lat="48" lon="12"><ele>100</ele></trkpt><trkpt lat="48.01" lon="12.01"><ele>120</ele></trkpt></trkseg></trk></gpx>';
+    const file = Object.assign(new File([xml], 'dropped.gpx'), { text: async () => xml });
+    fireEvent.drop(document.querySelector('.app')!, { dataTransfer: { files: [file], types: ['Files'] } });
+    expect(await screen.findByRole('button', { name: 'Discard changes' })).toBeVisible();
+    expect(importGpxFile).toHaveBeenCalledWith(file, expect.any(AbortSignal));
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', original!);
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify(importGpx(xml).segments));
+  });
   it.each([
     ['Новый маршрут.gpx', 'application/gpx+xml'],
     ['Новый маршрут.gpx', ''],

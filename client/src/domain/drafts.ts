@@ -1,5 +1,5 @@
 import { routeDb } from './storage';
-import { migrateSnapshot, validateSnapshot, type EditorSnapshot } from './editorSnapshot';
+import { migrateSnapshot, type EditorSnapshot } from './editorSnapshot';
 export interface DraftRecord {
   id: 'current';
   version: 1;
@@ -40,7 +40,6 @@ export function draftWriter(onError: () => void, delay = 500) {
       if (captured)
         enqueue(async () => {
           if (captured.generation !== generation) return;
-          validateSnapshot(captured.snapshot);
           await routeDb.table('drafts').put({
             id: 'current',
             version: 1,
@@ -54,8 +53,9 @@ export function draftWriter(onError: () => void, delay = 500) {
     }
   }
   return {
-    schedule(snapshot: EditorSnapshot) {
-      pending = { generation, snapshot: structuredClone(snapshot) };
+    // Reducer snapshots are immutable; IndexedDB captures them when the write runs.
+    schedule(snapshot: EditorSnapshot, snapshotIsImmutable = false) {
+      pending = { generation, snapshot: snapshotIsImmutable ? snapshot : structuredClone(snapshot) };
       clearTimeout(timer);
       timer = setTimeout(() => void flush(), delay);
     },

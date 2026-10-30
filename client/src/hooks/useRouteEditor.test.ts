@@ -5,6 +5,24 @@ import { initialEditor, withEditorSchedule } from '../domain/editorSnapshot';
 import { isRouteResultCurrent, routingInputKey } from '../domain/editorRouting';
 import type { PlannedRoute, Waypoint } from '../domain/types';
 describe('editor history', () => {
+  it('shares unchanged geometry across checkpoints and geometry undo/redo', () => {
+    const initial = initialEditor();
+    initial.mode = 'snapshot';
+    initial.result = {
+      ...initial.identity, name: 'Imported', description: '', activity: 'hiking', source: 'gpx',
+      waypoints: [], segments: [[[0, 0, 100], [0.01, 0, 110]]],
+      stats: { distance: 1112, duration: 800 }, updatedAt: initial.identity.createdAt,
+    };
+    let state: EditorHistory = { present: initial, past: [], future: [] };
+    state = editorReducer(state, { type: 'checkpoint' });
+    expect(state.past[0].result?.segments).toBe(initial.result.segments);
+    state = editorReducer(state, { type: 'patch', key: 'result', value: null });
+    state = editorReducer(state, { type: 'undo' });
+    expect(state.present.result?.segments).toBe(initial.result.segments);
+    state = editorReducer(state, { type: 'redo' });
+    state = editorReducer(state, { type: 'undo' });
+    expect(state.present.result?.segments).toBe(initial.result.segments);
+  });
   it('bounds history to fifty geometry actions and clears redo after another edit', () => {
     let state: EditorHistory = { present: initialEditor(), past: [], future: [] };
     for (let i = 0; i < 60; i++) {

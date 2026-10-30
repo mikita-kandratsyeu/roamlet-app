@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { addLocalSeconds, estimateRouteSchedule, localDayOffset, validDepartureLocal, validPauseMinutes } from './schedule';
 import type { Coordinate, PlannedRoute, Waypoint } from './types';
 const point = (id: string, coordinate: Coordinate, pauseMinutes?: number): Waypoint =>
@@ -32,6 +32,17 @@ describe('floating local calendar', () => {
 });
 
 describe('geometry-based arrival schedule', () => {
+  it('does not inspect geometry before departure and moving time are usable', () => {
+    const segments = [[[0, 0], [0.01, 0]]] as Coordinate[][];
+    const inspect = vi.spyOn(segments, Symbol.iterator);
+    const input = route(segments, [point('a', [0, 0], 5), point('b', [0.01, 0], 10)]);
+    expect(estimateRouteSchedule({ ...input, departureLocal: undefined }, 3600)).toMatchObject({
+      unavailable: 'departure', finishLocal: null, pauseMinutes: 15,
+    });
+    expect(estimateRouteSchedule(input, NaN).unavailable).toBe('moving-time');
+    expect(inspect).not.toHaveBeenCalled();
+    inspect.mockRestore();
+  });
   it('uses actual along-route distance, not waypoint count or straight-line fractions, and pauses after arrival', () => {
     const input = route([[[0, 0], [0.03, 0], [0.03, 0.01], [0, 0.01]]],
       [point('start', [0, 0], 10), point('bend', [0.03, 0], 15), point('finish', [0, 0.01], 5)]);

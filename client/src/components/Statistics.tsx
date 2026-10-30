@@ -23,7 +23,13 @@ const ElevationChart = optionalLazy<ComponentProps<typeof import('./ElevationCha
 
 function formatTimeRange(range: TimeRange) {
   const rounded = outwardMinutes(range)!;
-  return `${formatDuration(rounded.lower * 60)}–${formatDuration(rounded.upper * 60)}`;
+  return (
+    <>
+      <span className="stat-time-bound">{formatDuration(rounded.lower * 60)}</span>
+      {' – '}
+      <span className="stat-time-bound">{formatDuration(rounded.upper * 60)}</span>
+    </>
+  );
 }
 const warningLabels: Record<TimeWarning, string> = {
   'unknown-surface': 'Surface is unknown: no surface penalty applied; the range is wider.',
@@ -85,12 +91,10 @@ export function Statistics({
   );
   const showElevation =
     samples.length > 1 && route?.stats.ascent !== undefined && route.stats.descent !== undefined;
-  const minimum = samples.length
-    ? samples.reduce((min, s) => Math.min(min, s.elevation), Infinity)
-    : 0;
-  const maximum = samples.length
-    ? samples.reduce((max, s) => Math.max(max, s.elevation), -Infinity)
-    : 0;
+  const { minimum, maximum } = useMemo(() => ({
+    minimum: samples.length ? samples.reduce((min, s) => Math.min(min, s.elevation), Infinity) : 0,
+    maximum: samples.length ? samples.reduce((max, s) => Math.max(max, s.elevation), -Infinity) : 0,
+  }), [samples]);
   const total = samples.at(-1)?.distance || 1;
   const chartSamples = useMemo(
     () => (samples.length && route ? elevationChartSamples(route.segments) : []),
@@ -126,7 +130,10 @@ export function Statistics({
     finishSegment();
     return paths;
   }, [chartSamples, minimum, maximum, total]);
-  const linkedSamples = chartSamples.filter((sample) => sample.coordinate);
+  const linkedSamples = useMemo(() => chartSamples.filter((sample) => sample.coordinate), [chartSamples]);
+  const personal = useMemo(() => route && speedKmh !== undefined
+    ? estimatePersonalTime(route, { speedKmh, stopsMinutes, fitness, surface }) : null,
+    [route, speedKmh, stopsMinutes, fitness, surface]);
   const elevationProfile = showElevation ? (
     <details className="elevation-box planner-disclosure" open={profileOpen}>
       <summary
@@ -220,10 +227,6 @@ export function Statistics({
         <p>{emptyHint || t('Add two stops to see distance and time.')}</p>
       </section>
     );
-  const personal =
-    speedKmh === undefined
-      ? null
-      : estimatePersonalTime(route, { speedKmh, stopsMinutes, fitness, surface });
   const provider = route.source === 'openrouteservice' || route.source === 'mapbox';
   return (
     <section className="statistics" aria-label={t('Route statistics')}>
@@ -248,11 +251,11 @@ export function Statistics({
         </div>
         {personal && (
           <>
-            <div className="stat-card">
+            <div className="stat-card stat-card-personal">
               <dt>{t('Personal moving time')}</dt>
               <dd>{formatTimeRange(personal.movingRange)}</dd>
             </div>
-            <div className="stat-card">
+            <div className="stat-card stat-card-personal stat-card-total">
               <dt>{t('Total time with stops')}</dt>
               <dd>{formatTimeRange(personal.totalRange)}</dd>
             </div>

@@ -40,6 +40,7 @@ function worker() {
               main: { file: 'assets/main.js' },
               lazy: { file: 'assets/Library.js' },
               statistics: { file: 'assets/Statistics.js' },
+              worker: { file: 'assets/gpxImport.worker-test.js' },
             }),
           ),
     ),
@@ -58,6 +59,7 @@ it('precaches not-yet-opened lazy panels from the same-origin manifest', async (
   await installed;
   expect(cache.addAll.mock.calls.flat(2)).toContain('/assets/Library.js');
   expect(cache.addAll.mock.calls.flat(2)).toContain('/assets/Statistics.js');
+  expect(cache.addAll.mock.calls.flat(2)).toContain('/assets/gpxImport.worker-test.js');
 });
 it('does not activate without an explicit message or mix a newer navigation shell', async () => {
   const { handlers, self, fetch, shell } = worker();

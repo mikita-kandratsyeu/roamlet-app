@@ -131,30 +131,53 @@ export interface RouteScheduleResult {
  * supersede it, while existing aggregate statistics/preferences remain unchanged.
  * A gap makes all later arrivals unavailable: distance alone cannot estimate gap travel time.
  */
-export function estimateRouteSchedule(
-  route: Pick<PlannedRoute, 'segments' | 'waypoints' | 'departureLocal'>,
-  movingSeconds: number,
-): RouteScheduleResult {
-  const shape = geometry(route.segments);
+export interface ScheduleGeometry {
+  total: number;
+  endChain: number;
+  matches: (Match | null)[];
+}
+
+/** Prepare only geometry and ordered pin positions; dates, pauses and speed do not affect them. */
+export function prepareRouteSchedule(segments: Coordinate[][], coordinates: Coordinate[]): ScheduleGeometry | null {
+  const shape = geometry(segments);
+  if (!shape) return null;
   let minimum = 0;
-  const matches = route.waypoints.map((waypoint, index) => {
-    let position = shape ? match(waypoint.coordinate, shape.edges, minimum) : null;
+  const last = shape.edges.at(-1)!;
+  const matches = coordinates.map((coordinate, index) => {
+    let position = match(coordinate, shape.edges, minimum);
     // A final pin at a closed route's finish means the end, not its identical start.
-    const last = shape?.edges.at(-1);
-    if (last && index === route.waypoints.length - 1 && index > 0 &&
-        validCoordinate(waypoint.coordinate)) {
-      const distance = angle(vector(waypoint.coordinate), last.b) * RADIUS;
+    if (index === coordinates.length - 1 && index > 0 && validCoordinate(coordinate)) {
+      const distance = angle(vector(coordinate), last.b) * RADIUS;
       if (distance <= WAYPOINT_MATCH_METRES && (!position || distance <= position.distance + 0.001))
-        position = { along: shape!.total, chain: last.chain, distance };
+        position = { along: shape.total, chain: last.chain, distance };
     }
     if (position) minimum = position.along;
     return position;
   });
+  return { total: shape.total, endChain: last.chain, matches };
+}
+
+export function estimateRouteSchedule(
+  route: Pick<PlannedRoute, 'segments' | 'waypoints' | 'departureLocal'>,
+  movingSeconds: number,
+  prepared?: ScheduleGeometry | null,
+): RouteScheduleResult {
+  const missingTiming = !validDepartureLocal(route.departureLocal)
+    ? 'departure' : !Number.isFinite(movingSeconds) || movingSeconds < 0 ? 'moving-time' : null;
+  if (missingTiming) return {
+    rows: route.waypoints.map((waypoint) => ({ waypoint, distanceMetres: null,
+      arrivalLocal: null, departureLocal: null, dayOffset: null, unavailable: missingTiming })),
+    finishLocal: null,
+    pauseMinutes: route.waypoints.reduce((sum, point) =>
+      sum + (validPauseMinutes(point.pauseMinutes ?? 0) ? point.pauseMinutes ?? 0 : 0), 0),
+    unavailable: missingTiming,
+  };
+  const shape = prepared === undefined
+    ? prepareRouteSchedule(route.segments, route.waypoints.map((point) => point.coordinate)) : prepared;
+  const matches = shape?.matches ?? route.waypoints.map(() => null);
   const ordered = matches.filter((position): position is Match => position !== null);
-  let unavailable: ScheduleUnavailable | null = !validDepartureLocal(route.departureLocal)
-    ? 'departure' : !Number.isFinite(movingSeconds) || movingSeconds < 0 ? 'moving-time'
-      : !shape ? 'geometry'
-        : ordered.length < 2 || ordered.at(-1)!.along - ordered[0].along <= 0.001 ? 'waypoints' : null;
+  let unavailable: ScheduleUnavailable | null = !shape ? 'geometry'
+    : ordered.length < 2 || ordered.at(-1)!.along - ordered[0].along <= 0.001 ? 'waypoints' : null;
   let pauses = 0;
   let blocked: ScheduleUnavailable | null = unavailable;
   const rows = route.waypoints.map((waypoint, index): WaypointSchedule => {
@@ -178,7 +201,7 @@ export function estimateRouteSchedule(
   });
   unavailable ??= blocked;
   // Even when pins precede a gap, a full-route finish cannot be estimated across it.
-  if (!unavailable && shape!.edges.at(-1)!.chain !== 0) unavailable = 'disconnected';
+  if (!unavailable && shape!.endChain !== 0) unavailable = 'disconnected';
   const finishLocal = !unavailable ? addLocalSeconds(route.departureLocal!, movingSeconds + pauses * 60) : null;
   if (!unavailable && !finishLocal) unavailable = 'date-overflow';
   return { rows, finishLocal, pauseMinutes: pauses, unavailable };

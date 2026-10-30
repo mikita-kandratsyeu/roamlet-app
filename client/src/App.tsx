@@ -59,7 +59,8 @@ import {
   WifiOff,
 } from 'lucide-react';
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
-import { importGpx, exportGpx } from './domain/gpx';
+import { exportGpx } from './domain/gpx';
+import { useGpxImport } from './hooks/useGpxImport';
 import { ExportDialog } from './components/ExportDialog';
 import { RouteDescription } from './components/RouteDescription';
 import { calculateStats } from './domain/stats';
@@ -117,6 +118,7 @@ export default function App() {
     routingOptions: preferences.routingOptions,
   }));
   const editor = useRouteEditor(editorInitial);
+  const { importFile, importing, cancelImport } = useGpxImport(editor.snapshot);
   const {
     activity,
     setActivity,
@@ -315,7 +317,7 @@ export default function App() {
     };
   }, []);
   useEffect(() => {
-    if (draftChecked && !draft && dirty) writer.schedule(editor.snapshot);
+    if (draftChecked && !draft && dirty) writer.schedule(editor.snapshot, true);
   }, [draftChecked, draft, dirty, editor.snapshot, writer]);
   useEffect(() => {
     const flush = () => {
@@ -775,14 +777,17 @@ export default function App() {
   }
   async function handleFile(file?: File) {
     if (!file) return;
+    cancelImport();
     if (file.size > 10 * 1024 * 1024) {
       fail('Choose a GPX file smaller than 10 MiB.');
       return;
     }
     try {
-      const route = importGpx(await file.text());
+      const imported = await importFile(file);
+      if (!imported) return;
       guard(() => {
-        openRoute(route);
+        if (imported.signal.aborted) return;
+        openRoute(imported.route);
         editor.setSavedRouteId(null);
         setDirty(true);
         setNotice({
@@ -978,6 +983,10 @@ export default function App() {
     return result && planningMode === 'loop' ? result.waypoints : waypoints;
   }, [result, planningMode, waypoints]);
   const canUseRoute = isRouteResultCurrent(editor.snapshot) && !busy && !routeStale;
+  const speedKmh = speeds[activity];
+  const personalTime = useMemo(() => result ? estimatePersonalTime(result, {
+    speedKmh, stopsMinutes, fitness, surface,
+  }) : null, [result, speedKmh, stopsMinutes, fitness, surface]);
   const plannerStatus = busy
     ? routeStale && result
       ? t('Previous route shown while recalculating. Saving and export are paused.')
@@ -1868,14 +1877,7 @@ export default function App() {
                     route={result}
                     waypoints={editor.scheduleWaypoints}
                     departureLocal={editor.departureLocal}
-                    movingSeconds={
-                      estimatePersonalTime(result, {
-                        speedKmh: speeds[activity],
-                        stopsMinutes,
-                        fitness,
-                        surface,
-                      })?.moving ?? null
-                    }
+                    movingSeconds={personalTime?.moving ?? null}
                     geometryCurrent={canUseRoute}
                     contextKey={editor.identity.id}
                     onDepartureLocal={(value) => {
@@ -1928,12 +1930,18 @@ export default function App() {
               <Button
                 variant="ghost"
                 className="import-action"
+                aria-busy={importing}
                 onClick={() => fileInput.current?.click()}
               >
-                <FileUp size={18} />
-                {t('Import GPX')}
+                {importing ? <LoaderCircle size={18} className="spin" /> : <FileUp size={18} />}
+                {importing ? <span role="status">{t('Importing GPX…')}</span> : t('Import GPX')}
                 <span>{t('or drop a file anywhere')}</span>
               </Button>
+              {importing && (
+                <Button variant="ghost" onClick={cancelImport} aria-label={t('Cancel GPX import')}>
+                  {t('Cancel')}
+                </Button>
+              )}
             </footer>
           </aside>
           <RouteMap
