@@ -166,7 +166,6 @@ export function RouteMap(props: Props) {
   const markerDraggingId = useRef<string | null>(null);
   const cancelMarkerDrag = useRef<(() => void) | null>(null);
   const [routeHovered, setRouteHovered] = useState(false);
-  const [menuWaypointId, setMenuWaypointId] = useState<string | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [compactControls, setCompactControls] = useState(
     () => window.matchMedia?.('(max-width: 700px)').matches ?? false,
@@ -869,7 +868,6 @@ export function RouteMap(props: Props) {
         event.stopPropagation();
         if (Date.now() < suppressClickUntil.current) return;
         latest.current.onSelectWaypoint?.(point.id);
-        setMenuWaypointId(point.id);
       });
       const marker = new maplibregl.Marker({ element, draggable })
         .setLngLat([point.coordinate[0], point.coordinate[1]])
@@ -1063,8 +1061,7 @@ export function RouteMap(props: Props) {
       { timeout: 10000 },
     );
   }
-  const menuWaypoint = props.waypoints.find((point) => point.id === menuWaypointId);
-  const menuEditable = editable && !!menuWaypoint && !props.lockedWaypointIds?.includes(menuWaypoint.id);
+
   if (!online) {
     return (
       <section className="map-region map-offline" aria-label={t('Interactive route map')}>
