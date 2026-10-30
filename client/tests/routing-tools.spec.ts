@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { clickMapTool } from './mapControls';
 
 const points = [
   [30, 52, 100],
@@ -46,6 +47,67 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Моё местоположение', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+});
+
+test('dragging a route line previews locally and creates one undoable waypoint on release', async ({ page, isMobile }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const directions: string[] = [];
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/route') directions.push(request.url());
+  });
+  await clickMapTool(page, 'Ручное рисование');
+  const canvas = page.locator('.maplibregl-canvas');
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.click(box.x + box.width * 0.65, box.y + box.height * 0.15);
+  await page.mouse.click(box.x + box.width * 0.8, box.y + box.height * 0.23);
+  const markers = page.locator('.waypoint-marker');
+  await expect(markers).toHaveCount(2);
+  const a = (await markers.nth(0).boundingBox())!;
+  const b = (await markers.nth(1).boundingBox())!;
+  const start = { x: (a.x + a.width / 2 + b.x + b.width / 2) / 2,
+    y: (a.y + a.height / 2 + b.y + b.height / 2) / 2 };
+  const touch = isMobile ? await page.context().newCDPSession(page) : null;
+  const down = async () => {
+    if (touch) await touch.send('Input.dispatchTouchEvent', { type: 'touchStart',
+      touchPoints: [{ x: start.x, y: start.y, id: 1 }] });
+    else {
+      await page.mouse.move(start.x, start.y);
+      await expect(canvas).toHaveCSS('cursor', 'grab');
+      await page.mouse.down();
+    }
+  };
+  const move = async () => {
+    if (touch) await touch.send('Input.dispatchTouchEvent', { type: 'touchMove',
+      touchPoints: [{ x: start.x, y: start.y + 45, id: 1 }] });
+    else await page.mouse.move(start.x, start.y + 45, { steps: 8 });
+  };
+  const up = async () => {
+    if (touch) await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    else await page.mouse.up();
+  };
+  await down();
+  await move();
+  await expect(canvas).toHaveCSS('cursor', 'grabbing');
+  await expect(markers).toHaveCount(2);
+  await up();
+  await expect(markers).toHaveCount(3);
+  await canvas.focus();
+  await page.keyboard.press('Control+z');
+  await expect(markers).toHaveCount(2);
+  await page.keyboard.press('Control+Shift+z');
+  await expect(markers).toHaveCount(3);
+  await page.keyboard.press('Control+z');
+  await expect(markers).toHaveCount(2);
+  await down();
+  await move();
+  await page.keyboard.press('Escape');
+  await up();
+  await expect(markers).toHaveCount(2);
+  expect(directions).toEqual([]);
+  expect(errors).toEqual([]);
+  await touch?.detach();
 });
 
 test('planner choices share translated accessible menus and remain inside the viewport', async ({

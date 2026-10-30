@@ -77,6 +77,9 @@ vi.mock('maplibre-gl', () => ({
         else mocks.extraData.set(id, vi.fn());
       }
       addLayer = mocks.layer;
+      getLayer(id: string) { return id === 'route-hit' && mocks.sourceInstalled ? {} : undefined; }
+      unproject([x, y]: number[]) { return { lng: x / 1000, lat: y / 1000 }; }
+      dragPan = { isEnabled: () => true, disable: vi.fn(), enable: vi.fn() };
       queryRenderedFeatures = mocks.query;
       jumpTo = mocks.jump;
       resize() {}
@@ -1045,6 +1048,44 @@ it('selects accessible waypoint buttons, exposes actions and focuses only on exp
   fireEvent.click(screen.getByRole('button', { name: 'Remove waypoint' }));
   expect(onRemoveWaypoint).toHaveBeenCalledWith('a');
   expect(screen.queryByRole('group', { name: 'Waypoint actions' })).not.toBeInTheDocument();
+});
+
+it('renders a line-drag preview, commits only on release and suppresses the following map click', () => {
+  const onInsert = vi.fn();
+  render(<RouteMap {...props} segments={annotationSegments} waypoints={annotationWaypoints}
+    onInsert={onInsert} />);
+  act(() => mocks.handlers.get('load')?.());
+  mocks.canvas!.getBoundingClientRect = () => ({ left: 0, top: 0, right: 100, bottom: 100,
+    width: 100, height: 100, x: 0, y: 0, toJSON: () => ({}) });
+  mocks.query.mockReturnValue([{}]);
+  const pointer = (type: string, x: number, y: number) => {
+    const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y });
+    Object.defineProperty(event, 'pointerId', { value: 1 });
+    act(() => (type === 'pointerdown' ? mocks.canvas! : window).dispatchEvent(event));
+  };
+  pointer('pointerdown', 10, 0);
+  pointer('pointermove', 10, 20);
+  expect(onInsert).not.toHaveBeenCalled();
+  expect(mocks.extraData.get('route-drag-preview')).toHaveBeenLastCalledWith(
+    expect.objectContaining({ features: [expect.objectContaining({
+      geometry: expect.objectContaining({ type: 'LineString', coordinates: [
+        annotationWaypoints[0].coordinate, [0.01, 0.02], annotationWaypoints[1].coordinate,
+      ] }),
+    })] }),
+  );
+  expect(mocks.extraData.get('route-insertion')).toHaveBeenLastCalledWith(
+    expect.objectContaining({ features: [expect.objectContaining({
+      geometry: { type: 'Point', coordinates: [0.01, 0.02] },
+    })] }),
+  );
+  pointer('pointerup', 10, 20);
+  expect(onInsert).toHaveBeenCalledExactlyOnceWith([0.01, 0.02], 1);
+  expect(mocks.extraData.get('route-drag-preview')).toHaveBeenLastCalledWith({
+    type: 'FeatureCollection', features: [],
+  });
+  act(() => mocks.handlers.get('click')?.({ lngLat: { lng: 0.01, lat: 0.02 }, point: { x: 10, y: 20 } }));
+  expect(onInsert).toHaveBeenCalledOnce();
+  expect(props.onAdd).not.toHaveBeenCalled();
 });
 
 it('highlights the hit area and projected insertion point, clearing on leave and read-only changes', () => {

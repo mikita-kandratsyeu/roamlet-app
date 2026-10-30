@@ -19,6 +19,7 @@ import {
   type PreferencesChangeDetail,
 } from '../domain/preferences';
 import { routeInsertion } from '../domain/routeInsertion';
+import { installRouteLineDrag } from '../lib/routeLineDrag';
 import {
   mapTiles,
   MAP_STYLE_CONFIGURATION_MESSAGE,
@@ -108,6 +109,7 @@ export function RouteMap(props: Props) {
   const focusedWaypointId = useRef<string | null>(null);
   const locationArea = useRef(locationAccuracy([0, 0], 0));
   const latest = useRef(props);
+  const insertionEnabled = Boolean(props.onInsert);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mapError, setMapError] = useState('');
@@ -154,6 +156,8 @@ export function RouteMap(props: Props) {
   const [bearing, setBearing] = useState(0);
   const [zoom, setZoom] = useState(10);
   const [insertionPreview, setInsertionPreview] = useState<Coordinate | null>(null);
+  const [dragPreview, setDragPreview] = useState<Coordinate[] | null>(null);
+  const lineDrag = useRef<ReturnType<typeof installRouteLineDrag> | null>(null);
   const [routeHovered, setRouteHovered] = useState(false);
   const [menuWaypointId, setMenuWaypointId] = useState<string | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
@@ -277,6 +281,9 @@ export function RouteMap(props: Props) {
   useEffect(() => {
     latest.current = props;
   });
+  useEffect(() => {
+    lineDrag.current?.cancel();
+  }, [props.segments, props.waypoints, props.editable, props.comparisonMode, props.routeStale, insertionEnabled]);
   useEffect(() => {
     setReady(false);
     setMapError('');
@@ -402,6 +409,7 @@ export function RouteMap(props: Props) {
     instance.on('rotate', updateCameraControls);
     instance.on('zoomend', updateCameraControls);
     const installRouteLayers = () => {
+      lineDrag.current?.cancel();
       if (!instance.getSource('location-accuracy')) {
         instance.addSource('location-accuracy', {
           type: 'geojson',
@@ -447,6 +455,7 @@ export function RouteMap(props: Props) {
         'route-direct',
         'route-annotations',
         'route-insertion',
+        'route-drag-preview',
         'route-elevation',
         'route-highlight',
         'route-comparison',
@@ -513,6 +522,13 @@ export function RouteMap(props: Props) {
           },
           'route-line',
         );
+        instance.addLayer({
+          id: 'route-drag-preview-line',
+          type: 'line',
+          source: 'route-drag-preview',
+          paint: { 'line-color': '#bc6a20', 'line-width': 4, 'line-dasharray': [2, 2] },
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+        });
         instance.addLayer({
           id: 'route-directions',
           type: 'symbol',
@@ -618,12 +634,14 @@ export function RouteMap(props: Props) {
       current.onAdd(coordinate);
     });
     const clearHover = () => {
+      if (lineDrag.current?.isActive()) return;
       setRouteHovered(false);
       setInsertionPreview(null);
       instance.getCanvas().style.cursor =
         latest.current.manualDrawing && latest.current.editable ? 'crosshair' : '';
     };
     instance.on('mousemove', (event) => {
+      if (lineDrag.current?.isActive()) return;
       const current = latest.current;
       if (
         !current.editable ||
@@ -634,13 +652,21 @@ export function RouteMap(props: Props) {
         return;
       }
       setRouteHovered(true);
-      instance.getCanvas().style.cursor = current.onInsert ? 'copy' : 'pointer';
+      instance.getCanvas().style.cursor = current.onInsert ? 'grab' : 'pointer';
       const insertion = current.onInsert
         ? routeInsertion([event.lngLat.lng, event.lngLat.lat], current.segments, current.waypoints)
         : null;
       setInsertionPreview(insertion?.coordinate ?? null);
     });
     const canvas = instance.getCanvas();
+    const drag = installRouteLineDrag(instance, () => latest.current, (coordinates) => {
+      setDragPreview(coordinates);
+      setInsertionPreview(coordinates?.[1] ?? null);
+      setRouteHovered(false);
+      if (!coordinates) canvas.style.cursor =
+        latest.current.manualDrawing && latest.current.editable ? 'crosshair' : '';
+    }, (until) => { suppressClickUntil.current = until; });
+    lineDrag.current = drag;
     canvas.addEventListener('mouseleave', clearHover);
     const observer = new ResizeObserver(() => instance.resize());
     observer.observe(container.current);
@@ -649,6 +675,8 @@ export function RouteMap(props: Props) {
       window.removeEventListener('pagehide', persistOnHide);
       window.removeEventListener(PREFERENCES_CHANGE_EVENT, preferencesChanged);
       observer.disconnect();
+      drag.destroy();
+      lineDrag.current = null;
       canvas.removeEventListener('mouseleave', clearHover);
       if (moved) persistView();
       locationMarker.current?.remove();
@@ -698,6 +726,7 @@ export function RouteMap(props: Props) {
     );
     update('route-annotations', routeAnnotations(props.segments, zoom));
     update('route-insertion', pointFeature(insertionPreview));
+    update('route-drag-preview', lineFeatures(dragPreview ? [dragPreview] : []));
     update('route-elevation', pointFeature(props.elevationCoordinate));
     update(
       'route-highlight',
@@ -735,6 +764,7 @@ export function RouteMap(props: Props) {
     props.segments,
     zoom,
     insertionPreview,
+    dragPreview,
     routeHovered,
     editable,
   ]);
@@ -1250,9 +1280,11 @@ export function RouteMap(props: Props) {
               <div className="map-hint">
                 <MousePointer2 size={16} aria-hidden="true" />
                 <span>
-                  {props.manualDrawing
-                    ? t('Click to draw straight lines. Drag points to adjust.')
-                    : t('Click the map to add a stop. Drag pins to refine.')}
+                  {dragPreview
+                    ? t('Preview only — release to add a waypoint. Escape cancels.')
+                    : props.manualDrawing
+                      ? t('Click to draw straight lines. Drag points to adjust.')
+                      : t('Click the map to add a stop. Drag pins to refine.')}
                 </span>
               </div>
             </div>
