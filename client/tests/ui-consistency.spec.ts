@@ -306,7 +306,8 @@ test('saved descriptions use two-line previews and open in the planner without m
     await page.getByRole('button', { name: 'Menu', exact: true }).click();
     await page.locator('.header-menu-theme-option').nth(1).click();
   }
-  await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
   await expect(page.getByTestId('panel-loader')).toHaveCount(0);
   const tags = ['Scenic', 'Weekend', 'Forest', 'Water', 'LongTag'.repeat(20)];
   await page.getByRole('button', { name: 'Edit Forest notes', exact: true }).click();
@@ -665,7 +666,8 @@ test('library loading uses an accessible local skeleton without blocking navigat
       const canvas = page.locator('.maplibregl-canvas');
       const before = await canvas.boundingBox();
       try {
-        await page.getByRole('button', { name: /^(My routes|Мои маршруты)$/, exact: true }).click();
+        await page.getByRole('button', { name: /^(Menu|Меню)$/, exact: true }).click();
+        await page.getByRole('menuitem', { name: /^(My routes|Мои маршруты)$/, exact: true }).click();
         const skeleton = page.getByTestId('library-skeleton');
         await expect(skeleton).toBeVisible();
         await expect(skeleton).toHaveAttribute('role', 'status');
@@ -727,8 +729,9 @@ test('library loading uses an accessible local skeleton without blocking navigat
           await expect(page.locator('.library-screen')).toHaveCount(0);
           await expect(canvas).toBeVisible();
           await release();
+          await page.getByRole('button', { name: /^(Menu|Меню)$/, exact: true }).click();
           await page
-            .getByRole('button', { name: /^(My routes|Мои маршруты)$/, exact: true })
+            .getByRole('menuitem', { name: /^(My routes|Мои маршруты)$/, exact: true })
             .click();
         } else await release();
         await expect(skeleton).toHaveCount(0);
@@ -765,7 +768,8 @@ test('saved route cards keep uniform heights and aligned actions with long names
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'My routes', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
   const pending = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download backup', exact: true }).click();
   const backup = JSON.parse(await readFile((await (await pending).path())!, 'utf8'));
@@ -919,7 +923,8 @@ test('comparison selection keeps a clear remove icon and touch target with long 
   await page.getByRole('button', { name: 'Save route', exact: true }).click();
   await page.getByRole('button', { name: 'Save to library', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: 'My routes', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
   const feedback = page.locator('[data-sonner-toast][data-type="success"]');
   if (await feedback.count()) {
     await feedback.getByRole('button', { name: 'Dismiss notification', exact: true }).click();
@@ -976,7 +981,8 @@ test('library controls share application styling in Russian, light and dark, wit
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
   await menu.click();
   await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
-  await page.getByRole('button', { name: 'Мои маршруты', exact: true }).click();
+  await page.getByRole('button', { name: 'Меню', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Мои маршруты', exact: true }).click();
   const screen = page.locator('.library-screen');
   await expect(screen).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -1019,7 +1025,8 @@ test('library controls share application styling in Russian, light and dark, wit
   await screen.getByRole('button', { name: 'Назад к карте', exact: true }).click();
   await page.getByRole('button', { name: 'Меню', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'Тёмная', exact: true }).click();
-  await page.getByRole('button', { name: 'Мои маршруты', exact: true }).click();
+  await page.getByRole('button', { name: 'Меню', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Мои маршруты', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/dark/);
   expect(await screen.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('library-ru-dark.png') });

@@ -55,7 +55,6 @@ import {
   PanelLeftClose,
   Route as RouteIcon,
   Ruler,
-  Library as LibraryIcon,
   WifiOff,
 } from 'lucide-react';
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
@@ -229,7 +228,7 @@ export default function App() {
     () => comparisonRoutes.flatMap((route) => route.segments),
     [comparisonRoutes],
   );
-  const libraryTrigger = useRef<HTMLButtonElement>(null);
+  const mainNavigation = useRef<HTMLElement>(null);
   const libraryReturnFocus = useRef<HTMLElement | null>(null);
   const libraryWasOpen = useRef(false);
   function openLibrary() {
@@ -251,7 +250,7 @@ export default function App() {
       const target =
         previous?.isConnected && !previous.closest('[hidden], [inert], [aria-hidden="true"]')
           ? previous
-          : libraryTrigger.current;
+          : mainNavigation.current?.querySelector<HTMLButtonElement>('.header-menu-trigger');
       queueMicrotask(() =>
         (confirmation ? confirmationCancel.current : target)?.focus({ preventScroll: true }),
       );
@@ -1079,17 +1078,7 @@ export default function App() {
             <strong className="brand-wordmark">Roamlet</strong>
             <span className="brand-beta">beta</span>
           </a>
-          <nav aria-label={t('Main navigation')}>
-            <Button
-              variant="ghost"
-              className="header-library"
-              ref={libraryTrigger}
-              onClick={openLibrary}
-              aria-label={t('My routes')}
-            >
-              <LibraryIcon size={18} aria-hidden="true" />
-              <span>{t('My routes')}</span>
-            </Button>
+          <nav ref={mainNavigation} aria-label={t('Main navigation')}>
             <HeaderMenu
               onNewRoute={() => guard(newRoute)}
               onLibrary={openLibrary}

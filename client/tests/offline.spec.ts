@@ -233,14 +233,14 @@ for (const language of ['en', 'ru'] as const) {
     try {
       await page.reload();
       const xml = '<gpx><wpt lat="47" lon="11"/><trk><trkseg><trkpt lat="47" lon="11"><ele>100</ele></trkpt><trkpt lat="47.01" lon="11.01"><ele>120</ele></trkpt></trkseg><trkseg><trkpt lat="48" lon="12"/><trkpt lat="48.01" lon="12.01"><ele>90</ele></trkpt></trkseg></trk></gpx>';
-      const started = page.waitForEvent('worker');
+      const started = page.waitForEvent('worker', { predicate: (worker) => /gpxImport\.worker-/.test(worker.url()) });
       await page.getByLabel(language === 'ru' ? 'Импорт файла GPX' : 'Import GPX file').setInputFiles({
         name: 'first-offline.gpx 2', mimeType: 'application/octet-stream', buffer: Buffer.from(xml),
       });
       expect((await started).url()).toMatch(/gpxImport\.worker-/);
-      await expect(page.getByRole('heading', {
-        name: language === 'ru' ? 'Импортированный маршрут' : 'Imported route', exact: true,
-      })).toBeVisible();
+      await expect(page.getByRole('complementary').getByText(
+        language === 'ru' ? 'Импортированный маршрут' : 'Imported route', { exact: true },
+      )).toBeVisible();
       const pending = page.waitForEvent('download');
       await page.getByRole('button', { name: language === 'ru' ? 'Экспорт' : 'Export', exact: true }).click();
       await page.getByRole('dialog').getByRole('button', {
@@ -419,7 +419,8 @@ test('offline reload restores an unsaved draft and exposes library backup withou
     await page.getByRole('textbox', { name: 'Route name' }).fill('Offline draft');
     await page.getByRole('button', { name: 'Save to library', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
-    await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
     const pending = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download backup', exact: true }).click();
     const json = await readFile((await (await pending).path())!, 'utf8');

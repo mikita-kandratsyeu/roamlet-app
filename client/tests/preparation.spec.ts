@@ -128,7 +128,8 @@ test('schedule edits persist and do not reroute; arrivals cross midnight', async
     /^2026-10-30T/,
   );
   await save(page, 'Night ride');
-  await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
   await page.getByRole('button', { name: /^Night ride Cycling/ }).click();
   await expect(page.locator('.library-screen')).toHaveCount(0);
   await expect(page.locator('.planner-heading h1')).toHaveText('Night ride');
@@ -192,7 +193,8 @@ test('comparison preserves editor and closes back to the selected library routes
   page,
 }) => {
   await save(page, 'River');
-  await page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
   await page.getByRole('button', { name: 'Duplicate River', exact: true }).click();
   const checks = page.getByRole('checkbox', { name: /^Select .* for comparison$/ });
   await expect(checks).toHaveCount(2);

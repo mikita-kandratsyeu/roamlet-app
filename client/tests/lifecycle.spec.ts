@@ -9,7 +9,8 @@ async function addPoint(page: Page, value: string) {
   await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
 }
 async function library(page: Page) {
-  await page.getByRole('button', { name: 'My routes', exact: true }).click();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
 }
 async function readDownload(page: Page, buttonName: string) {
   const pending = page.waitForEvent('download');

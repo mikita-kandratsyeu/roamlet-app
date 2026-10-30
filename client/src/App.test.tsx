@@ -228,7 +228,8 @@ describe('route preparation features', () => {
     const editorMap = screen.getByTestId('map');
     const before = editorMap.getAttribute('data-geometry');
     const requests = provider.calculateRoute.mock.calls.length;
-    fireEvent.click(screen.getByRole('button', { name: 'My routes' }));
+    openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Lake for comparison' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Forest for comparison' }));
     const compare = screen.getByRole('button', { name: 'Compare routes' });
@@ -1244,9 +1245,12 @@ describe('route planner interactions', () => {
     addCoordinate('47.27, 11.41');
     const map = screen.getByTestId('map'),
       geometryBefore = map.getAttribute('data-geometry');
-    const libraryButton = screen.getByRole('button', { name: 'My routes' });
-    libraryButton.focus();
-    fireEvent.click(libraryButton);
+    const navigation = screen.getByRole('navigation', { name: 'Main navigation' });
+    expect(within(navigation).queryByRole('button', { name: 'My routes' })).not.toBeInTheDocument();
+    const menuButton = within(navigation).getByRole('button', { name: 'Menu' });
+    menuButton.focus();
+    openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
     await waitFor(() => expect(document.querySelector('.library-screen')).toBeInTheDocument());
     await waitFor(() => expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument());
     expect(screen.getByRole('region', { name: 'Saved routes' })).toBeInTheDocument();
@@ -1256,7 +1260,7 @@ describe('route planner interactions', () => {
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
     expect(map).toHaveAttribute('data-geometry', geometryBefore!);
     fireEvent.click(await screen.findByRole('button', { name: 'Back to map' }));
-    await waitFor(() => expect(libraryButton).toHaveFocus());
+    await waitFor(() => expect(menuButton).toHaveFocus());
     expect(document.querySelector('.editor-screen')).not.toHaveAttribute('inert');
     fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
     fireEvent.keyDown(window, { key: 'z', ctrlKey: true });

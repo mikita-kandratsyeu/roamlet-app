@@ -618,7 +618,7 @@ test('header supports desktop creation and an accessible compact menu', async ({
   const trigger = page.getByRole('button', { name: 'Menu', exact: true });
   const compact = testInfo.project.name === 'mobile';
   await expect(page.getByRole('banner').getByRole('button', { includeHidden: false })).toHaveCount(
-    compact ? 2 : 3,
+    compact ? 1 : 2,
   );
   const firstItem = page.getByRole('menuitem', {
     name: compact ? 'New route' : 'My routes',
@@ -626,11 +626,11 @@ test('header supports desktop creation and an accessible compact menu', async ({
   });
   await expect(
     page.getByRole('banner').getByRole('button', { name: 'My routes', exact: true }),
-  ).toBeVisible();
-  for (const control of [
-    trigger,
-    page.getByRole('button', { name: compact ? 'My routes' : 'New route', exact: true }),
-  ]) {
+  ).toHaveCount(0);
+  const controls = compact
+    ? [trigger]
+    : [trigger, page.getByRole('button', { name: 'New route', exact: true })];
+  for (const control of controls) {
     const bounds = await control.boundingBox();
     expect(bounds?.width).toBeGreaterThanOrEqual(44);
     expect(bounds?.height).toBeGreaterThanOrEqual(44);
