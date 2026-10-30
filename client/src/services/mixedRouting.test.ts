@@ -87,7 +87,7 @@ describe('mixed direct and automatic routing', () => {
     expect(result.segments.flat().every((point) => point.length === 2)).toBe(true);
     expect(result.elevationSource).toBeUndefined();
   });
-  it('allows up to1000 direct points and only25 automatic participants', async () => {
+  it('allows up to1000 direct points and only50 automatic participants', async () => {
     const fetcher = mockProvider();
     const many = Array.from({ length: 1000 }, (_, index): Waypoint => ({
       id: String(index),
@@ -102,10 +102,10 @@ describe('mixed direct and automatic routing', () => {
     await expect(provider.calculateRoute([...many, many[0]], 'cycling')).rejects.toThrow('1,000');
     await expect(
       provider.calculateRoute(
-        many.slice(0, 26).map((point) => ({ ...point, legMode: 'automatic' })),
+        many.slice(0, 51).map((point) => ({ ...point, legMode: 'automatic' })),
         'cycling',
       ),
-    ).rejects.toThrow('2 and 25');
+    ).rejects.toThrow('2 and 50');
   });
   it('ignores the last outgoing mode and caches unchanged automatic portions after direct edits', async () => {
     const fetcher = mockProvider();

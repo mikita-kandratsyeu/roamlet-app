@@ -61,7 +61,12 @@ import { ExportDialog } from './components/ExportDialog';
 import { RouteDescription } from './components/RouteDescription';
 import { calculateStats } from './domain/stats';
 import { MANUAL_STOP_LIMIT } from './domain/manualRoute';
-import { reverseWaypoints, reorderWaypoints, insertWaypoint } from './domain/waypointLegs';
+import {
+  AUTOMATIC_POINT_LIMIT,
+  reverseWaypoints,
+  reorderWaypoints,
+  insertWaypoint,
+} from './domain/waypointLegs';
 import { isRouteResultCurrent } from './domain/editorRouting';
 import { DEFAULT_ROUTING_OPTIONS } from './domain/routingOptions';
 type PlanningMode = 'point' | 'loop' | 'manual';
@@ -149,7 +154,7 @@ export default function App() {
     (panelHidden ? showPlannerButton : hidePlannerButton).current?.focus({ preventScroll: true });
   }, [panelHidden]);
   const automaticMode = editor.snapshot.automaticMode ?? 'point';
-  const stopLimit = planningMode === 'manual' ? MANUAL_STOP_LIMIT : 25;
+  const stopLimit = planningMode === 'manual' ? MANUAL_STOP_LIMIT : AUTOMATIC_POINT_LIMIT;
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [routeRevision, setRouteRevision] = useState(0);
@@ -555,8 +560,8 @@ export default function App() {
     if (next === planningMode || (!online && next !== 'manual')) return;
     const points =
       next === 'manual' && planningMode === 'loop' && result ? result.waypoints : waypoints;
-    if (next === 'point' && waypoints.length > 25) {
-      fail('Automatic routing supports up to 25 stops. Remove points or keep manual mode.');
+    if (next === 'point' && waypoints.length > AUTOMATIC_POINT_LIMIT) {
+      fail('Automatic routing supports up to 50 stops. Remove points or keep manual mode.');
       return;
     }
     const change = () => {
@@ -604,7 +609,7 @@ export default function App() {
       fail(
         planningMode === 'manual'
           ? 'A manual route supports up to 1,000 points. Remove a point before adding another.'
-          : 'A route supports up to 25 stops. Remove a stop before adding another.',
+          : 'A route supports up to 50 stops. Remove a stop before adding another.',
       );
       return;
     }
@@ -2048,7 +2053,7 @@ export default function App() {
                       fail(
                         planningMode === 'manual'
                           ? 'A manual route supports up to 1,000 points. Remove a point before adding another.'
-                          : 'A route supports up to 25 stops. Remove a stop before adding another.',
+                          : 'A route supports up to 50 stops. Remove a stop before adding another.',
                       );
                       return;
                     }

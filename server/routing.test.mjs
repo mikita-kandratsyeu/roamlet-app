@@ -100,13 +100,25 @@ for (const profile of ['cycling-regular', 'cycling-road', 'cycling-mountain', 'f
   });
 }
 
-test('supports optional omissions, each avoid feature, empty avoids, and 25 coordinates', async () => {
+test('supports optional omissions, each avoid feature, empty avoids, and 50 coordinates', async () => {
   for (const avoid_features of [undefined, [], ['steps'], ['ferries']]) {
-    const input = { ...body(), coordinates: Array.from({ length: 25 }, () => [180, -90]) };
+    const input = { ...body(), coordinates: Array.from({ length: 50 }, () => [180, -90]) };
     if (avoid_features) input.options = { avoid_features };
     assert.equal((await invoke(routeHandler, { body: input })).status, 200);
+    assert.deepEqual(JSON.parse(fetchCalls().at(-1).arguments[1].body).coordinates, input.coordinates);
   }
 });
+
+for (const profile of ['cycling-regular', 'cycling-road', 'cycling-mountain', 'foot-hiking']) {
+  test(`accepts 50 coordinates for ${profile} and rejects 51 before upstream`, async () => {
+    const input = { ...body(), profile, coordinates: Array.from({ length: 50 }, (_, i) => [13 + i / 10000, 52]) };
+    assert.equal((await invoke(routeHandler, { body: input })).status, 200);
+    assert.deepEqual(JSON.parse(fetchCalls()[0].arguments[1].body).coordinates, input.coordinates);
+    input.coordinates.push([13.1, 52]);
+    assert.equal((await invoke(routeHandler, { body: input })).status, 400);
+    assert.equal(fetchCalls().length, 1);
+  });
+}
 
 test('missing or whitespace key returns sanitized 503 without fetching', async () => {
   for (const key of [undefined, '', ' \n ']) {
@@ -127,7 +139,7 @@ const invalidBodies = [
   { ...body(), instructions: true }, { ...body(), instructions: undefined },
   { ...body(), elevation: false }, { ...body(), elevation: undefined },
   { ...body(), coordinates: [[0, 0]] },
-  { ...body(), coordinates: Array.from({ length: 26 }, () => [0, 0]) },
+  { ...body(), coordinates: Array.from({ length: 51 }, () => [0, 0]) },
   ...[[181, 0], [0, -91], [0, 0, 5], [0], ['0', 0], [NaN, 0], [Infinity, 0],
     Object.assign(new Array(2), { 0: 0 }), null].map((point) => ({ ...body(), coordinates: [[0, 0], point] })),
   ...[null, {}, [], { avoid_features: ['highways'] }, { avoid_features: ['ferries', 'ferries'] },

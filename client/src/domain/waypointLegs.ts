@@ -1,6 +1,6 @@
 import type { LegMode, Waypoint } from './types';
 
-export const AUTOMATIC_POINT_LIMIT = 25;
+export const AUTOMATIC_POINT_LIMIT = 50;
 export function waypointLegMode(waypoint: Waypoint): LegMode {
   return waypoint.legMode ?? 'automatic';
 }

@@ -40,7 +40,7 @@ export function validateBody(body) {
     body.elevation !== true ||
     !Array.isArray(body.coordinates) ||
     body.coordinates.length < 2 ||
-    body.coordinates.length > 25 ||
+    body.coordinates.length > 50 ||
     !Array.from(body.coordinates).every((point) => coordinate(point))
   )
     throw new RequestError(400);

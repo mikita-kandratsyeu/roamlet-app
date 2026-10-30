@@ -134,18 +134,41 @@ describe('OpenRouteServiceRoutingService', () => {
       status === 429 ? 'quota' : status === 401 || status === 403 ? 'rejected' : 'unavailable',
     );
   });
-  it('preserves the application point limit and validates geometry', async () => {
+  it.each(['cycling-regular', 'cycling-road', 'cycling-mountain', 'foot-hiking'] as const)(
+    'forwards all 50 route points for %s in one request',
+    async (profile) => {
+      const fetcher = mockJson(response());
+      const stops = Array.from({ length: 50 }, (_, index): Waypoint => ({
+        id: String(index),
+        name: '',
+        coordinate: [11.4 + index / 10000, 47.26],
+      }));
+      await new OpenRouteServiceRoutingService().calculateRoute(
+        stops,
+        profile === 'foot-hiking' ? 'hiking' : 'cycling',
+        undefined,
+        profile === 'foot-hiking' ? undefined : { cyclingProfile: profile },
+      );
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toMatchObject({
+        profile,
+        coordinates: stops.map((point) => point.coordinate),
+      });
+    },
+  );
+  it('rejects 51 automatic points before fetching and validates geometry', async () => {
     const provider = new OpenRouteServiceRoutingService();
-    await expect(provider.calculateRoute([], 'cycling')).rejects.toThrow('2 and 25');
-    await expect(provider.calculateRoute(Array(26).fill(points[0]), 'cycling')).rejects.toThrow(
-      '2 and 25',
-    );
     const fetcher = mockJson(
       response([
         [999, 47],
         [11, 47],
       ]),
     );
+    await expect(provider.calculateRoute([], 'cycling')).rejects.toThrow('2 and 50');
+    await expect(provider.calculateRoute(Array(51).fill(points[0]), 'cycling')).rejects.toThrow(
+      '2 and 50',
+    );
+    expect(fetcher).not.toHaveBeenCalled();
     await expect(provider.calculateRoute(points, 'cycling')).rejects.toThrow(
       'invalid route geometry',
     );

@@ -695,9 +695,18 @@ describe('route planner interactions', () => {
     expect(provider.calculateAlternatives).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps labelled outline actions at the automatic stop limit', () => {
+  it('allows 50 automatic stops, rejects the 51st and keeps labelled outline actions', async () => {
     render(<App />);
-    for (let index = 0; index < 25; index++) addCoordinate(`47.${2600 + index}, 11.4`);
+    for (let index = 0; index < 26; index++) addCoordinate(`47.${2600 + index}, 11.4`);
+    expect(screen.getByRole('button', { name: 'Add a stop' })).toBeInTheDocument();
+    for (let index = 26; index < 50; index++) addCoordinate(`47.${2600 + index}, 11.4`);
+    addCoordinate('47.2651, 11.4');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      i18n.t('A route supports up to 50 stops. Remove a stop before adding another.'),
+    );
+    expect(
+      within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem'),
+    ).toHaveLength(50);
     const actions = within(screen.getByRole('group', { name: 'Route stop actions' }));
     expect(actions.queryByRole('button', { name: 'Add a stop' })).not.toBeInTheDocument();
     expect(actions.getAllByRole('button')).toHaveLength(2);
@@ -707,25 +716,25 @@ describe('route planner interactions', () => {
       expect(button.querySelector('span')).toHaveTextContent(label);
       expect(button).not.toHaveClass('icon-button');
     }
-  });
+  }, 15_000);
 
-  it('supports more than 25 manual points without silently dropping them in automatic mode', async () => {
+  it('supports more than 50 manual points without silently dropping them in automatic mode', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
-    for (let i = 0; i < 26; i++) addCoordinate(`47.${2600 + i}, 11.4`);
+    for (let i = 0; i < 51; i++) addCoordinate(`47.${2600 + i}, 11.4`);
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Automatic routing supports up to 25',
+      'Automatic routing supports up to 50',
     );
     expect(screen.getByRole('button', { name: 'Manual drawing' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
     expect(JSON.parse(screen.getByTestId('map').getAttribute('data-geometry')!)[0]).toHaveLength(
-      26,
+      51,
     );
     expect(provider.calculateRoute).not.toHaveBeenCalled();
-  });
+  }, 30_000);
   it('focuses form fields and safe actions, and restores focus after editing or deleting a route', async () => {
     render(<App />);
     await plan();

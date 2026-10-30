@@ -238,7 +238,7 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
     normalizeRoutingOptions(options);
     routingProfile(activity, options);
     if (waypoints.length < 2 || automaticPointCount(waypoints) > AUTOMATIC_POINT_LIMIT)
-      throw new Error('Choose between 2 and 25 route points.');
+      throw new Error('Choose between 2 and 50 route points.');
     if (waypoints.length > MANUAL_STOP_LIMIT)
       throw new Error('Choose between 2 and 1,000 points for a manual route.');
     if (
