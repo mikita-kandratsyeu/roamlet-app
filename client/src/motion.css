@@ -14,7 +14,7 @@
       scale 180ms var(--motion-press);
   }
 
-  button:active:not(:disabled) {
+  button:active:not(:disabled):not(.maplibregl-marker) {
     scale: 0.98;
   }
 

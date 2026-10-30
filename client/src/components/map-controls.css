@@ -212,6 +212,10 @@
   outline-offset: 3px;
   box-shadow: 0 0 0 6px #ffffffb3;
 }
+.waypoint-marker.waypoint-marker-dragging {
+  box-shadow: 0 0 0 4px #f0b44c80;
+  cursor: grabbing;
+}
 .waypoint-marker:focus-visible {
   outline: 3px solid #f0b44c;
   outline-offset: 3px;

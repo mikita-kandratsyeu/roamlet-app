@@ -112,7 +112,7 @@ test('dragging a route line previews locally and creates one undoable waypoint o
 });
 
 test('moving an existing waypoint previews its adjacent line before release', async ({ page }, info) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await clickMapTool(page, 'Ручное рисование');
   const canvas = page.locator('.maplibregl-canvas');
   const bounds = (await canvas.boundingBox())!;
@@ -128,6 +128,9 @@ test('moving an existing waypoint previews its adjacent line before release', as
   await expect(canvas).toHaveCSS('cursor', 'grabbing');
   await expect(page.locator('.map-hint')).toContainText('Предпросмотр прямыми линиями');
   await expect(markers).toHaveCount(2);
+  const dragged = (await markers.first().boundingBox())!;
+  expect(Math.abs(dragged.x + dragged.width / 2 - start.x)).toBeLessThan(1.5);
+  expect(Math.abs(dragged.y + dragged.height / 2 - start.y - 45)).toBeLessThan(1.5);
   await page.screenshot({ path: info.outputPath('waypoint-move-preview.png') });
   await page.mouse.up();
   await expect(page.locator('.map-hint')).not.toContainText('Предпросмотр прямыми линиями');

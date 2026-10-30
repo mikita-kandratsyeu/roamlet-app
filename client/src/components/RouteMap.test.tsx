@@ -1063,6 +1063,8 @@ it.each([0, 1, 2])('previews adjacent lines when dragging existing waypoint %s a
   const handlers = mocks.markerHandlers[index];
   act(() => handlers.get('dragstart')?.());
   act(() => handlers.get('drag')?.());
+  const element = mocks.markerOptions.mock.calls[index][0].element;
+  expect(element).toHaveClass('waypoint-marker-dragging');
   const coordinates = [...(index > 0 ? [waypoints[index - 1].coordinate] : []), [13, 49],
     ...(index < 2 ? [waypoints[index + 1].coordinate] : [])];
   expect(mocks.extraData.get('route-drag-preview')).toHaveBeenLastCalledWith(
@@ -1075,6 +1077,7 @@ it.each([0, 1, 2])('previews adjacent lines when dragging existing waypoint %s a
   expect(mocks.canvas!.style.cursor).toBe('grabbing');
   act(() => handlers.get('dragend')?.());
   expect(props.onMove).toHaveBeenCalledExactlyOnceWith(waypoints[index].id, [13, 49]);
+  expect(element).not.toHaveClass('waypoint-marker-dragging');
   expect(mocks.extraData.get('route-drag-preview')).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
 });
 

@@ -854,9 +854,11 @@ export function RouteMap(props: Props) {
         if (!draggable) return;
         lineDrag.current?.cancel();
         cancelled = false;
+        element.classList.add('waypoint-marker-dragging');
         markerDraggingId.current = point.id;
         cancelMarkerDrag.current = () => {
           cancelled = true;
+          element.classList.remove('waypoint-marker-dragging');
           marker.setLngLat([point.coordinate[0], point.coordinate[1]]);
           clearMarkerPreview();
         };
@@ -866,6 +868,7 @@ export function RouteMap(props: Props) {
       });
       marker.on('drag', previewMarker);
       marker.on('dragend', () => {
+        element.classList.remove('waypoint-marker-dragging');
         if (markerDraggingId.current === point.id) clearMarkerPreview();
         suppressClickUntil.current = Date.now() + 250;
         if (cancelled) {
