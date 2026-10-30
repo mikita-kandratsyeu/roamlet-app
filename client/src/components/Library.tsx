@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import './Library.css';
-import { MapLoader } from './MapLoader';
+import { LibrarySkeleton } from './LibrarySkeleton';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -181,6 +181,7 @@ export function Library({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const searchInput = useRef<HTMLInputElement>(null);
+  const backButton = useRef<HTMLButtonElement>(null);
   const importInput = useRef<HTMLInputElement>(null);
   const importCancel = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(
@@ -209,7 +210,8 @@ export function Library({
     };
   }, []);
   useEffect(() => {
-    if (!loading) searchInput.current?.focus();
+    if (loading) backButton.current?.focus();
+    else searchInput.current?.focus();
   }, [loading]);
   useEffect(() => {
     if (busy) return;
@@ -375,7 +377,13 @@ export function Library({
           <FolderHeart size={22} aria-hidden="true" />
           <h1>{t('Your route library')}</h1>
         </div>
-        <Button variant="ghost" className="back-to-map-button" disabled={busy} onClick={onClose}>
+        <Button
+          ref={backButton}
+          variant="ghost"
+          className="back-to-map-button"
+          disabled={busy}
+          onClick={onClose}
+        >
           <ArrowLeft size={18} aria-hidden="true" />
           {t('Back to map')}
         </Button>
@@ -385,6 +393,7 @@ export function Library({
           <p className="library-screen-description" id={screenDescriptionId}>
             {t('Good routes are worth keeping. Saved on this device, no account needed.')}
           </p>
+          {loading && <LibrarySkeleton />}
           <div className="library-toolbar">
             <Label className="library-search">
               <Search size={18} aria-hidden="true" />
@@ -728,14 +737,7 @@ export function Library({
               )}
             </div>
           )}
-          {loading ? (
-            <MapLoader
-              purpose="library"
-              ariaLabel={t('Opening your library…')}
-              title={t('Opening your library…')}
-              onCancel={onClose}
-            />
-          ) : loadFailed ? (
+          {loading ? null : loadFailed ? (
             <div className="library-empty library-load-error">
               <FolderHeart size={34} aria-hidden="true" />
               <h3>{t('Your library could not be loaded.')}</h3>

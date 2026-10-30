@@ -142,12 +142,12 @@ it('shows unavailable instead of guessed times for absent pins, off-route pins a
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
   rerender(<RouteSchedule {...callbacks} waypoints={[callbacks.waypoints[0],
     { id: 'wrong', name: 'Wrong', coordinate: [10, 10] }, callbacks.waypoints[1]]} />);
-  expect(screen.getByText('This waypoint does not match the route; later arrivals are unavailable.')).toBeVisible();
+  expect(screen.getByText(i18n.t('This waypoint does not match the route; later arrivals are unavailable.'))).toBeVisible();
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
   expect(screen.getAllByRole('listitem')[2].querySelector('time')).toBeNull();
   rerender(<RouteSchedule {...callbacks} route={{ ...route, segments: [[[0, 0], [0.01, 0]], [[1, 0], [1.01, 0]]] }}
     waypoints={[callbacks.waypoints[0], { ...callbacks.waypoints[1], coordinate: [1.01, 0] }]} />);
-  expect(screen.getByText('This track has a gap; arrival times across it are unavailable.')).toBeVisible();
+  expect(screen.getByText(i18n.t('This track has a gap; arrival times across it are unavailable.'))).toBeVisible();
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
   expect(screen.getAllByRole('listitem')[1].querySelector('time')).toBeNull();
 });

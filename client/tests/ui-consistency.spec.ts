@@ -626,44 +626,124 @@ test('personal time allows clearing and retyping with localized validation', asy
   expect(requests).toEqual([]);
 });
 
-test('library loading overlays the editor without moving the map', async ({ page }) => {
-  await page.evaluate(async (path) => {
-    const { routeDb } = await import(path);
-    let prototype = Object.getPrototypeOf(routeDb.routes.orderBy('updatedAt'));
-    while (!Object.hasOwn(prototype, 'toArray')) prototype = Object.getPrototypeOf(prototype);
-    const original = prototype.toArray;
-    let release: () => void = () => {};
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    prototype.toArray = function (this: unknown, ...args: unknown[]) {
-      return gate.then(() => original.apply(this, args));
-    };
-    (window as Window & { releaseLibraryRead: () => void }).releaseLibraryRead = () => {
-      prototype.toArray = original;
-      release();
-    };
-  }, '/src/domain/storage.ts');
-  const release = () =>
-    page.evaluate(() =>
-      (window as Window & { releaseLibraryRead?: () => void }).releaseLibraryRead?.(),
-    );
-  const canvas = page.locator('.maplibregl-canvas');
-  const before = await canvas.boundingBox();
-  try {
-    await page.getByRole('button', { name: 'My routes', exact: true }).click();
-    await expect(page.getByTestId('global-map-loader')).toBeVisible();
-    await expect(page.locator('.global-map-loader__orbit')).toBeVisible();
-    expect(await canvas.boundingBox()).toEqual(before);
-    await expect(page.getByTestId('global-map-loader')).toHaveCSS('position', 'fixed');
-    await release();
-    await expect(page.locator('.library-screen')).toBeVisible();
-    await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Back to map', exact: true }).click();
-    await expect(canvas).toBeVisible();
-    expect(await canvas.boundingBox()).toEqual(before);
-  } finally {
-    await release();
+test('library loading uses an accessible local skeleton without blocking navigation or moving the map', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 900 }
+      : { width: 1440, height: 1000 },
+  );
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' })
+      .click();
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.evaluate(async (path) => {
+        const { routeDb } = await import(path);
+        let prototype = Object.getPrototypeOf(routeDb.routes.orderBy('updatedAt'));
+        while (!Object.hasOwn(prototype, 'toArray')) prototype = Object.getPrototypeOf(prototype);
+        const original = prototype.toArray;
+        let release: () => void = () => {};
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        prototype.toArray = function (this: unknown, ...args: unknown[]) {
+          return gate.then(() => original.apply(this, args));
+        };
+        (window as Window & { releaseLibraryRead: () => void }).releaseLibraryRead = () => {
+          prototype.toArray = original;
+          release();
+        };
+      }, '/src/domain/storage.ts');
+      const release = () =>
+        page.evaluate(() =>
+          (window as Window & { releaseLibraryRead?: () => void }).releaseLibraryRead?.(),
+        );
+      const canvas = page.locator('.maplibregl-canvas');
+      const before = await canvas.boundingBox();
+      try {
+        await page.getByRole('button', { name: /^(My routes|Мои маршруты)$/, exact: true }).click();
+        const skeleton = page.getByTestId('library-skeleton');
+        await expect(skeleton).toBeVisible();
+        await expect(skeleton).toHaveAttribute('role', 'status');
+        await expect(skeleton).toContainText(
+          language === 'ru'
+            ? 'Читаем маршруты, сохранённые в этом браузере.'
+            : 'Reading routes saved in this browser.',
+        );
+        await expect(skeleton.locator('.library-skeleton-card')).toHaveCount(4);
+        await expect(skeleton.locator('.library-skeleton-card').first()).toBeInViewport();
+        expect(
+          await skeleton.locator('.library-skeleton-list').evaluate(
+            (element) => element.scrollHeight <= element.clientHeight,
+          ),
+        ).toBe(true);
+        await expect(skeleton.locator('.library-skeleton-list')).toHaveAttribute(
+          'aria-hidden',
+          'true',
+        );
+        await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+        await expect(
+          page.getByRole('list', { name: /^(Saved routes|Сохранённые маршруты)$/ }),
+        ).toHaveCount(0);
+        const shape = skeleton.locator('[data-slot="skeleton"]').first();
+        await expect(shape).toHaveCSS('animation-name', 'none');
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        await expect(shape).toHaveCSS('animation-name', 'pulse');
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        const cards = await skeleton.locator('.library-skeleton-card').all();
+        const boxes = await Promise.all(cards.map((card) => card.boundingBox()));
+        expect(boxes[0]).not.toBeNull();
+        expect(boxes[1]).not.toBeNull();
+        if (testInfo.project.name === 'mobile') expect(boxes[1]!.y).toBeGreaterThan(boxes[0]!.y);
+        else expect(boxes[1]!.y).toBeCloseTo(boxes[0]!.y, 1);
+        for (const card of cards) {
+          expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+            true,
+          );
+        }
+        expect(
+          await page
+            .locator('.library-screen-scroll')
+            .evaluate((element) => element.scrollWidth <= element.clientWidth),
+        ).toBe(true);
+        expect(
+          await page.evaluate(() => document.querySelector('#root')?.hasAttribute('inert')),
+        ).toBe(false);
+        expect(await canvas.boundingBox()).toEqual(before);
+        const back = page.getByRole('button', {
+          name: /^(Back to map|Назад к карте)$/,
+          exact: true,
+        });
+        await expect(back).toBeEnabled();
+        await page.screenshot({
+          path: testInfo.outputPath(`library-skeleton-${language}-${colorScheme}.png`),
+        });
+        if (language === 'ru' && colorScheme === 'dark') {
+          await back.press('Enter');
+          await expect(page.locator('.library-screen')).toHaveCount(0);
+          await expect(canvas).toBeVisible();
+          await release();
+          await page
+            .getByRole('button', { name: /^(My routes|Мои маршруты)$/, exact: true })
+            .click();
+        } else await release();
+        await expect(skeleton).toHaveCount(0);
+        await expect(
+          page.getByRole('textbox', {
+            name: /^(Search saved routes|Поиск сохранённых маршрутов)$/,
+          }),
+        ).toBeFocused();
+        await back.click();
+        await expect(canvas).toBeVisible();
+        expect(await canvas.boundingBox()).toEqual(before);
+      } finally {
+        await release();
+      }
+    }
   }
 });
 

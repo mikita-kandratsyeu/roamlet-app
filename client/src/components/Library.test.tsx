@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Toaster } from './ui/sonner';
 import { toast } from 'sonner';
 import userEvent from '@testing-library/user-event';
@@ -158,28 +158,120 @@ it('offers backup import for an empty library without fake route creation contro
 
 it('announces loading and allows retrying a failed load rather than claiming the library is empty', async () => {
   let rejectLoad!: (error: Error) => void;
-  vi.mocked(listRoutes).mockImplementationOnce(
-    () =>
-      new Promise((_, reject) => {
-        rejectLoad = reject;
-      }),
-  );
+  let finishRetry!: (routes: PlannedRoute[]) => void;
+  vi.mocked(listRoutes)
+    .mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectLoad = reject;
+        }),
+    )
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishRetry = resolve;
+        }),
+    );
   render(<Library onClose={() => {}} onOpen={() => {}} />);
   expect(
     await screen.findByRole('status', { name: i18next.t('Opening your library…') }),
   ).toBeInTheDocument();
-  const loader = screen.getByTestId('global-map-loader');
-  expect(loader).toHaveAttribute('data-purpose', 'library');
-  expect(loader.closest('[data-testid="panel-loader"]')).not.toBeNull();
-  expect(loader.querySelector('.global-map-loader__orbit')).toBeInTheDocument();
-  expect(document.querySelector('.library-loading')).toBeNull();
+  const skeleton = screen.getByTestId('library-skeleton');
+  expect(skeleton.querySelector('[data-slot="skeleton"]')).toBeInTheDocument();
+  expect(skeleton.querySelector('.library-skeleton-list')).toHaveAttribute('aria-hidden', 'true');
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Back to map' })).toBeEnabled();
   rejectLoad(new Error('Your library could not be loaded.'));
   await screen.findByRole('button', { name: 'Try again' });
   expect(screen.queryByText(i18next.t('Your next adventure belongs here'))).not.toBeInTheDocument();
+  expect(screen.queryByTestId('library-skeleton')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(screen.getByTestId('library-skeleton')).toBeVisible();
+  await act(async () => {
+    finishRetry([alpine, woodland]);
+  });
   await screen.findByRole('button', { name: /Alpine loop Cycling/ });
+  expect(screen.queryByTestId('library-skeleton')).not.toBeInTheDocument();
   expect(listRoutes).toHaveBeenCalledTimes(2);
 });
+
+it.each(['en', 'ru'])(
+  'shows a local accessible skeleton while reading routes in %s and focuses search on completion',
+  async (language) => {
+    let finishLoad!: (routes: PlannedRoute[]) => void;
+    vi.mocked(listRoutes).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishLoad = resolve;
+        }),
+    );
+    const overflow = document.body.style.overflow;
+    const view = render(<Library onClose={vi.fn()} onOpen={vi.fn()} />);
+    await act(async () => {
+      await i18next.changeLanguage(language);
+    });
+    const status = screen.getByRole('status', { name: i18next.t('Opening your library…') });
+    expect(status).toHaveTextContent(i18next.t('Reading routes saved in this browser.'));
+    const shapes = status.querySelector('.library-skeleton-list')!;
+    expect(shapes).toHaveAttribute('aria-hidden', 'true');
+    expect(shapes.querySelectorAll('.library-skeleton-card')).toHaveLength(4);
+    expect(shapes.querySelector('button, a, input, [tabindex]')).toBeNull();
+    expect(screen.queryByRole('list', { name: i18next.t('Saved routes') })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(i18next.t('Your next adventure belongs here')),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: i18next.t('Back to map') })).toBeEnabled();
+    expect(view.container.inert).not.toBe(true);
+    expect(document.body.style.overflow).toBe(overflow);
+    await act(async () => {
+      finishLoad([alpine]);
+    });
+    expect(screen.queryByTestId('library-skeleton')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: i18next.t('Search saved routes') })).toHaveFocus();
+    expect(screen.getByRole('list', { name: i18next.t('Saved routes') })).toHaveTextContent(
+      'Alpine loop',
+    );
+    await act(async () => {
+      await i18next.changeLanguage('en');
+    });
+  },
+);
+
+it.each(['resolve', 'reject'])(
+  'allows leaving the library during loading and ignores a late %s',
+  async (outcome) => {
+    let finishLoad!: (routes: PlannedRoute[]) => void;
+    let failLoad!: (error: Error) => void;
+    vi.mocked(listRoutes).mockImplementationOnce(
+      () =>
+        new Promise((resolve, reject) => {
+          finishLoad = resolve;
+          failLoad = reject;
+        }),
+    );
+    function Screen() {
+      const [open, setOpen] = useState(true);
+      return open ? (
+        <Library onClose={() => setOpen(false)} onOpen={vi.fn()} />
+      ) : (
+        <p>Map restored</p>
+      );
+    }
+    render(<Screen />);
+    const back = screen.getByRole('button', { name: 'Back to map' });
+    expect(back).toHaveFocus();
+    if (outcome === 'resolve') fireEvent.click(back);
+    else fireEvent.keyDown(back, { key: 'Escape' });
+    expect(screen.getByText('Map restored')).toBeVisible();
+    await act(async () => {
+      if (outcome === 'resolve') finishLoad([alpine]);
+      else failLoad(new Error('Your library could not be loaded.'));
+    });
+    expect(screen.queryByTestId('library-skeleton')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalled();
+  },
+);
 
 it('edits trimmed details, exposes busy state and returns focus to the edit action', async () => {
   await openLibrary();
@@ -379,7 +471,9 @@ it('previews backup counts with safe copy default and imports only after confirm
     expect(importBackup).toHaveBeenCalledWith(expect.objectContaining({ version: 1 }), 'copy'),
   );
   expect(
-    (await screen.findByText('Imported 2 routes; skipped 0.')).closest('[data-sonner-toast]'),
+    (await screen.findByText(i18next.t('Imported {{count}} routes; skipped {{skipped}}.', {
+      count: 2, skipped: 0,
+    }))).closest('[data-sonner-toast]'),
   ).toHaveAttribute('data-type', 'success');
   expect(onOpen).not.toHaveBeenCalled();
 });
@@ -459,7 +553,7 @@ it.each([
   ['save', 'Route saved on this device. Your next adventure is ready.'],
   ['delete', 'Route deleted.'],
   ['duplicate', 'Route duplicated.'],
-  ['import', 'Imported 1 routes; skipped 0.'],
+  ['import', 'Imported {{count}} routes; skipped {{skipped}}.'],
 ] as const)('keeps the %s promise loading and locked through refresh, with one success toast', async (action, success) => {
   const { onClose } = await openLibrary();
   vi.mocked(duplicateRoute).mockResolvedValue({ ...alpine, id: 'copy' });
@@ -490,7 +584,7 @@ it.each([
   expect(onClose).not.toHaveBeenCalled();
   expect(toast.promise).toHaveBeenCalledOnce();
   finishRefresh([alpine, woodland]);
-  const message = i18next.t(success);
+  const message = i18next.t(success, { count: 1, skipped: 0 });
   await waitFor(() => expect(screen.getByText(message).closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'success'));
   expect(screen.getAllByText(message)).toHaveLength(1);
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

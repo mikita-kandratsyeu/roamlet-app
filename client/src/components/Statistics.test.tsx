@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type { Coordinate, PlannedRoute } from '../domain/types';
 import { calculateStats } from '../domain/stats';
 import { Statistics } from './Statistics';
+import i18n from '../i18n';
 
 vi.mock('./ui/chart', () => ({
   ChartContainer: () => <div data-testid="elevation-chart" />,
@@ -107,7 +108,7 @@ it('shows personal movement and total while retaining the original duration esti
   ).toBeInTheDocument();
   expect(
     screen.getByText(
-      'Complete GPX heights unavailable: climbing is not included; the range is wider.',
+      i18n.t('Complete GPX heights unavailable: climbing is not included; the range is wider.'),
     ),
   ).toBeInTheDocument();
   expect(snapshot.stats.duration).toBe(1800);
@@ -222,7 +223,7 @@ it('states manual straight-distance and missing-height limitations without chang
   ).toBeInTheDocument();
   expect(
     screen.getByText(
-      'Complete GPX heights unavailable: climbing is not included; the range is wider.',
+      i18n.t('Complete GPX heights unavailable: climbing is not included; the range is wider.'),
     ),
   ).toBeInTheDocument();
   expect(snapshot).toEqual(original);

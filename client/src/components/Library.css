@@ -336,16 +336,7 @@
 }
 
 .route-library .library-loading {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 3px;
-}
-
-.route-library .library-loading > div {
-  height: 160px;
-  border-radius: 10px;
-  background: var(--muted);
+  margin-bottom: 20px;
 }
 
 .roamlet-dialog .route-library .library-edit,
@@ -533,10 +524,6 @@
   .roamlet-dialog .route-library .library-edit,
   .route-library .delete-confirm {
     padding: 16px;
-  }
-
-  .route-library .library-loading > div {
-    height: 180px;
   }
 }
 
@@ -859,9 +846,67 @@
   align-content: start;
   grid-auto-rows: 1fr;
 }
-.library-screen .library-loading {
+.library-loading-title {
+  margin: 0 0 6px;
+  color: var(--foreground);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.library-loading-description {
+  margin: 0 0 16px;
+  color: var(--muted-foreground);
+  font-size: var(--font-size-helper);
+  line-height: 1.5;
+}
+.library-skeleton-card [data-slot='skeleton'] {
+  background: var(--muted);
+}
+.library-skeleton-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+.library-skeleton-text {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+.library-skeleton-title {
+  width: 70%;
+  height: 16px;
+}
+.library-skeleton-meta {
+  width: 85%;
+  height: 12px;
+}
+.library-skeleton-description {
+  height: 12px;
+}
+.library-skeleton-tag {
+  width: 56px;
+  max-width: 100%;
+  height: 20px;
+}
+.library-skeleton-open {
+  width: 40px;
+  height: 40px;
+}
+.library-skeleton-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.library-skeleton-actions [data-slot='skeleton'] {
+  width: 48px;
+  height: 32px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .library-skeleton-card [data-slot='skeleton'] {
+    animation: none;
+  }
 }
 .library-screen .library-summary {
   order: initial;
@@ -903,8 +948,7 @@
   grid-column: auto;
 }
 @media (max-width: 800px) {
-  .library-screen .library-list,
-  .library-screen .library-loading {
+  .library-screen .library-list {
     grid-template-columns: minmax(0, 1fr);
   }
 }

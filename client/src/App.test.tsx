@@ -496,28 +496,48 @@ describe('route planner interactions', () => {
       expect(help).toHaveTextContent(i18n.t('Planning routes'));
     },
   );
-  it.each([
+  it.each(
     [
-      'The routing request was rejected. Check the OpenRouteService API key and account permissions.',
-      'Не удалось выполнить автоматический расчёт. Попробуйте позже или нарисуйте маршрут вручную.',
-    ],
-    [
-      'The routing request exceeds the service limits. Try fewer points or a shorter route.',
-      'Запрос маршрута превышает ограничения сервиса. Попробуйте меньше точек или более короткий маршрут.',
-    ],
-  ])('localizes actionable ORS error: %s', async (message, russian) => {
-    provider.calculateRoute.mockRejectedValueOnce(new Error(message));
-    render(<App />);
-    addCoordinate('47.26, 11.4');
-    addCoordinate('47.27, 11.41');
-    expect(await screen.findByRole('alert')).toHaveTextContent(i18n.t(message));
-    selectLanguage('Русский');
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(russian));
-    await act(async () => {
-      await i18n.changeLanguage('en');
-    });
-    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
-  });
+      [
+        'The routing request was rejected. Check the OpenRouteService API key and account permissions.',
+        'Не удалось выполнить автоматический расчёт. Попробуйте позже или нарисуйте маршрут вручную.',
+      ],
+      [
+        'The routing request exceeds the service limits. Try fewer points or a shorter route.',
+        'Запрос маршрута превышает ограничения сервиса. Попробуйте меньше точек или более короткий маршрут.',
+      ],
+    ].flatMap(([message, russian]) =>
+      ['en', 'ru'].map((language) => ({ message, russian, language })),
+    ),
+  )(
+    'localizes actionable ORS toast in $language: $message',
+    async ({ message, russian, language }) => {
+      await act(async () => {
+        await i18n.changeLanguage(language);
+      });
+      provider.calculateRoute.mockRejectedValueOnce(new Error(message));
+      render(<App />);
+      for (const coordinate of ['47.26, 11.4', '47.27, 11.41']) {
+        fireEvent.change(screen.getByRole('textbox', { name: i18n.t('Latitude') }), {
+          target: { value: coordinate },
+        });
+        fireEvent.click(screen.getByRole('button', { name: i18n.t('Add coordinates') }));
+      }
+      const expected = language === 'ru' ? russian : i18n.t(message);
+      const error = await screen.findByText(expected);
+      const notification = error.closest<HTMLElement>('[data-sonner-toast]')!;
+      expect(notification).toHaveAttribute('data-type', 'error');
+      expect(
+        within(notification).getByRole('button', { name: i18n.t('Retry routing') }),
+      ).toBeEnabled();
+      expect(screen.getAllByText(expected)).toHaveLength(1);
+      expect(document.querySelector('.planner-route-status')).not.toHaveTextContent(expected);
+      expect(screen.getByRole('button', { name: i18n.t('Export') })).toBeDisabled();
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    },
+  );
   it('draws, moves, reverses and undoes manual segments without Directions or a token', async () => {
     vi.mocked(checkRoutingConfiguration).mockResolvedValue(false);
     render(<App />);
