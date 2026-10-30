@@ -238,9 +238,10 @@ for (const language of ['en', 'ru'] as const) {
         name: 'first-offline.gpx 2', mimeType: 'application/octet-stream', buffer: Buffer.from(xml),
       });
       expect((await started).url()).toMatch(/gpxImport\.worker-/);
-      await expect(page.getByRole('complementary').getByText(
-        language === 'ru' ? 'Импортированный маршрут' : 'Imported route', { exact: true },
-      )).toBeVisible();
+      const title = language === 'ru'
+        ? page.getByRole('button', { name: /^Импортированный маршрут/ })
+        : page.getByRole('heading', { name: 'Imported route', exact: true });
+      await expect(title).toBeVisible();
       const pending = page.waitForEvent('download');
       await page.getByRole('button', { name: language === 'ru' ? 'Экспорт' : 'Export', exact: true }).click();
       await page.getByRole('dialog').getByRole('button', {

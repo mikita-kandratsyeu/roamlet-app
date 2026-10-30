@@ -48,10 +48,10 @@ it('flushes edits made while an earlier draft write is awaiting completion befor
   const blocked = blockNextDraftWrite();
   const writer = draftWriter(vi.fn());
   const snapshot = initialEditor();
-  writer.schedule(snapshot);
+  writer.schedule(snapshot, true);
   const flushed = writer.flush();
   await blocked.started;
-  writer.schedule({ ...snapshot, name: 'Edited during flush' });
+  writer.schedule({ ...snapshot, name: 'Edited during flush' }, true);
   blocked.release();
   expect(await flushed).toBe(true);
   expect((await loadDraft())?.snapshot.name).toBe('Edited during flush');
@@ -90,7 +90,11 @@ it('does not clone retained route geometry until the debounced draft is flushed'
   expect(clone.mock.calls.some(([value]) => value === editor.result)).toBe(false);
   clone.mockRestore();
   expect(await writer.flush()).toBe(true);
-  expect((await loadDraft())?.snapshot).toEqual({ ...editor, name: 'Latest title' });
+  const saved = await loadDraft();
+  expect(saved?.snapshot).toEqual({ ...editor, name: 'Latest title' });
+  saved!.snapshot.result!.segments[0][0][2] = 999;
+  expect(editor.result.segments[0][0][2]).toBe(100);
+  expect((await loadDraft())?.snapshot.result?.segments[0][0][2]).toBe(100);
 });
 it('captures snapshots before asynchronous writes and reports nonblocking errors', async () => {
   const onError = vi.fn();

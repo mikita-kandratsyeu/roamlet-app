@@ -667,7 +667,9 @@ test('library loading uses an accessible local skeleton without blocking navigat
       const before = await canvas.boundingBox();
       try {
         await page.getByRole('button', { name: /^(Menu|Меню)$/, exact: true }).click();
-        await page.getByRole('menuitem', { name: /^(My routes|Мои маршруты)$/, exact: true }).click();
+        await page
+          .getByRole('menuitem', { name: /^(My routes|Мои маршруты)$/, exact: true })
+          .click();
         const skeleton = page.getByTestId('library-skeleton');
         await expect(skeleton).toBeVisible();
         await expect(skeleton).toHaveAttribute('role', 'status');

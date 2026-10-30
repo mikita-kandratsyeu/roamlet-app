@@ -1218,39 +1218,39 @@ export default function App() {
                 )}
               </span>
             </Button>
-            <div className="planner-scroll">
-              <div className="planner-heading">
-                <div>
-                  <h1>{name || t('New route')}</h1>
-                </div>
-                <div className="planner-heading-actions">
-                  {canUseRoute && (
-                    <Button
-                      variant="ghost"
-                      className="icon-button"
-                      aria-label={t('Edit route name')}
-                      title={t('Edit route name')}
-                      onClick={() => setSaveOpen(true)}
-                    >
-                      <Pencil size={16} />
-                    </Button>
-                  )}
-                  <Button
-                    ref={hidePlannerButton}
-                    variant="ghost"
-                    className="icon-button desktop-planner-toggle"
-                    aria-label={t('Hide planner')}
-                    title={t('Hide planner')}
-                    aria-controls="route-planner"
-                    onClick={() => {
-                      plannerFocusRequested.current = true;
-                      setPanelHidden(true);
-                    }}
-                  >
-                    <PanelLeftClose size={17} />
-                  </Button>
-                </div>
+            <div className="planner-heading">
+              <div>
+                <h1>{name || t('New route')}</h1>
               </div>
+              <div className="planner-heading-actions">
+                {canUseRoute && (
+                  <Button
+                    variant="ghost"
+                    className="icon-button"
+                    aria-label={t('Edit route name')}
+                    title={t('Edit route name')}
+                    onClick={() => setSaveOpen(true)}
+                  >
+                    <Pencil size={16} />
+                  </Button>
+                )}
+                <Button
+                  ref={hidePlannerButton}
+                  variant="ghost"
+                  className="icon-button desktop-planner-toggle"
+                  aria-label={t('Hide planner')}
+                  title={t('Hide planner')}
+                  aria-controls="route-planner"
+                  onClick={() => {
+                    plannerFocusRequested.current = true;
+                    setPanelHidden(true);
+                  }}
+                >
+                  <PanelLeftClose size={17} />
+                </Button>
+              </div>
+            </div>
+            <div className="planner-scroll">
               <div className={`planner-route-status ${routeStale && result ? 'is-stale' : ''}`}
                 role="status" aria-atomic="true">
                 <div className="planner-route-status-copy">

@@ -195,7 +195,7 @@ test('moving an existing waypoint previews its adjacent line before release', as
   expect(Math.abs(dragged.y + dragged.height / 2 - start.y - 45)).toBeLessThan(1.5);
   await page.screenshot({ path: info.outputPath('waypoint-move-preview.png') });
   await page.mouse.up();
-  await expect(page.locator('.map-hint')).not.toContainText('Предпросмотр прямыми линиями');
+  await expect(page.getByText('Предпросмотр прямыми линиями', { exact: false })).toHaveCount(0);
   await expect(markers).toHaveCount(2);
   await canvas.focus();
   await page.keyboard.press('Control+z');

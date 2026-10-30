@@ -142,8 +142,12 @@
   max-width: 100%;
 }
 .planner-heading {
-  margin-bottom: 10px;
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding: 16px 16px 12px;
   align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 .planner-route-description {
   width: 100%;
@@ -1142,6 +1146,8 @@
     height: 72px;
     padding: 20px 16px 10px;
     border: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
   }
   .mobile-sheet-toggle::before {
     content: '';

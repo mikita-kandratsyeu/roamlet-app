@@ -1083,6 +1083,53 @@ test('matches Figma planner geometry while preserving branding and responsive el
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
+test('planner header stays visible while its guidance and controls scroll', async ({
+  page,
+}, testInfo) => {
+  const mobile = testInfo.project.name === 'mobile';
+  await page.setViewportSize(mobile ? { width: 390, height: 740 } : { width: 1440, height: 650 });
+  await page
+    .getByRole('button', { name: mobile ? 'Draw a route manually' : 'Manual drawing', exact: true })
+    .click();
+  const header = page.locator(mobile ? '.mobile-sheet-toggle' : '.planner-heading');
+  const scroll = page.locator('.planner-scroll');
+  const status = page.locator('.planner-route-status');
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' })
+      .click();
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme });
+      await scroll.evaluate((element) => {
+        element.scrollTop = 0;
+      });
+      const headerBefore = await header.boundingBox();
+      const statusBefore = await status.boundingBox();
+      await scroll.evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+      });
+      await expect.poll(() => scroll.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+      expect(await header.boundingBox()).toEqual(headerBefore);
+      expect((await status.boundingBox())!.y).toBeLessThan(statusBefore!.y);
+      await expect(header).toBeInViewport();
+      await expect(header).toHaveCSS('border-bottom-width', '1px');
+      await expect(header).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    }
+  }
+  if (mobile) {
+    await header.click();
+    await expect(header).toHaveAttribute('aria-expanded', 'false');
+    await header.click();
+    await expect(header).toHaveAttribute('aria-expanded', 'true');
+  } else {
+    await page.getByRole('button', { name: 'Скрыть планировщик', exact: true }).click();
+    await expect(header).not.toBeVisible();
+    await page.getByRole('button', { name: 'Показать планировщик', exact: true }).click();
+    await expect(header).toBeVisible();
+  }
+});
+
 test('point edits preserve the camera and location does not add stops', async ({
   page,
   context,
