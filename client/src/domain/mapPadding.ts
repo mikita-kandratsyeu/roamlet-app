@@ -13,6 +13,7 @@ export function mapPadding({
   stylePicker,
   controls,
   elevation,
+  editingToolbar,
   compactPlanner,
 }: {
   viewport?: Bounds;
@@ -20,6 +21,7 @@ export function mapPadding({
   stylePicker?: Bounds;
   controls?: Bounds;
   elevation?: Bounds;
+  editingToolbar?: Bounds;
   compactPlanner: boolean;
 }): number | { top: number; bottom: number; left: number; right: number } {
   if (!viewport?.width || !viewport.height) return 65;
@@ -33,7 +35,9 @@ export function mapPadding({
       bottom = Math.max(bottom, viewport.bottom - stylePicker.top + 12);
     else top = Math.max(top, stylePicker.bottom - viewport.top + 12);
   }
-  if (intersects(elevation)) bottom = Math.max(bottom, viewport.bottom - elevation.top + 24);
+  for (const overlay of [elevation, editingToolbar]) {
+    if (intersects(overlay)) bottom = Math.max(bottom, viewport.bottom - overlay.top + 24);
+  }
   if (intersects(planner)) {
     if (compactPlanner) bottom = Math.max(bottom, viewport.bottom - planner.top + 24);
     else left = Math.max(left, Math.min(planner.right - viewport.left + 24, viewport.width - 140));

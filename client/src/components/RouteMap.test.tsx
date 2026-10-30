@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => ({
   control: vi.fn(),
   attribution: vi.fn(),
   fit: vi.fn(),
+  boundsExtend: vi.fn(),
   remove: vi.fn(),
   paint: vi.fn(),
   zoomIn: vi.fn(),
@@ -145,7 +146,8 @@ vi.mock('maplibre-gl', () => ({
       }
     },
     LngLatBounds: class {
-      extend() {
+      extend(coordinate: unknown) {
+        mocks.boundsExtend(coordinate);
         return this;
       }
     },
@@ -1053,6 +1055,18 @@ it('selects accessible waypoint buttons, exposes actions and focuses only on exp
   fireEvent.click(screen.getByRole('button', { name: 'Remove waypoint' }));
   expect(onRemoveWaypoint).toHaveBeenCalledWith('a');
   expect(screen.queryByRole('group', { name: 'Waypoint actions' })).not.toBeInTheDocument();
+});
+
+it('fits only the requested section geometry once and allows a close detour zoom', () => {
+  const fitSegments: [number, number][][] = [[[0, 0], [0, 1], [1, 1]]];
+  const options = { ...props, segments: [[[0, 0], [10, 10]]] as [number, number][][],
+    fitSegments, fitMaxZoom: 18, fitToken: 1 };
+  const { rerender } = render(<RouteMap {...options} />);
+  act(() => mocks.handlers.get('load')?.());
+  expect(mocks.boundsExtend.mock.calls.map(([coordinate]) => coordinate)).toEqual(fitSegments.flat());
+  expect(mocks.fit).toHaveBeenCalledExactlyOnceWith(expect.anything(), expect.objectContaining({ maxZoom: 18 }));
+  rerender(<RouteMap {...options} segments={[[[2, 2], [3, 3]]]} />);
+  expect(mocks.fit).toHaveBeenCalledOnce();
 });
 
 it.each([0, 1, 2])('previews adjacent lines when dragging existing waypoint %s and commits only on release', (index) => {

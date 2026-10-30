@@ -41,6 +41,7 @@ vi.mock('./components/RouteMap', () => ({
     editingToolbar,
     onAdd,
     fitToken,
+    fitMaxZoom,
   }: {
     segments: unknown[];
     manualDrawing?: boolean;
@@ -62,6 +63,7 @@ vi.mock('./components/RouteMap', () => ({
     editingToolbar?: ReactNode;
     onAdd?: (coordinate: [number, number]) => void;
     fitToken: number;
+    fitMaxZoom?: number;
   }) => (
     <div
       data-testid="map"
@@ -75,6 +77,7 @@ vi.mock('./components/RouteMap', () => ({
       data-comparison-layers={JSON.stringify(comparisonLayers ?? [])}
       data-highlight={JSON.stringify(highlightSegments ?? [])}
       data-fit-token={fitToken}
+      data-fit-max-zoom={fitMaxZoom}
     >
       Map
       {editingToolbar}
@@ -174,10 +177,12 @@ it('draws a local section detour, cancels losslessly and applies it as a single 
     fireEvent.click(screen.getByRole('menuitem', { name: 'Draw a detour' }));
   };
   start();
-  expect(screen.getByTestId('map')).toHaveAttribute('data-fit-token', originalFit!);
+  expect(screen.getByTestId('map')).toHaveAttribute('data-fit-token', String(Number(originalFit) + 1));
+  expect(screen.getByTestId('map')).toHaveAttribute('data-fit-max-zoom', '18');
   expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled();
   expect(document.querySelector('#route-planner')).toHaveAttribute('inert');
   fireEvent.click(screen.getByRole('button', { name: 'Add detour map point' }));
+  expect(screen.getByTestId('map')).toHaveAttribute('data-fit-token', String(Number(originalFit) + 1));
   expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled();
   expect(provider.calculateRoute).toHaveBeenCalledTimes(originalCalls);
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));

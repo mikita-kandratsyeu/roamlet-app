@@ -46,6 +46,12 @@ it('retains desktop planner padding and ignores nonoverlapping overlays', () => 
   })).toEqual({ top: 65, bottom: 65, left: 456, right: 65 });
 });
 
+it('keeps a focused detour above its editing toolbar', () => {
+  expect(mapPadding({ viewport: bounds(0, 0, 412, 800),
+    editingToolbar: bounds(12, 620, 388, 150), compactPlanner: true }))
+    .toEqual({ top: 65, bottom: 204, left: 65, right: 65 });
+});
+
 it('handles an unmeasured viewport and keeps room in very small viewports', () => {
   expect(mapPadding({ compactPlanner: true })).toBe(65);
   expect(mapPadding({ viewport: bounds(0, 0, 50, 40), compactPlanner: true }))

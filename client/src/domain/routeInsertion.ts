@@ -5,6 +5,7 @@ interface Position {
   distance: number;
   along: number;
   segment: number;
+  edge: number;
 }
 function nearest(coordinate: Coordinate, segments: Coordinate[][], minimum = 0): Position | null {
   let best: Position | null = null;
@@ -39,11 +40,39 @@ function nearest(coordinate: Coordinate, segments: Coordinate[][], minimum = 0):
         coordinate[1] - projected[1],
       );
       if (position >= minimum - 1e-10 && (!best || distance < best.distance))
-        best = { coordinate: projected, distance, along: position, segment };
+        best = { coordinate: projected, distance, along: position, segment, edge: i };
       along += length;
     }
   }
   return best;
+}
+
+/** Include the routed bends of a selected leg without joining disconnected geometry. */
+export function routeSectionSegments(
+  segments: Coordinate[][], waypoints: Waypoint[], index: number,
+): Coordinate[][] {
+  if (!Number.isInteger(index) || index < 0 || index >= waypoints.length - 1) return [];
+  let start = nearest(waypoints[0].coordinate, segments);
+  if (!start) return [];
+  for (let stop = 0; stop < index; stop++) {
+    start = nearest(waypoints[stop + 1].coordinate, segments, start.along);
+    if (!start) return [];
+  }
+  const end = nearest(waypoints[index + 1].coordinate, segments, start.along);
+  if (!end || end.along <= start.along) return [];
+  const section: Coordinate[][] = [];
+  for (let part = start.segment; part <= end.segment; part++) {
+    const coordinates = segments[part];
+    const first = part === start.segment ? start.edge : 0;
+    const last = part === end.segment ? end.edge : coordinates.length;
+    const clipped = [
+      ...(part === start.segment ? [start.coordinate] : []),
+      ...coordinates.slice(first, last),
+      ...(part === end.segment ? [end.coordinate] : []),
+    ];
+    if (clipped.length >= 2) section.push(clipped);
+  }
+  return section;
 }
 
 /** Match stops in route order, not by proximity to pins on hairpins or crossing routes. */

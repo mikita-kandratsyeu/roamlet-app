@@ -71,6 +71,7 @@ import {
 } from './domain/waypointLegs';
 import { isRouteResultCurrent } from './domain/editorRouting';
 import { DEFAULT_ROUTING_OPTIONS } from './domain/routingOptions';
+import { routeSectionSegments } from './domain/routeInsertion';
 type PlanningMode = 'point' | 'loop' | 'manual';
 import { saveRoute } from './domain/storage';
 import { checkRoutingConfiguration, routingProvider } from './services/routing';
@@ -298,6 +299,12 @@ export default function App() {
   const detour = useManualDetour(waypoints,
     mode === 'manual' && planningMode === 'point' && !offlineAutomatic && !busy && !routeStale && !libraryOpen);
   const drawingDetour = !!detour.active;
+  const detourSectionIndex = detour.active?.index;
+  const detourFitSegments = useMemo(() => {
+    if (detourSectionIndex === undefined) return undefined;
+    const section = routeSectionSegments(result?.segments ?? emptySegments, waypoints, detourSectionIndex);
+    return section.length ? section : [[waypoints[detourSectionIndex].coordinate, waypoints[detourSectionIndex + 1].coordinate]];
+  }, [detourSectionIndex, result?.segments, waypoints]);
   const detourSegments = useMemo(() => detour.active ? [detour.active.points.map((point) => point.coordinate)] : null,
     [detour.active]);
   const detourLocks = useMemo(() => detour.active
@@ -578,6 +585,7 @@ export default function App() {
     setPanelHidden(true);
     setSelectedWaypointId(null);
     setSearchTarget(null);
+    setFitToken((token) => token + 1);
     requestAnimationFrame(() => document.querySelector<HTMLCanvasElement>('.maplibregl-canvas')?.focus());
   }
   function finishDetour(apply: boolean) {
@@ -2118,6 +2126,8 @@ export default function App() {
                 : undefined
             }
             fitToken={fitToken}
+            fitSegments={detourFitSegments}
+            fitMaxZoom={drawingDetour ? 18 : undefined}
             onAdd={drawingDetour ? detour.add : (coordinate) => addLocation(coordinate)}
             onMove={drawingDetour ? detour.move : (id, coordinate) =>
               changeWaypoints(

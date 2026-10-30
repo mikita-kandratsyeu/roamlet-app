@@ -1,8 +1,30 @@
 import { expect, it } from 'vitest';
-import { routeInsertion } from './routeInsertion';
+import { routeInsertion, routeSectionSegments } from './routeInsertion';
 import type { Coordinate, Waypoint } from './types';
 const points = (...coordinates: Coordinate[]): Waypoint[] =>
   coordinates.map((coordinate, index) => ({ id: String(index), name: String(index), coordinate }));
+it('extracts selected section bends without including other legs or mutating geometry', () => {
+  const geometry: Coordinate[][] = [[[0, 0], [0, 2], [1, 2], [1, 0], [9, 0]]];
+  const original = structuredClone(geometry);
+  const stops = points([0, 0], [1, 0], [9, 0]);
+  expect(routeSectionSegments(geometry, stops, 0)).toEqual([[[0, 0], [0, 2], [1, 2], [1, 0]]]);
+  const second = routeSectionSegments(geometry, stops, 1).flat();
+  expect(second[0]).toEqual([1, 0]);
+  expect(second.at(-1)).toEqual([9, 0]);
+  expect(second).not.toContainEqual([0, 2]);
+  expect(geometry).toEqual(original);
+});
+it('clips stop positions within edges and preserves gaps in section geometry', () => {
+  expect(routeSectionSegments([[[0, 0, 100], [1, 0, 200]]], points([0.2, 0], [0.8, 0]), 0))
+    .toEqual([[[0.2, 0, 120], [0.8, 0, 180]]]);
+  expect(routeSectionSegments([[[0, 0], [1, 0]], [[2, 0], [3, 0]]], points([0, 0], [3, 0]), 0))
+    .toEqual([[[0, 0], [1, 0]], [[2, 0], [3, 0]]]);
+});
+it('returns no fit geometry for missing or invalid sections', () => {
+  expect(routeSectionSegments([], points([0, 0], [1, 0]), 0)).toEqual([]);
+  expect(routeSectionSegments([[[0, 0], [1, 0]]], points([0, 0], [1, 0]), 1)).toEqual([]);
+  expect(routeSectionSegments([[[0, 0], [0, 0]]], points([0, 0], [0, 0]), 0)).toEqual([]);
+});
 it('inserts between route-ordered stops rather than the nearest pin on a hairpin', () => {
   const geometry: Coordinate[][] = [
     [

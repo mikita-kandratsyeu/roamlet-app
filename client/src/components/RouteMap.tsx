@@ -60,6 +60,7 @@ function mapFitPadding(container: HTMLElement | null) {
     planner: screen?.querySelector('#route-planner')?.getBoundingClientRect(),
     stylePicker: region?.querySelector<HTMLElement>('.map-style-picker')?.getBoundingClientRect(),
     controls: region?.querySelector<HTMLElement>('.map-extra-controls')?.getBoundingClientRect(),
+    editingToolbar: region?.querySelector<HTMLElement>('.map-editing-toolbar')?.getBoundingClientRect(),
     compactPlanner: window.innerWidth <= 1024,
   });
 }
@@ -72,6 +73,8 @@ interface Props {
   waypoints: Waypoint[];
   editable: boolean;
   fitToken: number;
+  fitSegments?: Coordinate[][];
+  fitMaxZoom?: number;
   onAdd: (coordinate: Coordinate) => void;
   onMove: (id: string, coordinate: Coordinate) => void;
   onError: (message: string) => void;
@@ -922,19 +925,21 @@ export function RouteMap(props: Props) {
   }, [t, ready, zoom]);
   useEffect(() => {
     if (!ready || !map.current || props.fitToken === lastFitToken.current) return;
-    const coordinates = props.segments.flat().length
-      ? props.segments.flat()
+    const segments = props.fitSegments ?? props.segments;
+    const coordinates = segments.flat().length
+      ? segments.flat()
       : props.waypoints.map((w) => w.coordinate);
     if (!coordinates.length) return;
     lastFitToken.current = props.fitToken;
     const bounds = new maplibregl.LngLatBounds();
     coordinates.forEach((c) => bounds.extend([c[0], c[1]]));
+    map.current.resize();
     map.current.fitBounds(bounds, {
       padding: mapFitPadding(container.current),
-      maxZoom: 15,
+      maxZoom: props.fitMaxZoom ?? 15,
       duration: mapMotionDuration(),
     });
-  }, [ready, props.fitToken, props.segments, props.waypoints]);
+  }, [ready, props.fitToken, props.fitSegments, props.fitMaxZoom, props.segments, props.waypoints]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const canvas = map.current.getCanvas();
