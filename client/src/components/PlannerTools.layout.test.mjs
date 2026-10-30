@@ -4,6 +4,11 @@ import { readFile, rm } from 'node:fs/promises';
 import { chromium } from '@playwright/test';
 
 const css = await readFile(new URL('../planner.css', import.meta.url), 'utf8');
+const baseCss = await readFile(new URL('../styles.css', import.meta.url), 'utf8');
+const timeExplanationCss = await readFile(
+  new URL('./TimeExplanation.css', import.meta.url),
+  'utf8',
+);
 
 for (const width of [230, 320, 360, 390]) {
   test(`personal-time layout has compact aligned rows at ${width}px`, async () => {
@@ -94,6 +99,94 @@ for (const width of [230, 320, 360, 390]) {
           ),
         0,
       );
+      const borders = await page.evaluate(() => {
+        const section = document.querySelector('.personal-time-section');
+        const scroll = document.createElement('div');
+        scroll.className = 'planner-scroll';
+        section.before(scroll);
+        scroll.append(section);
+        const details = document.createElement('details');
+        details.className = 'planner-details';
+        scroll.append(details);
+        return {
+          personalTime: getComputedStyle(section).borderTopWidth,
+          plannerDetails: getComputedStyle(details).borderTopWidth,
+        };
+      });
+      assert.deepEqual(borders, { personalTime: '0px', plannerDetails: '1px' });
+
+      for (const borderColor of ['#d7ded9', '#36463a']) {
+        for (const open of [false, true]) {
+          for (const routeState of ['ready', 'empty', 'absent']) {
+            await page.setContent(`<style>
+              * { box-sizing: border-box; }
+              ${baseCss}
+              ${timeExplanationCss}
+              ${css}
+              :root { --border: ${borderColor}; }
+            </style><div class="planner-scroll">
+              ${
+                routeState === 'ready'
+                  ? `<section class="statistics">
+                <p class="fine-print">Base time excludes stops.</p>
+                <details class="time-explanation" ${open ? 'open' : ''}>
+                  <summary>How time is calculated</summary><p>Time assumptions</p>
+                </details>
+                <details class="elevation-box" ${open ? 'open' : ''}>
+                  <summary>Elevation profile</summary><p>Elevation data</p>
+                </details>
+              </section>`
+                  : routeState === 'empty'
+                    ? '<section class="statistics statistics-empty">Add two stops</section>'
+                    : '<p>Alternatives require two stops.</p>'
+              }
+              <details class="personal-time-section" ${open ? 'open' : ''}>
+                <summary>Personal time</summary><p>Speed and stops</p>
+              </details>
+              <details class="planner-details" ${open ? 'open' : ''}>
+                <summary>Climb analysis</summary><p>Climbs</p>
+              </details>
+              <details class="planner-details" ${open ? 'open' : ''}>
+                <summary>Route schedule</summary><p>Schedule</p>
+              </details>
+            </div>`);
+            if (routeState === 'ready') {
+              const textGap = await page
+                .locator('.time-explanation')
+                .evaluate(
+                  (section) =>
+                    section.getBoundingClientRect().top -
+                    section.previousElementSibling.getBoundingClientRect().bottom,
+                );
+              assert.equal(textGap, 12);
+            }
+            const separators = await page.locator('details').evaluateAll((sections) =>
+              sections.map((section) => {
+                const style = getComputedStyle(section);
+                return {
+                  top: style.borderTopWidth,
+                  bottom: style.borderBottomWidth,
+                  color: style.borderTopColor,
+                };
+              }),
+            );
+            assert.deepEqual(
+              separators.map(({ top, bottom }) => ({ top, bottom })),
+              (routeState === 'ready'
+                ? ['1px', '1px', '1px', '1px', '1px']
+                : ['0px', '1px', '1px']
+              ).map((top) => ({ top, bottom: '0px' })),
+            );
+            const expectedColor =
+              borderColor === '#d7ded9' ? 'rgb(215, 222, 217)' : 'rgb(54, 70, 58)';
+            assert.ok(
+              separators
+                .filter(({ top }) => top === '1px')
+                .every(({ color }) => color === expectedColor),
+            );
+          }
+        }
+      }
     } finally {
       await context.close();
       await rm(profile, { recursive: true, force: true });

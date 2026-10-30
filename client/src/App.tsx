@@ -14,6 +14,8 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouteEditor } from './hooks/useRouteEditor';
 import { usePointRouting } from './hooks/usePointRouting';
+import { useManualDetour } from './hooks/useManualDetour';
+import { ManualDetourToolbar } from './components/ManualDetourToolbar';
 import { PlannerTools } from './components/PlannerTools';
 import { PlannerDetails } from './components/PlannerDetails';
 import { PlannerChoice } from './components/PlannerChoice';
@@ -293,6 +295,20 @@ export default function App() {
   const update = useAppUpdate(writer.flush);
   const [online, setOnline] = useState(navigator.onLine);
   const offlineAutomatic = !online && planningMode !== 'manual';
+  const detour = useManualDetour(waypoints,
+    mode === 'manual' && planningMode === 'point' && !offlineAutomatic && !busy && !routeStale && !libraryOpen);
+  const drawingDetour = !!detour.active;
+  const detourSegments = useMemo(() => detour.active ? [detour.active.points.map((point) => point.coordinate)] : null,
+    [detour.active]);
+  const detourLocks = useMemo(() => detour.active
+    ? [detour.active.points[0].id, detour.active.points.at(-1)!.id] : undefined, [detour.active]);
+  const detourBackground = useMemo(() => drawingDetour && result
+    ? [{ segments: result.segments, color: '#949494', dashed: false }] : undefined, [drawingDetour, result]);
+  const wasDrawingDetour = useRef(false);
+  useEffect(() => {
+    if (wasDrawingDetour.current && !drawingDetour) setPanelHidden(false);
+    wasDrawingDetour.current = drawingDetour;
+  }, [drawingDetour]);
   const checkConnection = () => setOnline(navigator.onLine);
   useEffect(() => {
     let active = true;
@@ -451,6 +467,7 @@ export default function App() {
     editor.routingAllowed,
   ]);
   function travelHistory(direction: 'undo' | 'redo') {
+    if (drawingDetour) { detour[direction](); return; }
     if (direction === 'undo' ? !editor.canUndo : !editor.canRedo) return;
     const changesGeometry =
       direction === 'undo' ? editor.undoChangesGeometry : editor.redoChangesGeometry;
@@ -479,6 +496,11 @@ export default function App() {
         (target.isContentEditable || target.closest('input, textarea, select'))
       )
         return;
+      if (drawingDetour && event.key === 'Escape') {
+        event.preventDefault();
+        finishDetour(false);
+        return;
+      }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !event.altKey) {
         event.preventDefault();
         travelHistory(event.shiftKey ? 'redo' : 'undo');
@@ -524,14 +546,14 @@ export default function App() {
   );
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (dirty) {
+      if (dirty || drawingDetour) {
         event.preventDefault();
         event.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
+  }, [dirty, drawingDetour]);
 
   function invalidate(preserveGeometry = false) {
     editor.checkpoint();
@@ -550,6 +572,28 @@ export default function App() {
     if (offlineAutomatic) return;
     invalidate(planningMode === 'point' && next.length >= 2);
     setWaypoints(next);
+  }
+  function startDetour(index: number) {
+    detour.start(index);
+    setPanelHidden(true);
+    setSelectedWaypointId(null);
+    setSearchTarget(null);
+    setFitToken((token) => token + 1);
+    requestAnimationFrame(() => document.querySelector<HTMLCanvasElement>('.maplibregl-canvas')?.focus());
+  }
+  function finishDetour(apply: boolean) {
+    const index = detour.active?.index;
+    if (index === undefined) return;
+    if (apply) {
+      try {
+        const points = detour.apply();
+        if (!points) return;
+        changeWaypoints(points);
+      } catch (error) { fail(errorMessage(error)); return; }
+    }
+    detour.cancel();
+    setPanelHidden(false);
+    requestAnimationFrame(() => document.querySelectorAll<HTMLButtonElement>('.leg-mode .planner-choice')[index]?.focus());
   }
   function changeRoutingOptions(next: typeof routingOptions) {
     if (mode !== 'manual' || planningMode === 'manual' || offlineAutomatic) return;
@@ -1048,7 +1092,7 @@ export default function App() {
         aria-hidden={libraryOpen || undefined}
         inert={libraryOpen || undefined}
       >
-        <header className="app-header">
+        <header className="app-header" inert={drawingDetour}>
           <a
             className="brand"
             href="#"
@@ -1178,7 +1222,7 @@ export default function App() {
         <main
           className={`workspace ${!online ? 'workspace-offline' : ''} ${collapsed ? 'panel-collapsed' : ''} ${panelHidden ? 'desktop-panel-hidden' : ''}`}
         >
-          {panelHidden && (
+          {panelHidden && !drawingDetour && (
             <Button
               ref={showPlannerButton}
               variant="outline"
@@ -1194,7 +1238,7 @@ export default function App() {
               {t('Route planner')}
             </Button>
           )}
-          <aside id="route-planner" className="planner" aria-label={t('Route planner')}>
+          <aside id="route-planner" className="planner" aria-label={t('Route planner')} inert={drawingDetour}>
             <Button
               variant="ghost"
               className="mobile-sheet-toggle"
@@ -1626,6 +1670,8 @@ export default function App() {
                                 value={point.legMode ?? 'automatic'}
                                 options={sectionChoices}
                                 disabled={offlineAutomatic}
+                                action={{ label: 'Draw a detour', onSelect: () => startDetour(index),
+                                  disabled: busy || routeStale || waypoints.length >= AUTOMATIC_POINT_LIMIT }}
                                 onChange={(legMode) =>
                                   changeWaypoints(
                                     waypoints.map((candidate) =>
@@ -2007,26 +2053,31 @@ export default function App() {
           <RouteMap
             key={mapRetryToken}
             online={online}
-            onLibrary={openLibrary}
+            onLibrary={drawingDetour ? undefined : openLibrary}
             onCheckConnection={checkConnection}
             plannerHidden={panelHidden}
-            segments={result?.segments || emptySegments}
-            waypoints={mapWaypoints}
-            selectedWaypointId={selectedWaypointId}
+            segments={detourSegments ?? result?.segments ?? emptySegments}
+            waypoints={detour.active?.points ?? mapWaypoints}
+            lockedWaypointIds={detourLocks}
+            comparisonLayers={detourBackground}
+            editingToolbar={detour.active ? <ManualDetourToolbar section={detour.active.index + 1}
+              canApply={detour.canApply} canAdd={detour.canAdd}
+              onApply={() => finishDetour(true)} onCancel={() => finishDetour(false)} /> : undefined}
+            selectedWaypointId={drawingDetour ? null : selectedWaypointId}
             focusWaypointToken={focusWaypointToken}
-            onSelectWaypoint={selectWaypoint}
-            onReplaceWaypoint={replaceWaypoint}
-            onRemoveWaypoint={(id) => changeWaypoints(waypoints.filter((point) => point.id !== id))}
-            onStartWaypoint={(id) => {
+            onSelectWaypoint={drawingDetour ? undefined : selectWaypoint}
+            onReplaceWaypoint={drawingDetour ? undefined : replaceWaypoint}
+            onRemoveWaypoint={drawingDetour ? detour.remove : (id) => changeWaypoints(waypoints.filter((point) => point.id !== id))}
+            onStartWaypoint={drawingDetour ? undefined : (id) => {
               const point = waypoints.find((candidate) => candidate.id === id);
               if (point && waypoints[0]?.id !== id)
                 changeWaypoints(reorderWaypoints(waypoints, waypoints.indexOf(point), 0));
             }}
-            elevationCoordinate={elevationCoordinate}
-            highlightSegments={climbSegments}
+            elevationCoordinate={drawingDetour ? null : elevationCoordinate}
+            highlightSegments={drawingDetour ? emptySegments : climbSegments}
             routeStale={routeStale}
-            directSegments={result?.source === 'manual' ? result.segments : result?.directSegments}
-            alternativeSegments={alternatives.map((alternative) => alternative.segments)}
+            directSegments={detourSegments ?? (result?.source === 'manual' ? result.segments : result?.directSegments)}
+            alternativeSegments={drawingDetour ? [] : alternatives.map((alternative) => alternative.segments)}
             selectedAlternativeIndex={selectedAlternative}
             editable={
               mode === 'manual' &&
@@ -2034,9 +2085,9 @@ export default function App() {
               !offlineAutomatic &&
               (planningMode !== 'loop' || !result)
             }
-            manualDrawing={mode === 'manual' && planningMode === 'manual'}
+            manualDrawing={drawingDetour || (mode === 'manual' && planningMode === 'manual')}
             onToggleManualDrawing={
-              mode === 'manual'
+              drawingDetour ? undefined : mode === 'manual'
                 ? () => changePlanningMode(planningMode === 'manual' ? automaticMode : 'manual')
                 : result?.source === 'manual'
                   ? editSnapshot
@@ -2044,10 +2095,10 @@ export default function App() {
             }
             onUndo={() => travelHistory('undo')}
             onRedo={() => travelHistory('redo')}
-            canUndo={editor.canUndo}
-            canRedo={editor.canRedo}
+            canUndo={drawingDetour ? detour.canUndo : editor.canUndo}
+            canRedo={drawingDetour ? detour.canRedo : editor.canRedo}
             onInsert={
-              mode === 'manual' && planningMode !== 'loop' && !routeStale
+              drawingDetour ? (detour.canAdd ? detour.insert : undefined) : mode === 'manual' && planningMode !== 'loop' && !routeStale
                 ? (coordinate, index) => {
                     if (waypoints.length >= stopLimit) {
                       fail(
@@ -2068,8 +2119,8 @@ export default function App() {
                 : undefined
             }
             fitToken={fitToken}
-            onAdd={(coordinate) => addLocation(coordinate)}
-            onMove={(id, coordinate) =>
+            onAdd={drawingDetour ? detour.add : (coordinate) => addLocation(coordinate)}
+            onMove={drawingDetour ? detour.move : (id, coordinate) =>
               changeWaypoints(
                 waypoints.map((w) =>
                   w.id === id

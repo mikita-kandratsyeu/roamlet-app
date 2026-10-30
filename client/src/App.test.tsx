@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
 import { act, fireEvent, render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import App from './App';
 import { routeDb } from './domain/storage';
@@ -37,6 +38,8 @@ vi.mock('./components/RouteMap', () => ({
     comparisonLayers,
     comparisonMode,
     highlightSegments,
+    editingToolbar,
+    onAdd,
   }: {
     segments: unknown[];
     manualDrawing?: boolean;
@@ -55,6 +58,8 @@ vi.mock('./components/RouteMap', () => ({
     comparisonLayers?: unknown[];
     comparisonMode?: boolean;
     highlightSegments?: unknown[];
+    editingToolbar?: ReactNode;
+    onAdd?: (coordinate: [number, number]) => void;
   }) => (
     <div
       data-testid="map"
@@ -69,6 +74,8 @@ vi.mock('./components/RouteMap', () => ({
       data-highlight={JSON.stringify(highlightSegments ?? [])}
     >
       Map
+      {editingToolbar}
+      <button onClick={() => onAdd?.([11.405, 47.28])}>Add detour map point</button>
       <button aria-pressed={manualDrawing} onClick={onToggleManualDrawing}>
         Manual drawing
       </button>
@@ -150,6 +157,40 @@ function setOnline(online: boolean) {
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(online);
   act(() => window.dispatchEvent(new Event(online ? 'online' : 'offline')));
 }
+
+it('draws a local section detour, cancels losslessly and applies it as a single route edit', async () => {
+  render(<App />);
+  await plan();
+  addCoordinate('47.29, 11.42');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
+  const original = screen.getByTestId('map').getAttribute('data-geometry');
+  const originalCalls = provider.calculateRoute.mock.calls.length;
+  const start = () => {
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Section 1 mode' }), { key: 'ArrowDown' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Draw a detour' }));
+  };
+  start();
+  expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled();
+  expect(document.querySelector('#route-planner')).toHaveAttribute('inert');
+  fireEvent.click(screen.getByRole('button', { name: 'Add detour map point' }));
+  expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled();
+  expect(provider.calculateRoute).toHaveBeenCalledTimes(originalCalls);
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', original!);
+  expect(provider.calculateRoute).toHaveBeenCalledTimes(originalCalls);
+  start();
+  fireEvent.click(screen.getByRole('button', { name: 'Add detour map point' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
+  const updated = provider.calculateRoute.mock.calls.at(-1)![0];
+  expect(updated.map((point: { legMode?: string }) => point.legMode)).toEqual(['direct', 'direct', undefined, undefined]);
+  expect(updated[1].coordinate).toEqual([11.405, 47.28]);
+  expect(screen.getByRole('button', { name: 'Section 3 mode' })).toHaveTextContent('Road/path routing');
+  fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+  expect(screen.queryByRole('button', { name: 'Section 3 mode' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Section 1 mode' })).toHaveTextContent('Road/path routing');
+  expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', original!);
+});
 
 describe('route preparation features', () => {
   it('compares saved routes without losing the current unsaved editor or making routing requests', async () => {

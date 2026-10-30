@@ -885,6 +885,15 @@
   border-radius: 0;
   background: transparent;
 }
+.planner-scroll > .statistics > .fine-print + :is(.time-explanation, .elevation-box) {
+  margin-top: 12px;
+}
+.planner-scroll > .personal-time-section {
+  border-top: 0;
+}
+.planner-scroll > .statistics:not(.statistics-empty) + .personal-time-section {
+  border-top: 1px solid var(--border);
+}
 .planner-scroll > :is(.personal-time-section, .planner-details) > summary.section-heading,
 .planner-scroll > .statistics > :is(.time-explanation, .elevation-box) > summary.section-heading {
   min-height: 44px;

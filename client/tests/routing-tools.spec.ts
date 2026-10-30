@@ -70,13 +70,14 @@ test('dragging a route line previews locally and creates one undoable waypoint o
     y: (a.y + a.height / 2 + b.y + b.height / 2) / 2 };
   const touch = isMobile ? await page.context().newCDPSession(page) : null;
   const down = async () => {
+    await expect.poll(async () => {
+      await page.mouse.move(start.x + 1, start.y);
+      await page.mouse.move(start.x, start.y);
+      return canvas.evaluate((element) => element.style.cursor);
+    }).toBe('grab');
     if (touch) await touch.send('Input.dispatchTouchEvent', { type: 'touchStart',
       touchPoints: [{ x: start.x, y: start.y, id: 1 }] });
-    else {
-      await page.mouse.move(start.x, start.y);
-      await expect(canvas).toHaveCSS('cursor', 'grab');
-      await page.mouse.down();
-    }
+    else await page.mouse.down();
   };
   const move = async () => {
     if (touch) await touch.send('Input.dispatchTouchEvent', { type: 'touchMove',
@@ -108,6 +109,57 @@ test('dragging a route line previews locally and creates one undoable waypoint o
   expect(directions).toEqual([]);
   expect(errors).toEqual([]);
   await touch?.detach();
+});
+
+test('a section detour stays local until Done and keeps the other section automatically routed', async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const requests: number[][][] = [];
+  await page.route('**/api/route', (route) => {
+    const coordinates = route.request().postDataJSON().coordinates as number[][];
+    requests.push(coordinates);
+    return route.fulfill({ json: { type: 'FeatureCollection', features: [{
+      type: 'Feature', geometry: { type: 'LineString', coordinates: coordinates.map((point) => [...point, 100]) },
+      properties: { summary: { distance: 1000, duration: 300 } },
+    }] } });
+  });
+  await plan(page);
+  await addPoint(page, '52.02, 30.02');
+  await expect(page.getByRole('button', { name: 'Сохранить маршрут', exact: true })).toBeEnabled();
+  const before = requests.length;
+  const start = async () => {
+    await page.getByRole('button', { name: 'Режим участка 1', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Нарисовать обход', exact: true }).click();
+    await expect(page.getByRole('group', { name: 'Нарисовать обход', exact: true })).toBeVisible();
+  };
+  const addDetour = async () => {
+    const markers = page.locator('.waypoint-marker');
+    await expect(markers).toHaveCount(2);
+    const a = (await markers.nth(0).boundingBox())!, b = (await markers.nth(1).boundingBox())!;
+    await page.mouse.click((a.x + a.width / 2 + b.x + b.width / 2) / 2 + 45,
+      (a.y + a.height / 2 + b.y + b.height / 2) / 2);
+    await expect(markers).toHaveCount(3);
+  };
+  await start();
+  await expect(page.getByRole('button', { name: 'Готово', exact: true })).toBeDisabled();
+  await addDetour();
+  expect(requests).toHaveLength(before);
+  await page.getByRole('button', { name: 'Отмена', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Режим участка 1', exact: true })).toHaveText(/По дорогам/);
+  expect(requests).toHaveLength(before);
+  await start();
+  await addDetour();
+  const toolbar = page.getByRole('group', { name: 'Нарисовать обход', exact: true });
+  const bounds = (await toolbar.boundingBox())!;
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await page.screenshot({ path: info.outputPath('manual-detour.png') });
+  await page.getByRole('button', { name: 'Готово', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Сохранить маршрут', exact: true })).toBeEnabled();
+  expect(requests.at(-1)).toEqual([[30.01, 52.01], [30.02, 52.02]]);
+  await expect(page.getByRole('button', { name: 'Режим участка 1', exact: true })).toHaveText(/Прямая линия/);
+  await expect(page.getByRole('button', { name: 'Режим участка 3', exact: true })).toHaveText(/По дорогам/);
+  await clickMapTool(page, 'Отменить');
+  await expect(page.getByRole('button', { name: 'Режим участка 3', exact: true })).toHaveCount(0);
 });
 
 test('planner choices share translated accessible menus and remain inside the viewport', async ({

@@ -97,6 +97,38 @@
   }
 }
 
+.manual-detour-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: min(100%, 620px);
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-surface);
+}
+.manual-detour-copy {
+  flex: 1;
+  min-width: 0;
+}
+.manual-detour-copy strong { font-size: 14px; }
+.manual-detour-copy p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.manual-detour-actions { display: flex; gap: 8px; }
+.manual-detour-actions button { min-height: 44px; }
+@media (max-width: 700px) {
+  .manual-detour-toolbar { flex-wrap: wrap; gap: 8px; }
+  .manual-detour-copy { flex-basis: 100%; }
+  .manual-detour-actions { width: 100%; }
+  .manual-detour-actions button { flex: 1; }
+}
+
 .stale-route-note {
   margin-block: 12px;
   font-size: 14px;

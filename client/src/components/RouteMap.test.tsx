@@ -1050,6 +1050,22 @@ it('selects accessible waypoint buttons, exposes actions and focuses only on exp
   expect(screen.queryByRole('group', { name: 'Waypoint actions' })).not.toBeInTheDocument();
 });
 
+it('locks detour endpoints while allowing intermediate point edits and a contextual toolbar', () => {
+  const onRemoveWaypoint = vi.fn();
+  render(<RouteMap {...props} waypoints={annotationWaypoints}
+    lockedWaypointIds={[annotationWaypoints[0].id]} onRemoveWaypoint={onRemoveWaypoint}
+    editingToolbar={<button>Finish detour</button>} />);
+  act(() => mocks.handlers.get('load')?.());
+  const first = mocks.markerOptions.mock.calls[0][0];
+  expect(first.draggable).toBe(false);
+  expect(mocks.markerOptions.mock.calls[1][0].draggable).toBe(true);
+  act(() => mocks.markerDrag[0]());
+  expect(props.onMove).not.toHaveBeenCalled();
+  fireEvent.click(first.element);
+  expect(screen.queryByRole('button', { name: 'Remove waypoint' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Finish detour' })).toBeVisible();
+});
+
 it('renders a line-drag preview, commits only on release and suppresses the following map click', () => {
   const onInsert = vi.fn();
   render(<RouteMap {...props} segments={annotationSegments} waypoints={annotationWaypoints}

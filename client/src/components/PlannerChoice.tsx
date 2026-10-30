@@ -7,6 +7,8 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
 } from './ui/dropdown-menu';
 
 export function PlannerChoice<Value extends string>({
@@ -18,6 +20,7 @@ export function PlannerChoice<Value extends string>({
   className = '',
   menuClassName = '',
   selectedLabel,
+  action,
 }: {
   label: string;
   value: Value;
@@ -27,6 +30,7 @@ export function PlannerChoice<Value extends string>({
   className?: string;
   menuClassName?: string;
   selectedLabel?: string;
+  action?: { label: string; onSelect: () => void; disabled?: boolean };
 }) {
   const { t } = useTranslation();
   const selected = options.find((option) => option.value === value);
@@ -61,6 +65,12 @@ export function PlannerChoice<Value extends string>({
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
+        {action && <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled={action.disabled} onSelect={action.onSelect}>
+            {t(action.label)}
+          </DropdownMenuItem>
+        </>}
       </DropdownMenuContent>
     </DropdownMenu>
   );

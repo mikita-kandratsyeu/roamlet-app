@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Popover } from 'radix-ui';
 import { useTranslation } from 'react-i18next';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView } from '../domain/mapView';
@@ -97,6 +97,8 @@ interface Props {
   comparisonLayers?: { segments: Coordinate[][]; color: string; dashed?: boolean }[];
   comparisonMode?: boolean;
   routeStale?: boolean;
+  lockedWaypointIds?: string[];
+  editingToolbar?: ReactNode;
 }
 export function RouteMap(props: Props) {
   const { t } = useTranslation();
@@ -803,7 +805,8 @@ export function RouteMap(props: Props) {
         : point.id.endsWith('-display-finish')
           ? t('Track finish')
           : point.name;
-      element.title = `${label}${props.editable ? t(' — drag to reposition') : ''}`;
+      const draggable = props.editable && !props.lockedWaypointIds?.includes(point.id);
+      element.title = `${label}${draggable ? t(' — drag to reposition') : ''}`;
       element.setAttribute('aria-label', element.title);
       element.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -811,7 +814,7 @@ export function RouteMap(props: Props) {
         latest.current.onSelectWaypoint?.(point.id);
         setMenuWaypointId(point.id);
       });
-      const marker = new maplibregl.Marker({ element, draggable: props.editable })
+      const marker = new maplibregl.Marker({ element, draggable })
         .setLngLat([point.coordinate[0], point.coordinate[1]])
         .addTo(map.current!);
       if (focusedWaypointId.current === point.id) {
@@ -823,7 +826,7 @@ export function RouteMap(props: Props) {
       });
       marker.on('dragend', () => {
         suppressClickUntil.current = Date.now() + 250;
-        if (!latest.current.editable) return;
+        if (!latest.current.editable || latest.current.lockedWaypointIds?.includes(point.id)) return;
         const position = marker.getLngLat();
         latest.current.onMove(point.id, [position.lng, position.lat]);
       });
@@ -837,7 +840,7 @@ export function RouteMap(props: Props) {
           : null;
       markers.forEach((marker) => marker.remove());
     };
-  }, [ready, props.waypoints, props.editable, props.selectedWaypointId, t]);
+  }, [ready, props.waypoints, props.editable, props.lockedWaypointIds, props.selectedWaypointId, t]);
   useEffect(() => {
     const labels = [
       ['.maplibregl-ctrl-zoom-in', t('Zoom in')],
@@ -955,6 +958,7 @@ export function RouteMap(props: Props) {
     );
   }
   const menuWaypoint = props.waypoints.find((point) => point.id === menuWaypointId);
+  const menuEditable = editable && !!menuWaypoint && !props.lockedWaypointIds?.includes(menuWaypoint.id);
   if (!online) {
     return (
       <section className="map-region map-offline" aria-label={t('Interactive route map')}>
@@ -1098,17 +1102,17 @@ export function RouteMap(props: Props) {
       {ready && menuWaypoint && (
         <div className="map-waypoint-actions" role="group" aria-label={t('Waypoint actions')}>
           <strong>{menuWaypoint.name}</strong>
-          {editable && props.onReplaceWaypoint && (
+          {menuEditable && props.onReplaceWaypoint && (
             <Button variant="outline" onClick={() => props.onReplaceWaypoint?.(menuWaypoint.id)}>
               {t('Replace waypoint')}
             </Button>
           )}
-          {editable && props.onStartWaypoint && (
+          {menuEditable && props.onStartWaypoint && (
             <Button variant="outline" onClick={() => props.onStartWaypoint?.(menuWaypoint.id)}>
               {t('Start route here')}
             </Button>
           )}
-          {editable && props.onRemoveWaypoint && (
+          {menuEditable && props.onRemoveWaypoint && (
             <Button
               variant="outline"
               onClick={() => {
@@ -1273,8 +1277,8 @@ export function RouteMap(props: Props) {
           </Popover.Portal>
         </Popover.Root>
       </div>
-      <div className="map-bottom-toolbar">
-        <div className="map-bottom-leading">
+      <div className={`map-bottom-toolbar${props.editingToolbar ? ' map-editing-toolbar' : ''}`}>
+        {props.editingToolbar ?? <div className="map-bottom-leading">
           {ready && props.editable && (
             <div className="map-drawing-tools">
               <div className="map-hint">
@@ -1289,7 +1293,7 @@ export function RouteMap(props: Props) {
               </div>
             </div>
           )}
-        </div>
+        </div>}
       </div>
     </section>
   );

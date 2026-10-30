@@ -36,6 +36,16 @@ it('restores focus after Escape without changing the selected value', async () =
   expect(change).not.toHaveBeenCalled();
 });
 
+it('offers a contextual action without changing the selected routing mode', () => {
+  const change = vi.fn(), draw = vi.fn();
+  render(<PlannerChoice label="Section mode" value="automatic" options={options}
+    onChange={change} action={{ label: 'Draw a detour', onSelect: draw }} />);
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Section mode' }), { key: 'ArrowDown' });
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Draw a detour' }));
+  expect(draw).toHaveBeenCalledOnce();
+  expect(change).not.toHaveBeenCalled();
+});
+
 it('keeps disabled choices inert and translates the visible selected value', async () => {
   await i18n.changeLanguage('ru');
   const change = vi.fn();
