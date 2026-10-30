@@ -143,7 +143,7 @@ for (const width of [320, 844]) {
       elements.map((element) => element.getAttribute('data-stop-id')),
     );
     for (const stop of await stops.all()) {
-      await expect(stop.locator('.stop-grip')).toBeHidden();
+      await expect(stop.locator('.stop-grip')).toHaveCount(0);
       const name = stop.locator('.stop-name');
       await expect(name).not.toHaveCSS('touch-action', 'none');
       const nameBox = (await name.boundingBox())!;
@@ -178,31 +178,19 @@ for (const width of [320, 844]) {
   });
 }
 
-test('visible drag handles use 44px targets, retain 14px icons and still reorder stops', async ({
-  page,
-}) => {
+test('stop content fills the card without reserving space for drag grips', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await addStops(page);
   const stops = page.locator('[data-stop-id]');
-  const firstId = (await stops.first().getAttribute('data-stop-id'))!;
-  for (const handle of await stops.locator('.stop-grip').all()) {
-    await expect(handle).toBeVisible();
-    await touchTarget(handle);
-    await expect(handle).toHaveCSS('touch-action', 'none');
-    const icon = (await handle.locator('svg').boundingBox())!;
-    expect(icon.width).toBe(14);
-    expect(icon.height).toBe(14);
+  await expect(stops.locator('.stop-grip')).toHaveCount(0);
+  for (const card of await stops.locator('.waypoint-card').all()) {
+    const bounds = (await card.boundingBox())!;
+    const badge = (await card.locator('.stop-badge').boundingBox())!;
+    const name = (await card.locator('.stop-name').boundingBox())!;
+    expect(badge.x - bounds.x).toBeCloseTo(9, 1);
+    expect(name.x - (badge.x + badge.width)).toBeCloseTo(12, 1);
+    await expect(card.locator('.stop-name')).toHaveCSS('flex-grow', '1');
   }
-  await stops.last().scrollIntoViewIfNeeded();
-  await reachable(stops.first().locator('.stop-grip'));
-  await reachable(stops.last().locator('.stop-grip'));
-  const from = (await stops.first().locator('.stop-grip').boundingBox())!;
-  const to = (await stops.last().locator('.stop-grip').boundingBox())!;
-  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
-  await page.mouse.up();
-  await expect(stops.last()).toHaveAttribute('data-stop-id', firstId);
 });
 
 for (const viewport of [

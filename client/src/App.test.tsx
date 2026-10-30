@@ -939,17 +939,15 @@ describe('route planner interactions', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
     expect(provider.calculateRoute).toHaveBeenCalledTimes(2);
   });
-  it('reorders stops by dragging while retaining the keyboard alternative', async () => {
+  it('reorders stops with labeled buttons and retains undo/redo without drag grips', async () => {
     render(<App />);
     await plan();
     const stops = () =>
       within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem');
     const items = stops();
     const originalOrder = items.map((item) => item.getAttribute('data-stop-id'));
-    fireEvent.dragStart(items[0].querySelector('[draggable]')!, {
-      dataTransfer: { setData: vi.fn(), effectAllowed: 'move' },
-    });
-    fireEvent.drop(items[1]);
+    expect(items.every((item) => !item.querySelector('[draggable]'))).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Move stop 1 down' }));
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
     expect(provider.calculateRoute.mock.calls[1][0][0].coordinate).toEqual([11.41, 47.27]);
     expect(screen.getByRole('button', { name: 'Move stop 1 down' })).toBeEnabled();

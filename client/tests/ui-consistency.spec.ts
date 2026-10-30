@@ -438,6 +438,49 @@ test('history controls exist only on the map', async ({ page }) => {
   await expect(page.locator('.map-redo-tool')).toBeVisible();
 });
 
+test('stop selection highlights the whole card without a text pill or layout shift', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 900 }
+      : { width: 1440, height: 1000 },
+  );
+  await clickMapTool(page, 'Manual drawing');
+  for (const value of ['47.26, 11.4', '47.27, 11.41']) {
+    await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
+    await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
+  }
+  const cards = page.locator('.waypoint-card');
+  const start = cards.nth(0).locator('.stop-name');
+  const finish = cards.nth(1).locator('.stop-name');
+  for (const theme of ['light', 'dark']) {
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: theme === 'light' ? 'Light' : 'Dark', exact: true }).click();
+    const before = await cards.nth(0).boundingBox();
+    await start.click();
+    await expect(start).toHaveAttribute('aria-pressed', 'true');
+    await expect(cards.nth(0)).toHaveCSS('border-top-width', '1px');
+    await expect(cards.nth(0)).toHaveCSS('border-radius', '8px');
+    await expect(start).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    const after = await cards.nth(0).boundingBox();
+    expect(after!.width).toBeCloseTo(before!.width, 1);
+    expect(after!.height).toBeCloseTo(before!.height, 1);
+    expect(await cards.nth(0).evaluate((card) => getComputedStyle(card).backgroundColor))
+      .not.toBe(await cards.nth(1).evaluate((card) => getComputedStyle(card).backgroundColor));
+    await start.press('Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(start).toBeFocused();
+    await expect(start).toHaveCSS('outline-style', 'solid');
+    await expect(start).toHaveCSS('outline-width', '2px');
+    await finish.click();
+    await expect(start).toHaveAttribute('aria-pressed', 'false');
+    await expect(finish).toHaveAttribute('aria-pressed', 'true');
+    await expect(finish).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await page.screenshot({ path: testInfo.outputPath(`stop-selection-${theme}.png`) });
+  }
+});
+
 test('personal time fields follow planner sizing without duplicate history buttons', async ({
   page,
 }, testInfo) => {

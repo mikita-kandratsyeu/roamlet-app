@@ -436,7 +436,7 @@
   border-top: 0;
 }
 .waypoint-card {
-  gap: 9px;
+  gap: 12px;
   padding: 7px 8px;
   min-height: 62px;
   border: 1px solid var(--border);
@@ -456,24 +456,6 @@
   border-radius: 6px;
   background: var(--surface);
   color: var(--primary);
-}
-.stop-grip {
-  width: 44px;
-  min-height: 44px;
-  align-self: stretch;
-  touch-action: none;
-  user-select: none;
-}
-.stop-grip svg {
-  pointer-events: none;
-}
-.dragging .stop-grip {
-  cursor: grabbing;
-}
-.drop-target .waypoint-card {
-  outline: 2px solid var(--primary);
-  outline-offset: -2px;
-  background: var(--accent);
 }
 .stop-name {
   font-weight: 400;
@@ -1073,15 +1055,12 @@
     min-width: 44px;
     height: 44px;
   }
-  .stop-grip {
-    display: none;
-  }
   .waypoint-card {
     display: grid;
     grid-template-columns: 26px minmax(0, 1fr);
-    border-width: 0 0 1px;
-    border-radius: 0;
-    padding: 7px 0;
+    border-width: 1px;
+    border-radius: 8px;
+    padding: 7px 8px;
   }
 }
 @media (max-width: 1024px) {
@@ -1178,7 +1157,7 @@
     margin-top: 0;
   }
   .waypoint-list {
-    gap: 0;
+    gap: 6px;
   }
   .planner input:not([type='checkbox']):not([type='radio']),
   .planner textarea {
@@ -1187,9 +1166,9 @@
   .waypoint-card {
     display: grid;
     grid-template-columns: 26px minmax(0, 1fr);
-    padding: 7px 0;
-    border-width: 0 0 1px;
-    border-radius: 0;
+    padding: 7px 8px;
+    border-width: 1px;
+    border-radius: 8px;
     min-height: 57px;
   }
   .stop-controls {

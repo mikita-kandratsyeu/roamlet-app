@@ -156,24 +156,25 @@ test('a section detour stays local until Done and keeps the other section automa
   await expect(page.getByRole('button', { name: 'Сохранить маршрут', exact: true })).toBeEnabled();
   const before = requests.length;
   await clickMapTool(page, 'Показать весь маршрут');
+  let starts = 0;
   const start = async () => {
     const positions = await Promise.all([0, 1].map((index) => page.locator('.waypoint-marker').nth(index).boundingBox()));
-    const beforeCanvas = (await page.locator('.maplibregl-canvas').boundingBox())!;
     await page.getByRole('button', { name: 'Режим участка 1', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Нарисовать обход', exact: true }).click();
     await expect(page.getByRole('group', { name: 'Нарисовать обход', exact: true })).toBeVisible();
     await expect(page.locator('.waypoint-marker')).toHaveCount(2);
-    for (const [index, before] of positions.entries()) {
-      await expect.poll(async () => {
-        const after = (await page.locator('.waypoint-marker').nth(index).boundingBox())!;
-        const afterCanvas = (await page.locator('.maplibregl-canvas').boundingBox())!;
-        return Math.hypot(
-          (after.x + after.width / 2 - afterCanvas.x - afterCanvas.width / 2) -
-            (before!.x + before!.width / 2 - beforeCanvas.x - beforeCanvas.width / 2),
-          (after.y + after.height / 2 - afterCanvas.y - afterCanvas.height / 2) -
-            (before!.y + before!.height / 2 - beforeCanvas.y - beforeCanvas.height / 2),
-        );
-      }).toBeLessThan(1);
+    const fitted = await Promise.all([0, 1].map((index) => page.locator('.waypoint-marker').nth(index).boundingBox()));
+    const canvas = (await page.locator('.maplibregl-canvas').boundingBox())!;
+    const toolbar = (await page.getByRole('group', { name: 'Нарисовать обход', exact: true }).boundingBox())!;
+    for (const marker of fitted) {
+      expect(marker!.x).toBeGreaterThan(canvas.x + 12);
+      expect(marker!.x + marker!.width).toBeLessThan(canvas.x + canvas.width - 12);
+      expect(marker!.y).toBeGreaterThan(canvas.y + 12);
+      expect(marker!.y + marker!.height).toBeLessThan(toolbar.y - 12);
+    }
+    if (starts++ === 0) {
+      const distance = (boxes: typeof positions) => Math.hypot(boxes[1]!.x - boxes[0]!.x, boxes[1]!.y - boxes[0]!.y);
+      expect(distance(fitted)).toBeGreaterThan(distance(positions) + 10);
     }
   };
   const addDetour = async () => {

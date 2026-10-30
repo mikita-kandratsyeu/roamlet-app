@@ -1,6 +1,32 @@
 .selected-stop > .waypoint-card {
-  outline: 2px solid var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface));
+}
+
+.waypoint-card .stop-name,
+.waypoint-card .stop-name:hover {
+  background: transparent;
+  color: var(--foreground);
+}
+
+.waypoint-card .stop-name:focus-visible {
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .waypoint-list li:not(.selected-stop) > .waypoint-card:has(.stop-name:hover) {
+    background: var(--muted);
+  }
+}
+
+@media (forced-colors: active) {
+  .selected-stop > .waypoint-card {
+    border-color: Highlight;
+    box-shadow: inset 0 0 0 1px Highlight;
+  }
 }
 
 .routing-preferences {
