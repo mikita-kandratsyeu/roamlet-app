@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
+import type { Coordinate } from './domain/types';
 import { act, fireEvent, render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import App from './App';
 import { routeDb } from './domain/storage';
@@ -772,6 +773,56 @@ describe('route planner interactions', () => {
     );
     expect(provider.calculateRoute).not.toHaveBeenCalled();
     expect(provider.calculateAlternatives).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['en', 'ru'])('shows actual loop distances and signed deviations in %s', async (language) => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const segments: Coordinate[][] = [
+      [
+        [11.4, 47.26],
+        [11.42, 47.28],
+        [11.4, 47.26],
+      ],
+    ];
+    provider.calculateAlternatives.mockResolvedValueOnce([
+      { segments, stats: { distance: 19000, duration: 1000 } },
+      { segments, stats: { distance: 22000, duration: 1200 } },
+    ]);
+    render(<App />);
+    fireEvent.click(screen.getByRole('radio', { name: i18n.t('Round trip') }));
+    addCoordinate('47.26, 11.4');
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('Discover round trips') }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
+    await act(async () => {
+      await i18n.changeLanguage(language);
+    });
+    const actual = await screen.findByText(
+      i18n.t('Actual distance: {{distance}}', {
+        distance: language === 'en' ? '19.0 km' : '19,0 км',
+      }),
+    );
+    expect(actual.closest('button')).toHaveAttribute('aria-pressed', 'true');
+    const deviations = document.querySelectorAll('.route-distance-delta');
+    expect(deviations).toHaveLength(2);
+    expect(deviations[0]).toHaveTextContent('-5');
+    expect(deviations[1]).toHaveTextContent('+10');
+    expect(
+      screen.getByText(
+        i18n.t(
+          'Up to two distinct routes, closest to your target first. Search takes up to 45 seconds; actual distance depends on roads and trails.',
+        ),
+      ),
+    ).toBeInTheDocument();
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
   });
 
   it('allows 50 automatic stops, rejects the 51st and keeps labelled outline actions', async () => {

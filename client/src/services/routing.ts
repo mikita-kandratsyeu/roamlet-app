@@ -20,7 +20,7 @@ import {
   routingProfile,
 } from '../domain/routingOptions';
 import { calculateStats } from '../domain/stats';
-import { coordinateDistance, loopWaypoints } from './loops';
+import { coordinateDistance, loopWaypoints, rankLoopCandidates } from './loops';
 import { openRouteServiceProfile } from './openrouteservice';
 
 export const profiles: Record<Activity, string> = {
@@ -304,48 +304,77 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
       throw new Error('Choose a loop distance between 2 and 100 km.');
     if (!validCoordinate(start.coordinate))
       throw new Error('Route locations must contain valid longitude and latitude.');
-    const results: RoutingResult[] = [];
-    // Keep the existing loop search bounded to six routed candidates.
-    for (const bearing of [30, 210]) {
-      let radius = distance / 3;
-      let best: RoutingResult | undefined;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
-        let candidate: RoutingResult;
-        try {
-          candidate = await this.calculate(
-            loopWaypoints(start.coordinate, radius, bearing + attempt * 10),
-            activity,
-            signal,
-            options,
-          );
-        } catch (error) {
-          if (!(error instanceof NoRouteError)) throw error;
-          radius *= 0.7;
-          continue;
-        }
-        const points = candidate.segments[0];
-        if (coordinateDistance(points[0], points[points.length - 1]) > 100) continue;
-        if (candidate.stats.distance <= 0) continue;
-        if (
-          !best ||
-          Math.abs(candidate.stats.distance - distance) < Math.abs(best.stats.distance - distance)
-        )
-          best = candidate;
-        const ratio = distance / candidate.stats.distance;
-        if (Math.abs(ratio - 1) < 0.15) break;
-        radius *= Math.max(0.5, Math.min(1.5, ratio));
-      }
-      if (
-        best &&
-        !results.some((r) => JSON.stringify(r.segments) === JSON.stringify(best.segments))
-      )
-        results.push(best);
-    }
-    if (!results.length)
-      throw new Error('The service did not return a closed loop. Try a different start location.');
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
-    return results;
+    const controller = new AbortController();
+    const bestByBearing = new Map<number, RoutingResult>();
+    let timedOut = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancel = () => {};
+    const stopped = new Promise<void>((resolve, reject) => {
+      cancel = () => {
+        controller.abort();
+        reject(new DOMException('Request cancelled', 'AbortError'));
+      };
+      signal?.addEventListener('abort', cancel, { once: true });
+      timer = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+        resolve();
+      }, 45_000);
+    });
+    const search = async () => {
+      // Keep the existing loop search bounded to six routed candidates.
+      for (const bearing of [30, 210]) {
+        let radius = distance / 3;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (controller.signal.aborted) return;
+          let candidate: RoutingResult;
+          try {
+            candidate = await this.calculate(
+              loopWaypoints(start.coordinate, radius, bearing + attempt * 10),
+              activity,
+              controller.signal,
+              options,
+            );
+          } catch (error) {
+            if (controller.signal.aborted) return;
+            if (!(error instanceof NoRouteError)) throw error;
+            radius *= 0.7;
+            continue;
+          }
+          if (controller.signal.aborted) return;
+          const points = candidate.segments[0];
+          if (coordinateDistance(points[0], points[points.length - 1]) > 100) continue;
+          if (candidate.stats.distance <= 0) continue;
+          const best = bestByBearing.get(bearing);
+          if (
+            !best ||
+            Math.abs(candidate.stats.distance - distance) < Math.abs(best.stats.distance - distance)
+          )
+            bestByBearing.set(bearing, candidate);
+          const ratio = distance / candidate.stats.distance;
+          if (Math.abs(ratio - 1) < 0.15) break;
+          radius *= Math.max(0.5, Math.min(1.5, ratio));
+        }
+      }
+    };
+    try {
+      await Promise.race([search(), stopped]);
+      if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
+      const results = rankLoopCandidates([...bestByBearing.values()], distance);
+      if (!results.length) {
+        throw new Error(
+          timedOut
+            ? 'Round-trip search reached the 45-second limit. Try a shorter distance or another starting point.'
+            : 'The service did not return a closed loop. Try a different start location.',
+        );
+      }
+      return results;
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', cancel);
+      controller.abort();
+    }
   }
 }
 export const routingProvider: RoutingProvider = new OpenRouteServiceRoutingService();

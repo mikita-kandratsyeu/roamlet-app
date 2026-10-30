@@ -1711,7 +1711,7 @@ export default function App() {
                       />
                       <p className="fine-print">
                         {t(
-                          'Two calculated possibilities. Actual distances vary with the path network.',
+                          'Up to two distinct routes, closest to your target first. Search takes up to 45 seconds; actual distance depends on roads and trails.',
                         )}
                       </p>
                       <Button
@@ -1734,11 +1734,24 @@ export default function App() {
                             >
                               <span>
                                 {t('Option')} {formatNumber(index + 1)}
-                                <strong>{formatDistance(alternative.stats.distance)}</strong>
+                                <strong>
+                                  {t('Actual distance: {{distance}}', {
+                                    distance: formatDistance(alternative.stats.distance),
+                                  })}
+                                </strong>
                                 <small className="route-distance-delta">
-                                  {t('Difference from target: {{distance}}', {
+                                  {t('Difference from target: {{distance}} ({{percent}})', {
                                     distance: formatDistance(
                                       Math.abs(alternative.stats.distance - targetKm * 1000),
+                                    ),
+                                    percent: formatNumber(
+                                      (alternative.stats.distance - targetKm * 1000) /
+                                        (targetKm * 1000),
+                                      {
+                                        style: 'percent',
+                                        maximumFractionDigits: 1,
+                                        signDisplay: 'exceptZero',
+                                      },
                                     ),
                                   })}
                                 </small>

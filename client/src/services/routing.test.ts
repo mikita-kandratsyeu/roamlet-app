@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OpenRouteServiceRoutingService, requestJson } from './routing';
 import * as routing from './routing';
 import { openRouteServiceProfile } from './openrouteservice';
+import { loopWaypoints } from './loops';
 import type { Waypoint } from '../domain/types';
 const points: Waypoint[] = [
   { id: 'a', name: 'A', coordinate: [11.4, 47.26] },
@@ -33,6 +34,7 @@ function mockJson(data: unknown, status = 200) {
   );
 }
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
@@ -225,6 +227,136 @@ describe('OpenRouteServiceRoutingService', () => {
       expect(result.stats.descent).toBeUndefined();
       expect(result.segments[0].every((point) => point.length === 2)).toBe(true);
     }
+  });
+  it('returns the closest orientation first', async () => {
+    let calls = 0;
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      calls++;
+      return Response.json(
+        response(
+          loopWaypoints(
+            points[0].coordinate,
+            (calls === 1 ? 22000 : 19000) / 3,
+            calls === 1 ? 30 : 210,
+          ),
+        ),
+      );
+    });
+    const results = await new OpenRouteServiceRoutingService().calculateAlternatives(
+      points[0],
+      'cycling',
+      20000,
+    );
+    expect(results.map((result) => Math.round(result.stats.distance))).toEqual([19000, 22000]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it('returns the best partial result at 45 seconds and aborts the pending request', async () => {
+    vi.useFakeTimers();
+    const signals: (AbortSignal | null | undefined)[] = [];
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation((_url, options) => {
+      signals.push(options?.signal);
+      const call = signals.length;
+      return new Promise((resolve, reject) => {
+        options?.signal?.addEventListener(
+          'abort',
+          () => reject(new DOMException('Cancelled', 'AbortError')),
+          { once: true },
+        );
+        if (call <= 2)
+          setTimeout(
+            () =>
+              resolve(
+                call === 1
+                  ? Response.json(response(loopWaypoints(points[0].coordinate, 10000 / 3, 30)))
+                  : Response.json({ error: { code: 2009 } }, { status: 404 }),
+              ),
+            20000,
+          );
+      });
+    });
+    const pending = new OpenRouteServiceRoutingService().calculateAlternatives(
+      points[0],
+      'cycling',
+      20000,
+    );
+    await vi.advanceTimersByTimeAsync(44999);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(signals[2]?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    const results = await pending;
+    expect(results).toHaveLength(1);
+    expect(results[0].stats.distance).toBeCloseTo(10000, 0);
+    expect(signals[2]?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it('reports the total timeout without results and allows a fresh search', async () => {
+    vi.useFakeTimers();
+    const fetcher = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(
+              () => resolve(Response.json({ error: { code: 2009 } }, { status: 404 })),
+              20000,
+            );
+          }),
+      )
+      .mockImplementation(
+        (_url, options) =>
+          new Promise((_resolve, reject) => {
+            options?.signal?.addEventListener(
+              'abort',
+              () => reject(new DOMException('Cancelled', 'AbortError')),
+              { once: true },
+            );
+          }),
+      );
+    const provider = new OpenRouteServiceRoutingService();
+    const pending = provider.calculateAlternatives(points[0], 'cycling', 20000);
+    const assertion = expect(pending).rejects.toThrow('45-second limit');
+    await vi.advanceTimersByTimeAsync(45000);
+    await assertion;
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    fetcher.mockImplementation(async (_url, options) => {
+      const { coordinates } = JSON.parse(String(options?.body));
+      return Response.json(response(coordinates));
+    });
+    await expect(provider.calculateAlternatives(points[0], 'cycling', 20000)).resolves.toHaveLength(
+      2,
+    );
+    expect(vi.getTimerCount()).toBe(0);
+  });
+  it('discards partial results on user cancellation even if fetch ignores abort', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    let finishLate: ((value: Response) => void) | undefined;
+    const fetcher = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        Response.json(response(loopWaypoints(points[0].coordinate, 10000 / 3, 30))),
+      )
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishLate = resolve;
+          }),
+      );
+    const pending = new OpenRouteServiceRoutingService().calculateAlternatives(
+      points[0],
+      'cycling',
+      20000,
+      controller.signal,
+    );
+    const assertion = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    controller.abort();
+    await assertion;
+    finishLate?.(Response.json(response(loopWaypoints(points[0].coordinate, 20000 / 3, 30))));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
   });
   it('stops after the bounded search and rejects a nonclosed loop', async () => {
     const fetcher = mockJson(response());

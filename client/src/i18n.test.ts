@@ -35,6 +35,14 @@ it('has translations for every literal UI translation key instead of silently fa
   expect(missing).toEqual([]);
 });
 
+it('does not use semicolons as separators in translations', () => {
+  for (const dictionary of [english, russian]) {
+    for (const [key, value] of Object.entries(dictionary)) {
+      expect(value, key).not.toContain(';');
+    }
+  }
+});
+
 it('loads complete JSON dictionaries with matching keys and interpolation placeholders', async () => {
   expect(Object.keys(russian).sort()).toEqual(Object.keys(english).sort());
   for (const key of Object.keys(english) as Array<keyof typeof english>) {

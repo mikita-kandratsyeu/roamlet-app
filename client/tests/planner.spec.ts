@@ -540,6 +540,7 @@ test('round trips route intermediate points with bounded search; responsive cont
   });
   await page.getByRole('button', { name: 'Find round trips' }).click();
   await expect(page.getByRole('button', { name: /Option 1/ })).toBeVisible();
+  await expect(page.locator('.loop-planner .alternatives button')).toHaveCount(1);
   expect(attempts).toBeGreaterThan(0);
   expect(attempts).toBeLessThanOrEqual(6);
   await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();
@@ -551,9 +552,34 @@ test('round trips route intermediate points with bounded search; responsive cont
     await page.locator('.mobile-sheet-toggle').click();
     await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
   }
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
-    true,
-  );
+  if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 740 });
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page.getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' }).click();
+    const card = page.locator('.loop-planner .alternatives button');
+    await expect(card).toContainText(language === 'ru' ? 'Длина маршрута:' : 'Actual distance:');
+    await expect(card.locator('.route-distance-delta')).toContainText(
+      language === 'ru' ? 'Отклонение от цели:' : 'Difference from target:',
+    );
+    await expect(card.locator('.route-distance-delta')).toContainText(/-\d/);
+    await expect(card.locator('.route-distance-delta')).toContainText('%');
+    for (const colorScheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme });
+      await card.scrollIntoViewIfNeeded();
+      expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      expect(
+        await page
+          .locator('.planner-scroll')
+          .evaluate((element) => element.scrollWidth <= element.clientWidth),
+      ).toBe(true);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`round-trip-${language}-${colorScheme}.png`),
+      });
+    }
+  }
   await expect(
     page.locator('.maplibregl-ctrl-attrib').getByRole('link', { name: 'OpenStreetMap' }),
   ).toBeVisible();

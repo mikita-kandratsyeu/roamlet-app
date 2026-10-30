@@ -1,4 +1,4 @@
-import type { Coordinate } from '../domain/types';
+import type { Coordinate, RoutingResult } from '../domain/types';
 
 const EARTH_RADIUS = 6371008.8;
 const radians = (value: number) => (value * Math.PI) / 180;
@@ -29,6 +29,58 @@ function destination(origin: Coordinate, distance: number, bearing: number): Coo
       Math.cos(angle) - Math.sin(latitude) * Math.sin(targetLatitude),
     );
   return [((degrees(targetLongitude) + 540) % 360) - 180, degrees(targetLatitude)];
+}
+
+const LOOP_SAMPLES = 64;
+
+function sampleLoop(points: Coordinate[]): Coordinate[] {
+  const lengths = points.slice(1).map((point, index) => coordinateDistance(points[index], point));
+  const total = lengths.reduce((sum, length) => sum + length, 0);
+  let segment = 0;
+  let travelled = 0;
+  return Array.from({ length: LOOP_SAMPLES }, (_, index) => {
+    const distance = (total * index) / LOOP_SAMPLES;
+    while (segment < lengths.length - 1 && travelled + lengths[segment] <= distance) {
+      travelled += lengths[segment++];
+    }
+    const fraction = lengths[segment] > 0 ? (distance - travelled) / lengths[segment] : 0;
+    const start = points[segment];
+    const end = points[segment + 1];
+    const longitudeDelta = ((end[0] - start[0] + 540) % 360) - 180;
+    return [
+      ((start[0] + longitudeDelta * fraction + 540) % 360) - 180,
+      start[1] + (end[1] - start[1]) * fraction,
+    ];
+  });
+}
+
+export function rankLoopCandidates(candidates: RoutingResult[], target: number): RoutingResult[] {
+  const sorted = [...candidates].sort(
+    (a, b) => Math.abs(a.stats.distance - target) - Math.abs(b.stats.distance - target),
+  );
+  const distinct: { route: RoutingResult; samples: Coordinate[] }[] = [];
+  for (const route of sorted) {
+    const samples = sampleLoop(route.segments[0]);
+    const reversed = sampleLoop([...route.segments[0]].reverse());
+    const duplicate = distinct.some((previous) => {
+      if (
+        Math.abs(previous.route.stats.distance - route.stats.distance) >
+        Math.max(previous.route.stats.distance, route.stats.distance) * 0.1
+      )
+        return false;
+      // Compare by travelled distance, not vertex count; reversed trips also count as duplicates.
+      return [samples, reversed].some(
+        (direction) =>
+          direction.filter(
+            (point, index) => coordinateDistance(point, previous.samples[index]) <= 100,
+          ).length /
+            LOOP_SAMPLES >=
+          0.9,
+      );
+    });
+    if (!duplicate) distinct.push({ route, samples });
+  }
+  return distinct.map(({ route }) => route);
 }
 
 export function loopWaypoints(origin: Coordinate, radius: number, bearing: number): Coordinate[] {
