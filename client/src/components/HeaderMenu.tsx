@@ -307,14 +307,21 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
           description={t(
             'Reset planning, library, language, theme and map settings? Saved routes and drafts will not be deleted.',
           )}
+          compact
           onClose={() => setResetOpen(false)}
           initialFocusRef={cancelReset}
         >
           <div className="button-row dialog-actions">
-            <Button ref={cancelReset} variant="outline" onClick={() => setResetOpen(false)}>
+            <Button
+              ref={cancelReset}
+              className="secondary"
+              variant="outline"
+              onClick={() => setResetOpen(false)}
+            >
               {t('Cancel')}
             </Button>
             <Button
+              className="primary"
               onClick={() => {
                 if (resetPreferences()) {
                   setPreferencesError(false);

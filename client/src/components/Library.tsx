@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Notification } from './Notification';
 import { Badge } from './ui/badge';
@@ -26,7 +27,6 @@ import {
   ArrowDownWideNarrow,
   ChevronDown,
   ArrowUpRight,
-  LoaderCircle,
   Save,
   Info,
   Upload,
@@ -135,7 +135,7 @@ export function Library({
   }
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const actionLocked = useRef(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
   const [filters, setFilters] = useState(() => loadPreferences().library);
@@ -162,7 +162,6 @@ export function Library({
   const [invalidCount, setInvalidCount] = useState(0);
   const [backup, setBackup] = useState<RouteBackup | null>(null);
   const [conflictMode, setConflictMode] = useState<ConflictMode>('copy');
-  const [importResult, setImportResult] = useState<{ count: number; skipped: number } | null>(null);
   const [tags, setTags] = useState('');
   const [favorite, setFavorite] = useState(false);
   const hasFilters = !!(
@@ -216,6 +215,7 @@ export function Library({
     if (busy) return;
     if (editing) editInput.current?.focus();
     else if (deleting) keepButton.current?.focus();
+    else if (backup) importCancel.current?.focus();
     else if (restoreFocus.current) {
       restoreFocus.current = false;
       const target = actionTrigger.current;
@@ -274,23 +274,56 @@ export function Library({
       active = false;
     };
   }, [loadAttempt]);
-  async function mutate(operation: () => Promise<unknown>, action: string) {
-    if (busy) return;
-    restoreFocus.current = true;
+  async function mutate<T>(
+    operation: () => Promise<T>,
+    action: string,
+    success?: (result: T) => string,
+  ) {
+    if (actionLocked.current) return;
+    actionLocked.current = true;
+    restoreFocus.current = action !== 'export';
     setBusy(true);
-    setPendingAction(action);
     setError('');
+    const fallback =
+      action === 'export' ? 'Could not export your library.' : 'Could not update your library.';
+    const promise = (async () => {
+      const result = await operation();
+      if (action !== 'export') {
+        setInvalidCount(0);
+        setRoutes(await listRoutes(setInvalidCount));
+        setEditing(null);
+        setDeleting(null);
+        if (action === 'import') setBackup(null);
+      }
+      return result;
+    })();
+    if (!action.startsWith('favorite:')) {
+      toast.promise(promise, {
+        loading: t(action === 'export' ? 'Preparing library backup…' : 'Updating your library…'),
+        success:
+          success ??
+          (() =>
+            t(
+              action === 'save'
+                ? 'Route saved on this device. Your next adventure is ready.'
+                : action === 'delete'
+                  ? 'Route deleted.'
+                  : action === 'export'
+                    ? 'Library backup download started.'
+                    : 'Route duplicated.',
+            )),
+        error: (error: unknown) =>
+          translateMessage(error instanceof Error ? error.message : fallback),
+      });
+    }
     try {
-      await operation();
-      setInvalidCount(0);
-      setRoutes(await listRoutes(setInvalidCount));
-      setEditing(null);
-      setDeleting(null);
+      await promise;
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Could not update your library.');
+      if (editing || deleting || backup || action.startsWith('favorite:'))
+        setError(error instanceof Error ? error.message : fallback);
     } finally {
+      actionLocked.current = false;
       setBusy(false);
-      setPendingAction(null);
     }
   }
   const filtered = routes
@@ -409,24 +442,22 @@ export function Library({
             <Button
               variant="outline"
               disabled={loading || busy || loadFailed || !routes.length}
-              onClick={() => {
-                setError('');
-                try {
+              onClick={() =>
+                void mutate(async () => {
                   const blob = new Blob([exportBackup(routes)], { type: 'application/json' });
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement('a');
-                  link.href = url;
-                  link.download = 'roamlet-library.json';
-                  document.body.append(link);
-                  link.click();
-                  link.remove();
-                  setTimeout(() => URL.revokeObjectURL(url), 0);
-                } catch (error) {
-                  setError(
-                    error instanceof Error ? error.message : 'Could not export your library.',
-                  );
-                }
-              }}
+                  try {
+                    link.href = url;
+                    link.download = 'roamlet-library.json';
+                    document.body.append(link);
+                    link.click();
+                  } finally {
+                    link.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 0);
+                  }
+                }, 'export')
+              }
             >
               <Download size={16} aria-hidden="true" />
               {t('Download backup')}
@@ -453,17 +484,18 @@ export function Library({
               onChange={async (event) => {
                 const file = event.target.files?.[0];
                 event.target.value = '';
-                if (!file) return;
+                if (!file || actionLocked.current) return;
+                actionLocked.current = true;
                 setBusy(true);
                 setError('');
                 setBackup(null);
-                setImportResult(null);
                 try {
                   setBackup(await readBackupFile(file));
                   setConflictMode('copy');
                 } catch (error) {
                   setError(error instanceof Error ? error.message : 'Invalid library backup.');
                 } finally {
+                  actionLocked.current = false;
                   setBusy(false);
                 }
               }}
@@ -581,6 +613,7 @@ export function Library({
                     ]}
                   />
                   <p>{t('Import changes only your library, not the route in the editor.')}</p>
+                  {error && <p role="alert">{translateMessage(error)}</p>}
                   <div className="button-row dialog-actions">
                     <Button
                       variant="ghost"
@@ -593,11 +626,15 @@ export function Library({
                     <Button
                       disabled={busy}
                       onClick={() =>
-                        void mutate(async () => {
-                          const result = await importBackup(backup, conflictMode);
-                          setImportResult({ count: result.imported, skipped: result.skipped });
-                          setBackup(null);
-                        }, 'import')
+                        void mutate(
+                          () => importBackup(backup, conflictMode),
+                          'import',
+                          (result) =>
+                            t('Imported {{count}} routes; skipped {{skipped}}.', {
+                              count: result.imported,
+                              skipped: result.skipped,
+                            }),
+                        )
                       }
                     >
                       {t('Import routes')}
@@ -606,14 +643,6 @@ export function Library({
                 </section>
               </div>
             </Dialog>
-          )}
-          {importResult && (
-            <Notification
-              title={t('Notification')}
-              variant="success"
-              message={t('Imported {{count}} routes; skipped {{skipped}}.', importResult)}
-              onDismiss={() => setImportResult(null)}
-            />
           )}
           {invalidCount > 0 && (
             <Notification
@@ -627,7 +656,7 @@ export function Library({
               )}
             />
           )}
-          {error && (
+          {error && !editing && !deleting && !backup && (
             <Notification
               title={t('Notification')}
               variant="error"
@@ -698,12 +727,6 @@ export function Library({
                 <span>{t('{{count}} matching routes', { count: filtered.length })}</span>
               )}
             </div>
-          )}
-          {busy && (
-            <p className="library-progress" role="status">
-              <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-              {t('Updating your library…')}
-            </p>
           )}
           {loading ? (
             <MapLoader
@@ -894,11 +917,7 @@ export function Library({
                         void mutate(() => duplicateRoute(route), `duplicate:${route.id}`);
                       }}
                     >
-                      {pendingAction === `duplicate:${route.id}` ? (
-                        <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-                      ) : (
-                        <Copy size={18} aria-hidden="true" />
-                      )}
+                      <Copy size={18} aria-hidden="true" />
                       <span className="library-action-label">{t('Copy')}</span>
                     </Button>
                     <Button
@@ -1005,6 +1024,7 @@ export function Library({
                     <Star size={16} aria-hidden="true" />
                     {t('Favorite')}
                   </Button>
+                  {error && <p role="alert">{translateMessage(error)}</p>}
                   <div className="button-row dialog-actions">
                     <Button
                       variant="ghost"
@@ -1016,11 +1036,7 @@ export function Library({
                       {t('Cancel')}
                     </Button>
                     <Button type="submit" className="primary" disabled={busy || !name.trim()}>
-                      {pendingAction === 'save' ? (
-                        <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-                      ) : (
-                        <Save size={16} aria-hidden="true" />
-                      )}
+                      <Save size={16} aria-hidden="true" />
                       {t('Save changes')}
                     </Button>
                   </div>
@@ -1051,6 +1067,7 @@ export function Library({
                     {t('Delete')} <strong>{deleting.name}</strong>{' '}
                     {t('from this device? This cannot be undone.')}
                   </p>
+                  {error && <p>{translateMessage(error)}</p>}
                   <div className="button-row dialog-actions">
                     <Button
                       variant="ghost"
@@ -1067,11 +1084,7 @@ export function Library({
                       disabled={busy}
                       onClick={() => void mutate(() => deleteRoute(deleting.id), 'delete')}
                     >
-                      {pendingAction === 'delete' ? (
-                        <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-                      ) : (
-                        <Trash2 size={16} aria-hidden="true" />
-                      )}
+                      <Trash2 size={16} aria-hidden="true" />
                       {t('Delete route')}
                     </Button>
                   </div>

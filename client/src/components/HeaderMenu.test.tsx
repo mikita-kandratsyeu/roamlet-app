@@ -311,7 +311,9 @@ it('requires local confirmation before resetting settings and leaves routes and 
     const { user, trigger } = setup();
     await user.click(trigger);
     await user.click(screen.getByRole('menuitem', { name: 'Reset settings' }));
-    expect(screen.getByRole('dialog', { name: 'Reset settings' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Reset settings' })).toHaveClass('compact');
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('secondary');
+    expect(screen.getByRole('button', { name: 'Reset settings' })).toHaveClass('primary');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus());
     const actions = screen.getByRole('button', { name: 'Cancel' }).parentElement;
     expect(actions).toHaveClass('button-row', 'dialog-actions');

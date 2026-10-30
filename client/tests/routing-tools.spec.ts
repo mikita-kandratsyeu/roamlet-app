@@ -111,6 +111,68 @@ test('dragging a route line previews locally and creates one undoable waypoint o
   await touch?.detach();
 });
 
+test('map navigation stays flat, stops panning on release and does not add gesture points', async ({ page, isMobile }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(() => {
+    const camera = { center: [28, 53.5], zoom: 10, bearing: 25, pitch: 50 };
+    localStorage.setItem('roamlet:map-view:v1', JSON.stringify(camera));
+    const record = JSON.parse(localStorage.getItem('roamlet:preferences:v1') || 'null');
+    if (record) localStorage.setItem('roamlet:preferences:v1', JSON.stringify({ ...record,
+      preferences: { ...record.preferences, camera } }));
+  });
+  await page.reload();
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+  await clickMapTool(page, 'Приблизить');
+  const camera = () => page.evaluate(() => JSON.parse(localStorage.getItem('roamlet:map-view:v1')!));
+  await expect.poll(async () => (await camera()).pitch).toBe(0);
+  expect((await camera()).bearing).toBe(25);
+  await clickMapTool(page, 'Ручное рисование');
+  const canvas = page.locator('.maplibregl-canvas');
+  const bounds = (await canvas.boundingBox())!;
+  await page.mouse.click(bounds.x + bounds.width * 0.65, bounds.y + bounds.height * 0.15);
+  const markers = page.locator('.waypoint-marker');
+  await expect(markers).toHaveCount(1);
+  const x = bounds.x + bounds.width * 0.65, y = bounds.y + bounds.height * 0.45;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 70, y - 45, { steps: 5 });
+  await page.mouse.up();
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  const released = (await markers.first().boundingBox())!;
+  await page.waitForTimeout(400);
+  const settled = (await markers.first().boundingBox())!;
+  expect(Math.hypot(settled.x - released.x, settled.y - released.y)).toBeLessThan(1.5);
+  await expect(markers).toHaveCount(1);
+  const zoom = (await camera()).zoom;
+  await page.mouse.dblclick(x, y);
+  await expect(markers).toHaveCount(2);
+  expect((await camera()).zoom).toBe(zoom);
+  await canvas.focus();
+  await page.keyboard.press('Shift+ArrowUp');
+  await page.keyboard.press('Shift+ArrowLeft');
+  await expect.poll(async () => (await camera()).bearing).not.toBe(25);
+  expect((await camera()).pitch).toBe(0);
+  if (isMobile) {
+    const touch = await page.context().newCDPSession(page);
+    const zoomBefore = (await camera()).zoom;
+    const centerX = bounds.x + bounds.width * 0.5;
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [
+      { x: centerX - 35, y, id: 1 }, { x: centerX + 35, y, id: 2 },
+    ] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [
+      { x: centerX - 35, y: y + 45, id: 1 }, { x: centerX + 35, y: y + 45, id: 2 },
+    ] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [
+      { x: centerX - 75, y: y + 45, id: 1 }, { x: centerX + 75, y: y + 45, id: 2 },
+    ] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect.poll(async () => (await camera()).zoom).toBeGreaterThan(zoomBefore);
+    expect((await camera()).pitch).toBe(0);
+    await expect(markers).toHaveCount(2);
+    await touch.detach();
+  }
+});
+
 test('moving an existing waypoint previews its adjacent line before release', async ({ page }, info) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await clickMapTool(page, 'Ручное рисование');
@@ -313,7 +375,12 @@ test('recalculation notice has readable width and disabled alternatives explain 
   );
   await addPoint(page, '52.02, 30.02');
   await started;
+  const toast = page.locator('[data-sonner-toast]');
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toHaveAttribute('data-type', 'loading');
+  await expect(toast).toContainText('Расчёт маршрута…');
   const note = page.locator('.planner-route-status');
+  await expect(note.locator('.spin')).toHaveCount(0);
   const description = note.locator('.planner-route-status-copy p');
   await expect(description).toContainText('Во время пересчёта показан предыдущий маршрут');
   const bounds = (await description.boundingBox())!;
@@ -328,6 +395,9 @@ test('recalculation notice has readable width and disabled alternatives explain 
   expect(alternatives.y - (primary.y + primary.height)).toBeGreaterThanOrEqual(7);
   release();
   await expect(page.getByRole('button', { name: 'Сохранить маршрут', exact: true })).toBeEnabled();
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toHaveAttribute('data-type', 'success');
+  await expect(toast).toContainText('Маршрут рассчитан.');
   await expect(note).toHaveCount(1);
   await expect(note).toHaveAttribute('role', 'status');
   await expect(note).toContainText('Несохранённые изменения');
@@ -343,6 +413,9 @@ test('routing errors keep text, recovery actions and dismissal separate', async 
   await addPoint(page, '52.02, 30.02');
   const notice = page.locator('.planner-route-status.is-error');
   await expect(notice).toBeVisible();
+  const toast = page.locator('[data-sonner-toast]');
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toHaveAttribute('data-type', 'error');
   await expect(notice).toHaveAttribute('role', 'alert');
   const description = (await notice.locator('.planner-route-status-copy').boundingBox())!;
   const card = (await notice.boundingBox())!;
@@ -379,4 +452,9 @@ test('routing errors keep text, recovery actions and dismissal separate', async 
   await expect(notice).toHaveCount(0);
   await expect(page.locator('.planner-route-status')).toHaveAttribute('role', 'status');
   await expect(page.getByRole('button', { name: 'Экспорт', exact: true })).toBeDisabled();
+  await page.route('**/api/route', (route) => route.fulfill({ json: fixture }));
+  await toast.getByRole('button', { name: 'Повторить расчёт', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Экспорт', exact: true })).toBeEnabled();
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toHaveAttribute('data-type', 'success');
 });

@@ -1,6 +1,25 @@
 import { clickMapTool, mapTool } from './mapControls';
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+
+async function expectDialogTypography(dialog: Locator) {
+  const title = dialog.locator('.dialog-header h2');
+  await expect(title).toHaveCSS('font-size', '18px');
+  await expect(title).toHaveCSS('font-weight', '650');
+  await expect(title).toHaveCSS('line-height', '23.4px');
+  await expect(title).toHaveCSS('letter-spacing', '-0.3px');
+  await expect(title).toHaveCSS('font-family', /Onest/);
+  for (const text of await dialog.locator('.dialog-description, .dialog-body > p').all()) {
+    await expect(text).toHaveCSS('font-size', '14px');
+    await expect(text).toHaveCSS('font-weight', '400');
+    await expect(text).toHaveCSS('line-height', '21.7px');
+  }
+  for (const button of await dialog.locator('.button-row button').all()) {
+    await expect(button).toHaveCSS('font-size', '14px');
+    await expect(button).toHaveCSS('font-weight', '600');
+    await expect(button).toHaveCSS('line-height', '20.3px');
+  }
+}
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/__fixtures__/map-style.json', (route) =>
@@ -705,13 +724,58 @@ test('saved route cards keep uniform heights and aligned actions with long names
   await page.screenshot({ path: testInfo.outputPath('library-uniform-grid.png') });
 });
 
+test('standard dialogs share the close-route confirmation typography', async ({ page }, testInfo) => {
+  if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 740 });
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Help and data sources', exact: true }).click();
+  const help = page.getByRole('dialog', { name: 'Help and data sources', exact: true });
+  await expectDialogTypography(help);
+  await help.press('Escape');
+
+  await clickMapTool(page, 'Manual drawing');
+  for (const coordinate of ['47.26, 11.4', '47.27, 11.41']) {
+    await page.getByRole('textbox', { name: 'Latitude', exact: true }).fill(coordinate);
+    await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
+  }
+  await page.getByRole('button', { name: 'Save route', exact: true }).click();
+  const save = page.getByRole('dialog', { name: 'Save route', exact: true });
+  await expectDialogTypography(save);
+  await page.screenshot({ path: testInfo.outputPath('save-dialog-typography.png') });
+  await save.press('Escape');
+
+  await page.getByRole('button', { name: 'Export', exact: true }).click();
+  const exportDialog = page.getByRole('dialog', { name: 'Export route', exact: true });
+  await expectDialogTypography(exportDialog);
+  await exportDialog.press('Escape');
+
+  if (testInfo.project.name === 'mobile') {
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'New route', exact: true }).click();
+  } else {
+    await page.getByRole('button', { name: 'New route', exact: true }).click();
+  }
+  const confirmation = page.getByRole('dialog');
+  await expect(confirmation).toHaveClass(/\bcompact\b/);
+  await expectDialogTypography(confirmation);
+  await confirmation.press('Escape');
+});
+
 test('draft recovery uses the same compact confirmation layout', async ({ page }, testInfo) => {
+  if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 740 });
   await clickMapTool(page, 'Manual drawing');
   await page.getByRole('textbox', { name: 'Latitude' }).fill('47.26, 11.4');
   await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   await page.waitForTimeout(1200);
   await page.reload();
   const dialog = page.getByRole('dialog', { name: 'Restore your draft?', exact: true });
+  await expectDialogTypography(dialog);
+  await expect(dialog).toHaveClass(/\bcompact\b/);
+  await expect(dialog).toHaveCSS('border-radius', '12px');
+  await expect(dialog).toBeInViewport();
+  const bounds = (await dialog.boundingBox())!;
+  expect(bounds.width).toBeLessThanOrEqual(480);
+  expect(bounds.height).toBeLessThan(page.viewportSize()!.height - 32);
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await expect(dialog.locator('.dialog-header .dialog-description')).toContainText(
     'An unfinished route',
   );
@@ -729,6 +793,22 @@ test('reset confirmation uses shared action spacing and restores focus', async (
   await menu.click();
   await page.getByRole('menuitem', { name: 'Reset settings', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Reset settings', exact: true });
+  await expectDialogTypography(dialog);
+  await expect(dialog).toHaveClass(/\bcompact\b/);
+  await expect(dialog).toHaveCSS('border-radius', '12px');
+  await expect(dialog).toHaveCSS('background-color', await page.locator('html').evaluate((element) => {
+    const surface = document.createElement('div');
+    surface.style.backgroundColor = getComputedStyle(element).getPropertyValue('--surface');
+    document.body.append(surface);
+    const color = getComputedStyle(surface).backgroundColor;
+    surface.remove();
+    return color;
+  }));
+  const bounds = (await dialog.boundingBox())!;
+  expect(bounds.width).toBeLessThanOrEqual(480);
+  expect(bounds.height).toBeLessThan(page.viewportSize()!.height - 32);
+  await expect(dialog).toBeInViewport();
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   const actions = dialog.locator('.button-row.dialog-actions');
   await expect(actions).toBeVisible();
   await expect(actions).toHaveCSS('gap', /^(8|10)px$/);

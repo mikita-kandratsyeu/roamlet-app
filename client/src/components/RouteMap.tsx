@@ -368,12 +368,33 @@ export function RouteMap(props: Props) {
         );
       }
     };
+    let multiTouchGesture = false;
+    let lastTouchClick: { x: number; y: number; time: number } | null = null;
     instance.on('dragstart', () => {
       suppressClickUntil.current = Infinity;
     });
     instance.on('dragend', () => {
-      suppressClickUntil.current = Date.now() + 250;
+      suppressClickUntil.current = Date.now() + 350;
     });
+    const trackTouchGesture = (event: maplibregl.MapTouchEvent) => {
+      if (event.originalEvent.touches.length < 2) return;
+      if (!multiTouchGesture) {
+        lineDrag.current?.cancel();
+        cancelMarkerDrag.current?.();
+      }
+      multiTouchGesture = true;
+      suppressClickUntil.current = Infinity;
+    };
+    const endTouchGesture = (event: maplibregl.MapTouchEvent) => {
+      if (event.originalEvent.touches.length) return;
+      if (multiTouchGesture || event.type === 'touchcancel')
+        suppressClickUntil.current = Date.now() + 350;
+      multiTouchGesture = false;
+    };
+    instance.on('touchstart', trackTouchGesture);
+    instance.on('touchmove', trackTouchGesture);
+    instance.on('touchend', endTouchGesture);
+    instance.on('touchcancel', endTouchGesture);
     const preferencesChanged = (event: Event) => {
       const detail = (event as CustomEvent<PreferencesChangeDetail>).detail;
       if (detail?.reset) {
@@ -625,11 +646,19 @@ export function RouteMap(props: Props) {
       const current = latest.current;
       if (
         !current.editable ||
+        multiTouchGesture ||
+        (event.originalEvent?.detail ?? 0) > 1 ||
         Date.now() < suppressClickUntil.current ||
         (event.originalEvent?.target instanceof Element &&
           event.originalEvent.target.closest('.waypoint-marker'))
       )
         return;
+      if (event.point && event.originalEvent?.type.startsWith('touch')) {
+        const now = Date.now();
+        if (lastTouchClick && now - lastTouchClick.time < 350 &&
+          Math.hypot(event.point.x - lastTouchClick.x, event.point.y - lastTouchClick.y) < 8) return;
+        lastTouchClick = { x: event.point.x, y: event.point.y, time: now };
+      }
       const coordinate: Coordinate = [event.lngLat.lng, event.lngLat.lat];
       if (
         current.onInsert &&

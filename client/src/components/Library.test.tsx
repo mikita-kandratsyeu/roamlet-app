@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Toaster } from './ui/sonner';
+import { toast } from 'sonner';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { Dialog } from './Dialog';
@@ -44,6 +45,9 @@ const woodland = route('b', 'Woodland walk', 2000, '2026-02-01T12:00:00Z');
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.spyOn(toast, 'promise');
+  vi.spyOn(toast, 'success');
+  vi.spyOn(toast, 'error');
   render(<Toaster />);
   const storage = new Map<string, string>();
   vi.stubGlobal('localStorage', {
@@ -57,6 +61,7 @@ beforeEach(() => {
   vi.mocked(deleteRoute).mockResolvedValue(undefined);
 });
 afterEach(() => {
+  toast.dismiss();
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -194,7 +199,10 @@ it('edits trimmed details, exposes busy state and returns focus to the edit acti
       }),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-  expect(screen.getByText('Updating your library…')).toHaveAttribute('role', 'status');
+  expect(
+    (await screen.findByText('Updating your library…')).closest('[data-sonner-toast]'),
+  ).toHaveAttribute('data-type', 'loading');
+  expect(document.querySelector('.library-progress')).toBeNull();
   expect(name).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
   expect(saveRoute).toHaveBeenCalledWith(
@@ -402,6 +410,16 @@ it('downloads a versioned JSON library export using a revoked local Blob URL', a
   fireEvent.click(screen.getByRole('button', { name: 'Download backup' }));
   expect(create).toHaveBeenCalledWith(expect.any(Blob));
   expect(click).toHaveBeenCalledOnce();
+  expect(toast.promise).toHaveBeenCalledWith(expect.any(Promise), expect.objectContaining({
+    loading: 'Preparing library backup…',
+  }));
+  expect(
+    (await screen.findByText('Library backup download started.')).closest('[data-sonner-toast]'),
+  ).toHaveAttribute('data-type', 'success');
+  expect(toast.promise).toHaveBeenCalledOnce();
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(toast.error).not.toHaveBeenCalled();
+  expect(listRoutes).toHaveBeenCalledOnce();
   await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:library'));
   click.mockRestore();
   vi.unstubAllGlobals();
@@ -417,6 +435,127 @@ it('announces isolated invalid records while keeping the valid library available
   expect(screen.getByRole('alert')).toHaveTextContent(
     '2 invalid saved routes were hidden and retained on this device.',
   );
+});
+
+async function startPromiseAction(action: 'save' | 'delete' | 'duplicate' | 'import') {
+  if (action === 'import') {
+    fireEvent.change(screen.getByLabelText('Import library file'), {
+      target: { files: [new File([exportBackup([alpine])], 'library.json')] },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Import routes' }));
+  } else if (action === 'duplicate') {
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate Alpine loop' }));
+  } else {
+    fireEvent.click(screen.getByRole('button', {
+      name: action === 'save' ? 'Edit Alpine loop' : 'Delete Alpine loop',
+    }));
+    fireEvent.click(screen.getByRole('button', {
+      name: action === 'save' ? 'Save changes' : 'Delete route',
+    }));
+  }
+}
+
+it.each([
+  ['save', 'Route saved on this device. Your next adventure is ready.'],
+  ['delete', 'Route deleted.'],
+  ['duplicate', 'Route duplicated.'],
+  ['import', 'Imported 1 routes; skipped 0.'],
+] as const)('keeps the %s promise loading and locked through refresh, with one success toast', async (action, success) => {
+  const { onClose } = await openLibrary();
+  vi.mocked(duplicateRoute).mockResolvedValue({ ...alpine, id: 'copy' });
+  vi.mocked(importBackup).mockResolvedValue({ imported: 1, skipped: 0, copied: 1, replaced: 0 });
+  let finishRefresh!: (routes: PlannedRoute[]) => void;
+  vi.mocked(listRoutes).mockImplementationOnce(() => new Promise((resolve) => {
+    finishRefresh = resolve;
+  }));
+  await startPromiseAction(action);
+  const loading = await screen.findByText('Updating your library…');
+  expect(loading.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'loading');
+  await waitFor(() => expect(listRoutes).toHaveBeenCalledTimes(2));
+  expect(document.querySelector('.library-progress')).toBeNull();
+  expect(document.querySelector('.library-actions .animate-spin')).toBeNull();
+  const dialog = screen.queryByRole('dialog');
+  if (dialog) {
+    const confirm = within(dialog).getByRole('button', {
+      name: action === 'save' ? 'Save changes' : action === 'delete' ? 'Delete route' : 'Import routes',
+    });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(confirm);
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(dialog).toBeInTheDocument();
+  } else {
+    expect(screen.getByRole('button', { name: 'Back to map' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate Alpine loop' }));
+  }
+  expect(onClose).not.toHaveBeenCalled();
+  expect(toast.promise).toHaveBeenCalledOnce();
+  finishRefresh([alpine, woodland]);
+  const message = i18next.t(success);
+  await waitFor(() => expect(screen.getByText(message).closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'success'));
+  expect(screen.getAllByText(message)).toHaveLength(1);
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(toast.error).not.toHaveBeenCalled();
+});
+
+it.each(['save', 'delete', 'duplicate', 'import'] as const)(
+  'reports a rejected %s promise once and preserves actionable dialog errors', async (action) => {
+    await openLibrary();
+    const error = new Error('Storage is unavailable');
+    vi.mocked(saveRoute).mockRejectedValue(error);
+    vi.mocked(deleteRoute).mockRejectedValue(error);
+    vi.mocked(duplicateRoute).mockRejectedValue(error);
+    vi.mocked(importBackup).mockRejectedValue(error);
+    await startPromiseAction(action);
+    await waitFor(() => expect(document.querySelector('[data-sonner-toast][data-type="error"]')).toHaveTextContent(error.message));
+    expect(toast.promise).toHaveBeenCalledOnce();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(listRoutes).toHaveBeenCalledOnce();
+    expect(document.querySelectorAll('[data-sonner-toast][data-type="error"]')).toHaveLength(1);
+    const dialog = screen.queryByRole('dialog');
+    if (action !== 'duplicate') {
+      expect(dialog).toHaveTextContent(error.message);
+      expect(within(dialog!).getByRole('button', {
+        name: action === 'save' ? 'Save changes' : action === 'delete' ? 'Delete route' : 'Import routes',
+      })).toBeEnabled();
+    }
+  },
+);
+
+it('reports a failed refresh as a promise error, without an import success or closing the preview', async () => {
+  await openLibrary();
+  vi.mocked(importBackup).mockResolvedValue({ imported: 1, skipped: 0, copied: 1, replaced: 0 });
+  vi.mocked(listRoutes).mockRejectedValueOnce(new Error('Refresh failed'));
+  await startPromiseAction('import');
+  await waitFor(() => expect(document.querySelector('[data-sonner-toast][data-type="error"]')).toHaveTextContent('Refresh failed'));
+  expect(screen.getByRole('dialog')).toHaveTextContent('Refresh failed');
+  expect(screen.getByRole('button', { name: 'Cancel import' })).toHaveFocus();
+  expect(screen.getByRole('button', { name: 'Import routes' })).toBeEnabled();
+  expect(screen.queryByText('Imported 1 routes; skipped 0.')).not.toBeInTheDocument();
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(toast.error).not.toHaveBeenCalled();
+});
+
+it('reports export failures once and releases its lock without refreshing routes', async () => {
+  await openLibrary();
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {
+    throw new Error('Download failed');
+  });
+  const revoke = vi.fn();
+  vi.stubGlobal('URL', Object.assign(URL, {
+    createObjectURL: vi.fn(() => 'blob:failed-download'),
+    revokeObjectURL: revoke,
+  }));
+  fireEvent.click(screen.getByRole('button', { name: 'Download backup' }));
+  await waitFor(() => expect(document.querySelector('[data-sonner-toast][data-type="error"]')).toHaveTextContent('Download failed'));
+  expect(toast.promise).toHaveBeenCalledOnce();
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(toast.error).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Download backup' })).toBeEnabled();
+  expect(listRoutes).toHaveBeenCalledOnce();
+  expect(document.querySelector('a[download="roamlet-library.json"]')).toBeNull();
+  await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:failed-download'));
 });
 
 it('generates finite bounded local thumbnails with separate GPX segment paths', () => {

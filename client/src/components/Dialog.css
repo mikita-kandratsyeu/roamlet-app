@@ -41,15 +41,11 @@
 }
 
 .roamlet-dialog .dialog-header h2 {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 650;
   letter-spacing: -0.3px;
-  line-height: 1.45;
+  line-height: 1.3;
   overflow-wrap: anywhere;
-}
-
-.roamlet-dialog.wide .dialog-header h2 {
-  font-size: 24px;
 }
 
 .roamlet-dialog .dialog-mobile-title {
@@ -59,8 +55,9 @@
 .roamlet-dialog .dialog-description {
   margin-top: 4px;
   color: var(--muted-foreground);
-  font-size: var(--font-size-helper);
-  line-height: 1.45;
+  font-size: var(--font-size-body);
+  font-weight: 400;
+  line-height: 1.55;
 }
 
 .roamlet-dialog .dialog-header .icon-button {
@@ -87,12 +84,16 @@
   flex-shrink: 0;
   min-height: 0;
   font-size: var(--font-size-body);
-  line-height: 1.45;
+  font-weight: 400;
+  line-height: 1.55;
   overflow-wrap: anywhere;
 }
 
 .roamlet-dialog .dialog-body > p {
   margin: 0;
+  font-size: inherit;
+  font-weight: 400;
+  line-height: inherit;
 }
 
 .roamlet-dialog .dialog-body form {
@@ -218,12 +219,6 @@
   align-items: center;
 }
 
-.roamlet-dialog.compact .dialog-header h2 {
-  font-size: 18px;
-  font-weight: 650;
-  line-height: 1.3;
-}
-
 .roamlet-dialog.compact .dialog-header .icon-button {
   margin: -8px -8px -8px 0;
   color: var(--muted-foreground);
@@ -276,11 +271,6 @@
     min-height: 64px;
     padding: 10px 16px;
     border-bottom: 1px solid var(--border);
-  }
-
-  .roamlet-dialog .dialog-header h2,
-  .roamlet-dialog.wide .dialog-header h2 {
-    font-size: 19px;
   }
 
   .roamlet-dialog .dialog-body {

@@ -47,9 +47,9 @@ describe('approximate initial region', () => {
   });
 });
 describe('last local view', () => {
-  it('restores exact center, zoom, bearing and pitch before browser heuristics', () => {
+  it('restores center, zoom and bearing but discards legacy 3D tilt', () => {
     expect(saveMapView(stored)).toBe(true);
-    expect(initialMapView()).toEqual(stored);
+    expect(initialMapView()).toEqual({ ...stored, pitch: 0 });
   });
   it.each([
     'broken json',
@@ -82,11 +82,11 @@ describe('last local view', () => {
 
 it('provides a fresh reset camera independent of the existing saved view', () => {
   saveMapView(stored);
-  expect(initialMapView()).toEqual(stored);
+  expect(initialMapView()).toEqual({ ...stored, pitch: 0 });
   const reset = defaultMapView();
   expect(validMapView(reset)).toBe(true);
   expect(reset).not.toEqual(stored);
   reset.center[0] = 179;
   expect(defaultMapView().center[0]).not.toBe(179);
-  expect(initialMapView()).toEqual(stored);
+  expect(initialMapView()).toEqual({ ...stored, pitch: 0 });
 });

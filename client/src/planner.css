@@ -264,7 +264,7 @@
   flex-shrink: 0;
   margin-top: 2px;
 }
-.planner-route-status:is(.is-calculating, .is-stale, .is-error) {
+.planner-route-status:is(.is-stale, .is-error) {
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;

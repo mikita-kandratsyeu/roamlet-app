@@ -201,6 +201,12 @@ test('comparison preserves editor and closes back to the selected library routes
   const compare = page.getByRole('button', { name: 'Compare routes', exact: true });
   await compare.click();
   const dialog = page.getByRole('dialog', { name: 'Compare saved routes', exact: true });
+  await expect(dialog).toHaveClass(/wide/);
+  const title = dialog.locator('.dialog-header h2');
+  await expect(title).toHaveCSS('font-size', '18px');
+  await expect(title).toHaveCSS('font-weight', '650');
+  await expect(title).toHaveCSS('line-height', '23.4px');
+  await expect(title).toHaveCSS('font-family', /Onest/);
   await expect(dialog.getByRole('table', { name: 'Saved route comparison' })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Fit route', exact: true })).toBeEnabled();
   await expect(dialog.getByRole('group', { name: 'Map style', exact: true })).toHaveCount(0);

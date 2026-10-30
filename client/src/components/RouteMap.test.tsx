@@ -20,7 +20,8 @@ const mocks = vi.hoisted(() => ({
     (event?: {
       lngLat: { lng: number; lat: number };
       point?: { x: number; y: number };
-      originalEvent?: MouseEvent;
+      originalEvent?: MouseEvent | TouchEvent;
+      type?: string;
     }) => void
   >(),
   query: vi.fn<() => unknown[]>(() => []),
@@ -523,13 +524,56 @@ it('keeps separate route segments and ignores isolated points in the map line so
   });
 });
 
+it('locks pitch, disables pan inertia and double-click zoom while retaining 2D rotation', () => {
+  render(<RouteMap {...props} />);
+  expect(mocks.options).toHaveBeenCalledWith(expect.objectContaining({ pitch: 0, maxPitch: 0,
+    pitchWithRotate: false, touchPitch: false, dragPan: { maxSpeed: 0 }, doubleClickZoom: false }));
+  expect(mocks.options.mock.calls[0][0].dragRotate).not.toBe(false);
+  expect(mocks.options.mock.calls[0][0].touchZoomRotate).not.toBe(false);
+  savePreferences({ camera: { center: [8, 46], zoom: 12, bearing: 40, pitch: 60 } });
+  expect(mocks.jump).toHaveBeenLastCalledWith({ center: [8, 46], zoom: 12, bearing: 40, pitch: 0 });
+});
+
+it('suppresses touch gesture clicks until all fingers release and avoids double-tap duplicates', () => {
+  const now = vi.spyOn(Date, 'now').mockReturnValue(1000);
+  render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')?.());
+  const event = (type: string, count: number) => ({ type, lngLat: { lng: 1, lat: 2 }, point: { x: 20, y: 20 },
+    originalEvent: { type, touches: Array.from({ length: count }, () => ({})) } as unknown as TouchEvent });
+  act(() => mocks.handlers.get('touchstart')?.(event('touchstart', 2)));
+  act(() => mocks.handlers.get('click')?.(event('touchend', 1)));
+  act(() => mocks.handlers.get('touchend')?.(event('touchend', 1)));
+  now.mockReturnValue(2000);
+  act(() => mocks.handlers.get('click')?.(event('touchend', 1)));
+  expect(props.onAdd).not.toHaveBeenCalled();
+  act(() => mocks.handlers.get('touchend')?.(event('touchend', 0)));
+  act(() => mocks.handlers.get('click')?.(event('touchend', 0)));
+  expect(props.onAdd).not.toHaveBeenCalled();
+  now.mockReturnValue(2400);
+  act(() => mocks.handlers.get('click')?.(event('touchend', 0)));
+  expect(props.onAdd).toHaveBeenCalledOnce();
+  now.mockReturnValue(2500);
+  act(() => mocks.handlers.get('click')?.(event('touchend', 0)));
+  expect(props.onAdd).toHaveBeenCalledOnce();
+});
+
+it('does not append a second waypoint for a mouse double-click', () => {
+  render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')?.());
+  const click = (detail: number) => mocks.handlers.get('click')?.({ lngLat: { lng: 1, lat: 2 },
+    point: { x: 20, y: 20 }, originalEvent: new MouseEvent('click', { detail }) });
+  act(() => click(1));
+  act(() => click(2));
+  expect(props.onAdd).toHaveBeenCalledOnce();
+});
+
 it('starts from the saved view, persists completed map movement and restores it on remount', () => {
   const saved = { center: [25, 54], zoom: 7, bearing: 2, pitch: 0 };
   localStorage.setItem(MAP_VIEW_KEY, JSON.stringify(saved));
   render(<RouteMap {...props} />);
   expect(mocks.options).toHaveBeenCalledWith(expect.objectContaining(saved));
   act(() => mocks.handlers.get('moveend')!());
-  const moved = { center: [12, 48], zoom: 10, bearing: 20, pitch: 30 };
+  const moved = { center: [12, 48], zoom: 10, bearing: 20, pitch: 0 };
   expect(JSON.parse(localStorage.getItem(MAP_VIEW_KEY)!)).toEqual(moved);
   cleanup();
   render(<RouteMap {...props} />);
@@ -848,7 +892,7 @@ it('initializes saved symbolic style and camera before constructing the map', ()
   savePreferences({ style: 'bright', camera });
   render(<RouteMap {...props} />);
   expect(mocks.options).toHaveBeenCalledWith(
-    expect.objectContaining({ ...camera, style: 'https://tiles.openfreemap.org/styles/bright' }),
+    expect.objectContaining({ ...camera, pitch: 0, style: 'https://tiles.openfreemap.org/styles/bright' }),
   );
   expect(localStorage.getItem(PREFERENCES_KEY)).not.toContain('https://');
 });

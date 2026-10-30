@@ -57,7 +57,7 @@ it('previews a dragged point without committing and inserts once at release into
   state.pointer('pointerup', 60, 80);
   expect(state.onInsert).toHaveBeenCalledExactlyOnceWith([0.6, 0.8], 1);
   expect(state.preview).toHaveBeenLastCalledWith(null);
-  expect(state.map.dragPan.enable).toHaveBeenCalledOnce();
+  expect(state.map.dragPan.enable).toHaveBeenCalledExactlyOnceWith({ maxSpeed: 0 });
   expect(state.suppress).toHaveBeenLastCalledWith(expect.any(Number));
   state.pointer('pointerup', 60, 80);
   expect(state.onInsert).toHaveBeenCalledOnce();

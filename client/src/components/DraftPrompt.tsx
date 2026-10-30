@@ -17,6 +17,7 @@ export function DraftPrompt({
     <Dialog
       title={t('Restore your draft?')}
       description={t('An unfinished route was found on this device.')}
+      compact
       initialFocusRef={restore}
       onClose={onDismiss}
     >
@@ -24,7 +25,7 @@ export function DraftPrompt({
         <Button className="secondary" variant="outline" onClick={onDelete}>
           {t('Delete draft')}
         </Button>
-        <Button ref={restore} onClick={onRestore}>
+        <Button ref={restore} className="primary" onClick={onRestore}>
           {t('Restore draft')}
         </Button>
       </div>

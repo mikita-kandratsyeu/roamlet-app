@@ -7,6 +7,7 @@ import { automaticPointCount } from '../domain/waypointLegs';
 import { normalizeRoutingOptions } from '../domain/routingOptions';
 import { routingProvider } from '../services/routing';
 import i18n from '../i18n';
+import type { RoutingNotification } from './useRoutingToast';
 interface Options {
   snapshot: EditorSnapshot;
   revision: number;
@@ -16,6 +17,7 @@ interface Options {
   setBusy: Dispatch<SetStateAction<boolean>>;
   setResult: Dispatch<SetStateAction<PlannedRoute | null>>;
   setRouteStale?: (stale: boolean) => void;
+  onStart?: (controller: AbortController) => RoutingNotification;
   setNotice: Dispatch<
     SetStateAction<{ text: string; error: boolean; kind?: 'routing' | 'map' } | null>
   >;
@@ -30,6 +32,7 @@ export function usePointRouting({
   setResult,
   setRouteStale,
   setNotice,
+  onStart,
 }: Options) {
   const { activity, waypoints, mode, planningMode, identity, routeMetadata, routingOptions } =
     snapshot;
@@ -87,6 +90,7 @@ export function usePointRouting({
     setBusy(true);
     setNotice(null);
     setRouteStale?.(true);
+    const notification = onStart?.(controller);
     const timer = setTimeout(() => {
       routingProvider
         .calculateRoute(waypoints, activity, controller.signal, routingOptions)
@@ -96,16 +100,15 @@ export function usePointRouting({
               route(calculated, calculated.directSegments?.length ? 'mixed' : 'openrouteservice'),
             );
             setRouteStale?.(false);
+            notification?.success();
           }
         })
         .catch((error) => {
-          if (!controller.signal.aborted)
-            setNotice({
-              text:
-                error instanceof Error ? error.message : 'Something went wrong. Please try again.',
-              error: true,
-              kind: 'routing',
-            });
+          if (!controller.signal.aborted) {
+            const text = error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+            setNotice({ text, error: true, kind: 'routing' });
+            notification?.error(text);
+          }
         })
         .finally(() => {
           if (!controller.signal.aborted) setBusy(false);
@@ -132,5 +135,6 @@ export function usePointRouting({
     setResult,
     setRouteStale,
     setNotice,
+    onStart,
   ]);
 }

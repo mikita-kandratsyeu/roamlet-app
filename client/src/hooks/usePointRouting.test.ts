@@ -8,6 +8,8 @@ import { isRouteResultCurrent, routingInputKey } from '../domain/editorRouting';
 import { routingProvider } from '../services/routing';
 import type { PlannedRoute, RoutingResult, Waypoint } from '../domain/types';
 
+const notification = { success: vi.fn(), error: vi.fn() };
+const onStart = vi.fn(() => notification);
 const points: Waypoint[] = [
   { id: 'a', name: 'A', coordinate: [11.4, 47.26] },
   { id: 'b', name: 'B', coordinate: [11.41, 47.27] },
@@ -53,6 +55,7 @@ function useHarness(snapshot: EditorSnapshot, online: boolean) {
     setNotice,
     setResult: editor.setResult,
     setRouteStale: editor.setRouteStale,
+    onStart,
   });
   return { editor, busy, notice, request };
 }
@@ -66,7 +69,10 @@ const calculated: RoutingResult = {
   stats: { distance: 1200, duration: 120, ascent: 20, descent: 0 },
   elevationSource: 'openrouteservice',
 };
-beforeEach(() => vi.useFakeTimers());
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.useFakeTimers();
+});
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
@@ -91,6 +97,8 @@ describe('retaining ready geometry while stale routing is pending', () => {
     expect(result.current.editor.routeStale).toBe(true);
     expect(isRouteResultCurrent(result.current.editor.snapshot)).toBe(false);
     expect(result.current.busy).toBe(true);
+    expect(onStart).toHaveBeenCalledWith(result.current.request.current);
+    expect(notification.success).not.toHaveBeenCalled();
     await runDebounce();
     expect(calculate).toHaveBeenCalledTimes(1);
     expect(result.current.editor.result).toBe(snapshot.result);
@@ -103,6 +111,8 @@ describe('retaining ready geometry while stale routing is pending', () => {
     expect(result.current.editor.routeStale).toBe(false);
     expect(isRouteResultCurrent(result.current.editor.snapshot)).toBe(true);
     expect(result.current.busy).toBe(false);
+    expect(notification.success).toHaveBeenCalledOnce();
+    expect(notification.error).not.toHaveBeenCalled();
   });
   it('keeps geometry stale and nonexportable after a service error or notice dismissal', async () => {
     vi.spyOn(routingProvider, 'calculateRoute').mockRejectedValue(
@@ -113,6 +123,8 @@ describe('retaining ready geometry while stale routing is pending', () => {
     await runDebounce();
     expect(result.current.editor.result).toBe(snapshot.result);
     expect(result.current.notice?.text).toBe('Routing quota reached.');
+    expect(notification.error).toHaveBeenCalledWith('Routing quota reached.');
+    expect(notification.success).not.toHaveBeenCalled();
     expect(result.current.busy).toBe(false);
     expect(result.current.editor.routeStale).toBe(true);
     expect(isRouteResultCurrent(result.current.editor.snapshot)).toBe(false);

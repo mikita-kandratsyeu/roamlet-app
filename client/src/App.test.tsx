@@ -392,7 +392,7 @@ describe('offline planner', () => {
     const signal = provider.calculateRoute.mock.calls[0][2] as AbortSignal;
     setOnline(false);
     expect(signal.aborted).toBe(true);
-    expect(screen.queryByText('Calculating route…')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Calculating route…')).not.toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Calculate route' })).toBeDisabled();
   });
 
@@ -1072,7 +1072,7 @@ describe('route planner interactions', () => {
     expect(screen.getByTestId('map')).toHaveAttribute('data-segments', '1');
     expect(screen.getByRole('alert')).toHaveTextContent('Routing quota reached.');
     expect(document.querySelectorAll('.planner-route-status')).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
+    fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Dismiss notification' }));
     expect(
       screen.getByText(
         'Previous route shown. Recalculate successfully before saving or exporting.',

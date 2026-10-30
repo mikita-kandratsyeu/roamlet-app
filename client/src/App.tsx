@@ -1,6 +1,7 @@
 import { Button } from './components/ui/button';
 import { Toaster } from './components/ui/sonner';
 import { Notification } from './components/Notification';
+import { toast } from 'sonner';
 import { Input } from './components/ui/input';
 import { Textarea } from './components/ui/textarea';
 import { Label } from './components/ui/label';
@@ -14,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouteEditor } from './hooks/useRouteEditor';
 import { usePointRouting } from './hooks/usePointRouting';
+import { useRoutingToast } from './hooks/useRoutingToast';
 import { useManualDetour } from './hooks/useManualDetour';
 import { ManualDetourToolbar } from './components/ManualDetourToolbar';
 import { PlannerTools } from './components/PlannerTools';
@@ -497,6 +499,9 @@ export default function App() {
     if (!online) setNotice((current) => (current?.kind ? null : current));
   }, [online]);
 
+  const startRoutingToast = useRoutingToast(() => {
+    if (online && !busy) retryRouting();
+  });
   usePointRouting({
     snapshot: editor.routingSnapshot,
     revision: routeRevision,
@@ -507,6 +512,7 @@ export default function App() {
     setResult,
     setRouteStale,
     setNotice,
+    onStart: startRoutingToast,
   });
   useEffect(() => {
     if (!online) return;
@@ -729,10 +735,10 @@ export default function App() {
   }
   async function doSave() {
     const route = currentRoute();
-    if (!route || !name.trim()) return;
+    if (saving || !route || !name.trim()) return;
     const savedSnapshot = editor.snapshot;
     setSaving(true);
-    try {
+    const operation = async () => {
       await saveRoute(route);
       if (latestSnapshot.current === savedSnapshot) {
         setDirty(false);
@@ -741,15 +747,12 @@ export default function App() {
       if (latestSnapshot.current.identity.id === savedSnapshot.identity.id)
         editor.setSavedRouteId(route.id);
       setSaveOpen(false);
-      setNotice({
-        text: 'Route saved on this device. Your next adventure is ready.',
-        error: false,
-      });
-    } catch (error) {
-      fail(errorMessage(error));
-    } finally {
-      setSaving(false);
-    }
+    };
+    await toast.promise(operation, {
+      loading: t('Saving…'),
+      success: t('Route saved on this device. Your next adventure is ready.'),
+      error: (error) => translateMessage(errorMessage(error)),
+    }).unwrap().catch(() => undefined).finally(() => setSaving(false));
   }
   function download(route: PlannedRoute, filename: string) {
     const blob = new Blob([exportGpx(route)], { type: 'application/gpx+xml' });
@@ -867,6 +870,7 @@ export default function App() {
     const controller = new AbortController();
     request.current = controller;
     setBusy(true);
+    const notification = startRoutingToast(controller);
     try {
       const found = await routingProvider.calculatePointAlternatives!(
         waypoints,
@@ -877,9 +881,14 @@ export default function App() {
       if (!controller.signal.aborted) {
         setAlternatives(found);
         selectAlternative(found[0], 0, false);
+        notification.success();
       }
     } catch (error) {
-      if (!controller.signal.aborted) fail(errorMessage(error), 'routing');
+      if (!controller.signal.aborted) {
+        const text = errorMessage(error);
+        fail(text, 'routing');
+        notification.error(text);
+      }
     } finally {
       if (!controller.signal.aborted) setBusy(false);
     }
@@ -894,6 +903,7 @@ export default function App() {
     const controller = new AbortController();
     request.current = controller;
     setBusy(true);
+    const notification = startRoutingToast(controller);
     try {
       const found = await routingProvider.calculateAlternatives(
         waypoints[0],
@@ -905,9 +915,14 @@ export default function App() {
       if (!controller.signal.aborted) {
         setAlternatives(found);
         selectAlternative(found[0], 0, false);
+        notification.success();
       }
     } catch (error) {
-      if (!controller.signal.aborted) fail(errorMessage(error), 'routing');
+      if (!controller.signal.aborted) {
+        const text = errorMessage(error);
+        fail(text, 'routing');
+        notification.error(text);
+      }
     } finally {
       if (!controller.signal.aborted) setBusy(false);
     }
@@ -967,7 +982,7 @@ export default function App() {
   const plannerStatus = busy
     ? routeStale && result
       ? t('Previous route shown while recalculating. Saving and export are paused.')
-      : t('Calculating route…')
+      : t('Unsaved changes')
     : routingError
       ? translateMessage(routingError.text)
       : routeStale && result
@@ -1008,30 +1023,15 @@ export default function App() {
       }}
     >
       <Toaster />
-      {notice && (notice.kind !== 'routing' || panelHidden || libraryOpen) && (
+      {notice && notice.kind !== 'routing' && (
         <Notification
-          title={t(
-            notice.kind === 'map'
-              ? 'Map error'
-              : notice.kind === 'routing'
-                ? 'Routing error'
-                : 'Notification',
-          )}
+          title={t(notice.kind === 'map' ? 'Map error' : 'Notification')}
           message={translateMessage(notice.text)}
           variant={notice.error ? 'error' : 'success'}
           onDismiss={() => setNotice(null)}
           actions={
             notice.kind && (
               <>
-                {notice.kind === 'routing' && (
-                  <Button
-                    variant="outline"
-                    disabled={!online || busy}
-                    onClick={retryRouting}
-                  >
-                    {t('Retry routing')}
-                  </Button>
-                )}
                 {notice.kind === 'map' && (
                   <Button
                     variant="outline"
@@ -1047,11 +1047,6 @@ export default function App() {
                 <Button variant="ghost" onClick={openLibrary}>
                   {t('Open library')}
                 </Button>
-                {notice.kind === 'routing' && (
-                  <Button variant="ghost" onClick={() => changePlanningMode('manual')}>
-                    {t('Use manual drawing')}
-                  </Button>
-                )}
               </>
             )
           }
@@ -1261,11 +1256,10 @@ export default function App() {
                   </Button>
                 </div>
               </div>
-              <div className={`planner-route-status ${busy ? 'is-calculating' : routingError ? 'is-error' : routeStale && result ? 'is-stale' : ''}`}
+              <div className={`planner-route-status ${routingError ? 'is-error' : routeStale && result ? 'is-stale' : ''}`}
                 role={routingError ? 'alert' : 'status'} aria-atomic="true">
                 <div className="planner-route-status-copy">
-                  {busy ? <LoaderCircle size={16} className="spin" aria-hidden="true" />
-                    : routingError || routeStale && result ? <Info size={16} aria-hidden="true" />
+                  {routingError || routeStale && result ? <Info size={16} aria-hidden="true" />
                     : result && !dirty ? <Check size={16} aria-hidden="true" /> : null}
                   <div>
                     <p>{plannerStatus}</p>
