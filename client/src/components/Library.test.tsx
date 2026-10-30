@@ -88,13 +88,6 @@ it('loads with search focus, route count, activity and distance, and reopens the
   const savedRoutes = screen.getByRole('list', { name: 'Saved routes' });
   expect(within(savedRoutes).getAllByRole('listitem')).toHaveLength(2);
   expect(within(savedRoutes).getByRole('button', { name: 'Edit Alpine loop' })).toBeVisible();
-  expect(
-    screen.getByText(
-      i18next.t(
-        'Keep a downloaded JSON backup outside this browser so you can restore your library on another device.',
-      ),
-    ),
-  ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: /Alpine loop Cycling.*8\.0 km/ }));
   expect(onOpen).toHaveBeenCalledWith(alpine);
   expect(screen.getByRole('region', { name: 'Saved routes' })).toHaveAccessibleDescription(

@@ -1094,14 +1094,6 @@ export function Library({
               </div>
             </Dialog>
           )}
-          <p className="fine-print library-storage-note">
-            <Info size={18} aria-hidden="true" />
-            <span>
-              {t(
-                'Keep a downloaded JSON backup outside this browser so you can restore your library on another device.',
-              )}
-            </span>
-          </p>
         </div>
       </div>
     </section>

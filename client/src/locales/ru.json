@@ -651,7 +651,6 @@
   "Reset search and filters": "Сбросить поиск и фильтры",
   "Open": "Открыть",
   "Library backup": "Резервная копия библиотеки",
-  "Keep a downloaded JSON backup outside this browser so you can restore your library on another device.": "Храните скачанную JSON-копию вне этого браузера, чтобы восстановить библиотеку на другом устройстве.",
   "Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.": "Маршруты хранятся только в этом браузере. Облачной копии нет. Очистка данных браузера удалит их.",
   "JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.": "JSON содержит все сохранённые маршруты, но не настройки и текущий черновик. GPX — отдельный маршрут для других приложений.",
   "Routes stay only in this browser on this device. There is no cloud copy. Clearing browser data deletes them. Download a JSON library backup from My routes before clearing browser data; GPX exports contain individual routes, not a library backup.": "Маршруты хранятся только в этом браузере на этом устройстве. Облачной копии нет. Очистка данных браузера удалит их. Заранее скачайте JSON-копию библиотеки в разделе «Мои маршруты». GPX содержит отдельный маршрут, а не копию библиотеки.",

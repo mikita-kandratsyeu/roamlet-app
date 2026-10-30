@@ -651,7 +651,6 @@
   "Reset search and filters": "Reset search and filters",
   "Open": "Open",
   "Library backup": "Library backup",
-  "Keep a downloaded JSON backup outside this browser so you can restore your library on another device.": "Keep a downloaded JSON backup outside this browser so you can restore your library on another device.",
   "Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.": "Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.",
   "JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.": "JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.",
   "Routes stay only in this browser on this device. There is no cloud copy. Clearing browser data deletes them. Download a JSON library backup from My routes before clearing browser data; GPX exports contain individual routes, not a library backup.": "Routes stay only in this browser on this device. There is no cloud copy. Clearing browser data deletes them. Download a JSON library backup from My routes before clearing browser data. GPX exports contain individual routes, not a library backup.",
