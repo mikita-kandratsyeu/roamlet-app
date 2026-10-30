@@ -147,7 +147,7 @@ export function validMapView(value: unknown): value is MapView {
 export function initialMapView(): MapView {
   try {
     const stored: unknown = JSON.parse(localStorage.getItem(MAP_VIEW_KEY) || 'null');
-    if (validMapView(stored)) return stored;
+    if (validMapView(stored)) return { ...stored, pitch: 0 };
   } catch {
     /* Storage may be blocked or an older saved view may be malformed. */
   }

@@ -190,8 +190,11 @@ export default function App() {
     }
   }
   function replaceWaypoint(id: string) {
+    const point = waypoints.find((waypoint) => waypoint.id === id);
+    if (!point) return;
     selectWaypoint(id);
     setSearchTarget(id);
+    searchInput.current?.setCoordinate(point.coordinate);
     searchInput.current?.focus();
     requestAnimationFrame(() => searchInput.current?.focus());
   }
@@ -1449,7 +1452,10 @@ export default function App() {
                     <Button
                       variant="ghost"
                       className="text-button"
-                      onClick={() => setSearchTarget(null)}
+                      onClick={() => {
+                        searchInput.current?.clear();
+                        setSearchTarget(null);
+                      }}
                     >
                       {t('Cancel replacing stop')}
                     </Button>

@@ -1,5 +1,5 @@
 import { createRef } from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { CoordinateInput, type CoordinateInputHandle } from './CoordinateInput';
@@ -98,6 +98,23 @@ it('shows a replacement action instead of adding another stop', async () => {
   expect(longitude).toHaveValue('11.4');
   await user.click(screen.getByRole('button', { name: 'Replace stop coordinates' }));
   expect(onAdd).toHaveBeenCalledWith([11.4, 47.26]);
+});
+
+it('prefills real coordinates without rounding and resets previous validation errors', async () => {
+  const { latitude, longitude, user, ref, onAdd } = setup(true);
+  await user.type(latitude, '91');
+  await user.click(screen.getByRole('button', { name: 'Replace stop coordinates' }));
+  expect(screen.getAllByRole('alert')).toHaveLength(2);
+  act(() => ref.current?.setCoordinate([31.02042123, 52.45097123]));
+  expect(latitude).toHaveValue('52.45097123');
+  expect(longitude).toHaveValue('31.02042123');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(onAdd).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Replace stop coordinates' }));
+  expect(onAdd).toHaveBeenCalledWith([31.02042123, 52.45097123]);
+  act(() => ref.current?.setCoordinate([0, -33.8]));
+  expect(latitude).toHaveValue('-33.8');
+  expect(longitude).toHaveValue('0');
 });
 
 it('inherits offline automatic-routing fieldset disabling', () => {

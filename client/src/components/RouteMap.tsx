@@ -19,7 +19,7 @@ import {
   type PreferencesChangeDetail,
 } from '../domain/preferences';
 import { routeInsertion } from '../domain/routeInsertion';
-import { installRouteLineDrag } from '../lib/routeLineDrag';
+import { installRouteLineDrag, MAP_PAN_OPTIONS } from '../lib/routeLineDrag';
 import {
   mapTiles,
   MAP_STYLE_CONFIGURATION_MESSAGE,
@@ -322,6 +322,12 @@ export function RouteMap(props: Props) {
       instance = new maplibregl.Map({
         container: container.current,
         ...initialMapView(),
+        pitch: 0,
+        maxPitch: 0,
+        pitchWithRotate: false,
+        touchPitch: false,
+        dragPan: MAP_PAN_OPTIONS,
+        doubleClickZoom: false,
         attributionControl: false,
         locale: {
           'NavigationControl.ZoomIn': i18n.t('Zoom in'),
@@ -348,7 +354,7 @@ export function RouteMap(props: Props) {
         center: [center.lng, center.lat] as [number, number],
         zoom: instance.getZoom(),
         bearing: instance.getBearing(),
-        pitch: instance.getPitch(),
+        pitch: 0,
       };
       lastCamera.current = JSON.stringify(camera);
       const saved = savePreferences({
@@ -385,14 +391,15 @@ export function RouteMap(props: Props) {
         setReady(false);
         instance.setStyle(next);
       }
-      const camera = JSON.stringify(preferences.camera);
+      const flatCamera = { ...preferences.camera, pitch: 0 };
+      const camera = JSON.stringify(flatCamera);
       if (
         !latest.current.comparisonMode &&
         (!detail || detail.reset || detail.patch?.camera !== undefined) &&
         camera !== lastCamera.current
       ) {
         lastCamera.current = camera;
-        instance.jumpTo(preferences.camera);
+        instance.jumpTo(flatCamera);
       }
     };
     window.addEventListener(PREFERENCES_CHANGE_EVENT, preferencesChanged);

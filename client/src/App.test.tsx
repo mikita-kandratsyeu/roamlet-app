@@ -585,6 +585,32 @@ describe('route planner interactions', () => {
     expect(provider.calculateAlternatives).not.toHaveBeenCalled();
   });
 
+  it('prefills each replacement target and clears editing values on cancellation', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
+    addCoordinate('52.45097123, 31.02042123');
+    addCoordinate('52.45134, 31.0323');
+    const latitude = screen.getByRole('textbox', { name: 'Latitude' });
+    const longitude = screen.getByRole('textbox', { name: 'Longitude' });
+    fireEvent.click(screen.getByRole('button', { name: 'Replace stop 1' }));
+    expect(latitude).toHaveValue('52.45097123');
+    expect(longitude).toHaveValue('31.02042123');
+    fireEvent.change(latitude, { target: { value: '91' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Replace stop coordinates' }));
+    expect(latitude).toHaveAttribute('aria-invalid', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Replace stop 2' }));
+    expect(latitude).toHaveValue('52.45134');
+    expect(longitude).toHaveValue('31.0323');
+    expect(latitude).toHaveAttribute('aria-invalid', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel replacing stop' }));
+    expect(latitude).toHaveValue('');
+    expect(longitude).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Add coordinates' })).toBeDisabled();
+    expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', JSON.stringify([
+      [[31.02042123, 52.45097123], [31.0323, 52.45134]],
+    ]));
+  });
+
   it('replaces a stop through separate coordinate fields and clears them only after a valid change', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
@@ -594,6 +620,8 @@ describe('route planner interactions', () => {
     const latitude = screen.getByRole('textbox', { name: 'Latitude' });
     const longitude = screen.getByRole('textbox', { name: 'Longitude' });
     expect(latitude).toHaveFocus();
+    expect(latitude).toHaveValue('47.26');
+    expect(longitude).toHaveValue('11.4');
     fireEvent.change(latitude, { target: { value: '91' } });
     fireEvent.change(longitude, { target: { value: '11.5' } });
     fireEvent.click(screen.getByRole('button', { name: 'Replace stop coordinates' }));
@@ -1287,6 +1315,8 @@ describe('map and routing improvements', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Replace first map point' }));
     expect(screen.getByRole('textbox', { name: 'Latitude' })).toHaveFocus();
     expect(screen.getByRole('button', { name: 'Replace stop coordinates' })).toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'Latitude' })).toHaveValue('47.26');
+    expect(screen.getByRole('textbox', { name: 'Longitude' })).toHaveValue('11.4');
   });
 
   it('keeps previous geometry visible but unusable until the newest calculation succeeds', async () => {

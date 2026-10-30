@@ -15,6 +15,7 @@ import type { Coordinate } from '../domain/types';
 export interface CoordinateInputHandle {
   focus: () => void;
   clear: () => void;
+  setCoordinate: (coordinate: Coordinate) => void;
 }
 
 interface Props {
@@ -37,6 +38,10 @@ export function CoordinateInput({ ref, replacing, onAdd }: Props) {
     ref,
     () => ({
       focus: () => latitudeInput.current?.focus(),
+      setCoordinate: (coordinate) => {
+        setValues({ latitude: String(coordinate[1]), longitude: String(coordinate[0]) });
+        setErrors({ latitude: null, longitude: null });
+      },
       clear: () => {
         setValues({ latitude: '', longitude: '' });
         setErrors({ latitude: null, longitude: null });

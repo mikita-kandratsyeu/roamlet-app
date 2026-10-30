@@ -2,6 +2,8 @@ import type { Map as RouteMap } from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { routeInsertion } from '../domain/routeInsertion';
 
+export const MAP_PAN_OPTIONS = { maxSpeed: 0 };
+
 interface DragRoute {
   editable: boolean;
   comparisonMode?: boolean;
@@ -38,7 +40,7 @@ export function installRouteLineDrag(
     if (!drag) return;
     const { panEnabled } = drag;
     drag = null;
-    if (panEnabled) map.dragPan.enable();
+    if (panEnabled) map.dragPan.enable(MAP_PAN_OPTIONS);
     canvas.style.cursor = '';
     preview(null);
     suppressClick(Date.now() + 250);
