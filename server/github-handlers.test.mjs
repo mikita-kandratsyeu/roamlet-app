@@ -319,6 +319,42 @@ test('callback rejects expired/tampered/missing state, denial, duplicate params 
   }
 });
 
+test('callback accepts the GitHub OAuth issuer with valid browser-bound state', async () => {
+  const { handler, calls } = fixture();
+  const start = await invoke(handler, 'start');
+  const stateCookie = start.headers['set-cookie'].split(';')[0];
+  const state = openCookie({ headers: { cookie: stateCookie } }, config(), 'state', NOW);
+  const result = await invoke(handler, 'callback', {
+    query: `&code=synthetic-code&iss=${encodeURIComponent('https://github.com/login/oauth')}&state=${state.state}`,
+    headers: { cookie: stateCookie },
+  });
+  assert.equal(result.headers.location, '/?connectors=github&github=connected');
+  assert.equal(calls.length, 2);
+});
+
+test('callback rejects invalid, duplicate and unrelated issuer parameters before token exchange', async () => {
+  for (const suffix of [
+    '&iss=',
+    '&iss=https%3A%2F%2Fevil.example%2Flogin%2Foauth',
+    '&iss=http%3A%2F%2Fgithub.com%2Flogin%2Foauth',
+    '&iss=https%3A%2F%2Fgithub.com%2Flogin%2Foauth%2F',
+    '&iss=https%3A%2F%2Fgithub.com%2Flogin%2Foauth&iss=https%3A%2F%2Fgithub.com%2Flogin%2Foauth',
+    '&iss=https%3A%2F%2Fgithub.com%2Flogin%2Foauth&unexpected=1',
+  ]) {
+    const { handler, calls } = fixture();
+    const start = await invoke(handler, 'start');
+    const stateCookie = start.headers['set-cookie'].split(';')[0];
+    const state = openCookie({ headers: { cookie: stateCookie } }, config(), 'state', NOW);
+    const result = await invoke(handler, 'callback', {
+      query: `&code=synthetic-code&state=${state.state}${suffix}`,
+      headers: { cookie: stateCookie },
+    });
+    assert.equal(result.headers.location, '/?connectors=github&github=error');
+    assert.match(result.headers['set-cookie'], /Max-Age=0/);
+    assert.equal(calls.length, 0);
+  }
+});
+
 test('same-origin mutation requires exact trusted Origin and marker; safe reads/start reject cross-site fetches', async () => {
   const { handler, calls } = fixture();
   for (const headers of [

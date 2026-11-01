@@ -33,7 +33,7 @@ import {
 const ACTIONS = {
   session: ['GET', []],
   start: ['GET', []],
-  callback: ['GET', ['code', 'state', 'error', 'error_description', 'error_uri']],
+  callback: ['GET', ['code', 'state', 'iss', 'error', 'error_description', 'error_uri']],
   repositories: ['GET', []],
   check: ['GET', ['owner', 'repository']],
   list: ['GET', ['owner', 'repository']],
@@ -126,6 +126,8 @@ export function createGithubHandler({
       }
       if (action === 'callback') {
         res.setHeader('Set-Cookie', cookie(config, 'state', '', 0));
+        if (params.has('iss') && params.get('iss') !== 'https://github.com/login/oauth')
+          throw new GithubError('auth', 401);
         const state = openCookie(req, config, 'state', now());
         const code = params.get('code');
         if (
