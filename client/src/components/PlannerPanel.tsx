@@ -91,11 +91,9 @@ export function PlannerPanel({
             <strong id="planner-sheet-title">{title}</strong>
             {summary && <small id="planner-sheet-summary">{summary}</small>}
           </span>
-          {collapsed ? (
-            <ChevronUp size={18} aria-hidden="true" />
-          ) : (
-            <ChevronDown size={18} aria-hidden="true" />
-          )}
+          <span className="mobile-sheet-collapse-icon" aria-hidden="true">
+            {collapsed ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </span>
         </Button>
         <Button
           variant="ghost"

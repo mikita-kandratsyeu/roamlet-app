@@ -56,6 +56,38 @@ async function touchTarget(locator: Locator) {
   expect(box!.height).toBeGreaterThanOrEqual(44);
 }
 
+async function alignedSheetHeader(page: Page) {
+  const layout = await page.locator('.mobile-sheet-header').evaluate((element) => {
+    const header = element.getBoundingClientRect();
+    const text = element.querySelector('.sheet-identity')!.getBoundingClientRect();
+    const collapse = element.querySelector('.mobile-sheet-collapse-icon')!.getBoundingClientRect();
+    const resize = element.querySelector('.mobile-sheet-resize')!.getBoundingClientRect();
+    const toggleStyle = getComputedStyle(element.querySelector('.mobile-sheet-toggle')!);
+    const border = parseFloat(getComputedStyle(element).borderBottomWidth);
+    return {
+      topSpace: text.top - header.top,
+      bottomSpace: header.bottom - border - text.bottom,
+      textCenter: text.top + text.height / 2,
+      collapseCenter: collapse.top + collapse.height / 2,
+      resizeCenter: resize.top + resize.height / 2,
+      collapseWidth: collapse.width,
+      collapseHeight: collapse.height,
+      resizeWidth: resize.width,
+      resizeHeight: resize.height,
+      paddingTop: toggleStyle.paddingTop,
+      paddingBottom: toggleStyle.paddingBottom,
+    };
+  });
+  expect(layout.topSpace).toBeCloseTo(layout.bottomSpace, 1);
+  expect(layout.textCenter).toBeCloseTo(layout.collapseCenter, 1);
+  expect(layout.collapseCenter).toBeCloseTo(layout.resizeCenter, 1);
+  expect(layout.paddingTop).toBe(layout.paddingBottom);
+  expect(layout.collapseWidth).toBe(44);
+  expect(layout.collapseHeight).toBe(44);
+  expect(layout.resizeWidth).toBe(44);
+  expect(layout.resizeHeight).toBe(44);
+}
+
 async function reachable(locator: Locator) {
   await locator.scrollIntoViewIfNeeded();
   await expect(locator).toBeInViewport();
@@ -97,6 +129,7 @@ test('compact Russian sheet fits narrow screens in both themes and retains long 
       await expect(toggle).toHaveAccessibleDescription('Новый маршрут Начните с двух точек на карте');
       await touchTarget(toggle);
       await touchTarget(page.getByRole('button', { name: 'Развернуть планнер', exact: true }));
+      await alignedSheetHeader(page);
       const panel = page.locator('#route-planner');
       expect(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       const grip = await page.locator('.mobile-sheet-header').evaluate((element) => {
@@ -104,7 +137,13 @@ test('compact Russian sheet fits narrow screens in both themes and retains long 
         return parseFloat(style.left) + parseFloat(style.width) / 2;
       });
       expect(grip).toBeCloseTo(width / 2, 0);
-      await page.screenshot({ path: testInfo.outputPath(`compact-${theme}-${width}.png`) });
+      await page.screenshot({
+        path: testInfo.outputPath(`compact-${theme}-${width}.png`),
+        animations: 'disabled',
+      });
+      expect(await panel.evaluate((element) =>
+        element.clientHeight - element.querySelector<HTMLElement>('.mobile-sheet-header')!.offsetHeight,
+      )).toBe(0);
     }
   }
   const name = 'Очень длинное название маршрута для поездки выходного дня через горы и долины';
@@ -195,6 +234,7 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await expandPlanner(page);
+    await alignedSheetHeader(page);
     const scroll = page.locator('.planner-scroll');
     await expect
       .poll(() => scroll.evaluate((element) => element.clientHeight))
