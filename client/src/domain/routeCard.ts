@@ -360,12 +360,12 @@ type Context = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 function drawBrand(context: Context, ink: string): void {
   const x = 72,
-    y = 72,
-    scale = 96 / 192;
+    y = 76,
+    scale = 56 / 192;
   const point = (px: number, py: number): RouteCardPoint => [x + px * scale, y + py * scale];
   context.save();
   context.beginPath();
-  context.roundRect(x, y, 96, 96, 24);
+  context.roundRect(x, y, 56, 56, 14);
   context.fillStyle = '#173b30';
   context.fill();
   context.clip();
@@ -388,8 +388,8 @@ function drawBrand(context: Context, ink: string): void {
   context.fill();
   context.restore();
   context.fillStyle = ink;
-  context.font = '800 60px sans-serif';
-  context.fillText('Roamlet', 200, 90);
+  context.font = '600 36px sans-serif';
+  context.fillText('Roamlet', 144, 86);
 }
 
 function drawBackground(context: Context, height: number, dark: boolean): void {
@@ -544,20 +544,21 @@ export async function renderRouteCard(
     drawBackground(context, height, dark);
     context.textBaseline = 'top';
     drawBrand(context, ink);
-    context.font = '600 24px sans-serif';
-    const planned = fitText(context, safeText(request.plannedLabel), 888);
-    const badgeWidth = Math.min(936, context.measureText(planned).width + 48);
+    context.font = '600 20px sans-serif';
+    const planned = fitText(context, safeText(request.plannedLabel), 408);
+    const badgeWidth = Math.min(440, context.measureText(planned).width + 32);
+    const badgeX = 1008 - badgeWidth;
     context.fillStyle = dark ? '#bdd3a51c' : '#173b3010';
     context.beginPath();
-    context.roundRect(72, 200, badgeWidth, 48, 24);
+    context.roundRect(badgeX, 86, badgeWidth, 36, 18);
     context.fill();
     context.fillStyle = green;
-    context.fillText(planned, 96, 210);
+    context.fillText(planned, badgeX + 16, 94);
     context.fillStyle = ink;
     context.font = '800 64px sans-serif';
     const lines = titleLines(context, request.title, 936);
-    lines.forEach((line, index) => context.fillText(line, 72, 280 + index * 76));
-    const activityTop = 296 + lines.length * 76;
+    lines.forEach((line, index) => context.fillText(line, 72, 176 + index * 76));
+    const activityTop = 192 + lines.length * 76;
     context.fillStyle = muted;
     context.font = '500 30px sans-serif';
     drawActivityIcon(context, request.activity, 72, activityTop, muted);

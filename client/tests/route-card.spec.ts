@@ -80,7 +80,7 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
       return { road, dot, dividerContrast };
     });
     expect(iconPixels.road).toBeGreaterThan(150);
-    expect(iconPixels.dot).toBeGreaterThan(60);
+    expect(iconPixels.dot).toBeGreaterThan(30);
     expect(iconPixels.dividerContrast).toBeGreaterThan(8);
     await expect
       .poll(() => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth))

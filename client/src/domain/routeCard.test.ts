@@ -440,7 +440,7 @@ describe('offline PNG rendering', () => {
     },
   );
   it.each(['light', 'dark'] as const)(
-    'draws the actual offline app icon and prominent wordmark in %s',
+    'draws a compact offline app icon and balanced wordmark in %s',
     async (theme) => {
       const { canvas, context, texts } = canvasMock();
       const colors: string[] = [];
@@ -449,7 +449,7 @@ describe('offline PNG rendering', () => {
       });
       await renderRouteCard({ ...request, theme }, canvas);
       expect(colors).toEqual(expect.arrayContaining(['#173b30', '#faf7f2', '#bdd3a5']));
-      expect(context.roundRect).toHaveBeenCalledWith(72, 72, 96, 96, 24);
+      expect(context.roundRect).toHaveBeenCalledWith(72, 76, 56, 56, 14);
       expect(context.bezierCurveTo.mock.calls.slice(54)).toEqual(
         [
           [70, 58, 126, 68, 126, 92],
@@ -458,15 +458,20 @@ describe('offline PNG rendering', () => {
           [102, 177, 33, 163, 33, 134],
           [33, 108, 98, 104, 98, 89],
           [98, 75, 29, 57, 38, 56],
-        ].map((points) => points.map((coordinate) => 72 + coordinate / 2)),
+        ].map((points) => points.map((coordinate, index) => (index % 2 ? 76 : 72) + coordinate * (56 / 192))),
       );
-      expect(context.arc).toHaveBeenCalledWith(134.5, 96.5, 8.5, 0, Math.PI * 2);
-      expect(context.fillText).toHaveBeenNthCalledWith(1, 'Roamlet', 200, 90);
-      expect(texts[0].font).toBe('800 60px sans-serif');
+      expect(context.arc).toHaveBeenCalledWith(72 + 125 * (56 / 192), 76 + 49 * (56 / 192), 17 * (56 / 192), 0, Math.PI * 2);
+      expect(context.fillText).toHaveBeenNthCalledWith(1, 'Roamlet', 144, 86);
+      expect(texts[0].font).toBe('600 36px sans-serif');
       expect(context.fillText.mock.invocationCallOrder[0]).toBeLessThan(
         context.fillText.mock.invocationCallOrder[1],
       );
-      expect(context.roundRect.mock.calls[1][1]).toBe(200);
+      expect(context.roundRect.mock.calls[1][1]).toBe(86);
+      const [badgeX, , badgeWidth] = context.roundRect.mock.calls[1];
+      expect(badgeX + badgeWidth).toBe(1008);
+      expect(texts[0].x + texts[0].width + 24).toBeLessThan(badgeX);
+      expect(texts[2].font).toBe('800 64px sans-serif');
+      expect(texts[0].y + 36).toBeLessThan(texts[2].y);
     },
   );
   it.each(['light', 'dark'] as const)(
@@ -557,9 +562,11 @@ describe('offline PNG rendering', () => {
       expect(activity).toHaveLength(2);
       expect(activity[0].y).toBeGreaterThan(title[2].y + 64);
       const [badgeX, badgeY, badgeWidth, badgeHeight] = context.roundRect.mock.calls[1];
-      expect([badgeX, badgeY, badgeHeight]).toEqual([72, 200, 48]);
-      expect(badgeWidth).toBeLessThanOrEqual(936);
-      expect(texts[1].x + texts[1].width).toBeLessThanOrEqual(badgeX + badgeWidth - 24);
+      expect([badgeY, badgeHeight]).toEqual([86, 36]);
+      expect(badgeWidth).toBeLessThanOrEqual(440);
+      expect(badgeX + badgeWidth).toBe(1008);
+      expect(texts[0].x + texts[0].width + 24).toBeLessThan(badgeX);
+      expect(texts[1].x + texts[1].width).toBeLessThanOrEqual(badgeX + badgeWidth - 16);
       expect(title[0].y).toBeGreaterThan(badgeY + badgeHeight);
       for (const text of texts) {
         expect(text.x).toBeGreaterThanOrEqual(72);
@@ -671,8 +678,8 @@ describe('offline PNG rendering', () => {
       expect([canvas.width, canvas.height]).toEqual([1080, format === 'post' ? 1350 : 1920]);
       expect(blob.type).toBe('image/png');
       expect(canvas.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
-      expect(context.fillText).toHaveBeenCalledWith('Roamlet', 200, 90);
-      expect(context.roundRect).toHaveBeenCalledWith(72, 72, 96, 96, 24);
+      expect(context.fillText).toHaveBeenCalledWith('Roamlet', 144, 86);
+      expect(context.roundRect).toHaveBeenCalledWith(72, 76, 56, 56, 14);
       const title = texts.filter((call) => call.font === '800 64px sans-serif');
       expect(title).toHaveLength(3);
       expect(title.at(-1)!.text).toContain('…');
