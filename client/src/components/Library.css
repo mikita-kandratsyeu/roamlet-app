@@ -1111,6 +1111,9 @@
   border-radius: 12px;
   background: var(--surface);
 }
+.route-library .library-comparison:not(:has(.library-comparison-selection)) {
+  grid-template-areas: 'summary actions';
+}
 .route-library .library-comparison[data-ready='true'] {
   border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
 }
@@ -1207,6 +1210,9 @@
     grid-template-areas: 'summary' 'selection' 'actions';
     gap: 12px;
     padding: 14px;
+  }
+  .route-library .library-comparison:not(:has(.library-comparison-selection)) {
+    grid-template-areas: 'summary' 'actions';
   }
   .route-library .library-comparison-actions > button:first-child {
     flex: 1;

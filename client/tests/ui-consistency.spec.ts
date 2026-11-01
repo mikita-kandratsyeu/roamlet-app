@@ -1009,6 +1009,11 @@ test('comparison selection keeps a clear remove icon and touch target with long 
   await page.getByRole('button', { name: `Duplicate ${name}`, exact: true }).click();
   await page.getByRole('checkbox', { name: `Select ${name} (copy) for comparison`, exact: true }).check();
   await expect(page.getByRole('button', { name: 'Compare routes', exact: true })).toBeEnabled();
+  while (await feedback.count()) {
+    const count = await feedback.count();
+    await feedback.first().getByRole('button', { name: 'Dismiss notification', exact: true }).click();
+    await expect(feedback).toHaveCount(count - 1);
+  }
   const widget = page.locator('.library-comparison');
   await expect(widget.locator('.library-comparison-heading [data-slot="badge"]')).toHaveText('2 / 3');
   const remove = page.getByRole('button', { name: `Remove ${name} from comparison`, exact: true });
@@ -1045,6 +1050,7 @@ test('comparison selection keeps a clear remove icon and touch target with long 
     if (width <= 700) expect(actionsBox.y).toBeGreaterThanOrEqual(selectionBox.y + selectionBox.height);
     else expect(actionsBox.y).toBeLessThan(selectionBox.y);
     expect(widgetBox.height).toBeLessThan(width <= 700 ? 420 : 260);
+    await widget.scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`comparison-selection-${width}.png`) });
   }
   await remove.focus();
