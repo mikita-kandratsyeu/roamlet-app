@@ -391,6 +391,7 @@ test('comparison preserves editor and closes back to the selected library routes
         await expect(title).toHaveCSS('font-weight', reference.fontWeight);
         await expect(title).toHaveCSS('line-height', reference.lineHeight);
         await expect(title).toHaveCSS('font-family', reference.fontFamily);
+        await expect(title).toHaveCSS('flex-grow', '0');
         const titleBox = (await title.boundingBox())!;
         const counterBox = (await workspace.locator('.comparison-screen-panel-title [data-slot="badge"]').boundingBox())!;
         expect(counterBox.x - titleBox.x - titleBox.width).toBeCloseTo(8, 0);

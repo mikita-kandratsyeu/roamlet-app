@@ -42,7 +42,7 @@ import {
   ArrowUp,
   ArrowDown,
   X,
-  Download,
+  FileOutput,
   FileUp,
   Trash2,
   Bookmark,
@@ -1902,7 +1902,7 @@ export default function App() {
                     if (!busy) setExportRoute(currentRoute());
                   }}
                 >
-                  <Download size={17} aria-hidden="true" />
+                  <FileOutput size={17} aria-hidden="true" />
                 </Button>
                 <Button
                   variant="outline"
