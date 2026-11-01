@@ -1233,7 +1233,7 @@
   }
   .planner-scroll {
     flex: 1;
-    padding: 0 16px 12px;
+    padding: 8px 16px 12px;
   }
   .activity-selector button,
   .planning-tabs button {

@@ -1219,6 +1219,13 @@ test('empty mobile planner shows its guidance once and keeps a useful collapsed 
   await expect(page.locator('.planner-route-status')).toHaveText(
     'Start with two points on the map',
   );
+  await expect(page.locator('.planner-scroll')).toHaveCSS('padding-top', '8px');
+  const headerGap = await page.locator('#route-planner').evaluate((element) => {
+    const header = element.querySelector('.mobile-sheet-header')!.getBoundingClientRect();
+    const guidance = element.querySelector('.planner-route-status')!.getBoundingClientRect();
+    return guidance.top - header.bottom;
+  });
+  expect(headerGap).toBeCloseTo(8, 1);
   await sheet.click();
   await expect(sheet.locator('small')).toHaveText('Start with two points on the map');
   await expect(page.locator('.planner-route-status')).not.toBeVisible();
