@@ -42,6 +42,22 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it('keeps privacy guidance compact, accessible and expandable without generating', async () => {
+  const user = userEvent.setup();
+  render(<RouteCardExport route={route} />);
+  const details = screen.getByText('Privacy details').closest('details');
+  expect(details).not.toHaveAttribute('open');
+  expect(screen.getByText('0 shows the whole route. Only the image is changed.')).toBeVisible();
+  expect(screen.getByRole('spinbutton')).toHaveAttribute(
+    'aria-describedby',
+    'route-card-privacy-hint',
+  );
+  await user.click(screen.getByText('Privacy details'));
+  expect(details).toHaveAttribute('open');
+  expect(screen.getByText(/Hides all route portions/)).toBeVisible();
+  expect(generateRouteCard).not.toHaveBeenCalled();
+});
+
 it('generates on button press, downloads the same PNG, and preserves the route', async () => {
   const original = JSON.stringify(route);
   const user = userEvent.setup();

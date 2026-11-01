@@ -357,14 +357,14 @@ function hasVisibleDrawing(points: RouteCardPoint[][], exclusions: RouteCardBoun
 
 type Context = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
-function drawBrand(context: Context, height: number, ink: string): void {
+function drawBrand(context: Context, ink: string): void {
   const x = 72,
-    y = height - 126,
-    scale = 72 / 192;
+    y = 72,
+    scale = 96 / 192;
   const point = (px: number, py: number): RouteCardPoint => [x + px * scale, y + py * scale];
   context.save();
   context.beginPath();
-  context.roundRect(x, y, 72, 72, 18);
+  context.roundRect(x, y, 96, 96, 24);
   context.fillStyle = '#173b30';
   context.fill();
   context.clip();
@@ -387,8 +387,35 @@ function drawBrand(context: Context, height: number, ink: string): void {
   context.fill();
   context.restore();
   context.fillStyle = ink;
-  context.font = '700 42px sans-serif';
-  context.fillText('Roamlet', 164, y + 15);
+  context.font = '800 60px sans-serif';
+  context.fillText('Roamlet', 200, 90);
+}
+
+function drawBackground(context: Context, height: number, dark: boolean): void {
+  const gradient = context.createLinearGradient(0, 0, 1080, height);
+  gradient.addColorStop(0, dark ? '#173b30' : '#faf7f2');
+  gradient.addColorStop(0.5, dark ? '#10251e' : '#edf2e7');
+  gradient.addColorStop(1, dark ? '#213b2c' : '#dbe7d0');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 1080, height);
+  const glow = context.createRadialGradient(880, height * 0.48, 0, 880, height * 0.48, 760);
+  glow.addColorStop(0, dark ? '#bdd3a51a' : '#bdd3a538');
+  glow.addColorStop(1, '#bdd3a500');
+  context.fillStyle = glow;
+  context.fillRect(0, 0, 1080, height);
+  // Decorative waves are fixed-work artwork, unrelated to coordinates or real terrain.
+  context.strokeStyle = dark ? '#bdd3a514' : '#173b3010';
+  context.lineWidth = 1.5;
+  for (let index = 0; index < 18; index++) {
+    const y = (height * (index + 0.5)) / 18;
+    const bend = 36 * Math.sin(index * 0.48);
+    context.beginPath();
+    context.moveTo(0, y);
+    context.bezierCurveTo(180, y - 88 + bend, 260, y + 104, 420, y + 24);
+    context.bezierCurveTo(580, y - 56, 640, y - 100 - bend, 800, y - 20);
+    context.bezierCurveTo(920, y + 44 + bend, 1000, y + 20, 1080, y - 48);
+    context.stroke();
+  }
 }
 function safeText(value: string): string {
   return value
@@ -409,23 +436,19 @@ function fitText(context: Context, text: string, width: number): string {
   }
   return chars.slice(0, low).join('') + '…';
 }
-function titleLines(context: Context, value: string, width: number): string[] {
-  const words = safeText(value).split(' ');
+function titleLines(context: Context, value: string, width: number, limit = 3): string[] {
+  let remaining = safeText(value);
   const lines: string[] = [];
-  let line = '';
-  for (let index = 0; index < words.length; index++) {
-    const next = line ? `${line} ${words[index]}` : words[index];
-    if (line && context.measureText(next).width > width) {
-      lines.push(fitText(context, line, width));
-      line = words[index];
-      if (lines.length === 2) {
-        const remaining = words.slice(index).join(' ');
-        lines.push(fitText(context, remaining, width));
-        return lines;
-      }
-    } else line = next;
+  while (remaining && lines.length < limit - 1) {
+    if (context.measureText(remaining).width <= width) break;
+    const fitted = fitText(context, remaining, width).slice(0, -1);
+    const lastSpace = fitted.lastIndexOf(' ');
+    const line = lastSpace > 0 ? fitted.slice(0, lastSpace) : fitted;
+    if (!line) break;
+    lines.push(line);
+    remaining = remaining.slice(line.length).trimStart();
   }
-  lines.push(fitText(context, line, width));
+  lines.push(fitText(context, remaining, width));
   return lines;
 }
 
@@ -458,26 +481,32 @@ export async function renderRouteCard(
     const ink = dark ? '#f4f7ef' : '#183c2c';
     const muted = dark ? '#adc5b6' : '#597264';
     const green = dark ? '#86d5a3' : '#287348';
-    context.fillStyle = background;
-    context.fillRect(0, 0, 1080, height);
-    context.fillStyle = dark ? '#19382b' : '#e5eee0';
-    context.beginPath();
-    context.arc(1000, 80, 360, 0, TAU);
-    context.fill();
+    drawBackground(context, height, dark);
     context.textBaseline = 'top';
+    drawBrand(context, ink);
+    context.font = '600 24px sans-serif';
+    const planned = fitText(context, safeText(request.plannedLabel), 888);
+    const badgeWidth = Math.min(936, context.measureText(planned).width + 48);
+    context.fillStyle = dark ? '#bdd3a51c' : '#173b3010';
+    context.beginPath();
+    context.roundRect(72, 200, badgeWidth, 48, 24);
+    context.fill();
     context.fillStyle = green;
-    context.font = '600 26px sans-serif';
-    context.fillText(fitText(context, safeText(request.plannedLabel), 936), 72, 72);
+    context.fillText(planned, 96, 210);
     context.fillStyle = ink;
-    context.font = '700 64px sans-serif';
+    context.font = '800 64px sans-serif';
     const lines = titleLines(context, request.title, 936);
-    lines.forEach((line, index) => context.fillText(line, 72, 126 + index * 76));
-    const activityTop = 146 + lines.length * 76;
+    lines.forEach((line, index) => context.fillText(line, 72, 280 + index * 76));
+    const activityTop = 296 + lines.length * 76;
     context.fillStyle = muted;
     context.font = '500 30px sans-serif';
-    context.fillText(fitText(context, safeText(request.activityLabel), 936), 72, activityTop);
-    const footerTop = height - 360;
-    const routeTop = activityTop + 100;
+    const activity = titleLines(context, request.activityLabel, 936, 2);
+    activity.forEach((line, index) => context.fillText(line, 72, activityTop + index * 40));
+    const columns = request.metrics.length === 4 ? 2 : Math.min(3, request.metrics.length);
+    const rows = columns ? Math.ceil(request.metrics.length / columns) : 0;
+    const panelHeight = rows ? 64 + rows * 112 : 0;
+    const footerTop = height - 72 - panelHeight;
+    const routeTop = activityTop + activity.length * 40 + 52;
     const routeBounds = { x: 104, y: routeTop, width: 872, height: footerTop - routeTop - 66 };
     const { points, privacyAreas } = projectRouteCardDrawing(
       geometry,
@@ -504,8 +533,6 @@ export async function renderRouteCard(
       context.rect(area.x, area.y, area.width, area.height);
       context.clip('evenodd');
     }
-    context.strokeStyle = green;
-    context.lineWidth = 11;
     context.lineCap = 'round';
     context.lineJoin = 'round';
     for (const segment of points) {
@@ -521,6 +548,12 @@ export async function renderRouteCard(
         else return;
         previous = point;
       });
+      // Both passes share the privacy union clip; casing stays within its eight-pixel padding.
+      context.strokeStyle = dark ? '#10251e' : '#faf7f2';
+      context.lineWidth = 14;
+      context.stroke();
+      context.strokeStyle = green;
+      context.lineWidth = 9;
       context.stroke();
     }
     // Privacy cards deliberately have no endpoint markers.
@@ -535,21 +568,25 @@ export async function renderRouteCard(
       }
     }
     context.restore();
-    context.fillStyle = dark ? '#244333' : '#d4e1ce';
-    context.fillRect(72, footerTop, 936, 2);
+    if (rows) {
+      context.fillStyle = dark ? '#173b30' : '#faf7f2';
+      context.beginPath();
+      context.roundRect(72, footerTop, 936, panelHeight, 32);
+      context.fill();
+    }
     request.metrics.forEach((metric, index) => {
-      const columns = request.metrics.length > 3 ? 3 : Math.max(1, request.metrics.length);
-      const width = 936 / columns;
-      const x = 72 + (index % columns) * width;
-      const y = footerTop + 34 + Math.floor(index / columns) * 100;
+      const width = (872 - (columns - 1) * 24) / columns;
+      const x = 104 + (index % columns) * (width + 24);
+      const y = footerTop + 32 + Math.floor(index / columns) * 112;
       context.fillStyle = muted;
-      context.font = '400 22px sans-serif';
-      context.fillText(fitText(context, safeText(metric.label), width - 24), x, y);
+      context.font = '500 22px sans-serif';
+      titleLines(context, metric.label, width, 2).forEach((line, lineIndex) =>
+        context.fillText(line, x, y + lineIndex * 28),
+      );
       context.fillStyle = ink;
-      context.font = '600 36px sans-serif';
-      context.fillText(fitText(context, safeText(metric.value), width - 24), x, y + 34);
+      context.font = '700 36px sans-serif';
+      context.fillText(fitText(context, safeText(metric.value), width), x, y + 60);
     });
-    drawBrand(context, height, ink);
     const blob =
       'convertToBlob' in canvas
         ? await canvas.convertToBlob({ type: 'image/png' })

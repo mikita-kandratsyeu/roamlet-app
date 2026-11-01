@@ -161,8 +161,6 @@
   overflow: auto;
   overscroll-behavior: contain;
   list-style: none;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
 }
 
 .route-library .library-route {

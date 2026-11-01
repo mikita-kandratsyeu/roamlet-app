@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, ExternalLink } from 'lucide-react';
 import { Dialog } from './Dialog';
@@ -26,9 +26,15 @@ export function ExportDialog({
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'gpx' | 'image'>('gpx');
+  const [actionsContainer, setActionsContainer] = useState<HTMLDivElement | null>(null);
   const [filename, setFilename] = useState(() => gpxFilename(route.name));
   const [error, setError] = useState<string | null>(null);
   const filenameInput = useRef<HTMLInputElement>(null);
+  const exportModes = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const body = exportModes.current?.closest('.roamlet-dialog')?.querySelector('.dialog-body');
+    if (body) body.scrollTop = 0;
+  }, [mode, actionsContainer]);
   const trackPoints = useMemo(
     () => route.segments.reduce((sum, segment) => sum + segment.length, 0),
     [route.segments],
@@ -55,13 +61,21 @@ export function ExportDialog({
   ];
 
   return (
-    <Dialog title={t('Export route')} initialFocusRef={filenameInput} onClose={onClose}>
-      <ToggleGroup type="single" value={mode} variant="outline" className="export-mode" aria-label={t('Export format')}
-        onValueChange={(value) => { if (value === 'gpx' || value === 'image') setMode(value); }}>
-        <ToggleGroupItem value="gpx">GPX</ToggleGroupItem>
-        <ToggleGroupItem value="image">{t('For social media')}</ToggleGroupItem>
-      </ToggleGroup>
-      {mode === 'image' ? <RouteCardExport route={route} elevationGain={showElevation ? route.stats.ascent : undefined} /> : <>
+    <Dialog
+      title={t('Export route')}
+      initialFocusRef={filenameInput}
+      onClose={onClose}
+      wide={mode === 'image'}
+      navigation={
+        <ToggleGroup ref={exportModes} type="single" value={mode} variant="outline" className="export-mode" aria-label={t('Export format')}
+          onValueChange={(value) => { if (value === 'gpx' || value === 'image') setMode(value); }}>
+          <ToggleGroupItem value="gpx">GPX</ToggleGroupItem>
+          <ToggleGroupItem value="image">{t('For social media')}</ToggleGroupItem>
+        </ToggleGroup>
+      }
+      footer={mode === 'image' ? <div ref={setActionsContainer} /> : undefined}
+    >
+      {mode === 'image' ? <RouteCardExport route={route} elevationGain={showElevation ? route.stats.ascent : undefined} actionsContainer={actionsContainer} /> : <>
       <section className="export-route-overview" aria-label={t('Route details')}>
         <p className="export-route-summary">
           <strong>{route.name || t('Untitled adventure')}</strong>

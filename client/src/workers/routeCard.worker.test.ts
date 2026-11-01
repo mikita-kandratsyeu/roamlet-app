@@ -20,6 +20,8 @@ const request: RouteCardRequest = {
 const png = new Blob(['png'], { type: 'image/png' });
 function installCanvas() {
   const context = {
+    createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+    createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
     save: vi.fn(),
     restore: vi.fn(),
     rect: vi.fn(),

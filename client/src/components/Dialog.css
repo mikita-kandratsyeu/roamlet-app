@@ -90,6 +90,18 @@
   overscroll-behavior: contain;
 }
 
+.roamlet-dialog .dialog-navigation {
+  flex-shrink: 0;
+  padding: 8px 0 16px;
+}
+.roamlet-dialog .dialog-footer {
+  flex-shrink: 0;
+}
+.roamlet-dialog:has(.route-card-export) .dialog-body {
+  scrollbar-gutter: stable;
+  overflow-anchor: none;
+}
+
 .roamlet-dialog .dialog-body > p {
   margin: 0;
   font-size: inherit;
@@ -283,6 +295,19 @@
     padding: 20px 20px max(20px, env(safe-area-inset-bottom));
     overflow: auto;
     overscroll-behavior: contain;
+  }
+
+  .roamlet-dialog .dialog-navigation {
+    padding: 8px 20px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .roamlet-dialog .dialog-footer {
+    padding: 0 20px max(20px, env(safe-area-inset-bottom));
+  }
+
+  .roamlet-dialog:has(.route-card-export) .dialog-body {
+    padding-bottom: 20px;
   }
 
   .roamlet-dialog .dialog-body > form {

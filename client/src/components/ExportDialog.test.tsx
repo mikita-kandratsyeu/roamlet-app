@@ -41,11 +41,13 @@ describe('ExportDialog', () => {
     render(<ExportDialog route={route} onDownload={onDownload} onClose={vi.fn()} />);
     await user.click(screen.getByRole('radio', { name: 'For social media' }));
     expect(screen.getByRole('region', { name: 'Image for social media' })).toBeVisible();
+    expect(screen.getByRole('dialog')).toHaveClass('wide');
     expect(screen.queryByRole('figure', { name: 'Route map preview' })).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Elevation gain' })).not.toBeInTheDocument();
     expect(generateRouteCard).not.toHaveBeenCalled();
     expect(onDownload).not.toHaveBeenCalled();
     await user.click(screen.getByRole('radio', { name: 'GPX' }));
+    expect(screen.getByRole('dialog')).not.toHaveClass('wide');
     expect(screen.getByRole('textbox', { name: 'File name' })).toHaveValue('Forest walk.gpx');
     expect(screen.getByRole('button', { name: 'Download GPX' })).toBeVisible();
   });

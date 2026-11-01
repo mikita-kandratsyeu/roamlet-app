@@ -18,6 +18,8 @@ export function Dialog({
   mobileTitle,
   description,
   children,
+  navigation,
+  footer,
   onClose,
   wide = false,
   compact = false,
@@ -27,6 +29,8 @@ export function Dialog({
   mobileTitle?: string;
   description?: string;
   children: ReactNode;
+  navigation?: ReactNode;
+  footer?: ReactNode;
   onClose: () => void;
   wide?: boolean;
   compact?: boolean;
@@ -92,7 +96,9 @@ export function Dialog({
             </Button>
           </DialogClose>
         </div>
+        {navigation && <div className="dialog-navigation">{navigation}</div>}
         <div className="dialog-body">{children}</div>
+        {footer && <div className="dialog-footer">{footer}</div>}
       </DialogContent>
     </DialogRoot>
   );

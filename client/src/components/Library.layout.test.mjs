@@ -93,6 +93,10 @@ for (const [width, columns] of [
           ),
         ];
         return {
+          scrollbars: ['.library-screen-scroll', '.library-list'].map((selector) => {
+            const style = getComputedStyle(document.querySelector(selector));
+            return { width: style.scrollbarWidth, color: style.scrollbarColor };
+          }),
           columns: cards.filter((card) => card.top === cards[0].top).length,
           cardWidths: cards.map((card) => card.width),
           contentWidth: content.getBoundingClientRect().width,
@@ -155,6 +159,8 @@ for (const [width, columns] of [
           lengthGap: getComputedStyle(document.querySelector('.library-length-range')).columnGap,
         };
       });
+      assert.equal(metrics.scrollbars[0].width, 'thin');
+      assert.deepEqual(metrics.scrollbars[0], metrics.scrollbars[1]);
       assert.equal(metrics.columns, columns);
       assert.equal(metrics.contentWidth, Math.min(1600, width - (width <= 560 ? 32 : 48)));
       assert.equal(metrics.headerWidth, width);

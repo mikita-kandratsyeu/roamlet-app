@@ -31,6 +31,14 @@ const request: RouteCardRequest = {
 const noVisible = 'No route remains visible. Reduce the privacy radius.';
 const renderError = 'Could not generate the image. Please try again.';
 function canvasMock() {
+  const gradients: { stops: [number, string][] }[] = [];
+  const gradient = () => {
+    const stops: [number, string][] = [];
+    gradients.push({ stops });
+    return { addColorStop: vi.fn((offset: number, color: string) => stops.push([offset, color])) };
+  };
+  const strokes: { width: number; color: string }[] = [];
+  const texts: { text: string; x: number; y: number; font: string; width: number }[] = [];
   const context = {
     save: vi.fn(),
     restore: vi.fn(),
@@ -47,7 +55,11 @@ function canvasMock() {
     moveTo: vi.fn(),
     lineTo: vi.fn(),
     fillText: vi.fn(),
-    measureText: vi.fn((text: string) => ({ width: Array.from(text).length * 32 })),
+    measureText: vi.fn((text: string) => ({
+      width: Array.from(text).length * Number(context.font.match(/(\d+)px/)?.[1] ?? 32) * 0.6,
+    })),
+    createLinearGradient: vi.fn(gradient),
+    createRadialGradient: vi.fn(gradient),
     fillStyle: '',
     strokeStyle: '',
     font: '',
@@ -56,13 +68,19 @@ function canvasMock() {
     lineCap: '',
     lineJoin: '',
   };
+  context.stroke.mockImplementation(() => {
+    strokes.push({ width: context.lineWidth, color: context.strokeStyle });
+  });
+  context.fillText.mockImplementation((text: string, x: number, y: number) => {
+    texts.push({ text, x, y, font: context.font, width: context.measureText(text).width });
+  });
   const canvas = document.createElement('canvas');
   Object.defineProperty(canvas, 'getContext', { value: vi.fn(() => context), configurable: true });
   Object.defineProperty(canvas, 'toBlob', {
     value: vi.fn((callback: BlobCallback) => callback(new Blob(['png'], { type: 'image/png' }))),
     configurable: true,
   });
-  return { canvas, context };
+  return { canvas, context, gradients, strokes, texts };
 }
 afterEach(() => vi.restoreAllMocks());
 
@@ -353,20 +371,168 @@ describe('offline PNG rendering', () => {
   it.each(['light', 'dark'] as const)(
     'draws the actual offline app icon and prominent wordmark in %s',
     async (theme) => {
-      const { canvas, context } = canvasMock();
+      const { canvas, context, texts } = canvasMock();
       const colors: string[] = [];
       context.fill.mockImplementation(() => {
         colors.push(context.fillStyle);
       });
       await renderRouteCard({ ...request, theme }, canvas);
       expect(colors).toEqual(expect.arrayContaining(['#173b30', '#faf7f2', '#bdd3a5']));
-      expect(context.roundRect).toHaveBeenCalledExactlyOnceWith(72, 1224, 72, 72, 18);
-      expect(context.bezierCurveTo).toHaveBeenCalledTimes(6);
-      expect(context.arc).toHaveBeenCalledWith(118.875, 1242.375, 6.375, 0, Math.PI * 2);
-      expect(context.fillText).toHaveBeenLastCalledWith('Roamlet', 164, 1239);
-      expect(context.font).toBe('700 42px sans-serif');
+      expect(context.roundRect).toHaveBeenCalledWith(72, 72, 96, 96, 24);
+      expect(context.bezierCurveTo.mock.calls.slice(54)).toEqual(
+        [
+          [70, 58, 126, 68, 126, 92],
+          [126, 115, 73, 116, 73, 128],
+          [73, 144, 136, 140, 169, 188],
+          [102, 177, 33, 163, 33, 134],
+          [33, 108, 98, 104, 98, 89],
+          [98, 75, 29, 57, 38, 56],
+        ].map((points) => points.map((coordinate) => 72 + coordinate / 2)),
+      );
+      expect(context.arc).toHaveBeenCalledWith(134.5, 96.5, 8.5, 0, Math.PI * 2);
+      expect(context.fillText).toHaveBeenNthCalledWith(1, 'Roamlet', 200, 90);
+      expect(texts[0].font).toBe('800 60px sans-serif');
+      expect(context.fillText.mock.invocationCallOrder[0]).toBeLessThan(
+        context.fillText.mock.invocationCallOrder[1],
+      );
+      expect(context.roundRect.mock.calls[1][1]).toBe(200);
     },
   );
+  it.each(['light', 'dark'] as const)(
+    'uses deterministic offline gradients and fixed decorative waves in %s',
+    async (theme) => {
+      const first = canvasMock();
+      const second = canvasMock();
+      await renderRouteCard({ ...request, theme }, first.canvas);
+      await renderRouteCard(
+        {
+          ...request,
+          theme,
+          segments: [
+            [
+              [20, 30],
+              [21, 32],
+            ],
+          ],
+        },
+        second.canvas,
+      );
+      expect(first.context.createLinearGradient).toHaveBeenCalledExactlyOnceWith(0, 0, 1080, 1350);
+      expect(first.context.createRadialGradient).toHaveBeenCalledExactlyOnceWith(
+        880,
+        648,
+        0,
+        880,
+        648,
+        760,
+      );
+      expect(first.gradients.map((gradient) => gradient.stops)).toEqual(
+        second.gradients.map((gradient) => gradient.stops),
+      );
+      expect(first.gradients[0].stops).toEqual([
+        [0, theme === 'dark' ? '#173b30' : '#faf7f2'],
+        [0.5, theme === 'dark' ? '#10251e' : '#edf2e7'],
+        [1, theme === 'dark' ? '#213b2c' : '#dbe7d0'],
+      ]);
+      expect(first.context.bezierCurveTo.mock.calls.slice(0, 54)).toEqual(
+        second.context.bezierCurveTo.mock.calls.slice(0, 54),
+      );
+      expect(first.strokes.slice(0, 18)).toEqual(
+        Array.from({ length: 18 }, () => ({
+          width: 1.5,
+          color: theme === 'dark' ? '#bdd3a514' : '#173b3010',
+        })),
+      );
+      expect(first.strokes.slice(18, 20)).toEqual([
+        { width: 14, color: theme === 'dark' ? '#10251e' : '#faf7f2' },
+        { width: 9, color: theme === 'dark' ? '#86d5a3' : '#287348' },
+      ]);
+    },
+  );
+
+  const layouts = (['post', 'story'] as const).flatMap((format) =>
+    (['light', 'dark'] as const).flatMap((theme) =>
+      (['en', 'ru'] as const).flatMap((language) =>
+        Array.from({ length: 7 }, (_, count) => ({ format, theme, language, count })),
+      ),
+    ),
+  );
+  it.each(layouts)(
+    'bounds long $language text and $count metrics in $theme $format',
+    async ({ format, theme, language, count }) => {
+      const { canvas, context, texts } = canvasMock();
+      const long =
+        language === 'ru' ? 'Очень длинное название маршрута ' : 'A very long route title ';
+      await renderRouteCard(
+        {
+          ...request,
+          format,
+          theme,
+          title: '🌲'.repeat(100) + long.repeat(40),
+          plannedLabel: long.repeat(40),
+          activityLabel: long.repeat(40),
+          metrics: Array.from({ length: count }, () => ({
+            label: long.repeat(40),
+            value: '1234567890 '.repeat(40),
+          })),
+        },
+        canvas,
+      );
+      const title = texts.filter((text) => text.font === '800 64px sans-serif');
+      const activity = texts.filter((text) => text.font === '500 30px sans-serif');
+      expect(title).toHaveLength(3);
+      expect(title[0].text).not.toContain('…');
+      expect(title[2].text).toContain('…');
+      expect(activity).toHaveLength(2);
+      expect(activity[0].y).toBeGreaterThan(title[2].y + 64);
+      const [badgeX, badgeY, badgeWidth, badgeHeight] = context.roundRect.mock.calls[1];
+      expect([badgeX, badgeY, badgeHeight]).toEqual([72, 200, 48]);
+      expect(badgeWidth).toBeLessThanOrEqual(936);
+      expect(texts[1].x + texts[1].width).toBeLessThanOrEqual(badgeX + badgeWidth - 24);
+      expect(title[0].y).toBeGreaterThan(badgeY + badgeHeight);
+      for (const text of texts) {
+        expect(text.x).toBeGreaterThanOrEqual(72);
+        expect(text.x + text.width).toBeLessThanOrEqual(1008);
+        expect(text.y + Number(text.font.match(/(\d+)px/)![1])).toBeLessThanOrEqual(
+          canvas.height - 72,
+        );
+      }
+      const [routeX, routeY, routeWidth, routeHeight] = context.rect.mock.calls[0];
+      expect(routeX).toBe(72);
+      expect(routeWidth).toBe(936);
+      expect(routeY).toBeGreaterThan(activity[1].y + 30);
+      expect(routeHeight).toBeGreaterThan(250);
+      const values = texts.filter((text) => text.font === '700 36px sans-serif');
+      expect(values).toHaveLength(count);
+      if (!count) {
+        expect(context.roundRect).toHaveBeenCalledTimes(2);
+        return;
+      }
+      const [panelX, panelY, panelWidth, panelHeight] = context.roundRect.mock.calls[2];
+      expect([panelX, panelWidth, panelY + panelHeight]).toEqual([72, 936, canvas.height - 72]);
+      expect(routeY + routeHeight).toBeLessThan(panelY);
+      const columns = count === 4 ? 2 : Math.min(count, 3);
+      const cellWidth = (872 - (columns - 1) * 24) / columns;
+      const labels = texts.filter((text) => text.font === '500 22px sans-serif');
+      expect(labels).toHaveLength(count * 2);
+      values.forEach((value, index) => {
+        const x = panelX + 32 + (index % columns) * (cellWidth + 24);
+        const y = panelY + 32 + Math.floor(index / columns) * 112;
+        expect(value.x).toBe(x);
+        expect(value.y).toBe(y + 60);
+        for (const text of [value, ...labels.slice(index * 2, index * 2 + 2)]) {
+          expect(text.x).toBe(x);
+          expect(text.width).toBeLessThanOrEqual(cellWidth);
+          expect(text.y).toBeGreaterThanOrEqual(panelY + 32);
+          expect(text.y + Number(text.font.match(/(\d+)px/)![1])).toBeLessThanOrEqual(
+            panelY + panelHeight - 32,
+          );
+        }
+        expect(labels[index * 2 + 1].y + 22).toBeLessThan(value.y);
+      });
+    },
+  );
+
   it('rejects a card whose conservative privacy mask hides its whole visible route', async () => {
     const { canvas } = canvasMock();
     await expect(
@@ -412,7 +578,7 @@ describe('offline PNG rendering', () => {
   it.each(['post', 'story'] as const)(
     'renders fixed %s dimensions, bounded labels, metrics and branding',
     async (format) => {
-      const { canvas, context } = canvasMock();
+      const { canvas, context, texts } = canvasMock();
       const blob = await renderRouteCard(
         {
           ...request,
@@ -429,21 +595,21 @@ describe('offline PNG rendering', () => {
       expect([canvas.width, canvas.height]).toEqual([1080, format === 'post' ? 1350 : 1920]);
       expect(blob.type).toBe('image/png');
       expect(canvas.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
-      expect(context.fillText).toHaveBeenCalledWith('Roamlet', 164, canvas.height - 111);
-      expect(context.roundRect).toHaveBeenCalledWith(72, canvas.height - 126, 72, 72, 18);
-      expect(context.bezierCurveTo).toHaveBeenCalledTimes(6);
-      const title = context.fillText.mock.calls.filter((call) => call[2] >= 126 && call[2] <= 278);
+      expect(context.fillText).toHaveBeenCalledWith('Roamlet', 200, 90);
+      expect(context.roundRect).toHaveBeenCalledWith(72, 72, 96, 96, 24);
+      const title = texts.filter((call) => call.font === '800 64px sans-serif');
       expect(title).toHaveLength(3);
-      expect(title.at(-1)![0]).toContain('…');
-      for (const [text, x, y] of context.fillText.mock.calls) {
-        expect(Array.from(text).length * 32).toBeLessThanOrEqual(936);
+      expect(title.at(-1)!.text).toContain('…');
+      for (const { x, y, width, font } of texts) {
         expect(x).toBeGreaterThanOrEqual(72);
-        expect(y).toBeLessThan(canvas.height);
+        expect(x + width).toBeLessThanOrEqual(1008);
+        expect(y).toBeGreaterThanOrEqual(72);
+        expect(y + Number(font.match(/(\d+)px/)![1])).toBeLessThanOrEqual(canvas.height - 72);
       }
     },
   );
   it('clips each privacy area separately, so overlapping endpoint exclusions form a union', async () => {
-    const { canvas, context } = canvasMock();
+    const { canvas, context, strokes } = canvasMock();
     await renderRouteCard(
       {
         ...request,
@@ -461,17 +627,22 @@ describe('offline PNG rendering', () => {
     );
     expect(context.save).toHaveBeenCalledTimes(2);
     expect(context.clip).toHaveBeenCalledTimes(4);
-    expect(context.clip.mock.calls).toEqual([[], ['evenodd'], ['evenodd'], []]);
-    expect(context.clip.mock.invocationCallOrder[2]).toBeLessThan(
-      context.stroke.mock.invocationCallOrder[0],
-    );
+    expect(context.clip.mock.calls).toEqual([[], [], ['evenodd'], ['evenodd']]);
+    const firstRouteStroke = strokes.findIndex((stroke) => stroke.width === 14);
+    for (let index = firstRouteStroke; index < strokes.length; index++) {
+      expect(context.clip.mock.invocationCallOrder[3]).toBeLessThan(
+        context.stroke.mock.invocationCallOrder[index],
+      );
+      expect(context.restore.mock.invocationCallOrder[1]).toBeGreaterThan(
+        context.stroke.mock.invocationCallOrder[index],
+      );
+      expect(strokes[index].width / 2).toBeLessThan(8);
+    }
+    expect(firstRouteStroke).toBe(18);
     expect(context.restore).toHaveBeenCalledTimes(2);
-    expect(context.restore.mock.invocationCallOrder[0]).toBeGreaterThan(
-      context.stroke.mock.invocationCallOrder.at(-1)!,
-    );
     const metricCall = context.fillText.mock.calls.findIndex((call) => call[0] === 'Distance');
     expect(context.fillText.mock.invocationCallOrder[metricCall]).toBeGreaterThan(
-      context.restore.mock.invocationCallOrder[0],
+      context.restore.mock.invocationCallOrder[1],
     );
     expect(context.fillRect).toHaveBeenCalledTimes(2);
   });
@@ -479,7 +650,7 @@ describe('offline PNG rendering', () => {
     const { canvas, context } = canvasMock();
     await renderRouteCard({ ...request, theme: 'dark', privacyRadius: 500 }, canvas);
     expect(context.arc.mock.calls.some((call) => call[2] === 12)).toBe(false);
-    expect(context.moveTo).toHaveBeenCalledTimes(2);
+    expect(context.moveTo).toHaveBeenCalledTimes(20);
     expect(context.strokeStyle).toBe('#86d5a3');
   });
   it('follows sparse geodesic arcs rather than drawing a chord through a protected endpoint', () => {
@@ -520,10 +691,12 @@ describe('offline PNG rendering', () => {
       },
       canvas,
     );
-    expect(context.moveTo).toHaveBeenCalledTimes(3);
-    expect(context.stroke).toHaveBeenCalledTimes(2);
-    expect(context.moveTo.mock.invocationCallOrder[1]).toBeGreaterThan(
-      context.stroke.mock.invocationCallOrder[0],
+    expect(context.moveTo).toHaveBeenCalledTimes(21);
+    expect(context.stroke).toHaveBeenCalledTimes(22);
+    const routeMoves = context.moveTo.mock.calls.slice(19);
+    expect(routeMoves).toHaveLength(2);
+    expect(context.moveTo.mock.invocationCallOrder[20]).toBeGreaterThan(
+      context.stroke.mock.invocationCallOrder[19],
     );
   });
   it('deduplicates subpixel points before drawing', async () => {

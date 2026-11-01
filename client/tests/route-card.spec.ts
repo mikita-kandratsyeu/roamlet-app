@@ -61,7 +61,7 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
       const context = canvas.getContext('2d');
       if (!context) throw new Error('Canvas unavailable');
       context.drawImage(element, 0, 0);
-      const pixels = context.getImageData(0, canvas.height - 240, canvas.width, 240).data;
+      const pixels = context.getImageData(0, 0, canvas.width, 260).data;
       let road = 0,
         dot = 0;
       for (let index = 0; index < pixels.length; index += 4) {
@@ -78,6 +78,12 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
       .poll(() => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth))
       .toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`route-card-${format.toLowerCase()}.png`) });
+    await image.scrollIntoViewIfNeeded();
+    const imageBox = (await image.boundingBox())!;
+    const bodyBox = (await dialog.locator('.dialog-body').boundingBox())!;
+    const footerBox = (await dialog.locator('.dialog-footer').boundingBox())!;
+    expect(imageBox.y).toBeGreaterThanOrEqual(bodyBox.y - 1);
+    expect(imageBox.y + imageBox.height).toBeLessThanOrEqual(footerBox.y + 1);
     await image.screenshot({ path: testInfo.outputPath(`image-${format.toLowerCase()}.png`) });
     const pending = page.waitForEvent('download');
     await dialog.getByRole('button', { name: 'Download PNG' }).click();
@@ -123,4 +129,82 @@ test('image export works with a yielded Canvas fallback when workers are unavail
     .toBe(1080);
   await dialog.getByRole('button', { name: 'Close dialog' }).click();
   await expect(dialog).toHaveCount(0);
+});
+
+test('social export layout and shared scrollbars work in both languages and themes', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize(
+    testInfo.project.name === 'mobile'
+      ? { width: 320, height: 800 }
+      : { width: 1440, height: 1000 },
+  );
+  const plannerScrollbar = () =>
+    page.locator('.planner-scroll').evaluate((element) => ({
+      width: getComputedStyle(element).scrollbarWidth,
+      color: getComputedStyle(element).scrollbarColor,
+    }));
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' })
+      .click();
+    for (const theme of ['light', 'dark']) {
+      await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+      const menuScrollbar = await page.locator('.header-menu-panel').evaluate((element) => ({
+        width: getComputedStyle(element).scrollbarWidth,
+        color: getComputedStyle(element).scrollbarColor,
+      }));
+      expect(menuScrollbar).toEqual(await plannerScrollbar());
+      await page
+        .locator('.header-menu-theme-option')
+        .nth(theme === 'dark' ? 1 : 0)
+        .click();
+      await page.getByRole('button', { name: /^(Export|Экспорт)$/ }).click();
+      const dialog = page.getByRole('dialog');
+      await dialog.getByRole('radio', { name: /^(For social media|Для соцсетей)$/ }).click();
+      const body = dialog.locator('.dialog-body');
+      await expect(body.locator('.route-card-actions')).toHaveCount(0);
+      await expect(dialog.locator('.dialog-footer .route-card-actions')).toBeVisible();
+      await expect(dialog).toHaveClass(/wide/);
+      await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0);
+      await expect(dialog.getByRole('img')).toHaveCount(0);
+      const settings = (await dialog.locator('.route-card-settings').boundingBox())!;
+      const stage = (await dialog.locator('.route-card-stage').boundingBox())!;
+      if (testInfo.project.name === 'desktop') {
+        expect(stage.x).toBeGreaterThan(settings.x + settings.width);
+        expect(stage.y).toBeCloseTo(settings.y, 0);
+      } else expect(stage.y).toBeGreaterThanOrEqual(settings.y + settings.height);
+      await expect(
+        dialog.getByRole('button', { name: /^(Create preview|Создать предпросмотр)$/ }),
+      ).toBeInViewport();
+      const bodyScrollbar = await body.evaluate((element) => ({
+        width: getComputedStyle(element).scrollbarWidth,
+        color: getComputedStyle(element).scrollbarColor,
+      }));
+      expect(bodyScrollbar).toEqual(await plannerScrollbar());
+      expect(bodyScrollbar.width).toBe('thin');
+      expect(await body.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      );
+      await page.screenshot({ path: testInfo.outputPath(`export-top-${language}-${theme}.png`) });
+      await body.evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+      });
+      await expect(
+        dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }),
+      ).toBeInViewport();
+      await expect(dialog.getByRole('radio', { name: 'GPX', exact: true })).toBeInViewport();
+      await expect(
+        dialog.getByRole('button', { name: /^(Create preview|Создать предпросмотр)$/ }),
+      ).toBeInViewport();
+      await page.screenshot({
+        path: testInfo.outputPath(`export-bottom-${language}-${theme}.png`),
+      });
+      await dialog.press('Escape');
+      await expect(page.getByRole('button', { name: /^(Export|Экспорт)$/ })).toBeFocused();
+    }
+  }
+  await page.emulateMedia({ forcedColors: 'active' });
+  expect((await plannerScrollbar()).color).toBe('auto');
 });

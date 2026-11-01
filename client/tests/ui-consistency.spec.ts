@@ -892,14 +892,23 @@ test('help and export keep headers visible while their content scrolls', async (
           element.scrollTop = 0;
         });
         const before = (await header.boundingBox())!;
-        const bodyBox = (await body.boundingBox())!;
-        expect(bodyBox.y - before.y - before.height).toBeCloseTo(mobile ? 0 : 8, 1);
+        const navigation = kind === 'export' ? dialog.locator('.dialog-navigation') : null;
+        const firstContentBox = (await (navigation ?? body).boundingBox())!;
+        expect(firstContentBox.y - before.y - before.height).toBeCloseTo(mobile ? 0 : 8, 1);
+        if (navigation) {
+          const bodyBox = (await body.boundingBox())!;
+          expect(bodyBox.y - firstContentBox.y - firstContentBox.height).toBeCloseTo(mobile ? 0 : 8, 1);
+        }
         await expect(body).toHaveCSS('overflow-y', 'auto');
         await body.evaluate((element) => {
           element.scrollTop = element.scrollHeight;
         });
         expect(await body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
         const after = (await header.boundingBox())!;
+        if (navigation) {
+          expect((await navigation.boundingBox())!.y).toBeCloseTo(firstContentBox.y, 1);
+          await expect(navigation.getByRole('radio', { name: 'GPX', exact: true })).toBeInViewport();
+        }
         expect(after.y).toBeCloseTo(before.y, 1);
         expect(after.height).toBeCloseTo(before.height, 1);
         expect(await dialog.evaluate((element) => element.scrollTop)).toBe(0);
