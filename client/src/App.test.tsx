@@ -245,8 +245,14 @@ describe('route preparation features', () => {
     expect(editorMap).toHaveAttribute('data-geometry', before!);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Back to routes' }));
     await waitFor(() => expect(compare).toHaveFocus());
-    fireEvent.click(screen.getByRole('button', { name: 'Back to map' }));
+    fireEvent.click(compare);
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Compare saved routes' })).getByRole('button', { name: 'Back to planner' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Menu' })).toHaveFocus());
+    expect(screen.queryByRole('dialog', { name: 'Compare saved routes' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Saved routes' })).not.toBeInTheDocument();
     expect(screen.getByTestId('map')).toBe(editorMap);
+    expect(editorMap).toHaveAttribute('data-geometry', before!);
+    expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
     expect(provider.calculateRoute).toHaveBeenCalledTimes(requests);
   });

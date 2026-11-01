@@ -46,7 +46,7 @@ function Harness({ online = true }: { online?: boolean }) {
   return (
     <>
       <button onClick={() => setOpen(true)}>Compare routes</button>
-      {open && <ComparisonScreen routes={routes} online={online} onClose={() => setOpen(false)} />}
+      {open && <ComparisonScreen routes={routes} online={online} onClose={() => setOpen(false)} onReturnToPlanner={() => setOpen(false)} />}
     </>
   );
 }
@@ -73,6 +73,16 @@ it('opens a full-screen workspace and restores focus after Back or Escape', asyn
   expect(trigger).toHaveFocus();
 });
 
+it('uses the planner callback independently of Back to routes', async () => {
+  const onClose = vi.fn();
+  const onReturnToPlanner = vi.fn();
+  const user = userEvent.setup();
+  render(<ComparisonScreen routes={routes} online={false} onClose={onClose} onReturnToPlanner={onReturnToPlanner} />);
+  await user.click(screen.getByRole('button', { name: 'Back to planner' }));
+  expect(onReturnToPlanner).toHaveBeenCalledOnce();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
 it('shows activity and saved metrics on route cards, with selection on the whole card', async () => {
   const user = await open();
   const card = within(screen.getByRole('list', { name: 'Routes to compare' })).getAllByRole(
@@ -94,6 +104,7 @@ it('does not invent quick metrics for missing or invalid saved statistics', () =
       routes={[{ ...routes[0], stats: { distance: NaN, duration: 0 } }, routes[1]]}
       online={false}
       onClose={() => {}}
+      onReturnToPlanner={() => {}}
     />,
   );
   const card = within(screen.getByRole('list', { name: 'Routes to compare' })).getAllByRole(
@@ -143,7 +154,10 @@ it('focuses even a hidden route and restores the combined view with Show all rou
   expect(mapProps.current?.fitSegments).toEqual(routes.slice(1).flatMap((route) => route.segments));
   expect(mapProps.current!.fitToken).toBeGreaterThan(focusedToken);
   await user.click(screen.getByRole('checkbox', { name: 'Show route Forest on map' }));
-  await user.click(screen.getByRole('button', { name: 'Show all routes' }));
+  const showAll = screen.getByRole('button', { name: 'Show all routes' });
+  expect(showAll.querySelector('svg')).toHaveClass('lucide-layers');
+  expect(showAll.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  await user.click(showAll);
   expect(mapProps.current?.fitSegments).toEqual(routes.flatMap((route) => route.segments));
   expect(screen.getByRole('checkbox', { name: 'Show route Forest on map' })).toBeChecked();
   expect(screen.getByRole('button', { name: 'Focus route Lake' })).toHaveAttribute(

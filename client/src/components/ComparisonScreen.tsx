@@ -7,10 +7,11 @@ import {
   Eye,
   EyeOff,
   Footprints,
+  House,
   PanelLeftClose,
   PanelLeftOpen,
   Route as RouteIcon,
-  Scan,
+  Layers,
   Table2,
   X,
 } from 'lucide-react';
@@ -30,10 +31,12 @@ export function ComparisonScreen({
   routes,
   online,
   onClose,
+  onReturnToPlanner,
 }: {
   routes: PlannedRoute[];
   online: boolean;
   onClose: () => void;
+  onReturnToPlanner: () => void;
 }) {
   const { t } = useTranslation();
   const previous = useRef<HTMLElement | null>(null);
@@ -112,17 +115,29 @@ export function ComparisonScreen({
               </h1>
             </DialogTitle>
           </div>
-          <Button
-            ref={back}
-            variant="ghost"
-            className="back-to-map-button"
-            onClick={onClose}
-            aria-label={t('Back to routes')}
-            title={t('Back to routes')}
-          >
-            <ArrowLeft size={18} aria-hidden="true" />
-            <span className="comparison-screen-back-label">{t('Back to routes')}</span>
-          </Button>
+          <nav className="comparison-screen-navigation" aria-label={t('Comparison navigation')}>
+            <Button
+              ref={back}
+              variant="ghost"
+              className="back-to-map-button"
+              onClick={onClose}
+              aria-label={t('Back to routes')}
+              title={t('Back to routes')}
+            >
+              <ArrowLeft size={18} aria-hidden="true" />
+              <span className="comparison-screen-back-label">{t('Back to routes')}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              className="back-to-map-button"
+              onClick={onReturnToPlanner}
+              aria-label={t('Back to planner')}
+              title={t('Back to planner')}
+            >
+              <House size={18} aria-hidden="true" />
+              <span className="comparison-screen-home-label">{t('Back to planner')}</span>
+            </Button>
+          </nav>
         </header>
         <div className={`comparison-screen-workspace${expanded ? '' : ' panel-collapsed'}`}>
           <div className="comparison-map">
@@ -185,7 +200,7 @@ export function ComparisonScreen({
                 aria-label={t('Show all routes')}
                 title={t('Show all routes')}
               >
-                <Scan size={18} aria-hidden="true" />
+                <Layers size={18} aria-hidden="true" />
                 <span className="comparison-screen-overview-label">{t('Show all routes')}</span>
               </Button>
             </div>

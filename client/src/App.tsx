@@ -2051,6 +2051,10 @@ export default function App() {
           routes={comparisonRoutes}
           online={online}
           onClose={() => setComparisonRoutes([])}
+          onReturnToPlanner={() => {
+            setComparisonRoutes([]);
+            closeLibrary();
+          }}
         />
       )}
       {draft && !libraryOpen && (

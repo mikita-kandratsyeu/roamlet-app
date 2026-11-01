@@ -219,6 +219,9 @@ test('comparison preserves editor and closes back to the selected library routes
   await expect(checks).toHaveCount(2);
   await checks.nth(0).check();
   await checks.nth(1).check();
+  const headerPadding = testInfo.project.name === 'mobile' ? '16px' : '24px';
+  await expect(page.locator('.library-screen-header')).toHaveCSS('padding-left', headerPadding);
+  await expect(page.locator('.library-screen-header')).toHaveCSS('padding-right', headerPadding);
   const libraryTitleStyle = await page.locator('.library-screen-heading h1').evaluate((element) => {
     const style = getComputedStyle(element);
     return { fontSize: style.fontSize, fontWeight: style.fontWeight, lineHeight: style.lineHeight };
@@ -303,7 +306,7 @@ test('comparison preserves editor and closes back to the selected library routes
   await expect(visibility.last()).toBeEnabled();
   await expect(dialog.locator('.maplibregl-ctrl-attrib')).toBeVisible();
   expect(await dialog.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
-  if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 900 });
+  await page.setViewportSize({ width: testInfo.project.name === 'mobile' ? 320 : 1920, height: 900 });
   for (const language of ['en', 'ru']) {
     for (const theme of ['light', 'dark']) {
       await page.evaluate(({ language, theme }) => {
@@ -312,6 +315,8 @@ test('comparison preserves editor and closes back to the selected library routes
         window.dispatchEvent(new Event('roamlet-preferences-change'));
       }, { language, theme });
       const workspace = page.locator('.comparison-screen');
+      await expect(workspace.locator('.comparison-screen-header')).toHaveCSS('padding-left', headerPadding);
+      await expect(workspace.locator('.comparison-screen-header')).toHaveCSS('padding-right', headerPadding);
       if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
       else await expect(page.locator('html')).not.toHaveClass(/dark/);
       await expect.poll(() => workspace.evaluate((element) => {
@@ -341,6 +346,22 @@ test('comparison preserves editor and closes back to the selected library routes
       const attribution = (await workspace.locator('.maplibregl-ctrl-attrib').boundingBox())!;
       const panel = (await workspace.locator('.comparison-screen-panel').boundingBox())!;
       expect(attribution.y + attribution.height <= panel.y || attribution.y >= panel.y + panel.height || attribution.x + attribution.width <= panel.x || attribution.x >= panel.x + panel.width).toBe(true);
+      if (testInfo.project.name === 'desktop') {
+        await page.mouse.move(0, 0);
+        const card = workspace.locator('.comparison-screen-card').first();
+        const route = card.locator('.comparison-screen-route');
+        const background = await card.evaluate((element) => getComputedStyle(element).backgroundColor);
+        await route.hover();
+        await expect(route).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+        await expect.poll(() => route.evaluate((element) => getComputedStyle(element).color === getComputedStyle(element.closest('.comparison-screen-card')!).color)).toBe(true);
+        await expect.poll(() => card.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(background);
+        await expect(card).toHaveAttribute('data-focused', 'false');
+        await expect(card.getByRole('checkbox')).toBeChecked();
+        if (language === 'ru') await page.screenshot({ path: testInfo.outputPath(`comparison-hover-${theme}.png`) });
+        await card.getByRole('checkbox').hover();
+        await expect.poll(() => card.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(background);
+        await page.mouse.move(0, 0);
+      }
       if (language === 'ru') await page.screenshot({ path: testInfo.outputPath(`comparison-${theme}.png`) });
     }
   }
@@ -350,6 +371,8 @@ test('comparison preserves editor and closes back to the selected library routes
   });
   await dialog.getByRole('button', { name: 'Back to routes', exact: true }).click();
   await expect(compare).toBeFocused();
+  await expect(page.locator('.library-screen-header')).toHaveCSS('padding-left', headerPadding);
+  await expect(page.locator('.library-screen-header')).toHaveCSS('padding-right', headerPadding);
   await compare.click();
   await page.keyboard.press('Escape');
   await expect(compare).toBeFocused();

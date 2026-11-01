@@ -30,6 +30,12 @@ body:has(.comparison-screen[data-state='open'])
 .comparison-screen-header h1 {
   margin: 0;
 }
+.comparison-screen-navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
 .comparison-screen-mobile-title {
   display: none;
 }
@@ -177,6 +183,15 @@ body:has(.comparison-screen[data-state='open'])
   padding: 8px;
   gap: 10px;
   text-align: start;
+}
+.comparison-screen-route:hover {
+  background: transparent;
+  color: inherit;
+}
+@media (hover: hover) {
+  .comparison-screen-card:has(.comparison-screen-route:hover) {
+    background: var(--accent);
+  }
 }
 .comparison-screen-route-number {
   display: grid;
@@ -426,6 +441,7 @@ body:has(.comparison-screen[data-state='open'])
 }
 @media (max-width: 560px) {
   .comparison-screen-back-label,
+  .comparison-screen-home-label,
   .comparison-screen-desktop-title {
     display: none;
   }
