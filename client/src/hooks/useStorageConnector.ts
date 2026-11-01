@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { exportBackup, importBackup, type ConflictMode, type RouteBackup } from '../domain/backup';
 import { decryptBackup, encryptBackup } from '../domain/encryptedBackup';
 import { listRoutes } from '../domain/storage';
+import { saveGitHubRepository } from '../domain/connectorPreferences';
 import { createStorageConnector } from '../services/connectors/registry';
 import {
   ConnectorError,
@@ -52,56 +53,63 @@ export function useStorageConnector() {
     [],
   );
 
-  async function run(
-    kind: ConnectorOperation,
-    task: (signal: AbortSignal, current: () => boolean) => Promise<void>,
-    fallback: ConnectorFailure,
-  ) {
-    if (operationRef.current) return;
-    const controller = new AbortController();
-    request.current = controller;
-    operationRef.current = kind;
-    setOperation(kind);
-    setError(null);
-    setSuccess(null);
-    const current = () => request.current === controller && !controller.signal.aborted;
-    try {
-      await task(controller.signal, current);
-    } catch (failure) {
-      if (current()) {
-        const code = failure instanceof ConnectorError ? failure.code : fallback;
-        setError(code);
-        if (['auth', 'permission', 'not-found', 'network', 'timeout', 'quota'].includes(code))
-          setConnectionIssue(code);
+  const run = useCallback(
+    async (
+      kind: ConnectorOperation,
+      task: (signal: AbortSignal, current: () => boolean) => Promise<void>,
+      fallback: ConnectorFailure,
+    ) => {
+      if (operationRef.current) return;
+      const controller = new AbortController();
+      request.current = controller;
+      operationRef.current = kind;
+      setOperation(kind);
+      setError(null);
+      setSuccess(null);
+      const current = () => request.current === controller && !controller.signal.aborted;
+      try {
+        await task(controller.signal, current);
+      } catch (failure) {
+        if (current()) {
+          const code = failure instanceof ConnectorError ? failure.code : fallback;
+          setError(code);
+          if (['auth', 'permission', 'not-found', 'network', 'timeout', 'quota'].includes(code))
+            setConnectionIssue(code);
+        }
+      } finally {
+        if (request.current === controller) {
+          request.current = null;
+          operationRef.current = null;
+          setOperation(null);
+        }
       }
-    } finally {
-      if (request.current === controller) {
-        request.current = null;
-        operationRef.current = null;
-        setOperation(null);
-      }
-    }
-  }
+    },
+    [],
+  );
 
-  async function connect(config: StorageConnection) {
-    await run(
-      'connecting',
-      async (signal, current) => {
-        const next = createStorageConnector(config);
-        await next.checkConnection(signal);
-        if (!current()) return;
-        connector.current = next;
-        setConnectionIssue(null);
-        setConnection({ owner: config.owner.trim(), repository: config.repository.trim() });
-        setBackups([]);
-        setListed(false);
-        setPreview(null);
-      },
-      'network',
-    );
-  }
+  const connect = useCallback(
+    async (config: StorageConnection) => {
+      await run(
+        'connecting',
+        async (signal, current) => {
+          const next = createStorageConnector(config);
+          await next.checkConnection(signal);
+          if (!current()) return;
+          connector.current = next;
+          saveGitHubRepository(config);
+          setConnectionIssue(null);
+          setConnection({ owner: config.owner.trim(), repository: config.repository.trim() });
+          setBackups([]);
+          setListed(false);
+          setPreview(null);
+        },
+        'network',
+      );
+    },
+    [run],
+  );
 
-  function disconnect() {
+  const disconnect = useCallback(() => {
     if (operationRef.current === 'restoring') return;
     cancel();
     connector.current = null;
@@ -109,7 +117,7 @@ export function useStorageConnector() {
     setConnection(null);
     setBackups([]);
     setListed(false);
-  }
+  }, [cancel]);
 
   async function refresh() {
     const storage = connector.current;

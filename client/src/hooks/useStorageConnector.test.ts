@@ -18,7 +18,6 @@ const config = {
   provider: 'github' as const,
   owner: 'example',
   repository: 'backups',
-  token: 'synthetic-token',
 };
 const password = 'synthetic-password';
 const entry: BackupEntry = {

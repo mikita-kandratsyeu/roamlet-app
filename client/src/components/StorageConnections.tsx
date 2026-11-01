@@ -1,88 +1,115 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, LoaderCircle, Plug } from 'lucide-react';
+import { ArrowLeft, Plug, Search } from 'lucide-react';
 import './Library.css';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Dialog } from './Dialog';
+import { useStorageConnector } from '../hooks/useStorageConnector';
+import { useGitHubSession } from '../hooks/useGitHubSession';
+import { STORAGE_PROVIDERS, type StorageProviderId } from '../services/connectors/registry';
 import {
-  useStorageConnector,
-  type ConnectorFailure,
-  type ConnectorOperation,
-} from '../hooks/useStorageConnector';
-import type { ConflictMode } from '../domain/backup';
+  loadGitHubRepository,
+  saveGitHubRepository,
+  GITHUB_REPOSITORY_KEY,
+} from '../domain/connectorPreferences';
+import { GitHubConnectionDialog, connectorErrors } from './GitHubConnectionDialog';
+import { ConnectorCard, type ConnectorStatus } from './ConnectorCard';
 import './StorageConnections.css';
-
-const errors: Record<ConnectorFailure, string> = {
-  configuration: 'Enter a valid GitHub owner, repository and token.',
-  auth: 'GitHub rejected the token. Check its value and expiry, then reconnect.',
-  permission: 'Use a private repository and grant the token Contents read and write access.',
-  'not-found': 'Repository or backup not found. Check the repository and token access.',
-  quota: 'GitHub rate limit reached. Try again later.',
-  network: 'Could not reach GitHub. Check your connection and browser restrictions, then retry.',
-  timeout: 'GitHub did not respond in time. Please retry.',
-  'invalid-data': 'GitHub returned unsupported or invalid backup data.',
-  'too-large': 'This backup or repository listing exceeds the pilot limits.',
-  conflict: 'GitHub rejected the new backup. Refresh the list before retrying.',
-  local: 'Could not read or restore the local library. No incomplete backup was uploaded.',
-  password:
-    'Check the backup password. It must have at least 12 characters for a new backup. Damaged or unsupported backups cannot be restored.',
-};
-const operations: Record<ConnectorOperation, string> = {
-  connecting: 'Checking GitHub connection…',
-  listing: 'Loading cloud backups…',
-  uploading: 'Encrypting and uploading backup…',
-  previewing: 'Downloading and checking backup…',
-  restoring: 'Restoring local library…',
-};
 
 export function StorageConnections({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   const storage = useStorageConnector();
-  const { cancel, connection } = storage;
-  const [owner, setOwner] = useState('');
-  const [repository, setRepository] = useState('');
-  const [token, setToken] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmation, setConfirmation] = useState('');
-  const [selected, setSelected] = useState('');
-  const [mode, setMode] = useState<ConflictMode>('copy');
-  const [selectedConnector, setSelectedConnector] = useState(false);
+  const github = useGitHubSession(open);
+  const { connect, disconnect, cancel, connection } = storage;
+  const [selected, setSelected] = useState<StorageProviderId | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [authorizationFailed, setAuthorizationFailed] = useState(
+    () => new URLSearchParams(window.location.search).get('github') === 'error',
+  );
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'connected'>('all');
   const backButton = useRef<HTMLButtonElement>(null);
-  const ownerFocus = useRef<HTMLInputElement>(null);
-  const needsAttention = connection && storage.connectionIssue;
+  const cancelDisconnect = useRef<HTMLButtonElement>(null);
   const id = useId();
-  const busy = storage.operation !== null;
-  const selectedBackup = storage.backups.find((entry) => entry.id === selected);
-  const newPasswordValid = password.length >= 12 && password === confirmation;
-
+  const authenticated = github.session?.connected;
+  const login = github.session?.login;
+  const available = github.session?.available;
+  const previousAccount = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!open) {
       cancel();
-      setToken('');
-      setPassword('');
-      setConfirmation('');
-      setSelected('');
-      setSelectedConnector(false);
+      setSelected(null);
+      setDisconnecting(false);
     } else backButton.current?.focus({ preventScroll: true });
   }, [open, cancel]);
   useEffect(() => {
-    if (selectedConnector && !connection) ownerFocus.current?.focus({ preventScroll: true });
-  }, [selectedConnector, connection]);
+    if (!open || authenticated === undefined) return;
+    if (!authenticated) {
+      disconnect();
+      previousAccount.current = undefined;
+      return;
+    }
+    if (previousAccount.current && previousAccount.current !== login) {
+      disconnect();
+      saveGitHubRepository(null);
+    }
+    previousAccount.current = login;
+    const saved = loadGitHubRepository();
+    if (saved && !connection) void connect(saved);
+  }, [open, authenticated, login, connect, disconnect, connection]);
   useEffect(() => {
-    if (connection) setToken('');
-  }, [connection]);
-
+    if (!open) return;
+    const changed = (event: StorageEvent) => {
+      if (event.key !== GITHUB_REPOSITORY_KEY) return;
+      const saved = loadGitHubRepository();
+      if (!saved) disconnect();
+      else if (authenticated) void connect(saved);
+    };
+    window.addEventListener('storage', changed);
+    return () => window.removeEventListener('storage', changed);
+  }, [open, authenticated, connect, disconnect]);
   if (!open) return null;
   function close() {
-    if (storage.operation === 'restoring') return;
-    cancel();
-    onClose();
+    if (storage.operation !== 'restoring') {
+      cancel();
+      onClose();
+    }
   }
-  function changePassword(value: string) {
-    setPassword(value);
-    storage.dismissPreview();
-  }
-
+  const problem = github.error || storage.connectionIssue;
+  const states: Record<
+    StorageProviderId,
+    {
+      connected: boolean;
+      status: ConnectorStatus;
+      account?: string;
+      busy: boolean;
+      onDisconnect: () => void;
+    }
+  > = {
+    github: {
+      connected: !!authenticated,
+      status: github.loading
+        ? 'checking'
+        : problem
+          ? 'attention'
+          : available === false
+            ? 'unavailable'
+            : authenticated
+              ? 'connected'
+              : 'disconnected',
+      account: authenticated
+        ? `${login || 'GitHub'}${connection ? ` · ${connection.owner}/${connection.repository}` : ''}`
+        : undefined,
+      busy: github.loading || storage.operation === 'restoring',
+      onDisconnect: () => setDisconnecting(true),
+    },
+  };
+  const providers = STORAGE_PROVIDERS.filter(
+    (provider) =>
+      provider.name.toLowerCase().includes(query.trim().toLowerCase()) &&
+      (filter === 'all' || states[provider.id].connected),
+  );
   return (
     <section
       className="library-screen connections-screen"
@@ -90,7 +117,7 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
       aria-label={t('Connections')}
       aria-describedby={`${id}-description`}
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && !event.defaultPrevented) {
+        if (event.key === 'Escape' && !event.defaultPrevented && !selected && !disconnecting) {
           event.preventDefault();
           close();
         }
@@ -116,333 +143,130 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
         <div className="connections-content">
           <p id={`${id}-description`} className="library-screen-description">
             {t(
-              'Optional encrypted library backups in your own GitHub repository. Local planning stays independent.',
+              'Connect your own services. Local planning and the route library work without connections.',
             )}
           </p>
-          <div className="connections-layout">
-            <div className="connections-list" role="list" aria-label={t('Available connectors')}>
-              <article className="connector-card" role="listitem">
-                <div className="connector-card-heading">
-                  <img
-                    src="/github-mark.png"
-                    width="48"
-                    height="48"
-                    alt=""
-                    className="github-brand-mark"
-                  />
-                  <div>
-                    <h2>GitHub</h2>
-                    <span
-                      className="connector-status"
-                      data-connected={!!connection}
-                      data-attention={!!needsAttention}
-                      role="status"
-                    >
-                      {storage.operation === 'connecting'
-                        ? t('Checking connection')
-                        : needsAttention
-                          ? t('Connection needs attention')
-                          : connection
-                            ? t('Connected')
-                            : t('Not connected')}
-                    </span>
-                  </div>
-                </div>
-                <p>{t('Encrypted route library backups in a private repository.')}</p>
-                {connection && (
-                  <p className="connector-repository">
-                    {connection.owner}/{connection.repository}
-                  </p>
-                )}
-                <Button
-                  variant="outline"
-                  aria-expanded={selectedConnector}
-                  aria-controls={`${id}-management`}
-                  onClick={() => setSelectedConnector(true)}
-                >
-                  {connection ? t('Manage connection') : t('Set up connection')}
-                </Button>
-                {connection && (
-                  <Button
-                    variant="ghost"
-                    disabled={storage.operation === 'restoring'}
-                    onClick={() => {
-                      storage.disconnect();
-                      setPassword('');
-                      setConfirmation('');
-                      setSelected('');
-                    }}
-                  >
-                    {t('Disconnect')}
-                  </Button>
-                )}
-              </article>
-            </div>
-            {selectedConnector ? (
-              <div
-                id={`${id}-management`}
-                className="storage-connections"
-                role="region"
-                aria-label={t('GitHub connection settings')}
+          {authorizationFailed && (
+            <p role="alert">
+              {t(
+                'GitHub authorization was cancelled or failed. Open connection settings to try again.',
+              )}{' '}
+              <Button variant="ghost" onClick={() => setAuthorizationFailed(false)}>
+                {t('Dismiss')}
+              </Button>
+            </p>
+          )}
+          <div className="connections-toolbar">
+            <label className="connections-search">
+              <Search size={18} aria-hidden="true" />
+              <Input
+                aria-label={t('Search connectors')}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t('Search connectors')}
+              />
+            </label>
+            <div className="connections-filters" role="group" aria-label={t('Filter connectors')}>
+              <Button
+                variant={filter === 'all' ? 'default' : 'outline'}
+                aria-pressed={filter === 'all'}
+                onClick={() => setFilter('all')}
               >
-                <h2>{t('GitHub connection settings')}</h2>
-                <p className="connector-note" id={`${id}-privacy`}>
-                  {t(
-                    'The token is kept only in this tab’s memory and sent only to GitHub. Reloading or disconnecting forgets it. Roamlet servers receive neither the token nor backups.',
-                  )}
-                </p>
-                <details>
-                  <summary>{t('GitHub setup and pilot limits')}</summary>
-                  <p>
-                    {t(
-                      'Create a private repository with an initial commit. Create a fine-grained personal access token limited to that repository with Contents read and write permission. Organization approval may be required.',
-                    )}
-                  </p>
-                  <a
-                    href="https://github.com/settings/personal-access-tokens/new"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {t('Create GitHub token')}
-                  </a>
-                  <p>
-                    {t(
-                      'Backups contain saved routes only, not the current draft, settings or tokens. Files are encrypted before upload. GitHub still sees repository and file metadata. Remember the password: Roamlet cannot recover it.',
-                    )}
-                  </p>
-                  <p>
-                    {t(
-                      'Manual backups only. No automatic sync or cloud deletion. Up to 1000 snapshots in roamlet-backups. Library JSON is limited to 20 MiB. A cancelled upload may still have reached GitHub: refresh before retrying.',
-                    )}
-                  </p>
-                </details>
-                {!connection ? (
-                  <form
-                    autoComplete="off"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void storage.connect({ provider: 'github', owner, repository, token });
-                    }}
-                  >
-                    <label htmlFor={`${id}-owner`}>
-                      {t('GitHub owner')}
-                      <Input
-                        id={`${id}-owner`}
-                        ref={ownerFocus}
-                        required
-                        disabled={busy}
-                        value={owner}
-                        onChange={(event) => setOwner(event.target.value)}
-                        autoCapitalize="none"
-                        spellCheck={false}
-                      />
-                    </label>
-                    <label htmlFor={`${id}-repo`}>
-                      {t('Private repository')}
-                      <Input
-                        id={`${id}-repo`}
-                        required
-                        disabled={busy}
-                        value={repository}
-                        onChange={(event) => setRepository(event.target.value)}
-                        autoCapitalize="none"
-                        spellCheck={false}
-                      />
-                    </label>
-                    <label htmlFor={`${id}-token`}>
-                      {t('GitHub access token')}
-                      <Input
-                        id={`${id}-token`}
-                        type="password"
-                        autoComplete="off"
-                        aria-describedby={`${id}-privacy`}
-                        required
-                        disabled={busy}
-                        value={token}
-                        onChange={(event) => setToken(event.target.value)}
-                      />
-                    </label>
-                    <Button type="submit" disabled={busy}>
-                      {t('Connect GitHub')}
-                    </Button>
-                  </form>
-                ) : (
-                  <>
-                    <div className="connector-account">
-                      <strong>
-                        {t('Connected to {{repository}}', {
-                          repository: `${connection.owner}/${connection.repository}`,
-                        })}
-                      </strong>
-                    </div>
-                    <fieldset disabled={busy} className="connector-fields">
-                      <legend>{t('Encrypted backups')}</legend>
-                      <label htmlFor={`${id}-password`}>
-                        {t('Backup password')}
-                        <Input
-                          id={`${id}-password`}
-                          type="password"
-                          autoComplete="off"
-                          value={password}
-                          onChange={(event) => changePassword(event.target.value)}
-                          aria-describedby={`${id}-password-help`}
-                        />
-                      </label>
-                      <p id={`${id}-password-help`} className="connector-note">
-                        {t(
-                          'Use at least 12 characters for a new backup. To restore, enter the password used when that backup was created.',
-                        )}
-                      </p>
-                      <label htmlFor={`${id}-confirm`}>
-                        {t('Confirm backup password')}
-                        <Input
-                          id={`${id}-confirm`}
-                          type="password"
-                          autoComplete="off"
-                          value={confirmation}
-                          onChange={(event) => setConfirmation(event.target.value)}
-                        />
-                      </label>
-                      <Button
-                        disabled={!newPasswordValid}
-                        onClick={() => {
-                          storage.dismissPreview();
-                          void storage.upload(password);
-                        }}
-                      >
-                        {t('Create encrypted backup')}
-                      </Button>
-                      <Button variant="outline" onClick={() => void storage.refresh()}>
-                        {t('Refresh cloud backups')}
-                      </Button>
-                      {!storage.listed && (
-                        <p className="connector-note">
-                          {t(
-                            'Refresh to retrieve all cloud backups. No requests run automatically.',
-                          )}
-                        </p>
-                      )}
-                      {storage.listed && storage.backups.length === 0 && (
-                        <p>{t('No cloud backups yet.')}</p>
-                      )}
-                      {storage.backups.length > 0 && (
-                        <>
-                          <label htmlFor={`${id}-backup`}>
-                            {t('Cloud backup')}
-                            <select
-                              id={`${id}-backup`}
-                              value={selected}
-                              onChange={(event) => {
-                                setSelected(event.target.value);
-                                storage.dismissPreview();
-                                setMode('copy');
-                              }}
-                            >
-                              <option value="">{t('Choose a backup')}</option>
-                              {storage.backups.map((entry) => (
-                                <option key={entry.id} value={entry.id}>
-                                  {entry.name}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <Button
-                            variant="outline"
-                            disabled={!selectedBackup || !password}
-                            onClick={() => {
-                              setMode('copy');
-                              if (selectedBackup)
-                                void storage.prepareRestore(selectedBackup, password);
-                            }}
-                          >
-                            {t('Preview restoration')}
-                          </Button>
-                        </>
-                      )}
-                    </fieldset>
-                    {storage.preview && (
-                      <section
-                        className="connector-preview"
-                        aria-label={t('Library import preview')}
-                      >
-                        <p>
-                          {t('{{count}} routes to import', {
-                            count: storage.preview.backup.routes.length,
-                          })}
-                        </p>
-                        <p>
-                          {t('{{count}} conflicting routes', { count: storage.preview.conflicts })}
-                        </p>
-                        <p>{t('Import changes only your library, not the route in the editor.')}</p>
-                        <label htmlFor={`${id}-mode`}>
-                          {t('Conflicting routes')}
-                          <select
-                            id={`${id}-mode`}
-                            disabled={busy}
-                            value={mode}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              if (value === 'copy' || value === 'skip' || value === 'replace')
-                                setMode(value);
-                            }}
-                          >
-                            <option value="copy">{t('Import copies')}</option>
-                            <option value="skip">{t('Skip existing routes')}</option>
-                            <option value="replace">{t('Replace existing routes')}</option>
-                          </select>
-                        </label>
-                        {mode === 'replace' && (
-                          <p>
-                            {t(
-                              'Confirming will replace conflicting saved routes with the backup versions.',
-                            )}
-                          </p>
-                        )}
-                        <div className="button-row">
-                          <Button
-                            variant="outline"
-                            disabled={busy}
-                            onClick={storage.dismissPreview}
-                          >
-                            {t('Cancel import')}
-                          </Button>
-                          <Button disabled={busy} onClick={() => void storage.restore(mode)}>
-                            {t('Import routes')}
-                          </Button>
-                        </div>
-                      </section>
-                    )}
-                  </>
-                )}
-                {storage.operation && (
-                  <p role="status">
-                    <LoaderCircle size={18} aria-hidden="true" className="connector-spinner" />
-                    {t(operations[storage.operation])}
-                  </p>
-                )}
-                {busy && storage.operation !== 'restoring' && (
-                  <Button variant="outline" onClick={cancel}>
-                    {t('Cancel operation')}
-                  </Button>
-                )}
-                {storage.error && <p role="alert">{t(errors[storage.error])}</p>}
-                {storage.success === 'uploaded' && (
-                  <p role="status">{t('Encrypted backup saved to GitHub.')}</p>
-                )}
-                {storage.success === 'restored' && (
-                  <p role="status">
-                    {t('Library restored on this device. The current editor route is unchanged.')}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="connector-selection-hint">
-                {t('Choose a connector to view setup and backup actions.')}
-              </p>
-            )}
+                {t('All connectors')}
+              </Button>
+              <Button
+                variant={filter === 'connected' ? 'default' : 'outline'}
+                aria-pressed={filter === 'connected'}
+                onClick={() => setFilter('connected')}
+              >
+                {t('Connected connectors')}
+              </Button>
+            </div>
           </div>
+          <div className="connections-list" role="list" aria-label={t('Available connectors')}>
+            {providers.map((provider) => (
+              <ConnectorCard
+                key={provider.id}
+                name={provider.name}
+                icon={provider.icon}
+                description={provider.description}
+                {...states[provider.id]}
+                onManage={() => setSelected(provider.id)}
+              />
+            ))}
+          </div>
+          {!providers.length && (
+            <p className="connector-empty">{t('No connectors match this filter.')}</p>
+          )}
+          {problem && (
+            <p className="connector-error" role="alert">
+              {t(connectorErrors[problem])}
+            </p>
+          )}
+          {github.error && (
+            <Button
+              variant="outline"
+              disabled={github.loading}
+              onClick={() => void github.refresh()}
+            >
+              {t('Retry')}
+            </Button>
+          )}
+          {available === false && !problem && (
+            <p className="connector-note">
+              {t(
+                'GitHub connection is not configured on this deployment. Local routes remain available.',
+              )}
+            </p>
+          )}
         </div>
       </div>
+      {selected === 'github' && (
+        <GitHubConnectionDialog
+          storage={storage}
+          github={github}
+          onClose={() => setSelected(null)}
+        />
+      )}
+      {disconnecting && (
+        <Dialog
+          title={t('Disconnect GitHub?')}
+          description={t(
+            'This ends the GitHub session for all tabs in this browser. Saved routes and cloud backups are not deleted.',
+          )}
+          compact
+          initialFocusRef={cancelDisconnect}
+          onClose={() => {
+            if (!github.loading) setDisconnecting(false);
+          }}
+        >
+          <div className="button-row dialog-actions">
+            <Button
+              ref={cancelDisconnect}
+              variant="outline"
+              disabled={github.loading}
+              onClick={() => setDisconnecting(false)}
+            >
+              {t('Cancel')}
+            </Button>
+            <Button
+              disabled={github.loading}
+              onClick={() => {
+                void github.disconnect().then((done) => {
+                  if (done) {
+                    disconnect();
+                    saveGitHubRepository(null);
+                    setDisconnecting(false);
+                  }
+                });
+              }}
+            >
+              {t('Disconnect')}
+            </Button>
+          </div>
+          {github.error && <p role="alert">{t(connectorErrors[github.error])}</p>}
+        </Dialog>
+      )}
     </section>
   );
 }

@@ -483,6 +483,14 @@ describe('route planner interactions', () => {
     expect(provider.calculateRoute).not.toHaveBeenCalled();
   });
 
+  it('returns OAuth callbacks to connections and removes callback flags from the URL', async () => {
+    window.history.replaceState(null, '', '/?connectors=github&github=error');
+    render(<App />);
+    expect(screen.getByRole('region', { name: 'Connections' })).toBeVisible();
+    expect(screen.getByText('GitHub authorization was cancelled or failed. Open connection settings to try again.')).toBeVisible();
+    expect(window.location.search).toBe('');
+  });
+
   it('opens connectors as a separate screen and restores planner navigation on return', async () => {
     render(<App />);
     openMenu();

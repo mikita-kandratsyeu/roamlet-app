@@ -6,7 +6,8 @@
   "outputDirectory": "client/dist",
   "functions": {
     "api/route.mjs": { "maxDuration": 60 },
-    "api/routing-config.mjs": { "maxDuration": 30 }
+    "api/routing-config.mjs": { "maxDuration": 30 },
+    "api/github.mjs": { "maxDuration": 60 }
   },
   "headers": [
     {

@@ -210,7 +210,16 @@ export default function App() {
       setSelectedWaypointId(null);
   }, [waypoints, selectedWaypointId]);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [connectionsOpen, setConnectionsOpen] = useState(false);
+  const [connectionsOpen, setConnectionsOpen] = useState(
+    () => new URLSearchParams(window.location.search).get('connectors') === 'github',
+  );
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('connectors') !== 'github') return;
+    url.searchParams.delete('connectors');
+    url.searchParams.delete('github');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
   const secondaryScreenOpen = libraryOpen || connectionsOpen;
   const [comparisonRoutes, setComparisonRoutes] = useState<PlannedRoute[]>([]);
   const [climbSegments, setClimbSegments] = useState<Coordinate[][]>([]);

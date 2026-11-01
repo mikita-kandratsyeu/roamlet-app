@@ -2,12 +2,11 @@ export interface StorageConnection {
   provider: 'github';
   owner: string;
   repository: string;
-  /** Caller-owned, memory-only fine-grained PAT. Never persist the connection. */
-  token: string;
 }
 
 export type ConnectorErrorCode =
   | 'configuration'
+  | 'unavailable'
   | 'auth'
   | 'permission'
   | 'not-found'
