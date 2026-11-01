@@ -36,20 +36,23 @@ export function ComparisonScreen({
   );
   const layers = useMemo(
     () =>
-      routes.map((route, index) => ({ route, index }))
-      .sort((a, b) => Number(a.route.id === focusedId) - Number(b.route.id === focusedId))
-      .flatMap(({ route, index }) => {
-        if (hiddenIds.includes(route.id)) return [];
-        const direct = route.source === 'manual' ? route.segments : (route.directSegments ?? []);
-        const directKeys = new Set(direct.map((segment) => JSON.stringify(segment)));
-        return [
-          {
-            segments: route.segments.filter((segment) => !directKeys.has(JSON.stringify(segment))),
-            color: ROUTE_COMPARISON_COLORS[index],
-          },
-          { segments: direct, color: ROUTE_COMPARISON_COLORS[index], dashed: true },
-        ];
-      }),
+      routes
+        .map((route, index) => ({ route, index }))
+        .sort((a, b) => Number(a.route.id === focusedId) - Number(b.route.id === focusedId))
+        .flatMap(({ route, index }) => {
+          if (hiddenIds.includes(route.id)) return [];
+          const direct = route.source === 'manual' ? route.segments : (route.directSegments ?? []);
+          const directKeys = new Set(direct.map((segment) => JSON.stringify(segment)));
+          return [
+            {
+              segments: route.segments.filter(
+                (segment) => !directKeys.has(JSON.stringify(segment)),
+              ),
+              color: ROUTE_COMPARISON_COLORS[index],
+            },
+            { segments: direct, color: ROUTE_COMPARISON_COLORS[index], dashed: true },
+          ];
+        }),
     [routes, hiddenIds, focusedId],
   );
   const fitSegments = focusedId
@@ -85,9 +88,15 @@ export function ComparisonScreen({
         }}
       >
         <header className="comparison-screen-header">
-          <Button ref={back} variant="ghost" onClick={onClose}>
+          <Button
+            ref={back}
+            variant="ghost"
+            onClick={onClose}
+            aria-label={t('Back to routes')}
+            title={t('Back to routes')}
+          >
             <ArrowLeft size={20} aria-hidden="true" />
-            {t('Back to routes')}
+            <span className="comparison-screen-back-label">{t('Back to routes')}</span>
           </Button>
           <DialogTitle aria-label={t('Compare saved routes')}>
             <span className="comparison-screen-desktop-title">{t('Compare saved routes')}</span>
@@ -130,7 +139,12 @@ export function ComparisonScreen({
             {error && (
               <div role="alert" className="comparison-screen-error">
                 <span>{translateMessage(error)}</span>
-                <Button variant="ghost" size="icon" aria-label={t('Dismiss map notice')} onClick={() => setError('')}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t('Dismiss map notice')}
+                  onClick={() => setError('')}
+                >
                   <X size={18} aria-hidden="true" />
                 </Button>
               </div>
@@ -182,7 +196,10 @@ export function ComparisonScreen({
                             setHiddenIds((ids) =>
                               visible ? [...ids, route.id] : ids.filter((id) => id !== route.id),
                             );
-                            if (focusedId === route.id) setFocusedId(null);
+                            if (focusedId === route.id) {
+                              setFocusedId(null);
+                              setFitToken((token) => token + 1);
+                            }
                           }}
                         />
                       </label>

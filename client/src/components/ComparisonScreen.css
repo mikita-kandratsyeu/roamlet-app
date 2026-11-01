@@ -1,7 +1,7 @@
 .comparison-screen[data-slot='dialog-content'] {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 50;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -192,6 +192,13 @@ body:has(.comparison-screen[data-state='open'])
   border-top: 1px solid var(--border);
 }
 @media (max-width: 700px) {
+  .comparison-screen-back-label {
+    display: none;
+  }
+  .comparison-screen-header > button {
+    width: 44px;
+    padding: 8px;
+  }
   .comparison-screen-desktop-title {
     display: none;
   }

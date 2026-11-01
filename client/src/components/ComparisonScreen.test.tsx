@@ -109,6 +109,10 @@ it('focuses even a hidden route and restores the combined view with Show all rou
   expect(mapProps.current?.fitSegments).toEqual(routes[0].segments);
   expect(mapProps.current?.comparisonLayers?.at(-1)?.color).toBe(ROUTE_COMPARISON_COLORS[0]);
   expect(mapProps.current!.fitToken).toBeGreaterThan(token);
+  const focusedToken = mapProps.current!.fitToken;
+  await user.click(screen.getByRole('checkbox', { name: 'Show route Lake on map' }));
+  expect(mapProps.current?.fitSegments).toEqual(routes.slice(1).flatMap((route) => route.segments));
+  expect(mapProps.current!.fitToken).toBeGreaterThan(focusedToken);
   await user.click(screen.getByRole('checkbox', { name: 'Show route Forest on map' }));
   await user.click(screen.getByRole('button', { name: 'Show all routes' }));
   expect(mapProps.current?.fitSegments).toEqual(routes.flatMap((route) => route.segments));

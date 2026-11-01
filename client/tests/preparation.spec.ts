@@ -239,6 +239,12 @@ test('comparison preserves editor and closes back to the selected library routes
   await expect(dialog.getByRole('table', { name: 'Saved route comparison' })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Fit route', exact: true })).toBeEnabled();
   await expect(dialog.getByRole('group', { name: 'Map style', exact: true })).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'More map tools', exact: true }).click();
+  const tools = page.getByRole('dialog', { name: 'Map controls', exact: true });
+  await expect(tools).toBeVisible();
+  if (testInfo.project.name === 'mobile') await tools.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await tools.getByRole('button', { name: 'Close map tools', exact: true }).click();
+  await expect(dialog).toBeVisible();
   await expect
     .poll(() =>
       dialog.locator('.comparison-map').evaluate((element) => {
@@ -280,6 +286,14 @@ test('comparison preserves editor and closes back to the selected library routes
         window.dispatchEvent(new Event('roamlet-preferences-change'));
       }, { language, theme });
       const workspace = page.locator('.comparison-screen');
+      if (theme === 'dark') await expect(page.locator('html')).toHaveClass(/dark/);
+      else await expect(page.locator('html')).not.toHaveClass(/dark/);
+      await expect.poll(() => workspace.evaluate((element) => {
+        const screen = getComputedStyle(element);
+        const route = getComputedStyle(element.querySelector('.comparison-screen-route strong')!);
+        const panel = getComputedStyle(element.querySelector('.comparison-screen-panel')!);
+        return screen.color === route.color && screen.backgroundColor === panel.backgroundColor;
+      })).toBe(true);
       await expect(workspace.getByRole('button', { name: language === 'en' ? 'Back to routes' : 'Назад к маршрутам', exact: true })).toBeVisible();
       for (const button of await workspace.locator('.comparison-screen-header button, .comparison-screen-panel-header button, .comparison-screen-route').all()) {
         const box = (await button.boundingBox())!;
