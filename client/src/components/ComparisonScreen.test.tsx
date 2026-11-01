@@ -46,7 +46,14 @@ function Harness({ online = true }: { online?: boolean }) {
   return (
     <>
       <button onClick={() => setOpen(true)}>Compare routes</button>
-      {open && <ComparisonScreen routes={routes} online={online} onClose={() => setOpen(false)} onReturnToPlanner={() => setOpen(false)} />}
+      {open && (
+        <ComparisonScreen
+          routes={routes}
+          online={online}
+          onClose={() => setOpen(false)}
+          onReturnToPlanner={() => setOpen(false)}
+        />
+      )}
     </>
   );
 }
@@ -77,7 +84,14 @@ it('uses the planner callback independently of Back to routes', async () => {
   const onClose = vi.fn();
   const onReturnToPlanner = vi.fn();
   const user = userEvent.setup();
-  render(<ComparisonScreen routes={routes} online={false} onClose={onClose} onReturnToPlanner={onReturnToPlanner} />);
+  render(
+    <ComparisonScreen
+      routes={routes}
+      online={false}
+      onClose={onClose}
+      onReturnToPlanner={onReturnToPlanner}
+    />,
+  );
   await user.click(screen.getByRole('button', { name: 'Back to planner' }));
   expect(onReturnToPlanner).toHaveBeenCalledOnce();
   expect(onClose).not.toHaveBeenCalled();
@@ -111,6 +125,32 @@ it('does not invent quick metrics for missing or invalid saved statistics', () =
     'listitem',
   )[0];
   expect(within(card).getAllByText('Not available')).toHaveLength(2);
+});
+
+it('compares five routes with stable colors after visibility changes', async () => {
+  const five = [
+    ...routes,
+    { ...routes[0], id: 'Valley', name: 'Valley' },
+    { ...routes[1], id: 'Coast', name: 'Coast' },
+  ];
+  const user = userEvent.setup();
+  render(
+    <ComparisonScreen
+      routes={five}
+      online={false}
+      onClose={() => {}}
+      onReturnToPlanner={() => {}}
+    />,
+  );
+  expect(screen.getAllByRole('checkbox')).toHaveLength(5);
+  expect(new Set(mapProps.current?.comparisonLayers?.map((layer) => layer.color)).size).toBe(5);
+  await user.click(screen.getByRole('checkbox', { name: 'Show route Valley on map' }));
+  expect(mapProps.current?.comparisonLayers?.at(-1)?.color).toBe(ROUTE_COMPARISON_COLORS[4]);
+  await user.click(screen.getByRole('button', { name: 'Show all routes' }));
+  expect(screen.getByRole('checkbox', { name: 'Show route Valley on map' })).toBeChecked();
+  expect(mapProps.current?.fitSegments).toEqual(five.flatMap((route) => route.segments));
+  await user.click(screen.getByText('Route statistics'));
+  expect(within(screen.getByRole('table')).getAllByRole('rowheader')).toHaveLength(5);
 });
 
 it('hides geometry without changing route colors, segments or snapshots and retains one visible route', async () => {

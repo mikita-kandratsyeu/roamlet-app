@@ -304,7 +304,10 @@
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 38px 20px;
+  padding: 48px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
   color: var(--library-quiet);
   text-align: center;
 }
@@ -527,6 +530,49 @@
   }
 }
 
+.route-library .library-backup-tools.library-backup-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
+  gap: 8px 12px;
+  margin: 0 0 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.route-library .library-backup-disclosure {
+  min-width: 0;
+}
+.route-library .library-backup-disclosure summary {
+  min-height: 44px;
+  align-content: center;
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.route-library .library-backup-disclosure summary:focus-visible {
+  outline: 2px solid var(--ring, var(--primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.route-library .library-backup-disclosure p {
+  max-width: 70ch;
+  margin: 8px 0 0;
+  color: var(--library-quiet);
+  font-size: var(--font-size-helper);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .route-library .library-backup-tools.library-backup-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .route-library .library-backup-disclosure {
+    grid-column: 1 / -1;
+  }
+}
 .route-library .library-backup-actions {
   display: flex;
   flex-wrap: wrap;
@@ -544,26 +590,43 @@
   white-space: normal;
 }
 .route-library .library-filters {
-  margin-bottom: 16px;
-  padding: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface);
 }
 .route-library .library-filter-heading,
-.route-library .library-filter-heading > span {
+.route-library .library-filter-title {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .route-library .library-filter-heading {
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 10px;
-  color: var(--library-quiet);
-  font-size: var(--font-size-label);
+  margin-bottom: 16px;
+}
+.route-library .library-filter-title {
+  min-width: 0;
+}
+.route-library .library-filter-title > svg {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+.route-library .library-filter-title h2 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 .route-library .library-filter-heading button {
+  margin-inline-start: auto;
+  min-height: 44px;
+  height: auto;
   padding: 4px 8px;
   font-size: var(--font-size-control);
   white-space: normal;
@@ -590,7 +653,7 @@
   gap: 8px;
   width: 100%;
   min-width: 0;
-  min-height: 40px;
+  min-height: 44px;
   height: auto;
   padding: 8px 10px;
   border-radius: 8px;
@@ -615,13 +678,13 @@
 .route-library .library-length-range input {
   min-width: 0;
   width: 100%;
-  height: 40px;
+  height: 44px;
   padding: 8px;
   border-radius: 8px;
   font-size: var(--font-size-control);
 }
 .route-library .library-favorite-filter {
-  min-height: 40px;
+  min-height: 44px;
   height: auto;
   padding: 8px 10px;
   border-radius: 8px;
@@ -694,7 +757,7 @@
 .route-library .library-open-action {
   grid-row: 1;
   grid-column: 3;
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 12px;
   font-size: var(--font-size-control);
 }
@@ -720,13 +783,19 @@
   padding: 8px;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 700px) {
+  .route-library .library-filters,
+  .route-library .library-backup-tools.library-backup-actions {
+    padding: 14px;
+  }
+}
+@media (max-width: 1040px) {
   .route-library .library-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 560px) {
-  .route-library .library-backup-actions {
+  .route-library .library-backup-tools.library-backup-actions {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
@@ -734,11 +803,9 @@
     min-width: 0;
     font-size: var(--font-size-control);
   }
-  .route-library .library-filters {
-    padding: 10px;
-  }
-  .route-library .library-filter-grid {
-    gap: 10px;
+  .route-library .library-length-field,
+  .route-library .library-favorite-filter {
+    grid-column: 1 / -1;
   }
   .route-library .library-actions {
     flex-wrap: nowrap;
@@ -762,15 +829,9 @@
   }
 }
 @media (max-width: 400px) {
-  .route-library .library-length-field {
-    grid-column: 1 / -1;
-  }
-  .route-library .library-favorite-filter {
-    grid-column: 1 / -1;
-  }
   .route-library .library-open-action {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     padding: 0;
   }
   .route-library .library-open-label {
@@ -827,7 +888,7 @@
 }
 .library-screen-scroll > .route-library {
   width: 100%;
-  max-width: 1040px;
+  max-width: 1600px;
   min-width: 0;
   margin: 0 auto;
 }
@@ -844,7 +905,8 @@
   overflow: visible;
   align-items: stretch;
   align-content: start;
-  grid-auto-rows: 1fr;
+  gap: 16px;
+  padding: 0;
 }
 .library-loading-title {
   margin: 0 0 6px;
@@ -889,8 +951,8 @@
   height: 20px;
 }
 .library-skeleton-open {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
 }
 .library-skeleton-actions {
   display: flex;
@@ -947,6 +1009,16 @@
 .library-dialog-content .library-edit-favorite {
   grid-column: auto;
 }
+@media (min-width: 1160px) {
+  .library-screen .library-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1480px) {
+  .library-screen .library-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
 @media (max-width: 800px) {
   .library-screen .library-list {
     grid-template-columns: minmax(0, 1fr);
@@ -967,7 +1039,7 @@
     display: none;
   }
   .library-screen-scroll {
-    padding: 16px 12px max(16px, env(safe-area-inset-bottom));
+    padding: 16px 16px max(16px, env(safe-area-inset-bottom));
   }
   .library-screen-description {
     order: -2;

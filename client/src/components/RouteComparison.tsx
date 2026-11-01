@@ -1,10 +1,17 @@
 import { useTranslation } from 'react-i18next';
 import type { PlannedRoute } from '../domain/types';
+import { isValidComparisonSelection, MAX_COMPARISON_ROUTES } from '../domain/comparison';
 import { formatDistance, formatDuration } from '../domain/format';
 import { formatNumber } from '../i18n';
 import './RouteComparison.css';
 
-export const ROUTE_COMPARISON_COLORS = ['#286046', '#2864b7', '#bc6a20'] as const;
+export const ROUTE_COMPARISON_COLORS = [
+  '#286046',
+  '#2864b7',
+  '#bc6a20',
+  '#8056ad',
+  '#a54266',
+] as const;
 
 const sourceLabels: Record<PlannedRoute['source'], string> = {
   openrouteservice: 'OpenRouteService',
@@ -28,12 +35,12 @@ function hasEligibleElevation(route: PlannedRoute): boolean {
  */
 export function RouteComparison({ routes }: { routes: PlannedRoute[] }) {
   const { t } = useTranslation();
-  if (
-    routes.length < 2 ||
-    routes.length > 3 ||
-    new Set(routes.map((route) => route.id)).size !== routes.length
-  )
-    return <p>{t('Select 2–3 different saved routes to compare.')}</p>;
+  if (!isValidComparisonSelection(routes))
+    return (
+      <p>
+        {t('Select 2–{{max}} different saved routes to compare.', { max: MAX_COMPARISON_ROUTES })}
+      </p>
+    );
 
   const labels = ['Activity', 'Distance', 'Ascent', 'Descent', 'Source', 'Original duration'];
   const missing = t('Not available');

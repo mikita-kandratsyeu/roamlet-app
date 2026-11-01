@@ -139,16 +139,31 @@ it('does not claim an empty or singleton profile has eligible elevation', () => 
   expect(cells('2. Route single')[2]).toHaveTextContent('Not available');
 });
 
-it('requires 2–3 distinct routes rather than silently truncating or inventing entries', () => {
+it('renders all five routes with distinct numbered colors without truncation', () => {
+  render(<RouteComparison routes={['a', 'b', 'c', 'd', 'e'].map((id) => route(id))} />);
+  expect(within(screen.getByRole('table')).getAllByRole('rowheader')).toHaveLength(5);
+  const legend = within(screen.getByRole('list', { name: 'Route colors' })).getAllByRole(
+    'listitem',
+  );
+  expect(legend).toHaveLength(5);
+  expect(new Set(ROUTE_COMPARISON_COLORS).size).toBe(5);
+  legend.forEach((item, index) =>
+    expect(item.querySelector('.route-comparison-color')).toHaveStyle({
+      backgroundColor: ROUTE_COMPARISON_COLORS[index],
+    }),
+  );
+});
+
+it('requires 2–5 distinct routes rather than silently truncating or inventing entries', () => {
   const { rerender } = render(<RouteComparison routes={[]} />);
   for (const routes of [
     [],
     [route('a')],
     [route('a'), route('a')],
-    ['a', 'b', 'c', 'd'].map((id) => route(id)),
+    ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => route(id)),
   ]) {
     rerender(<RouteComparison routes={routes} />);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(screen.getByText('Select 2–3 different saved routes to compare.')).toBeVisible();
+    expect(screen.getByText('Select 2–5 different saved routes to compare.')).toBeVisible();
   }
 });

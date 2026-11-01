@@ -212,13 +212,14 @@ test('comparison preserves editor and closes back to the selected library routes
 }, testInfo) => {
   const routeName = 'River · Riverside trail through the forest and mountain passes';
   await save(page, routeName);
+  const editorCanvas = await page.locator('.maplibregl-canvas').elementHandle();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
-  await page.getByRole('button', { name: `Duplicate ${routeName}`, exact: true }).click();
+  for (let index = 0; index < 5; index++) await page.getByRole('button', { name: `Duplicate ${routeName}`, exact: true }).click();
   const checks = page.getByRole('checkbox', { name: /^Select .* for comparison$/ });
-  await expect(checks).toHaveCount(2);
-  await checks.nth(0).check();
-  await checks.nth(1).check();
+  await expect(checks).toHaveCount(6);
+  for (let index = 0; index < 5; index++) await checks.nth(index).check();
+  await expect(checks.nth(5)).toBeDisabled();
   const headerPadding = testInfo.project.name === 'mobile' ? '16px' : '24px';
   await expect(page.locator('.library-screen-header')).toHaveCSS('padding-left', headerPadding);
   await expect(page.locator('.library-screen-header')).toHaveCSS('padding-right', headerPadding);
@@ -257,6 +258,7 @@ test('comparison preserves editor and closes back to the selected library routes
   await expect(dialog.getByRole('table', { name: 'Saved route comparison' })).toHaveCount(0);
   await dialog.locator('summary').filter({ hasText: 'Route statistics' }).click();
   await expect(dialog.getByRole('table', { name: 'Saved route comparison' })).toBeVisible();
+  await expect(dialog.getByRole('table').getByRole('rowheader')).toHaveCount(5);
   await expect(dialog.getByRole('button', { name: 'Fit route', exact: true })).toBeEnabled();
   await expect(dialog.getByRole('group', { name: 'Map style', exact: true })).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Manual drawing', exact: true })).toHaveCount(0);
@@ -298,7 +300,8 @@ test('comparison preserves editor and closes back to the selected library routes
   expect(await map.evaluate((element, original) => element === original, mapHandle)).toBe(true);
   await dialog.getByRole('button', { name: 'Show comparison panel', exact: true }).click();
   const visibility = dialog.getByRole('checkbox');
-  await visibility.first().uncheck();
+  await expect(visibility).toHaveCount(5);
+  for (let index = 0; index < 4; index++) await visibility.nth(index).uncheck();
   await expect(visibility.last()).toBeDisabled();
   await dialog.getByRole('button', { name: /^Focus route / }).first().click();
   await expect(visibility.first()).toBeChecked();
@@ -330,6 +333,7 @@ test('comparison preserves editor and closes back to the selected library routes
           scroll.scrollbarWidth === plannerScroll.scrollbarWidth && scroll.scrollbarColor === plannerScroll.scrollbarColor;
       })).toBe(true);
       await expect(workspace.getByRole('button', { name: language === 'en' ? 'Back to routes' : 'Назад к маршрутам', exact: true })).toBeVisible();
+      await expect(workspace.getByRole('button', { name: language === 'en' ? 'Back to planner' : 'На главную', exact: true })).toBeVisible();
       for (const button of await workspace.locator('.comparison-screen-header button, .comparison-screen-panel-header button, .comparison-screen-panel-actions button, .comparison-screen-route, .comparison-screen-visibility').all()) {
         const box = (await button.boundingBox())!;
         expect(box.height).toBeGreaterThanOrEqual(44);
@@ -377,7 +381,12 @@ test('comparison preserves editor and closes back to the selected library routes
   await page.keyboard.press('Escape');
   await expect(compare).toBeFocused();
   await expect(checks.nth(0)).toBeChecked();
-  await page.getByRole('button', { name: 'Back to map', exact: true }).click();
+  await compare.click();
+  await dialog.getByRole('button', { name: 'Back to planner', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('.library-screen')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeFocused();
+  expect(await page.locator('.maplibregl-canvas').evaluate((element, original) => element === original, editorCanvas)).toBe(true);
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
 });
 

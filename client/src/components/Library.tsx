@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 
 import type { PlannedRoute } from '../domain/types';
+import { isValidComparisonSelection, MAX_COMPARISON_ROUTES } from '../domain/comparison';
 import { listRoutes, saveRoute, deleteRoute, duplicateRoute } from '../domain/storage';
 import { formatDistance } from '../domain/format';
 import { loadPreferences, savePreferences } from '../domain/preferences';
@@ -129,7 +130,7 @@ export function Library({
     setComparisonIds((ids) =>
       ids.includes(id)
         ? ids.filter((selected) => selected !== id)
-        : ids.length < 3
+        : ids.length < MAX_COMPARISON_ROUTES
           ? [...ids, id]
           : ids,
     );
@@ -176,6 +177,7 @@ export function Library({
   const editTitleId = useId();
   const deleteTitleId = useId();
   const screenDescriptionId = useId();
+  const filterTitleId = useId();
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<PlannedRoute | null>(null);
   const [deleting, setDeleting] = useState<PlannedRoute | null>(null);
@@ -435,20 +437,23 @@ export function Library({
               </DropdownMenu>
             )}
           </div>
-          <p className="fine-print" id="library-backup-help">
-            {t(
-              'Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.',
-            )}{' '}
-            {t(
-              'JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.',
-            )}
-          </p>
           <div
-            className="library-backup-actions"
+            className="library-backup-tools library-backup-actions"
             role="group"
             aria-label={t('Library backup')}
             aria-describedby="library-backup-help"
           >
+            <details className="library-backup-disclosure">
+              <summary>{t('Library backup')}</summary>
+              <p className="fine-print" id="library-backup-help">
+                {t(
+                  'Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.',
+                )}{' '}
+                {t(
+                  'JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.',
+                )}
+              </p>
+            </details>
             <Button
               variant="outline"
               disabled={loading || busy || loadFailed || !routes.length}
@@ -512,13 +517,18 @@ export function Library({
             />
           </div>
           {routes.length > 0 && (
-            <section className="library-filters" aria-label={t('Filter routes')}>
+            <section className="library-filters" aria-labelledby={filterTitleId}>
               <div className="library-filter-heading">
-                <span>
-                  <SlidersHorizontal size={15} aria-hidden="true" />
-                  {t('Filter routes')}
-                </span>
-                <Button variant="ghost" size="sm" disabled={busy || loading} onClick={resetFilters}>
+                <div className="library-filter-title">
+                  <SlidersHorizontal size={20} aria-hidden="true" />
+                  <h2 id={filterTitleId}>{t('Filter routes')}</h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy || loading || (!hasFilters && sort === 'updated')}
+                  onClick={resetFilters}
+                >
                   {t('Reset filters')}
                 </Button>
               </div>
@@ -551,7 +561,11 @@ export function Library({
                       .map((tag) => ({ value: tag, label: tag })),
                   ]}
                 />
-                <div className="library-filter-field library-length-field">
+                <div
+                  className="library-filter-field library-length-field"
+                  role="group"
+                  aria-label={t('Route length (km)')}
+                >
                   <span className="library-field-label">{t('Route length (km)')}</span>
                   <div className="library-length-range">
                     <Input
@@ -685,17 +699,19 @@ export function Library({
                   <ArrowLeftRight size={20} aria-hidden="true" />
                   <h2>{t('Route comparison')}</h2>
                   <Badge variant="secondary" aria-hidden="true">
-                    {comparisonRoutes.length} / 3
+                    {comparisonRoutes.length} / {MAX_COMPARISON_ROUTES}
                   </Badge>
                 </div>
                 <p id={comparisonHelpId} aria-live="polite" aria-atomic="true">
                   {t(
-                    [
-                      'Choose 2–3 routes to compare on the map.',
-                      '1 route selected. Choose one more to compare.',
-                      '2 routes selected. Add a third if needed.',
-                      '3 routes selected — ready to compare.',
-                    ][comparisonRoutes.length],
+                    comparisonRoutes.length === 0
+                      ? 'Choose 2–{{max}} routes to compare on the map.'
+                      : comparisonRoutes.length === 1
+                        ? '1 route selected. Choose one more to compare.'
+                        : comparisonRoutes.length < MAX_COMPARISON_ROUTES
+                          ? 'Ready to compare. You can select up to {{max}} routes.'
+                          : 'Selection limit reached: {{max}} routes. Ready to compare.',
+                    { max: MAX_COMPARISON_ROUTES },
                   )}
                   {comparisonRoutes.some(
                     (route) => !filtered.some((visible) => visible.id === route.id),
@@ -734,7 +750,11 @@ export function Library({
               <div className="library-comparison-actions">
                 <Button
                   disabled={
-                    busy || !!editing || !!deleting || !!backup || comparisonRoutes.length < 2
+                    busy ||
+                    !!editing ||
+                    !!deleting ||
+                    !!backup ||
+                    !isValidComparisonSelection(comparisonRoutes)
                   }
                   aria-describedby={comparisonHelpId}
                   onClick={() => onCompare(comparisonRoutes)}
@@ -818,7 +838,8 @@ export function Library({
                         checked={comparisonIds.includes(route.id)}
                         disabled={
                           busy ||
-                          (!comparisonIds.includes(route.id) && comparisonRoutes.length >= 3)
+                          (!comparisonIds.includes(route.id) &&
+                            comparisonRoutes.length >= MAX_COMPARISON_ROUTES)
                         }
                         aria-label={t('Select {{name}} for comparison', { name: route.name })}
                         aria-describedby={comparisonHelpId}

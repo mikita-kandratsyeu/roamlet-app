@@ -364,6 +364,36 @@ it('keeps failed edits available with an error and returns focus to the name fie
   expect(screen.getByRole('button', { name: 'Save changes' })).not.toBeDisabled();
 });
 
+it('names the filter widget and length group and disables reset only when every filter and sort are empty', async () => {
+  const user = userEvent.setup();
+  await openLibrary();
+  const filters = screen.getByRole('region', { name: 'Filter routes' });
+  expect(within(filters).getByRole('heading', { level: 2, name: 'Filter routes' })).toBeVisible();
+  const length = within(filters).getByRole('group', { name: 'Route length (km)' });
+  expect(within(length).getByRole('spinbutton', { name: 'Minimum length (km)' })).toHaveValue(null);
+  expect(within(length).getByRole('spinbutton', { name: 'Maximum length (km)' })).toHaveValue(null);
+  const reset = within(filters).getByRole('button', { name: 'Reset filters' });
+  expect(reset).toBeDisabled();
+  expect(within(filters).getByRole('button', { name: 'Favorites only' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await user.click(screen.getByRole('button', { name: /Sort routes:/ }));
+  await user.click(screen.getByRole('menuitemradio', { name: 'Name (A–Z)' }));
+  expect(reset).toBeEnabled();
+  await user.click(reset);
+  expect(reset).toBeDisabled();
+  expect(loadPreferences().library.sort).toBe('updated');
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search saved routes' }), {
+    target: { value: 'no matching route' },
+  });
+  expect(reset).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Reset search and filters' })).toBeEnabled();
+  await user.click(reset);
+  expect(reset).toBeDisabled();
+  expect(routeNames()).toHaveLength(2);
+});
+
 it('combines activity, favorite, tag, distance, search and sort filters and resets every filter', async () => {
   const user = userEvent.setup();
   vi.mocked(listRoutes).mockResolvedValue([
@@ -860,9 +890,23 @@ it('keeps complete long route names/tags/details accessible in consistently rese
   expect(screen.getByRole('textbox', { name: 'Tags' })).toHaveValue(longTags.join(', '));
 });
 
-it('explains local-only storage and the scope of a library backup beside the actions', async () => {
-  render(<Library onClose={vi.fn()} onOpen={vi.fn()} />);
-  const group = await screen.findByRole('group', { name: 'Library backup' });
+it('keeps backup actions available while storage explanations are collapsed', async () => {
+  const user = userEvent.setup();
+  await openLibrary();
+  const group = screen.getByRole('group', { name: 'Library backup' });
+  const disclosure = group.querySelector('details') as HTMLDetailsElement;
+  const summary = within(group).getByText('Library backup');
+  expect(disclosure.open).toBe(false);
+  expect(within(group).getByText(/Routes stay only in this browser/)).not.toBeVisible();
+  await user.click(summary);
+  expect(disclosure.open).toBe(true);
+  expect(within(group).getByText(/Routes stay only in this browser/)).toBeVisible();
+  await user.click(summary);
+  expect(disclosure.open).toBe(false);
+  expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveValue('');
+  expect(
+    within(screen.getByRole('list', { name: 'Saved routes' })).getAllByRole('listitem'),
+  ).toHaveLength(2);
   expect(group).toHaveAccessibleDescription(
     'Routes stay only in this browser. No cloud copy. Clearing browser data deletes them. JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.',
   );
@@ -876,39 +920,40 @@ it('keeps comparison optional for existing library consumers', async () => {
   expect(screen.queryByRole('button', { name: 'Compare routes' })).not.toBeInTheDocument();
 });
 
-it('selects 2–3 routes using keyboard-accessible checkboxes and enforces the maximum', async () => {
+it('selects 2–5 routes using keyboard-accessible checkboxes and enforces the maximum', async () => {
   const user = userEvent.setup();
   const third = route('c', 'River path', 3000, alpine.updatedAt);
   const fourth = route('d', 'Coastal path', 4000, alpine.updatedAt);
-  vi.mocked(listRoutes).mockResolvedValue([alpine, woodland, third, fourth]);
+  const fifth = route('e', 'Valley trail', 5000, alpine.updatedAt);
+  const sixth = route('f', 'Ridge trail', 6000, alpine.updatedAt);
+  vi.mocked(listRoutes).mockResolvedValue([alpine, woodland, third, fourth, fifth, sixth]);
   const onCompare = vi.fn();
   const { onOpen } = await openLibrary(onCompare);
   const compare = screen.getByRole('button', { name: 'Compare routes' });
   expect(screen.getByRole('heading', { name: 'Route comparison' })).toBeVisible();
-  expect(screen.getByText('Choose 2–3 routes to compare on the map.')).toBeVisible();
+  expect(screen.getByText('Choose 2–5 routes to compare on the map.')).toBeVisible();
   expect(compare).toBeDisabled();
-  const select = (name: string) =>
-    screen.getByRole('checkbox', { name: `Select ${name} for comparison` });
+  const select = (name: string) => screen.getByRole('checkbox', { name: `Select ${name} for comparison` });
   select(alpine.name).focus();
   await user.keyboard(' ');
   expect(select(alpine.name)).toBeChecked();
   expect(screen.getByText('1 route selected. Choose one more to compare.')).toBeVisible();
   expect(compare).toBeDisabled();
   await user.click(select(woodland.name));
-  expect(screen.getByText('2 routes selected. Add a third if needed.')).toBeVisible();
+  expect(screen.getByText('Ready to compare. You can select up to 5 routes.')).toBeVisible();
   expect(compare).toBeEnabled();
-  await user.click(select(third.name));
-  expect(screen.getByText('3 routes selected — ready to compare.')).toBeVisible();
-  expect(select(fourth.name)).toBeDisabled();
+  for (const selected of [third, fourth, fifth]) await user.click(select(selected.name));
+  expect(screen.getByText('Selection limit reached: 5 routes. Ready to compare.')).toBeVisible();
+  expect(select(sixth.name)).toBeDisabled();
   expect(select(alpine.name)).toBeEnabled();
   await user.click(compare);
-  expect(onCompare).toHaveBeenCalledWith([alpine, woodland, third]);
+  expect(onCompare).toHaveBeenCalledWith([alpine, woodland, third, fourth, fifth]);
   expect(onOpen).not.toHaveBeenCalled();
   expect(saveRoute).not.toHaveBeenCalled();
   expect(select(alpine.name)).toBeChecked();
   await user.click(select(woodland.name));
-  expect(select(fourth.name)).toBeEnabled();
-  await user.click(select(third.name));
+  expect(select(sixth.name)).toBeEnabled();
+  for (const selected of [third, fourth, fifth]) await user.click(select(selected.name));
   expect(compare).toBeDisabled();
 });
 

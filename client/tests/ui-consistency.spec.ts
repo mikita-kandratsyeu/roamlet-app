@@ -1015,7 +1015,7 @@ test('comparison selection keeps a clear remove icon and touch target with long 
     await expect(feedback).toHaveCount(count - 1);
   }
   const widget = page.locator('.library-comparison');
-  await expect(widget.locator('.library-comparison-heading [data-slot="badge"]')).toHaveText('2 / 3');
+  await expect(widget.locator('.library-comparison-heading [data-slot="badge"]')).toHaveText('2 / 5');
   const remove = page.getByRole('button', { name: `Remove ${name} from comparison`, exact: true });
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
