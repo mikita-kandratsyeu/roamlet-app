@@ -21,6 +21,7 @@ const request: RouteCardRequest = {
   theme: 'light',
   privacyRadius: 0,
   title: 'Morning hills',
+  activity: 'hiking',
   activityLabel: 'Hiking',
   plannedLabel: 'Planned route',
   metrics: [
@@ -368,6 +369,76 @@ describe('conservative projected privacy areas', () => {
 });
 
 describe('offline PNG rendering', () => {
+  it.each(
+    (['cycling', 'hiking'] as const).flatMap((activity) =>
+      (['light', 'dark'] as const).map((theme) => ({ activity, theme })),
+    ),
+  )(
+    'draws a lightweight $activity icon beside the localized label in $theme',
+    async ({ activity, theme }) => {
+      const { canvas, context, texts, strokes } = canvasMock();
+      await renderRouteCard(
+        { ...request, activity, theme, activityLabel: 'Локализованная активность' },
+        canvas,
+      );
+      const label = texts.find((text) => text.font === '500 30px sans-serif')!;
+      expect(label.x).toBe(116);
+      const scale = 32 / 24;
+      const radius = (activity === 'cycling' ? 4 : 2) * scale;
+      const arcs = context.arc.mock.calls.filter((call) => call[2] === radius);
+      expect(arcs).toHaveLength(activity === 'cycling' ? 2 : 1);
+      expect(arcs[0][0]).toBe(72 + (activity === 'cycling' ? 5 : 13) * scale);
+      expect(arcs[0][1]).toBe(label.y + (activity === 'cycling' ? 17 : 4) * scale);
+      expect(strokes).toContainEqual({ width: 2, color: theme === 'dark' ? '#adc5b6' : '#597264' });
+    },
+  );
+
+  it.each(
+    (['light', 'dark'] as const).flatMap((theme) =>
+      Array.from({ length: 7 }, (_, count) => ({ theme, count })),
+    ),
+  )(
+    'separates $count metric cells without trailing dividers in $theme',
+    async ({ theme, count }) => {
+      const { canvas, context, texts } = canvasMock();
+      const color = theme === 'dark' ? '#adc5b62e' : '#59726433';
+      const dividers: { from: number[]; to: number[] }[] = [];
+      context.stroke.mockImplementation(() => {
+        if (context.strokeStyle === color) {
+          expect(context.lineWidth).toBe(1.5);
+          dividers.push({
+            from: context.moveTo.mock.calls.at(-1) ?? [],
+            to: context.lineTo.mock.calls.at(-1) ?? [],
+          });
+        }
+      });
+      await renderRouteCard(
+        {
+          ...request,
+          theme,
+          metrics: Array.from({ length: count }, (_, index) => ({
+            label: `Metric ${index}`,
+            value: '12.3 km',
+          })),
+        },
+        canvas,
+      );
+      const columns = count === 4 ? 2 : Math.min(count, 3);
+      const rows = columns ? Math.ceil(count / columns) : 0;
+      expect(dividers).toHaveLength(count - rows);
+      const labels = texts.filter((text) => text.font === '500 22px sans-serif');
+      const expected = labels
+        .filter((_, index) => index % columns > 0)
+        .map((label) => ({
+          from: [label.x - 24, label.y + 4],
+          to: [label.x - 24, label.y + 108],
+        }));
+      expect(dividers).toEqual(expected);
+      const values = texts.filter((text) => text.font === '700 44px sans-serif');
+      expect(values).toHaveLength(count);
+      if (count) expect(context.roundRect.mock.calls[2][4]).toBe(28);
+    },
+  );
   it.each(['light', 'dark'] as const)(
     'draws the actual offline app icon and prominent wordmark in %s',
     async (theme) => {
@@ -443,7 +514,7 @@ describe('offline PNG rendering', () => {
           color: theme === 'dark' ? '#bdd3a514' : '#173b3010',
         })),
       );
-      expect(first.strokes.slice(18, 20)).toEqual([
+      expect(first.strokes.slice(19, 21)).toEqual([
         { width: 14, color: theme === 'dark' ? '#10251e' : '#faf7f2' },
         { width: 9, color: theme === 'dark' ? '#86d5a3' : '#287348' },
       ]);
@@ -502,7 +573,12 @@ describe('offline PNG rendering', () => {
       expect(routeWidth).toBe(936);
       expect(routeY).toBeGreaterThan(activity[1].y + 30);
       expect(routeHeight).toBeGreaterThan(250);
-      const values = texts.filter((text) => text.font === '700 36px sans-serif');
+      const values = texts.filter((text) => text.font.startsWith('700 '));
+      values.forEach((value) => {
+        const size = Number(value.font.match(/(\d+)px/)![1]);
+        expect(size).toBeGreaterThanOrEqual(32);
+        expect(size).toBeLessThanOrEqual(44);
+      });
       expect(values).toHaveLength(count);
       if (!count) {
         expect(context.roundRect).toHaveBeenCalledTimes(2);
@@ -512,14 +588,14 @@ describe('offline PNG rendering', () => {
       expect([panelX, panelWidth, panelY + panelHeight]).toEqual([72, 936, canvas.height - 72]);
       expect(routeY + routeHeight).toBeLessThan(panelY);
       const columns = count === 4 ? 2 : Math.min(count, 3);
-      const cellWidth = (872 - (columns - 1) * 24) / columns;
+      const cellWidth = (856 - (columns - 1) * 48) / columns;
       const labels = texts.filter((text) => text.font === '500 22px sans-serif');
       expect(labels).toHaveLength(count * 2);
       values.forEach((value, index) => {
-        const x = panelX + 32 + (index % columns) * (cellWidth + 24);
-        const y = panelY + 32 + Math.floor(index / columns) * 112;
+        const x = panelX + 40 + (index % columns) * (cellWidth + 48);
+        const y = panelY + 36 + Math.floor(index / columns) * 128;
         expect(value.x).toBe(x);
-        expect(value.y).toBe(y + 60);
+        expect(value.y + Number(value.font.match(/(\d+)px/)![1])).toBe(y + 112);
         for (const text of [value, ...labels.slice(index * 2, index * 2 + 2)]) {
           expect(text.x).toBe(x);
           expect(text.width).toBeLessThanOrEqual(cellWidth);
@@ -625,33 +701,35 @@ describe('offline PNG rendering', () => {
       },
       canvas,
     );
-    expect(context.save).toHaveBeenCalledTimes(2);
+    expect(context.save).toHaveBeenCalledTimes(3);
     expect(context.clip).toHaveBeenCalledTimes(4);
     expect(context.clip.mock.calls).toEqual([[], [], ['evenodd'], ['evenodd']]);
     const firstRouteStroke = strokes.findIndex((stroke) => stroke.width === 14);
     for (let index = firstRouteStroke; index < strokes.length; index++) {
+      if (strokes[index].width !== 14 && strokes[index].width !== 9) continue;
       expect(context.clip.mock.invocationCallOrder[3]).toBeLessThan(
         context.stroke.mock.invocationCallOrder[index],
       );
-      expect(context.restore.mock.invocationCallOrder[1]).toBeGreaterThan(
+      expect(context.restore.mock.invocationCallOrder[2]).toBeGreaterThan(
         context.stroke.mock.invocationCallOrder[index],
       );
       expect(strokes[index].width / 2).toBeLessThan(8);
     }
-    expect(firstRouteStroke).toBe(18);
-    expect(context.restore).toHaveBeenCalledTimes(2);
+    expect(firstRouteStroke).toBe(19);
+    expect(context.restore).toHaveBeenCalledTimes(3);
     const metricCall = context.fillText.mock.calls.findIndex((call) => call[0] === 'Distance');
     expect(context.fillText.mock.invocationCallOrder[metricCall]).toBeGreaterThan(
-      context.restore.mock.invocationCallOrder[1],
+      context.restore.mock.invocationCallOrder[2],
     );
     expect(context.fillRect).toHaveBeenCalledTimes(2);
   });
   it('supports dark themes and omits both endpoint markers with privacy', async () => {
-    const { canvas, context } = canvasMock();
+    const { canvas, context, strokes } = canvasMock();
     await renderRouteCard({ ...request, theme: 'dark', privacyRadius: 500 }, canvas);
     expect(context.arc.mock.calls.some((call) => call[2] === 12)).toBe(false);
-    expect(context.moveTo).toHaveBeenCalledTimes(20);
-    expect(context.strokeStyle).toBe('#86d5a3');
+    expect(context.moveTo).toHaveBeenCalledTimes(26);
+    expect(strokes).toContainEqual({ width: 9, color: '#86d5a3' });
+    expect(context.strokeStyle).toBe('#adc5b62e');
   });
   it('follows sparse geodesic arcs rather than drawing a chord through a protected endpoint', () => {
     const visible = clipRouteCardGeometry(
@@ -691,12 +769,12 @@ describe('offline PNG rendering', () => {
       },
       canvas,
     );
-    expect(context.moveTo).toHaveBeenCalledTimes(21);
-    expect(context.stroke).toHaveBeenCalledTimes(22);
-    const routeMoves = context.moveTo.mock.calls.slice(19);
+    expect(context.moveTo).toHaveBeenCalledTimes(27);
+    expect(context.stroke).toHaveBeenCalledTimes(25);
+    const routeMoves = context.moveTo.mock.calls.slice(24, 26);
     expect(routeMoves).toHaveLength(2);
-    expect(context.moveTo.mock.invocationCallOrder[20]).toBeGreaterThan(
-      context.stroke.mock.invocationCallOrder[19],
+    expect(context.moveTo.mock.invocationCallOrder[25]).toBeGreaterThan(
+      context.stroke.mock.invocationCallOrder[20],
     );
   });
   it('deduplicates subpixel points before drawing', async () => {

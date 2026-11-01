@@ -13,6 +13,7 @@ const request: RouteCardRequest = {
   theme: 'light',
   privacyRadius: 500,
   title: 'Route',
+  activity: 'hiking',
   activityLabel: 'Hiking',
   plannedLabel: 'Planned route',
   metrics: [],

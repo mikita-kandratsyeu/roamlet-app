@@ -43,6 +43,7 @@ export function RouteCardExport({
       format,
       theme,
       privacyRadius,
+      activity: route.activity,
       activityLabel: t(route.activity === 'cycling' ? 'Cycling' : 'Hiking'),
       plannedLabel: t('Planned route'),
       metrics: [

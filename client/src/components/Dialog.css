@@ -98,8 +98,15 @@
   flex-shrink: 0;
 }
 .roamlet-dialog:has(.route-card-export) .dialog-body {
+  margin-inline-end: -16px;
+  padding-inline-end: 16px;
   scrollbar-gutter: stable;
   overflow-anchor: none;
+}
+.roamlet-dialog.wide:has(.route-card-export) .dialog-footer {
+  margin-inline: -28px;
+  padding-inline: 28px;
+  border-top: 1px solid var(--border);
 }
 
 .roamlet-dialog .dialog-body > p {
@@ -307,7 +314,14 @@
   }
 
   .roamlet-dialog:has(.route-card-export) .dialog-body {
+    margin-inline-end: 0;
+    padding-inline-end: 20px;
     padding-bottom: 20px;
+  }
+
+  .roamlet-dialog.wide:has(.route-card-export) .dialog-footer {
+    margin-inline: 0;
+    padding-inline: 20px;
   }
 
   .roamlet-dialog .dialog-body > form {

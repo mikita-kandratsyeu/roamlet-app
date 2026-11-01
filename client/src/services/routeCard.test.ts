@@ -15,6 +15,7 @@ const request: RouteCardRequest = {
   format: 'post',
   theme: 'light',
   privacyRadius: 0,
+  activity: 'hiking',
   activityLabel: 'Hiking',
   plannedLabel: 'Planned route',
   metrics: [],

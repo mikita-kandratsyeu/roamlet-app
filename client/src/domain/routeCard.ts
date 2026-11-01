@@ -1,4 +1,4 @@
-import type { Coordinate } from './types';
+import type { Activity, Coordinate } from './types';
 
 export type RouteCardFormat = 'post' | 'story';
 export type RouteCardTheme = 'light' | 'dark';
@@ -8,6 +8,7 @@ export interface RouteCardRequest {
   theme: RouteCardTheme;
   privacyRadius: number;
   title: string;
+  activity: Activity;
   activityLabel: string;
   plannedLabel: string;
   metrics: { label: string; value: string }[];
@@ -452,6 +453,64 @@ function titleLines(context: Context, value: string, width: number, limit = 3): 
   return lines;
 }
 
+function drawActivityIcon(
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  activity: Activity,
+  x: number,
+  y: number,
+  color: string,
+) {
+  const scale = 32 / 24;
+  const move = (px: number, py: number) => context.moveTo(x + px * scale, y + py * scale);
+  const line = (px: number, py: number) => context.lineTo(x + px * scale, y + py * scale);
+  context.save();
+  context.strokeStyle = color;
+  context.lineWidth = 2;
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  context.beginPath();
+  if (activity === 'cycling') {
+    for (const wheel of [5, 19]) {
+      move(wheel + 4, 17);
+      context.arc(x + wheel * scale, y + 17 * scale, 4 * scale, 0, TAU);
+    }
+    move(5, 17);
+    line(10, 9);
+    line(14, 17);
+    line(5, 17);
+    move(10, 9);
+    line(17, 9);
+    line(19, 17);
+    move(17, 9);
+    line(14, 17);
+    move(16, 6);
+    line(18, 6);
+    line(19, 9);
+    move(8, 7);
+    line(12, 7);
+    move(10, 7);
+    line(10, 9);
+  } else {
+    context.arc(x + 13 * scale, y + 4 * scale, 2 * scale, 0, TAU);
+    move(12, 8);
+    line(10, 14);
+    line(7, 21);
+    move(10, 14);
+    line(14, 17);
+    line(13, 22);
+    move(12, 8);
+    line(16, 11);
+    line(19, 10);
+    move(19, 9);
+    line(17, 22);
+    move(10, 8);
+    line(8, 12);
+    line(10, 14);
+  }
+  context.stroke();
+  context.restore();
+}
+
 export async function renderRouteCard(
   request: RouteCardRequest,
   canvas: HTMLCanvasElement | OffscreenCanvas,
@@ -462,6 +521,7 @@ export async function renderRouteCard(
       (request.format !== 'post' && request.format !== 'story') ||
       (request.theme !== 'light' && request.theme !== 'dark') ||
       typeof request.title !== 'string' ||
+      (request.activity !== 'cycling' && request.activity !== 'hiking') ||
       typeof request.activityLabel !== 'string' ||
       typeof request.plannedLabel !== 'string' ||
       !Array.isArray(request.metrics) ||
@@ -500,11 +560,19 @@ export async function renderRouteCard(
     const activityTop = 296 + lines.length * 76;
     context.fillStyle = muted;
     context.font = '500 30px sans-serif';
-    const activity = titleLines(context, request.activityLabel, 936, 2);
-    activity.forEach((line, index) => context.fillText(line, 72, activityTop + index * 40));
+    drawActivityIcon(context, request.activity, 72, activityTop, muted);
+    const activity = titleLines(context, request.activityLabel, 892, 2);
+    activity.forEach((line, index) => context.fillText(line, 116, activityTop + index * 40));
     const columns = request.metrics.length === 4 ? 2 : Math.min(3, request.metrics.length);
     const rows = columns ? Math.ceil(request.metrics.length / columns) : 0;
-    const panelHeight = rows ? 64 + rows * 112 : 0;
+    const metricPaddingX = 40;
+    const metricPaddingY = 36;
+    const metricGap = 48;
+    const metricRowHeight = 128;
+    const panelHeight = rows ? metricPaddingY * 2 + rows * metricRowHeight : 0;
+    const metricWidth = columns
+      ? (936 - metricPaddingX * 2 - (columns - 1) * metricGap) / columns
+      : 0;
     const footerTop = height - 72 - panelHeight;
     const routeTop = activityTop + activity.length * 40 + 52;
     const routeBounds = { x: 104, y: routeTop, width: 872, height: footerTop - routeTop - 66 };
@@ -571,21 +639,41 @@ export async function renderRouteCard(
     if (rows) {
       context.fillStyle = dark ? '#173b30' : '#faf7f2';
       context.beginPath();
-      context.roundRect(72, footerTop, 936, panelHeight, 32);
+      context.roundRect(72, footerTop, 936, panelHeight, 28);
       context.fill();
+      context.strokeStyle = dark ? '#adc5b624' : '#5972641f';
+      context.lineWidth = 1;
+      context.stroke();
     }
     request.metrics.forEach((metric, index) => {
-      const width = (872 - (columns - 1) * 24) / columns;
-      const x = 104 + (index % columns) * (width + 24);
-      const y = footerTop + 32 + Math.floor(index / columns) * 112;
+      const x = 72 + metricPaddingX + (index % columns) * (metricWidth + metricGap);
+      const y = footerTop + metricPaddingY + Math.floor(index / columns) * metricRowHeight;
+      if (index % columns > 0) {
+        context.strokeStyle = dark ? '#adc5b62e' : '#59726433';
+        context.lineWidth = 1.5;
+        context.lineCap = 'butt';
+        context.beginPath();
+        context.moveTo(x - metricGap / 2, y + 4);
+        context.lineTo(x - metricGap / 2, y + 108);
+        context.stroke();
+      }
       context.fillStyle = muted;
       context.font = '500 22px sans-serif';
-      titleLines(context, metric.label, width, 2).forEach((line, lineIndex) =>
+      titleLines(context, metric.label, metricWidth, 2).forEach((line, lineIndex) =>
         context.fillText(line, x, y + lineIndex * 28),
       );
       context.fillStyle = ink;
-      context.font = '700 36px sans-serif';
-      context.fillText(fitText(context, safeText(metric.value), width), x, y + 60);
+      context.font = '700 44px sans-serif';
+      const value = safeText(metric.value);
+      const valueSize = Math.max(
+        32,
+        Math.min(
+          44,
+          Math.floor((44 * metricWidth) / Math.max(1, context.measureText(value).width)),
+        ),
+      );
+      context.font = `700 ${valueSize}px sans-serif`;
+      context.fillText(fitText(context, value, metricWidth), x, y + 112 - valueSize);
     });
     const blob =
       'convertToBlob' in canvas

@@ -68,12 +68,20 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
         if (pixels[index] === 250 && pixels[index + 1] === 247 && pixels[index + 2] === 242) road++;
         if (pixels[index] === 189 && pixels[index + 1] === 211 && pixels[index + 2] === 165) dot++;
       }
+      const dividerY = canvas.height - 72 - 200 + 36 + 52;
+      const divider = context.getImageData(540, dividerY, 1, 1).data;
+      const beside = context.getImageData(530, dividerY, 1, 1).data;
+      const dividerContrast =
+        Math.abs(divider[0] - beside[0]) +
+        Math.abs(divider[1] - beside[1]) +
+        Math.abs(divider[2] - beside[2]);
       canvas.width = 0;
       canvas.height = 0;
-      return { road, dot };
+      return { road, dot, dividerContrast };
     });
     expect(iconPixels.road).toBeGreaterThan(150);
     expect(iconPixels.dot).toBeGreaterThan(60);
+    expect(iconPixels.dividerContrast).toBeGreaterThan(8);
     await expect
       .poll(() => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth))
       .toBe(true);
@@ -169,9 +177,13 @@ test('social export layout and shared scrollbars work in both languages and them
       await expect(dialog).toHaveClass(/wide/);
       await expect(dialog).toHaveCSS('opacity', '1');
       await expect(dialog).toHaveCSS('scale', '1');
+      await expect(dialog).toHaveCSS(
+        'padding-left',
+        testInfo.project.name === 'mobile' ? '0px' : '28px',
+      );
       await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0);
       await expect(dialog.getByRole('img')).toHaveCount(0);
-      const { settings, stage } = await dialog.evaluate((element) => {
+      const { settings, stage, footerInset, scrollGap } = await dialog.evaluate((element) => {
         const settingsBox = element.querySelector('.route-card-settings')!.getBoundingClientRect();
         const stageBox = element.querySelector('.route-card-stage')!.getBoundingClientRect();
         return {
@@ -182,8 +194,26 @@ test('social export layout and shared scrollbars work in both languages and them
             height: settingsBox.height,
           },
           stage: { x: stageBox.x, y: stageBox.y },
+          footerInset: (() => {
+            const footer = element.querySelector('.dialog-footer')!.getBoundingClientRect();
+            const dialog = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return {
+              left: footer.left - dialog.left - parseFloat(style.borderLeftWidth),
+              right: dialog.right - footer.right - parseFloat(style.borderRightWidth),
+            };
+          })(),
+          scrollGap: (() => {
+            const body = element.querySelector<HTMLElement>('.dialog-body')!;
+            const box = body.getBoundingClientRect();
+            const scrollbarWidth = body.offsetWidth - body.clientWidth;
+            return box.right - scrollbarWidth - Math.max(settingsBox.right, stageBox.right);
+          })(),
         };
       });
+      expect(footerInset.left).toBeCloseTo(0, 0);
+      expect(footerInset.right).toBeCloseTo(0, 0);
+      expect(scrollGap).toBeGreaterThanOrEqual(16);
       if (testInfo.project.name === 'desktop') {
         expect(stage.x).toBeGreaterThan(settings.x + settings.width);
         expect(stage.y).toBeCloseTo(settings.y, 0);

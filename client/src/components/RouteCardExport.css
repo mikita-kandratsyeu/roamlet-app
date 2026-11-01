@@ -187,6 +187,9 @@
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
+.dialog-footer .route-card-actions {
+  border-top: 0;
+}
 .route-card-actions button {
   flex: 1 1 160px;
   min-height: 44px;

@@ -75,6 +75,7 @@ it('generates on button press, downloads the same PNG, and preserves the route',
       theme: 'light',
       privacyRadius: 0,
       title: 'Forest walk',
+      activity: 'hiking',
       plannedLabel: 'Planned route',
       metrics: [
         { label: 'Distance', value: '12.4 km' },
