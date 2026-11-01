@@ -7,6 +7,7 @@ import { LoaderCircle } from 'lucide-react';
 import { Dialog } from './Dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { PlannerChoice } from './PlannerChoice';
 import type { ConflictMode } from '../domain/backup';
 import type {
   useStorageConnector,
@@ -248,29 +249,30 @@ export function GitHubConnectionDialog({
                       {t('Manage repository access')}
                     </a>
                   )}
-                  <label htmlFor={`${id}-repository`}>
-                    {t('Private repository')}
-                    <select
-                      id={`${id}-repository`}
+                  <div className="connector-choice-field">
+                    <span>{t('Private repository')}</span>
+                    <PlannerChoice
+                      label={t('Private repository')}
                       value={repository}
-                      onChange={(event) => setRepository(event.target.value)}
-                    >
-                      <option value="">{t('Choose a repository')}</option>
-                      {connection &&
+                      disabled={busy}
+                      selectedLabel={!repository ? 'Choose a repository' : undefined}
+                      options={[
+                        { value: '', label: 'Choose a repository' },
+                        ...(connection &&
                         !github.repositories.some(
                           (item) => `${item.owner}/${item.name}` === repository,
                         ) &&
-                        repository && <option value={repository}>{repository}</option>}
-                      {github.repositories.map((item) => (
-                        <option
-                          key={`${item.owner}/${item.name}`}
-                          value={`${item.owner}/${item.name}`}
-                        >
-                          {item.owner}/{item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                        repository
+                          ? [{ value: repository, label: repository }]
+                          : []),
+                        ...github.repositories.map((item) => ({
+                          value: `${item.owner}/${item.name}`,
+                          label: `${item.owner}/${item.name}`,
+                        })),
+                      ]}
+                      onChange={setRepository}
+                    />
+                  </div>
                   <div className="button-row">
                     {connection && (
                       <Button variant="outline" onClick={() => setChangingRepository(false)}>
@@ -386,24 +388,26 @@ export function GitHubConnectionDialog({
                     {!!storage.backups.length && (
                       <fieldset className="connector-fields" disabled={busy}>
                         <legend>{t('Restore a backup')}</legend>
-                        <label htmlFor={`${id}-backup`}>
-                          {t('Cloud backup')}
-                          <select
-                            id={`${id}-backup`}
+                        <div className="connector-choice-field">
+                          <span>{t('Cloud backup')}</span>
+                          <PlannerChoice
+                            label={t('Cloud backup')}
                             value={selected}
-                            onChange={(event) => {
-                              setSelected(event.target.value);
+                            disabled={busy}
+                            selectedLabel={!selected ? 'Choose a backup' : undefined}
+                            options={[
+                              { value: '', label: 'Choose a backup' },
+                              ...storage.backups.map((item) => ({
+                                value: item.id,
+                                label: `${item.name} · ${Math.ceil(item.size / 1024)} ${t('KiB')}`,
+                              })),
+                            ]}
+                            onChange={(value) => {
+                              setSelected(value);
                               storage.dismissPreview();
                             }}
-                          >
-                            <option value="">{t('Choose a backup')}</option>
-                            {storage.backups.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.name} · {Math.ceil(item.size / 1024)} {t('KiB')}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
+                          />
+                        </div>
                         <label htmlFor={`${id}-restore-password`}>
                           {t('Restore password')}
                           <Input
@@ -447,23 +451,20 @@ export function GitHubConnectionDialog({
                           {t('{{count}} conflicting routes', { count: storage.preview.conflicts })}
                         </p>
                         <p>{t('Import changes only your library, not the route in the editor.')}</p>
-                        <label htmlFor={`${id}-mode`}>
-                          {t('Conflicting routes')}
-                          <select
-                            id={`${id}-mode`}
-                            disabled={busy}
+                        <div className="connector-choice-field">
+                          <span>{t('Conflicting routes')}</span>
+                          <PlannerChoice<ConflictMode>
+                            label={t('Conflicting routes')}
                             value={mode}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              if (value === 'copy' || value === 'skip' || value === 'replace')
-                                setMode(value);
-                            }}
-                          >
-                            <option value="copy">{t('Import copies')}</option>
-                            <option value="skip">{t('Skip existing routes')}</option>
-                            <option value="replace">{t('Replace existing routes')}</option>
-                          </select>
-                        </label>
+                            disabled={busy}
+                            options={[
+                              { value: 'copy', label: 'Import copies' },
+                              { value: 'skip', label: 'Skip existing routes' },
+                              { value: 'replace', label: 'Replace existing routes' },
+                            ]}
+                            onChange={setMode}
+                          />
+                        </div>
                         {mode === 'replace' && (
                           <p>
                             {t(

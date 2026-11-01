@@ -68,7 +68,8 @@ async function setupRepository() {
   await screen.findByText('Connected', { exact: true });
   await user.click(screen.getByRole('button', { name: 'Manage connection' }));
   await user.click(screen.getByRole('button', { name: 'Load accessible repositories' }));
-  await user.selectOptions(screen.getByLabelText('Private repository'), 'example/backups');
+  await user.click(screen.getByRole('button', { name: 'Private repository' }));
+  await user.click(screen.getByRole('menuitemradio', { name: 'example/backups' }));
   await user.click(screen.getByRole('button', { name: 'Use this repository' }));
   await screen.findByText('Connected to example/backups');
   return user;
@@ -273,16 +274,18 @@ it('shows OAuth callback failure as a dismissible Sonner toast, not a page banne
 
 it('keeps connected settings compact and edits repository only on request', async () => {
   const user = await setupRepository();
-  expect(screen.queryByLabelText('Private repository')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Private repository' })).not.toBeInTheDocument();
   expect(screen.getByRole('tab', { name: 'Create a backup' })).toHaveAttribute(
     'aria-selected',
     'true',
   );
   await user.click(screen.getByRole('button', { name: 'Change repository' }));
-  expect(screen.getByLabelText('Private repository')).toHaveValue('example/backups');
+  expect(screen.getByRole('button', { name: 'Private repository' })).toHaveTextContent(
+    'example/backups',
+  );
   expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
-  expect(screen.queryByLabelText('Private repository')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Private repository' })).not.toBeInTheDocument();
   expect(screen.getByRole('tablist', { name: 'Backup actions' })).toBeVisible();
 });
 
@@ -349,6 +352,27 @@ it('requires confirmation to stop an upload and ignores its late completion', as
   finish(entry);
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   expect(screen.queryByText('Encrypted backup saved to GitHub.')).not.toBeInTheDocument();
+});
+
+it('uses the planner dropdown in the dialog with keyboard selection and focus restoration', async () => {
+  const user = await setupRepository();
+  await user.click(screen.getByRole('button', { name: 'Change repository' }));
+  const trigger = screen.getByRole('button', { name: 'Private repository' });
+  expect(trigger).toHaveClass('planner-choice');
+  expect(screen.getByRole('dialog').querySelector('select')).toBeNull();
+  trigger.focus();
+  await user.keyboard('{ArrowDown}');
+  expect(screen.getByRole('menu')).toHaveClass('planner-choice-menu');
+  expect(screen.getByRole('menuitemradio', { name: 'example/backups' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await user.keyboard('{Escape}');
+  await waitFor(() => expect(trigger).toHaveFocus());
+  expect(screen.getByRole('dialog', { name: 'GitHub connection settings' })).toBeVisible();
+  await user.click(trigger);
+  await user.click(screen.getByRole('menuitemradio', { name: 'Choose a repository' }));
+  expect(screen.getByRole('button', { name: 'Use this repository' })).toBeDisabled();
 });
 
 it('explains an empty accessible repository list after loading it', async () => {

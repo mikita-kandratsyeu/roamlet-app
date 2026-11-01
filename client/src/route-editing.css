@@ -41,7 +41,8 @@
   min-width: 0;
 }
 
-.planner .planner-choice {
+.planner .planner-choice,
+.storage-connections .planner-choice {
   display: flex;
   justify-content: space-between;
   gap: 8px;
@@ -55,7 +56,8 @@
   line-height: 1.4;
 }
 
-.planner .planner-choice > span {
+.planner .planner-choice > span,
+.storage-connections .planner-choice > span {
   flex: 1;
   min-width: 0;
   white-space: normal;

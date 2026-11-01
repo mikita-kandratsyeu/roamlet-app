@@ -75,12 +75,13 @@ test('GitHub App modal backs up encrypted routes through same-origin functions a
   await page.getByRole('button', { name: 'Manage connection' }).click();
   const modal = page.getByRole('dialog', { name: 'GitHub connection settings' });
   await modal.getByRole('button', { name: 'Load accessible repositories' }).click();
-  await modal.getByLabel('Private repository').selectOption('example/backups');
+  await modal.getByRole('button', { name: 'Private repository' }).click();
+  await page.getByRole('menuitemradio', { name: 'example/backups' }).click();
   await modal.getByRole('button', { name: 'Use this repository' }).click();
   await expect(modal.getByText('Connected to example/backups')).toBeVisible();
   await expect(modal.getByText('1 saved routes will be included')).toBeVisible();
   await expect(modal.getByRole('button', { name: 'Create encrypted backup' })).toBeInViewport();
-  await expect(modal.getByLabel('Private repository')).toHaveCount(0);
+  await expect(modal.getByRole('button', { name: 'Private repository' })).toHaveCount(0);
   await page.screenshot({
     path: testInfo.outputPath('github-create-tab.png'),
     fullPage: true,
@@ -92,11 +93,28 @@ test('GitHub App modal backs up encrypted routes through same-origin functions a
   await expect(modal.getByText('Encrypted backup saved to GitHub.')).toBeVisible();
   await modal.getByRole('tab', { name: 'Restore a backup' }).click();
   await modal.getByRole('button', { name: 'Refresh cloud backups' }).click();
-  await modal.getByLabel('Cloud backup').selectOption(entry.id);
+  await modal.getByRole('button', { name: 'Cloud backup', exact: true }).click();
+  await page
+    .getByRole('menuitemradio', { name: new RegExp(entry.name.replaceAll('.', '\\.')) })
+    .click();
   await modal.getByLabel('Restore password').fill(password);
   await modal.getByRole('button', { name: 'Preview restoration' }).click();
   await expect(modal.getByText('1 conflicting routes')).toBeVisible();
-  await expect(modal.getByLabel('Conflicting routes')).toHaveValue('copy');
+  await expect(modal.getByRole('button', { name: 'Conflicting routes' })).toContainText(
+    'Import copies',
+  );
+  await modal.getByRole('button', { name: 'Conflicting routes' }).click();
+  await expect(page.getByRole('menu')).toHaveClass(/planner-choice-menu/);
+  await expect(page.getByRole('menuitemradio', { name: 'Import copies' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await page.getByRole('menuitemradio', { name: 'Skip existing routes' }).click();
+  await expect(modal.getByRole('button', { name: 'Conflicting routes' })).toContainText(
+    'Skip existing routes',
+  );
+  await modal.getByRole('button', { name: 'Conflicting routes' }).click();
+  await page.getByRole('menuitemradio', { name: 'Import copies' }).click();
   await page.screenshot({
     path: testInfo.outputPath('github-restore-tab.png'),
     fullPage: true,
