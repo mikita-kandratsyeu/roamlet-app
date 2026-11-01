@@ -458,9 +458,17 @@ describe('offline PNG rendering', () => {
           [102, 177, 33, 163, 33, 134],
           [33, 108, 98, 104, 98, 89],
           [98, 75, 29, 57, 38, 56],
-        ].map((points) => points.map((coordinate, index) => (index % 2 ? 76 : 72) + coordinate * (56 / 192))),
+        ].map((points) =>
+          points.map((coordinate, index) => (index % 2 ? 76 : 72) + coordinate * (56 / 192)),
+        ),
       );
-      expect(context.arc).toHaveBeenCalledWith(72 + 125 * (56 / 192), 76 + 49 * (56 / 192), 17 * (56 / 192), 0, Math.PI * 2);
+      expect(context.arc).toHaveBeenCalledWith(
+        72 + 125 * (56 / 192),
+        76 + 49 * (56 / 192),
+        17 * (56 / 192),
+        0,
+        Math.PI * 2,
+      );
       expect(context.fillText).toHaveBeenNthCalledWith(1, 'Roamlet', 144, 86);
       expect(texts[0].font).toBe('600 36px sans-serif');
       expect(context.fillText.mock.invocationCallOrder[0]).toBeLessThan(
