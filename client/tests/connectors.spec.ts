@@ -181,3 +181,102 @@ test('scalable catalog opens a Russian dark-theme modal and restores focus', asy
   await expect(modal).toHaveCount(0);
   await expect(setup).toBeFocused();
 });
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`connector toolbar matches library controls (${theme})`, async ({ page }, testInfo) => {
+    await page.route('**/api/github?**', (route) =>
+      route.fulfill({ json: { available: true, connected: false } }),
+    );
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await page
+      .getByRole('menuitemradio', { name: theme === 'dark' ? 'Dark' : 'Light', exact: true })
+      .click();
+    if (theme === 'dark') {
+      await page.getByRole('button', { name: 'Menu', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
+    }
+    const labels =
+      theme === 'dark'
+        ? {
+            menu: 'Меню',
+            connections: 'Подключения',
+            search: 'Поиск коннекторов',
+            all: 'Все коннекторы',
+            connected: 'Подключённые',
+            back: 'Назад к карте',
+            library: 'Мои маршруты',
+            librarySearch: 'Поиск сохранённых маршрутов',
+          }
+        : {
+            menu: 'Menu',
+            connections: 'Connections',
+            search: 'Search connectors',
+            all: 'All connectors',
+            connected: 'Connected connectors',
+            back: 'Back to map',
+            library: 'My routes',
+            librarySearch: 'Search saved routes',
+          };
+    await page.getByRole('button', { name: labels.menu, exact: true }).click();
+    await page.getByRole('menuitem', { name: labels.connections, exact: true }).click();
+    const screen = page.getByRole('region', { name: labels.connections, exact: true });
+    const search = screen.getByRole('textbox', { name: labels.search });
+    const metrics = (input: HTMLInputElement) => {
+      const wrapper = input.closest('label')!;
+      const outer = getComputedStyle(wrapper);
+      const inner = getComputedStyle(input);
+      const icon = wrapper.querySelector('svg')!;
+      const box = wrapper.getBoundingClientRect();
+      const iconBox = icon.getBoundingClientRect();
+      return {
+        height: box.height,
+        radius: outer.borderRadius,
+        padding: outer.padding,
+        gap: outer.gap,
+        background: outer.backgroundColor,
+        inputBackground: inner.backgroundColor,
+        inputBorder: inner.borderWidth,
+        font: inner.fontSize,
+        iconInset: iconBox.left - box.left,
+      };
+    };
+    const connectorMetrics = await search.evaluate(metrics);
+    expect(connectorMetrics.height).toBe(44);
+    expect(connectorMetrics.iconInset).toBeGreaterThan(0);
+    await search.focus();
+    await expect
+      .poll(() =>
+        search.evaluate((input) => getComputedStyle(input.closest('label')!).outlineStyle),
+      )
+      .toBe('solid');
+    const all = screen.getByRole('button', { name: labels.all, exact: true });
+    const connected = screen.getByRole('button', { name: labels.connected, exact: true });
+    await connected.click();
+    await expect(connected).toHaveAttribute('aria-pressed', 'true');
+    await all.click();
+    await expect(all).toHaveAttribute('aria-pressed', 'true');
+    const filters = await all.evaluate((button) => ({
+      height: button.getBoundingClientRect().height,
+      background: getComputedStyle(button).backgroundColor,
+    }));
+    expect(filters.height).toBeGreaterThanOrEqual(44);
+    if (testInfo.project.name === 'mobile') {
+      expect((await search.boundingBox())!.y).toBeLessThan((await all.boundingBox())!.y);
+      expect(await screen.evaluate((node) => node.scrollWidth)).toBeLessThanOrEqual(
+        page.viewportSize()!.width,
+      );
+    }
+    await page.screenshot({
+      path: testInfo.outputPath(`connector-toolbar-${theme}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    });
+    await screen.getByRole('button', { name: labels.back, exact: true }).click();
+    await page.getByRole('button', { name: labels.menu, exact: true }).click();
+    await page.getByRole('menuitem', { name: labels.library, exact: true }).click();
+    const libraryMetrics = await page
+      .getByRole('textbox', { name: labels.librarySearch })
+      .evaluate(metrics);
+    expect(connectorMetrics).toEqual(libraryMetrics);
+  });
+}

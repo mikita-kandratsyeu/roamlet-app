@@ -79,6 +79,17 @@ it('renders a searchable card grid and opens setup as an accessible modal with r
   );
   expect(card.querySelector('img')).toHaveAttribute('src', '/github-mark.png');
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  const search = screen.getByRole('textbox', { name: 'Search connectors' });
+  expect(search.closest('label')).toHaveClass('library-search');
+  expect(search.closest('.library-toolbar')).toBeInTheDocument();
+  expect(search.closest('label')?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  expect(screen.getByRole('button', { name: 'All connectors' })).toHaveClass(
+    'library-favorite-filter',
+  );
+  expect(screen.getByRole('button', { name: 'All connectors' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   const user = userEvent.setup();
   const setup = screen.getByRole('button', { name: 'Set up connection' });
   await user.click(setup);
@@ -96,6 +107,14 @@ it('renders a searchable card grid and opens setup as an accessible modal with r
   expect(screen.getByText('No connectors match this filter.')).toBeVisible();
   await user.clear(screen.getByRole('textbox', { name: 'Search connectors' }));
   await user.click(screen.getByRole('button', { name: 'Connected connectors' }));
+  expect(screen.getByRole('button', { name: 'Connected connectors' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(screen.getByRole('button', { name: 'All connectors' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
   expect(screen.getByText('No connectors match this filter.')).toBeVisible();
 });
 it('disables authorization with missing server configuration without hiding local navigation', async () => {

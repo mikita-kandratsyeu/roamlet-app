@@ -4,6 +4,7 @@ import { ArrowLeft, Plug, Search } from 'lucide-react';
 import './Library.css';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { Dialog } from './Dialog';
 import { useStorageConnector } from '../hooks/useStorageConnector';
 import { useGitHubSession } from '../hooks/useGitHubSession';
@@ -140,7 +141,7 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
         </Button>
       </header>
       <div className="library-screen-scroll">
-        <div className="connections-content">
+        <div className="route-library connections-content">
           <p id={`${id}-description`} className="library-screen-description">
             {t(
               'Connect your own services. Local planning and the route library work without connections.',
@@ -156,8 +157,8 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
               </Button>
             </p>
           )}
-          <div className="connections-toolbar">
-            <label className="connections-search">
+          <div className="library-toolbar">
+            <Label className="library-search">
               <Search size={18} aria-hidden="true" />
               <Input
                 aria-label={t('Search connectors')}
@@ -165,17 +166,19 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder={t('Search connectors')}
               />
-            </label>
+            </Label>
             <div className="connections-filters" role="group" aria-label={t('Filter connectors')}>
               <Button
-                variant={filter === 'all' ? 'default' : 'outline'}
+                variant="outline"
+                className="library-favorite-filter"
                 aria-pressed={filter === 'all'}
                 onClick={() => setFilter('all')}
               >
                 {t('All connectors')}
               </Button>
               <Button
-                variant={filter === 'connected' ? 'default' : 'outline'}
+                variant="outline"
+                className="library-favorite-filter"
                 aria-pressed={filter === 'connected'}
                 onClick={() => setFilter('connected')}
               >
