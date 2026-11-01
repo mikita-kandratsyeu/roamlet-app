@@ -52,7 +52,7 @@ function synchronizeLanguage(language: string) {
   const normalized = language.startsWith('ru') ? 'ru' : 'en';
   if (typeof document !== 'undefined') {
     document.documentElement.lang = normalized;
-    document.title = i18n.t('Roamlet — Route planner');
+    document.title = 'Roamlet';
     document
       .querySelector<HTMLMetaElement>('meta[name="description"]')
       ?.setAttribute(

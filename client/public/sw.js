@@ -1,4 +1,13 @@
 const CACHE = 'roamlet-shell-__BUILD_REVISION__';
+const INSTALL_ASSETS = [
+  '/manifest.webmanifest',
+  '/icon.svg',
+  '/favicon-32.png',
+  '/apple-touch-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
+];
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
@@ -23,7 +32,7 @@ self.addEventListener('install', (event) => {
         }
       }
       await cache.put('/', response);
-      await cache.addAll([...new Set(['/icon.svg', ...assets])]);
+      await cache.addAll([...new Set([...INSTALL_ASSETS, ...assets])]);
       // Fonts referenced by the stylesheet must also survive the first offline visit.
       const fonts = [];
       for (const asset of assets.filter((path) => path.endsWith('.css'))) {
@@ -65,8 +74,8 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.open(CACHE).then(async (cache) => (await cache.match('/')) || fetch(event.request)),
     );
-  } else if (url.pathname.startsWith('/assets/') || url.pathname === '/icon.svg') {
-    // These same-origin, content-hashed files are identical regardless of Origin headers.
+  } else if (url.pathname.startsWith('/assets/') || INSTALL_ASSETS.includes(url.pathname)) {
+    // Same-origin shell assets are identical regardless of Origin headers.
     event.respondWith(
       caches.match(event.request, { ignoreVary: true }).then(
         (cached) =>

@@ -93,14 +93,62 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
         Math.abs(divider[0] - beside[0]) +
         Math.abs(divider[1] - beside[1]) +
         Math.abs(divider[2] - beside[2]);
+      const metricCenters: { cell: number; kind: string; center: number; pixels: number }[] = [];
+      const panelY = canvas.height - 72 - 200;
+      for (const cell of [0, 1]) {
+        const cellX = 72 + cell * 468;
+        for (const band of [
+          {
+            kind: 'label',
+            y: panelY + 36,
+            height: 28,
+            color: dark ? [173, 197, 182] : [89, 114, 100],
+          },
+          {
+            kind: 'value',
+            y: panelY + 104,
+            height: 48,
+            color: dark ? [244, 247, 239] : [24, 60, 44],
+          },
+        ]) {
+          const data = context.getImageData(cellX, band.y, 468, band.height).data;
+          let left = Infinity,
+            right = -Infinity,
+            count = 0;
+          for (let index = 0; index < data.length; index += 4) {
+            if (
+              data[index] === band.color[0] &&
+              data[index + 1] === band.color[1] &&
+              data[index + 2] === band.color[2]
+            ) {
+              const x = (index / 4) % 468;
+              left = Math.min(left, x);
+              right = Math.max(right, x);
+              count++;
+            }
+          }
+          metricCenters.push({
+            cell,
+            kind: band.kind,
+            center: cellX + (left + right) / 2,
+            pixels: count,
+          });
+        }
+      }
       canvas.width = 0;
       canvas.height = 0;
-      return { road, dot, dividerContrast, tileContrast };
+      return { road, dot, dividerContrast, tileContrast, metricCenters };
     }, format === 'Story');
     expect(iconPixels.road).toBeGreaterThan(150);
     expect(iconPixels.dot).toBeGreaterThan(30);
     expect(iconPixels.tileContrast).toBeGreaterThan(100);
     expect(iconPixels.dividerContrast).toBeGreaterThan(8);
+    for (const metric of iconPixels.metricCenters) {
+      expect(metric.pixels, metric.kind).toBeGreaterThan(20);
+      expect(Math.abs(metric.center - (306 + metric.cell * 468)), metric.kind).toBeLessThanOrEqual(
+        5,
+      );
+    }
     await expect
       .poll(() => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth))
       .toBe(true);

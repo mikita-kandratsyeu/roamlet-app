@@ -39,7 +39,14 @@ function canvasMock() {
     return { addColorStop: vi.fn((offset: number, color: string) => stops.push([offset, color])) };
   };
   const strokes: { width: number; color: string }[] = [];
-  const texts: { text: string; x: number; y: number; font: string; width: number }[] = [];
+  const texts: {
+    text: string;
+    x: number;
+    y: number;
+    font: string;
+    width: number;
+    align: string;
+  }[] = [];
   const context = {
     save: vi.fn(),
     restore: vi.fn(),
@@ -65,6 +72,7 @@ function canvasMock() {
     strokeStyle: '',
     font: '',
     textBaseline: '',
+    textAlign: 'left',
     lineWidth: 0,
     lineCap: '',
     lineJoin: '',
@@ -73,7 +81,14 @@ function canvasMock() {
     strokes.push({ width: context.lineWidth, color: context.strokeStyle });
   });
   context.fillText.mockImplementation((text: string, x: number, y: number) => {
-    texts.push({ text, x, y, font: context.font, width: context.measureText(text).width });
+    texts.push({
+      text,
+      x,
+      y,
+      font: context.font,
+      width: context.measureText(text).width,
+      align: context.textAlign,
+    });
   });
   const canvas = document.createElement('canvas');
   Object.defineProperty(canvas, 'getContext', { value: vi.fn(() => context), configurable: true });
@@ -457,15 +472,28 @@ describe('offline PNG rendering', () => {
       const rows = columns ? Math.ceil(count / columns) : 0;
       expect(dividers).toHaveLength(count - rows);
       const labels = texts.filter((text) => text.font === '500 22px sans-serif');
-      const expected = labels
-        .filter((_, index) => index % columns > 0)
-        .map((label) => ({
-          from: [label.x - 24, label.y + 4],
-          to: [label.x - 24, label.y + 108],
-        }));
+      const expected = labels.flatMap((label, index) => {
+        const row = Math.floor(index / columns);
+        const column = index % columns;
+        const rowColumns = Math.min(columns, count - row * columns);
+        expect(label.align).toBe('center');
+        expect(label.x).toBe(72 + (column + 0.5) * (936 / rowColumns));
+        return column
+          ? [
+              {
+                from: [label.x - 468 / rowColumns, label.y + 4],
+                to: [label.x - 468 / rowColumns, label.y + 108],
+              },
+            ]
+          : [];
+      });
       expect(dividers).toEqual(expected);
       const values = texts.filter((text) => text.font === '700 44px sans-serif');
       expect(values).toHaveLength(count);
+      values.forEach((value, index) => {
+        expect(value.align).toBe('center');
+        expect(value.x).toBe(labels[index].x);
+      });
       if (count) expect(context.roundRect.mock.calls[2][4]).toBe(28);
     },
   );
@@ -609,8 +637,9 @@ describe('offline PNG rendering', () => {
       expect(texts[1].x + texts[1].width).toBeLessThanOrEqual(badgeX + badgeWidth - 16);
       expect(title[0].y).toBeGreaterThan(badgeY + badgeHeight);
       for (const text of texts) {
-        expect(text.x).toBeGreaterThanOrEqual(72);
-        expect(text.x + text.width).toBeLessThanOrEqual(1008);
+        const left = text.align === 'center' ? text.x - text.width / 2 : text.x;
+        expect(left).toBeGreaterThanOrEqual(72);
+        expect(left + text.width).toBeLessThanOrEqual(1008);
         expect(text.y + Number(text.font.match(/(\d+)px/)![1])).toBeLessThanOrEqual(
           canvas.height - 72,
         );
@@ -635,17 +664,22 @@ describe('offline PNG rendering', () => {
       expect([panelX, panelWidth, panelY + panelHeight]).toEqual([72, 936, canvas.height - 72]);
       expect(routeY + routeHeight).toBeLessThan(panelY);
       const columns = count === 4 ? 2 : Math.min(count, 3);
-      const cellWidth = (856 - (columns - 1) * 48) / columns;
       const labels = texts.filter((text) => text.font === '500 22px sans-serif');
       expect(labels).toHaveLength(count * 2);
       values.forEach((value, index) => {
-        const x = panelX + 40 + (index % columns) * (cellWidth + 48);
-        const y = panelY + 36 + Math.floor(index / columns) * 128;
+        const row = Math.floor(index / columns);
+        const rowColumns = Math.min(columns, count - row * columns);
+        const cellWidth = 936 / rowColumns;
+        const x = panelX + ((index % columns) + 0.5) * cellWidth;
+        const y = panelY + 36 + row * 128;
         expect(value.x).toBe(x);
         expect(value.y + Number(value.font.match(/(\d+)px/)![1])).toBe(y + 112);
         for (const text of [value, ...labels.slice(index * 2, index * 2 + 2)]) {
+          expect(text.align).toBe('center');
           expect(text.x).toBe(x);
-          expect(text.width).toBeLessThanOrEqual(cellWidth);
+          expect(text.width).toBeLessThanOrEqual(cellWidth - 80);
+          expect(text.x - text.width / 2).toBeGreaterThanOrEqual(x - cellWidth / 2 + 40);
+          expect(text.x + text.width / 2).toBeLessThanOrEqual(x + cellWidth / 2 - 40);
           expect(text.y).toBeGreaterThanOrEqual(panelY + 32);
           expect(text.y + Number(text.font.match(/(\d+)px/)![1])).toBeLessThanOrEqual(
             panelY + panelHeight - 32,
@@ -723,9 +757,10 @@ describe('offline PNG rendering', () => {
       const title = texts.filter((call) => call.font === '800 64px sans-serif');
       expect(title).toHaveLength(3);
       expect(title.at(-1)!.text).toContain('…');
-      for (const { x, y, width, font } of texts) {
-        expect(x).toBeGreaterThanOrEqual(72);
-        expect(x + width).toBeLessThanOrEqual(1008);
+      for (const { x, y, width, font, align } of texts) {
+        const left = align === 'center' ? x - width / 2 : x;
+        expect(left).toBeGreaterThanOrEqual(72);
+        expect(left + width).toBeLessThanOrEqual(1008);
         expect(y).toBeGreaterThanOrEqual(72);
         expect(y + Number(font.match(/(\d+)px/)![1])).toBeLessThanOrEqual(canvas.height - 72);
       }

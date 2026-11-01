@@ -35,6 +35,14 @@ it('has translations for every literal UI translation key instead of silently fa
   expect(missing).toEqual([]);
 });
 
+it('keeps the Roamlet app title stable when switching languages', async () => {
+  for (const language of ['en', 'ru', 'en']) {
+    await i18n.changeLanguage(language);
+    expect(document.documentElement.lang).toBe(language);
+    expect(document.title).toBe('Roamlet');
+  }
+});
+
 it('does not use semicolons as separators in translations', () => {
   for (const dictionary of [english, russian]) {
     for (const [key, value] of Object.entries(dictionary)) {

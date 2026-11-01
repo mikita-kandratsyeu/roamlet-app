@@ -46,7 +46,7 @@ function worker() {
     ),
   );
   new Function('self', 'caches', 'fetch', source)(self, caches, fetch);
-  return { handlers, self, cache, fetch, shell };
+  return { handlers, self, cache, caches, fetch, shell };
 }
 it('precaches not-yet-opened lazy panels from the same-origin manifest', async () => {
   const { handlers, cache } = worker();
@@ -61,6 +61,44 @@ it('precaches not-yet-opened lazy panels from the same-origin manifest', async (
   expect(cache.addAll.mock.calls.flat(2)).toContain('/assets/Statistics.js');
   expect(cache.addAll.mock.calls.flat(2)).toContain('/assets/gpxImport.worker-test.js');
 });
+const installAssets = [
+  '/manifest.webmanifest',
+  '/icon.svg',
+  '/favicon-32.png',
+  '/apple-touch-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
+];
+it('precaches the install manifest and every platform icon', async () => {
+  const { handlers, cache } = worker();
+  let installed!: Promise<unknown>;
+  handlers.get('install')!({
+    waitUntil: (promise) => {
+      installed = promise;
+    },
+  });
+  await installed;
+  expect(cache.addAll.mock.calls.flat(2)).toEqual(expect.arrayContaining(installAssets));
+});
+it.each(installAssets)(
+  'serves cached installation asset %s without network access',
+  async (path) => {
+    const { handlers, caches, fetch } = worker();
+    const cached = new Response('cached installation asset');
+    caches.match.mockResolvedValue(cached);
+    let response!: Promise<unknown>;
+    handlers.get('fetch')!({
+      request: { url: `https://roamlet.example${path}`, method: 'GET', mode: 'cors' },
+      respondWith: (promise) => {
+        response = promise;
+      },
+    });
+    expect(response).toBeDefined();
+    expect(await response).toBe(cached);
+    expect(fetch).not.toHaveBeenCalled();
+  },
+);
 it('does not activate without an explicit message or mix a newer navigation shell', async () => {
   const { handlers, self, fetch, shell } = worker();
   expect(self.skipWaiting).not.toHaveBeenCalled();

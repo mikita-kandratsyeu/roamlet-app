@@ -42,6 +42,106 @@ test.afterEach(() => {
   expect(forbiddenRequests).toEqual([]);
 });
 
+test('installation metadata and branded icons stay available in the production offline shell', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle('Roamlet');
+  await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', 'Roamlet');
+  await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute(
+    'content',
+    'Roamlet',
+  );
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
+    'href',
+    '/apple-touch-icon.png',
+  );
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  const protocol = await context.newCDPSession(page);
+  const { installabilityErrors } = await protocol.send('Page.getInstallabilityErrors');
+  expect(installabilityErrors).toEqual([]);
+  await protocol.detach();
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page).toHaveTitle('Roamlet');
+  const manifest = await page.evaluate(async () => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (!link) throw new Error('Missing install manifest');
+    const response = await fetch(link.href);
+    if (!response.ok) throw new Error('Install manifest unavailable offline');
+    return response.json();
+  });
+  expect(manifest).toMatchObject({
+    id: '/',
+    name: 'Roamlet',
+    short_name: 'Roamlet',
+    start_url: '/',
+    scope: '/',
+    display: 'standalone',
+  });
+  expect(manifest.icons).toEqual([
+    { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+  ]);
+  for (const [src, size] of [
+    ['/favicon-32.png', 32],
+    ['/apple-touch-icon.png', 180],
+    ['/icon-192.png', 192],
+    ['/icon-512.png', 512],
+    ['/icon-maskable-512.png', 512],
+    ['/icon.svg', null],
+  ] as const) {
+    const pixels = await page.evaluate(async (src) => {
+      const response = await fetch(src);
+      if (!response.ok) throw new Error(`Icon unavailable offline: ${src}`);
+      const image = new Image();
+      const url = URL.createObjectURL(await response.blob());
+      try {
+        image.src = url;
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Canvas unavailable');
+        context.drawImage(image, 0, 0);
+        const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+        let opaque = true;
+        let brandPixels = 0;
+        let outsideSafeZone = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] !== 255) opaque = false;
+          // Only the light route and accent are essential artwork, not the green background.
+          if (data[i] > 100 && data[i + 3] > 0) {
+            brandPixels++;
+            const x = (i / 4) % canvas.width;
+            const y = Math.floor(i / 4 / canvas.width);
+            if (
+              Math.hypot(x + 0.5 - canvas.width / 2, y + 0.5 - canvas.height / 2) >
+              canvas.width * 0.4
+            )
+              outsideSafeZone++;
+          }
+        }
+        return { width: canvas.width, height: canvas.height, opaque, brandPixels, outsideSafeZone };
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }, src);
+    if (size !== null) expect([pixels.width, pixels.height], src).toEqual([size, size]);
+    expect(pixels.brandPixels, src).toBeGreaterThan(0);
+    if (src === '/apple-touch-icon.png' || src === '/icon-maskable-512.png')
+      expect(pixels.opaque, src).toBe(true);
+    if (src === '/icon-maskable-512.png') expect(pixels.outsideSafeZone).toBe(0);
+  }
+});
+
 const gpx =
   '<gpx version="1.1" creator="Roamlet test" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Offline escape</name><trkseg><trkpt lat="47.2692" lon="11.4041"><ele>600</ele></trkpt><trkpt lat="47.271" lon="11.411"><ele>630</ele></trkpt></trkseg></trk></gpx>';
 test('production shell keeps saved routes and GPX export available offline, without caching maps', async ({
