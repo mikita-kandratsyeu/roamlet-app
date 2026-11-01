@@ -1230,7 +1230,7 @@ export default function App() {
                 </div>
               </div>
               <RouteDescription
-                key={editor.identity.id}
+                key={`description:${editor.identity.id}`}
                 description={description}
                 name={name}
                 tags={editor.snapshot.routeMetadata?.tags}
@@ -1807,7 +1807,7 @@ export default function App() {
                 />
               )}
               <PlannerTools
-                key={editor.identity.id}
+                key={`personal-time:${editor.identity.id}`}
                 initiallyOpen={false}
                 contextKey={`${editor.identity.id}:${activity}:${timeSyncRevision}`}
                 speed={speeds[activity]}

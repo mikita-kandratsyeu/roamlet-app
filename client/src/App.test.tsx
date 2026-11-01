@@ -168,6 +168,16 @@ function setOnline(online: boolean) {
   act(() => window.dispatchEvent(new Event(online ? 'online' : 'offline')));
 }
 
+it('renders planner sections without duplicate React keys before and after planning', async () => {
+  const consoleError = vi.spyOn(console, 'error');
+  render(<App />);
+  await plan();
+  expect(screen.getByText('Personal time')).toBeInTheDocument();
+  expect(consoleError.mock.calls.filter((args) =>
+    args.some((arg) => typeof arg === 'string' && arg.includes('same key')),
+  )).toEqual([]);
+});
+
 it('draws a local section detour, cancels losslessly and applies it as a single route edit', async () => {
   render(<App />);
   await plan();

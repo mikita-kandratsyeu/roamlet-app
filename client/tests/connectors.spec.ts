@@ -184,6 +184,8 @@ test('scalable catalog opens a Russian dark-theme modal and restores focus', asy
 
 for (const theme of ['light', 'dark'] as const) {
   test(`connector toolbar matches library controls (${theme})`, async ({ page }, testInfo) => {
+    if (testInfo.project.name === 'desktop')
+      await page.setViewportSize({ width: 1600, height: 900 });
     await page.route('**/api/github?**', (route) =>
       route.fulfill({ json: { available: true, connected: false } }),
     );
@@ -260,6 +262,13 @@ for (const theme of ['light', 'dark'] as const) {
       background: getComputedStyle(button).backgroundColor,
     }));
     expect(filters.height).toBeGreaterThanOrEqual(44);
+    const grid = screen.getByRole('list', {
+      name: labels.connections === 'Connections' ? 'Available connectors' : 'Доступные коннекторы',
+    });
+    const gridWidth = (await grid.boundingBox())!.width;
+    const columns = Math.max(1, Math.floor((gridWidth + 16) / (360 + 16)));
+    const cardWidth = (await grid.getByRole('listitem').first().boundingBox())!.width;
+    expect(cardWidth).toBeCloseTo((gridWidth - (columns - 1) * 16) / columns, 0);
     if (testInfo.project.name === 'mobile') {
       expect((await search.boundingBox())!.y).toBeLessThan((await all.boundingBox())!.y);
       expect(await screen.evaluate((node) => node.scrollWidth)).toBeLessThanOrEqual(
