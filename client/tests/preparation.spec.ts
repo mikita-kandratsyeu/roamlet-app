@@ -220,6 +220,16 @@ test('comparison preserves editor and closes back to the selected library routes
   await expect(checks).toHaveCount(6);
   for (let index = 0; index < 5; index++) await checks.nth(index).check();
   await expect(checks.nth(5)).toBeDisabled();
+  if (testInfo.project.name === 'desktop') {
+    await page.setViewportSize({ width: 1920, height: 1000 });
+    const layout = await page.locator('.library-screen .library-list').evaluate((element) => {
+      const cards = [...element.children].map((card) => card.getBoundingClientRect());
+      return { columns: cards.filter((card) => Math.abs(card.top - cards[0].top) < 1).length, width: element.closest('.route-library')!.getBoundingClientRect().width };
+    });
+    expect(layout.columns).toBe(4);
+    expect(layout.width).toBe(1600);
+    await page.screenshot({ path: testInfo.outputPath('library-wide.png') });
+  }
   const headerPadding = testInfo.project.name === 'mobile' ? '16px' : '24px';
   await expect(page.locator('.library-screen-header')).toHaveCSS('padding-left', headerPadding);
   await expect(page.locator('.library-screen-header')).toHaveCSS('padding-right', headerPadding);

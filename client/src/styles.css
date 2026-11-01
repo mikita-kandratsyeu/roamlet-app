@@ -33,6 +33,13 @@
   box-sizing: border-box;
   border-color: var(--border);
 }
+html,
+body,
+#root,
+.comparison-screen,
+.optional-screen-overlay {
+  min-width: 320px;
+}
 body {
   margin: 0;
   font-size: var(--font-size-body);
