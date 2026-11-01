@@ -24,6 +24,16 @@ it('locks background interaction and restores focus, inert state and scrolling',
   background.remove();
 });
 
+it('shows a decorative route and a single loading message by default', () => {
+  render(<MapLoader />);
+  const status = screen.getByRole('status');
+  expect(status).toHaveTextContent(/^Loading map…$/);
+  expect(status.querySelector('.map-loading-route')).toHaveAttribute('aria-hidden', 'true');
+  expect(status.querySelector('.map-loading-route')).toHaveAttribute('focusable', 'false');
+  expect(status.querySelector('.animate-spin, .global-map-loader__track')).toBeNull();
+  expect(screen.getByTestId('global-map-loader')).toHaveClass('map-loading-surface');
+});
+
 it('uses the same animated library portal with configurable messages and cancellation', () => {
   const cancel = vi.fn();
   const { container } = render(
@@ -42,8 +52,9 @@ it('uses the same animated library portal with configurable messages and cancell
   expect(screen.getByRole('status', { name: 'Opening your library…' })).toHaveTextContent(
     'Loading locally saved routes.',
   );
-  expect(panel.querySelector('.global-map-loader__orbit')).toBeInTheDocument();
-  expect(panel.querySelector('.global-map-loader__track')).toBeInTheDocument();
+  expect(panel.querySelector('.map-loading-route')).toHaveAttribute('aria-hidden', 'true');
+  expect(panel.querySelector('.global-map-loader__orbit')).not.toBeInTheDocument();
+  expect(panel.querySelector('.global-map-loader__track')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Back to map' }));
   expect(cancel).toHaveBeenCalledOnce();
 });

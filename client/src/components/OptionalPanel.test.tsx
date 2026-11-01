@@ -19,7 +19,7 @@ it('portals a screen loader without adding a flow element to the mounted editor'
   expect(await screen.findByTestId('panel-loader')).toBeInTheDocument();
   expect(container.querySelector('.panel-loading-overlay')).toBeNull();
   expect(document.querySelector('.global-map-loader')).toBeInTheDocument();
-  expect(document.querySelector('.global-map-loader__orbit')).toBeInTheDocument();
+  expect(document.querySelector('.map-loading-route')).toBeInTheDocument();
   expect(screen.getByTestId('global-map-loader')).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: 'Back to map' }));
   expect(onClose).toHaveBeenCalledOnce();

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
+import { MapLoadingIndicator } from './MapLoadingIndicator';
 import './MapLoader.css';
 
 interface Props {
@@ -99,7 +100,7 @@ export function MapLoader(props: Props = {}) {
   const heading = selected.title ?? t(library ? 'Loading your routes…' : 'Loading your map…');
   const content = (
     <div
-      className="global-map-loader"
+      className="global-map-loader map-loading-surface"
       ref={overlay}
       tabIndex={-1}
       data-global-loader-portal
@@ -108,28 +109,15 @@ export function MapLoader(props: Props = {}) {
       aria-busy="true"
       aria-label={selected.ariaLabel ?? heading}
     >
-      <div className="global-map-loader__glow" aria-hidden="true" />
       <div
         className="global-map-loader__content"
         role="status"
         aria-live="polite"
         aria-label={selected.ariaLabel ?? heading}
       >
-        <div className="global-map-loader__mark" aria-hidden="true">
-          <div className="global-map-loader__orbit" />
-          <img src="/icon.svg" alt="" width="72" height="72" />
-        </div>
-        <span className="global-map-loader__brand" aria-hidden="true">
-          Roamlet
-        </span>
+        <MapLoadingIndicator />
         <h2>{heading}</h2>
-        <p>
-          {selected.description ??
-            t(library ? 'Preparing your saved routes.' : 'Preparing the map for your next route.')}
-        </p>
-        <div className="global-map-loader__track" aria-hidden="true">
-          <span />
-        </div>
+        {selected.description && <p>{selected.description}</p>}
         {library && selected.onCancel && (
           <Button variant="ghost" className="back-to-map-button" onClick={selected.onCancel}>
             <ArrowLeft size={18} aria-hidden="true" />

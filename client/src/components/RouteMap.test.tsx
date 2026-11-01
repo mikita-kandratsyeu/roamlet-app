@@ -266,6 +266,22 @@ it('shows a global loader until the map loads, not just until its style loads', 
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
   expect(container.inert).toBeFalsy();
 });
+it('shows the route loader inside the comparison map without locking the background', () => {
+  const { container } = render(<RouteMap {...props} comparisonMode />);
+  const status = screen.getByRole('status');
+  expect(status).toHaveTextContent(/^Loading map…$/);
+  expect(status).toHaveClass('comparison-map-loading', 'map-loading-surface');
+  expect(status).toHaveAttribute('aria-busy', 'true');
+  expect(status.querySelector('.map-loading-route')).toHaveAttribute('aria-hidden', 'true');
+  expect(status.querySelector('.animate-spin')).toBeNull();
+  expect(container.inert).toBeFalsy();
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+  act(() => mocks.handlers.get('style.load')?.());
+  expect(status).toBeInTheDocument();
+  act(() => mocks.handlers.get('load')?.());
+  expect(status).not.toBeInTheDocument();
+});
+
 it('unblocks the application on errors and never leaves an endless loader', async () => {
   render(<RouteMap {...props} />);
   act(() => mocks.handlers.get('error')?.());

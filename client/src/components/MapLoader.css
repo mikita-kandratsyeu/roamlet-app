@@ -11,20 +11,7 @@
   place-items: center;
   padding: 24px;
   overflow: hidden;
-  background: var(--background, #faf7f2);
-  color: var(--foreground, #233c2d);
   outline: none;
-  isolation: isolate;
-}
-.global-map-loader__glow {
-  position: absolute;
-  inset: -25%;
-  z-index: -1;
-  background: radial-gradient(
-    ellipse at 50% 45%,
-    color-mix(in srgb, var(--primary, #286046) 12%, transparent),
-    transparent 48%
-  );
 }
 .global-map-loader__content {
   text-align: center;
@@ -33,87 +20,15 @@
 .global-map-loader__content > button {
   margin-top: 24px;
 }
-.global-map-loader__mark {
-  position: relative;
-  width: 112px;
-  height: 112px;
-  margin: 0 auto 28px;
-  display: grid;
-  place-items: center;
-}
-.global-map-loader__mark img {
-  border-radius: 20px;
-  box-shadow: 0 12px 32px #0000000c;
-}
-.global-map-loader__orbit {
-  position: absolute;
-  inset: 0;
-  border: 1px solid color-mix(in srgb, var(--primary, #286046) 15%, transparent);
-  border-radius: 50%;
-  border-top: 2px solid var(--primary, #286046);
-  animation: map-loader-orbit 2.4s linear infinite;
-}
-.global-map-loader__brand {
-  font-size: 30px;
-  font-weight: 650;
-  letter-spacing: -1px;
-}
 .global-map-loader__content h2 {
   font-size: 16px;
   font-weight: 500;
-  margin: 18px 0 8px;
+  line-height: 1.5;
+  margin: 0;
 }
 .global-map-loader__content p {
   font-size: var(--font-size-body);
   line-height: 1.6;
   color: var(--muted-foreground, #68756b);
-  margin: 0;
-}
-.global-map-loader__track {
-  height: 3px;
-  width: 160px;
-  margin: 28px auto 0;
-  overflow: hidden;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--primary, #286046) 12%, transparent);
-}
-.global-map-loader__track span {
-  display: block;
-  width: 40%;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--primary, #286046);
-  animation: map-loader-progress 1.8s ease-in-out infinite;
-}
-@keyframes map-loader-orbit {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@keyframes map-loader-progress {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(350%);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .global-map-loader__orbit,
-  .global-map-loader__track span {
-    animation: none;
-  }
-  .global-map-loader__track span {
-    width: 100%;
-    opacity: 0.6;
-  }
-}
-@media (forced-colors: active) {
-  .global-map-loader__orbit {
-    border-color: CanvasText;
-  }
-  .global-map-loader__track,
-  .global-map-loader__track span {
-    background: Highlight;
-  }
+  margin: 8px 0 0;
 }

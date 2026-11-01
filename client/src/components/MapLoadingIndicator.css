@@ -1,0 +1,64 @@
+.map-loading-surface {
+  background: radial-gradient(
+      ellipse at center,
+      color-mix(in srgb, var(--primary, #286046) 5%, transparent),
+      transparent 65%
+    )
+    var(--background, #faf7f2);
+  color: var(--foreground, #233c2d);
+}
+.map-loading-route {
+  display: block;
+  width: 160px;
+  max-width: 100%;
+  height: 88px;
+  margin: 0 auto 20px;
+  color: var(--primary, #286046);
+}
+.map-loading-route path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.map-loading-route__base {
+  opacity: 0.18;
+}
+.map-loading-route__trace {
+  stroke-dasharray: 24 176;
+  animation: map-loading-route-trace 2.8s linear infinite;
+}
+.map-loading-route__stop {
+  fill: var(--background, #faf7f2);
+  stroke: currentColor;
+  stroke-width: 2;
+}
+@keyframes map-loading-route-trace {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-loading-route__trace {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}
+@media (forced-colors: active) {
+  .map-loading-surface {
+    background: Canvas;
+    color: CanvasText;
+  }
+  .map-loading-route {
+    color: CanvasText;
+  }
+  .map-loading-route__base {
+    opacity: 1;
+  }
+  .map-loading-route__stop {
+    fill: Canvas;
+  }
+}

@@ -47,6 +47,7 @@ import { waypointKind } from './waypointStyle';
 import { useTheme } from '../theme';
 import { Notification } from './Notification';
 import { MapLoader } from './MapLoader';
+import { MapLoadingIndicator } from './MapLoadingIndicator';
 import i18n, { formatNumber, translateMessage } from '../i18n';
 
 const mapMotionDuration = () =>
@@ -1242,8 +1243,12 @@ export function RouteMap(props: Props) {
       {loading &&
         !mapError &&
         (props.comparisonMode ? (
-          <div className="comparison-map-loading" role="status">
-            <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />
+          <div
+            className="comparison-map-loading map-loading-surface"
+            role="status"
+            aria-busy="true"
+          >
+            <MapLoadingIndicator />
             <span>{t('Loading your map…')}</span>
           </div>
         ) : (
