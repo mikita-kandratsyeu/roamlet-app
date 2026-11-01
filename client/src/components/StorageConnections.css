@@ -1,41 +1,201 @@
-.connections-content { width: 100%; max-width: 1600px; min-width: 0; margin: 0 auto; }
-.connections-layout { display: grid; grid-template-columns: minmax(240px, 340px) minmax(0, 1fr); align-items: start; gap: 24px; }
-.connections-list { display: grid; gap: 16px; }
-.connector-card { display: flex; flex-direction: column; gap: 12px; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
-.connector-card p { margin: 0; color: var(--muted-foreground); }
-.connector-card-heading { display: flex; align-items: center; gap: 12px; }
-.connector-card h2, .storage-connections h2 { margin: 0; font-size: 18px; font-weight: 600; }
-.github-brand-mark { flex-shrink: 0; border-radius: 10px; background: white; }
-.connector-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-label); color: var(--muted-foreground); }
-.connector-status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--muted-foreground); }
-.connector-status[data-connected='true']::before { background: var(--primary); }
-.connector-repository { overflow-wrap: anywhere; }
-.connector-selection-hint { padding: 20px; color: var(--muted-foreground); }
-.storage-connections form { display: flex; flex-direction: column; gap: 16px; }
-.storage-connections label { display: flex; flex-direction: column; gap: 6px; font-size: var(--font-size-label); font-weight: 600; }
-.connections-screen button { min-height: 44px; height: auto; white-space: normal; }
-.connections-screen a:focus-visible, .connections-screen summary:focus-visible, .connections-screen select:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-@media (max-width: 850px) { .connections-layout { grid-template-columns: minmax(0, 1fr); } }
+.connections-content {
+  width: 100%;
+  max-width: 1600px;
+  min-width: 0;
+  margin: 0 auto;
+}
+.connections-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+.connections-list {
+  display: grid;
+  gap: 16px;
+}
+.connector-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.connector-card p {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+.connector-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.connector-card h2,
+.storage-connections h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.github-brand-mark {
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: white;
+}
+.connector-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-label);
+  color: var(--muted-foreground);
+}
+.connector-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted-foreground);
+}
+.connector-status[data-connected='true']::before {
+  background: var(--primary);
+}
+.connector-status[data-attention='true']::before {
+  background: var(--destructive);
+}
+.connector-repository {
+  overflow-wrap: anywhere;
+}
+.connector-selection-hint {
+  padding: 20px;
+  color: var(--muted-foreground);
+}
+.storage-connections input {
+  min-height: 44px;
+  height: auto;
+}
+.storage-connections form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.storage-connections label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--font-size-label);
+  font-weight: 600;
+}
+.connections-screen button {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
+.connections-screen a:focus-visible,
+.connections-screen summary:focus-visible,
+.connections-screen select:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+@media (max-width: 850px) {
+  .connections-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .storage-connections {
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding-block: 8px;
 }
-.storage-connections p { margin: 0; }
-.storage-connections .connector-note { color: var(--muted-foreground); }
-.storage-connections details { border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
-.storage-connections summary { cursor: pointer; font-weight: 600; }
-.storage-connections details p, .storage-connections details a { display: block; margin-top: 12px; }
-.connector-account { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-.connector-account strong { min-width: 0; overflow-wrap: anywhere; }
-.connector-fields, .connector-preview { display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-width: 0; }
-.connector-fields legend { padding-inline: 4px; font-weight: 600; }
-.storage-connections select { width: 100%; min-width: 0; min-height: 44px; padding: 8px; background: var(--surface); color: var(--foreground); border: 1px solid var(--border); border-radius: 8px; font: inherit; }
-.storage-connections button { min-height: 44px; height: auto; white-space: normal; }
-.storage-connections [role='status'] { display: flex; gap: 8px; align-items: center; }
-.storage-connections [role='alert'] { color: var(--destructive); }
-.connector-spinner { flex-shrink: 0; animation: connector-spin 1s linear infinite; }
-@keyframes connector-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .connector-spinner { animation: none; } }
-@media (max-width: 700px) { .storage-connections .button-row { flex-wrap: wrap; } .storage-connections .button-row > button { flex: 1 1 140px; } }
+.storage-connections p {
+  margin: 0;
+}
+.storage-connections .connector-note {
+  color: var(--muted-foreground);
+}
+.storage-connections details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.storage-connections summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.storage-connections details p,
+.storage-connections details a {
+  display: block;
+  margin-top: 12px;
+}
+.connector-account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.connector-account strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.connector-fields,
+.connector-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 0;
+}
+.connector-fields legend {
+  padding-inline: 4px;
+  font-weight: 600;
+}
+.storage-connections select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px;
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+}
+.storage-connections button {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
+.storage-connections [role='status'] {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.storage-connections [role='alert'] {
+  color: var(--destructive);
+}
+.connector-spinner {
+  flex-shrink: 0;
+  animation: connector-spin 1s linear infinite;
+}
+@keyframes connector-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .connector-spinner {
+    animation: none;
+  }
+}
+@media (max-width: 700px) {
+  .storage-connections .button-row {
+    flex-wrap: wrap;
+  }
+  .storage-connections .button-row > button {
+    flex: 1 1 140px;
+  }
+}

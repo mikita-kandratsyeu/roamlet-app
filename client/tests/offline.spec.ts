@@ -1,6 +1,6 @@
 import { clickMapTool, mapTool } from './mapControls';
 import { test, expect } from '@playwright/test';
-import { readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 let forbiddenRequests: string[] = [];
@@ -25,6 +25,7 @@ test.beforeEach(async ({ page }) => {
       url.hostname === 'fonts.gstatic.com' ||
       url.hostname === 'api.openrouteservice.org' ||
       url.hostname === 'api.heigit.org' ||
+      url.hostname === 'api.github.com' ||
       url.hostname === 'mapbox.com' ||
       url.hostname.endsWith('.mapbox.com')
     ) {
@@ -95,6 +96,7 @@ test('installation metadata and branded icons stay available in the production o
     ['/icon-192.png', 192],
     ['/icon-512.png', 512],
     ['/icon-maskable-512.png', 512],
+    ['/github-mark.png', 560],
     ['/icon.svg', null],
   ] as const) {
     const pixels = await page.evaluate(async (src) => {
@@ -617,14 +619,9 @@ test('a waiting update stays silent and activates on the next offline reload wit
   page,
   context,
 }) => {
-  const workerName = `__update-test-${crypto.randomUUID()}.js`;
-  const workerPath = resolve('dist', workerName);
-  const worker = await readFile(resolve('dist', 'sw.js'), 'utf8');
-  await writeFile(
-    workerPath,
-    worker.replace(/const CACHE = '[^']+';/, `const CACHE = 'roamlet-shell-${workerName}';`),
-    { flag: 'wx' },
-  );
+  const workerName = `update-test-${crypto.randomUUID()}`;
+  const workerPath = resolve('dist', 'sw.js');
+  const worker = await readFile(workerPath, 'utf8');
   const otherPage = await context.newPage();
   try {
     await page.goto('/');
@@ -672,9 +669,13 @@ test('a waiting update stays silent and activates on the next offline reload wit
           };
         }),
     );
-    await page.evaluate(async (name) => {
-      await navigator.serviceWorker.register(`/${name}`, { scope: '/' });
-    }, workerName);
+    await writeFile(
+      workerPath,
+      worker.replace(/const CACHE = '[^']+';/, `const CACHE = 'roamlet-shell-${workerName}';`),
+    );
+    await page.evaluate(async () => {
+      await (await navigator.serviceWorker.getRegistration('/'))?.update();
+    });
     await page.waitForFunction(async () =>
       Boolean((await navigator.serviceWorker.getRegistration())?.waiting),
     );
@@ -685,14 +686,10 @@ test('a waiting update stays silent and activates on the next offline reload wit
     await context.setOffline(true);
     page.once('dialog', (dialog) => void dialog.accept());
     await page.reload();
-    await expect.poll(() => page.evaluate(async () => {
+    await page.waitForFunction(async () => {
       const registration = await navigator.serviceWorker.getRegistration('/');
-      return {
-        controller: navigator.serviceWorker.controller?.scriptURL.split('/').at(-1),
-        active: registration?.active?.scriptURL.split('/').at(-1),
-        waiting: registration?.waiting?.scriptURL.split('/').at(-1),
-      };
-    })).toMatchObject({ controller: workerName });
+      return !!registration?.active && !registration.waiting;
+    });
     await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
     expect(reloads).toBe(2);
     expect(otherReloads).toBe(0);
@@ -710,7 +707,7 @@ test('a waiting update stays silent and activates on the next offline reload wit
     const xml = await readFile((await (await pending).path())!, 'utf8');
     expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
   } finally {
-    await rm(workerPath, { force: true });
+    await writeFile(workerPath, worker);
     await context.setOffline(false);
     await otherPage.close();
   }

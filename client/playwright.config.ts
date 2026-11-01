@@ -3,6 +3,7 @@ export default defineConfig({
   testDir: './tests',
   testMatch: [
     'planner.spec.ts',
+    'connectors.spec.ts',
     'map-view.spec.ts',
     'lifecycle.spec.ts',
     'ui-consistency.spec.ts',

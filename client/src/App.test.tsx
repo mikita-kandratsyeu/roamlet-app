@@ -491,7 +491,7 @@ describe('route planner interactions', () => {
     const help = screen.getByRole('dialog', { name: 'Help and data sources' });
     expect(within(help).getByText('Without an internet connection')).toBeVisible();
     expect(within(help).getByText(/Visit the app online first/)).toBeVisible();
-    expect(within(help).getByText(/There is no cloud copy/)).toBeVisible();
+    expect(within(help).getByText(/Optional encrypted GitHub backups are available in Connections/)).toBeVisible();
     expect(within(help).getByText(/Internet required: loading the map/)).toBeVisible();
   });
 

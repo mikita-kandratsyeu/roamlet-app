@@ -3,9 +3,15 @@ import { exportBackup, importBackup, type ConflictMode, type RouteBackup } from 
 import { decryptBackup, encryptBackup } from '../domain/encryptedBackup';
 import { listRoutes } from '../domain/storage';
 import { createStorageConnector } from '../services/connectors/registry';
-import { ConnectorError, type BackupEntry, type StorageConnection, type StorageConnector } from '../services/connectors/types';
+import {
+  ConnectorError,
+  type BackupEntry,
+  type StorageConnection,
+  type StorageConnector,
+} from '../services/connectors/types';
 
-export type ConnectorOperation = 'connecting' | 'listing' | 'uploading' | 'previewing' | 'restoring';
+export type ConnectorOperation =
+  'connecting' | 'listing' | 'uploading' | 'previewing' | 'restoring';
 export type ConnectorFailure = 'local' | 'password' | ConnectorError['code'];
 export interface BackupPreview {
   backup: RouteBackup;
@@ -36,11 +42,14 @@ export function useStorageConnector() {
     setPreview(null);
   }, []);
 
-  useEffect(() => () => {
-    request.current?.abort();
-    request.current = null;
-    connector.current = null;
-  }, []);
+  useEffect(
+    () => () => {
+      request.current?.abort();
+      request.current = null;
+      connector.current = null;
+    },
+    [],
+  );
 
   async function run(
     kind: ConnectorOperation,
@@ -69,16 +78,20 @@ export function useStorageConnector() {
   }
 
   async function connect(config: StorageConnection) {
-    await run('connecting', async (signal, current) => {
-      const next = createStorageConnector(config);
-      await next.checkConnection(signal);
-      if (!current()) return;
-      connector.current = next;
-      setConnection({ owner: config.owner.trim(), repository: config.repository.trim() });
-      setBackups([]);
-      setListed(false);
-      setPreview(null);
-    }, 'network');
+    await run(
+      'connecting',
+      async (signal, current) => {
+        const next = createStorageConnector(config);
+        await next.checkConnection(signal);
+        if (!current()) return;
+        connector.current = next;
+        setConnection({ owner: config.owner.trim(), repository: config.repository.trim() });
+        setBackups([]);
+        setListed(false);
+        setPreview(null);
+      },
+      'network',
+    );
   }
 
   function disconnect() {
@@ -93,61 +106,108 @@ export function useStorageConnector() {
   async function refresh() {
     const storage = connector.current;
     if (!storage) return;
-    await run('listing', async (signal, current) => {
-      const entries = await storage.listBackups(signal);
-      if (current()) {
-        setBackups(entries);
-        setListed(true);
-      }
-    }, 'network');
+    await run(
+      'listing',
+      async (signal, current) => {
+        const entries = await storage.listBackups(signal);
+        if (current()) {
+          setBackups(entries);
+          setListed(true);
+        }
+      },
+      'network',
+    );
   }
 
   async function upload(password: string) {
     const storage = connector.current;
     if (!storage) return;
-    await run('uploading', async (signal, current) => {
-      if (password.length < 12) { setError('password'); return; }
-      let invalid = 0;
-      const routes = await listRoutes((count) => { invalid = count; });
-      if (!current()) return;
-      if (invalid) throw new Error('Invalid local routes');
-      const payload = await encryptBackup(exportBackup(routes), password);
-      if (!current()) return;
-      const entry = await storage.uploadBackup(payload, signal);
-      if (current()) {
-        setBackups((entries) => [entry, ...entries.filter((item) => item.id !== entry.id)]);
-        setSuccess('uploaded');
-      }
-    }, 'local');
+    await run(
+      'uploading',
+      async (signal, current) => {
+        if (password.length < 12) {
+          setError('password');
+          return;
+        }
+        let invalid = 0;
+        const routes = await listRoutes((count) => {
+          invalid = count;
+        });
+        if (!current()) return;
+        if (invalid) throw new Error('Invalid local routes');
+        const payload = await encryptBackup(exportBackup(routes), password);
+        if (!current()) return;
+        const entry = await storage.uploadBackup(payload, signal);
+        if (current()) {
+          setBackups((entries) => [entry, ...entries.filter((item) => item.id !== entry.id)]);
+          setSuccess('uploaded');
+        }
+      },
+      'local',
+    );
   }
 
   async function prepareRestore(entry: BackupEntry, password: string) {
     const storage = connector.current;
     if (!storage) return;
     setPreview(null);
-    await run('previewing', async (signal, current) => {
-      const payload = await storage.downloadBackup(entry, signal);
-      if (!current()) return;
-      let backup: RouteBackup;
-      try { backup = await decryptBackup(payload, password); }
-      catch { if (current()) setError('password'); return; }
-      if (!current()) return;
-      const routes = await listRoutes();
-      if (current()) setPreview({ backup, conflicts: backup.routes.filter((route) => routes.some((local) => local.id === route.id)).length });
-    }, 'local');
+    await run(
+      'previewing',
+      async (signal, current) => {
+        const payload = await storage.downloadBackup(entry, signal);
+        if (!current()) return;
+        let backup: RouteBackup;
+        try {
+          backup = await decryptBackup(payload, password);
+        } catch {
+          if (current()) setError('password');
+          return;
+        }
+        if (!current()) return;
+        const routes = await listRoutes();
+        if (current())
+          setPreview({
+            backup,
+            conflicts: backup.routes.filter((route) =>
+              routes.some((local) => local.id === route.id),
+            ).length,
+          });
+      },
+      'local',
+    );
   }
 
   async function restore(mode: ConflictMode) {
     const value = preview;
     if (!value) return;
-    await run('restoring', async (_signal, current) => {
-      await importBackup(value.backup, mode);
-      if (current()) {
-        setPreview(null);
-        setSuccess('restored');
-      }
-    }, 'local');
+    await run(
+      'restoring',
+      async (_signal, current) => {
+        await importBackup(value.backup, mode);
+        if (current()) {
+          setPreview(null);
+          setSuccess('restored');
+        }
+      },
+      'local',
+    );
   }
 
-  return { connection, operation, error, backups, listed, preview, success, connect, disconnect, refresh, upload, prepareRestore, restore, cancel, dismissPreview: () => setPreview(null) };
+  return {
+    connection,
+    operation,
+    error,
+    backups,
+    listed,
+    preview,
+    success,
+    connect,
+    disconnect,
+    refresh,
+    upload,
+    prepareRestore,
+    restore,
+    cancel,
+    dismissPreview: () => setPreview(null),
+  };
 }

@@ -43,6 +43,16 @@ describe('GitHub storage connector', () => {
     expect(error.cause).toBeUndefined();
   });
 
+  it('preserves the native browser receiver for default fetch', async () => {
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(function (this: unknown) {
+      if (this !== globalThis) throw new TypeError('Illegal invocation');
+      return Promise.resolve(json(repo));
+    });
+    await expect(createStorageConnector(connection).checkConnection()).resolves.toBeUndefined();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it.each([
     { owner: '../escape' },
     { owner: 'https://api.github.com' },

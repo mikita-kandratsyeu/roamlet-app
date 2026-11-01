@@ -94,7 +94,7 @@ export class GitHubStorageConnector implements StorageConnector {
 
   constructor(
     connection: StorageConnection,
-    private readonly fetcher: typeof fetch = globalThis.fetch,
+    private readonly fetcher: typeof fetch = globalThis.fetch.bind(globalThis),
   ) {
     if (
       connection?.provider !== 'github' ||
