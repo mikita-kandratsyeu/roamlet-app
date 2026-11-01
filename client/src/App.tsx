@@ -1235,7 +1235,16 @@ export default function App() {
                   {routeStale && result ? <Info size={16} aria-hidden="true" />
                     : result && !dirty ? <Check size={16} aria-hidden="true" /> : null}
                   <div>
-                    <p>{plannerStatus}</p>
+                    {(busy || dirty) && !(routeStale && result) ? (
+                      <Badge
+                        variant="outline"
+                        className="planner-unsaved-badge"
+                        title={t('Unsaved changes')}
+                      >
+                        <span className="planner-unsaved-dot" aria-hidden="true" />
+                        {t('Not saved')}
+                      </Badge>
+                    ) : <p>{plannerStatus}</p>}
                   </div>
                 </div>
               </div>

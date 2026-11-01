@@ -1224,6 +1224,34 @@ describe('route planner interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove stop 2' }));
     expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
   });
+  it.each([
+    ['en', 'Not saved', 'Unsaved changes'],
+    ['ru', 'Не сохранено', 'Несохранённые изменения'],
+  ])('shows a non-interactive unsaved badge until saving (%s)', async (language, label, tooltip) => {
+    await i18n.changeLanguage('en');
+    render(<App />);
+    expect(screen.queryByText('Not saved')).not.toBeInTheDocument();
+    await plan();
+    await act(async () => { await i18n.changeLanguage(language); });
+    const badge = screen.getByText(label);
+    expect(badge).toHaveAttribute('data-slot', 'badge');
+    expect(badge).toHaveAttribute('title', tooltip);
+    expect(badge.closest('[role="status"]')).toHaveAttribute('aria-atomic', 'true');
+    expect(badge).not.toHaveAttribute('tabindex');
+    expect(badge.closest('button')).toBeNull();
+    expect(badge.querySelector('.planner-unsaved-dot')).toHaveAttribute('aria-hidden', 'true');
+    await act(async () => { await i18n.changeLanguage('en'); });
+    fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
+      target: { value: 'Saved badge route' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save to library' }));
+    await screen.findByText('Saved route');
+    expect(screen.queryByText('Not saved')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Stops (minutes)'), { target: { value: '10' } });
+    fireEvent.blur(screen.getByLabelText('Stops (minutes)'));
+    expect(await screen.findByText('Not saved')).toBeInTheDocument();
+  });
   it('never leaves stale geometry exportable on failed recalculation', async () => {
     render(<App />);
     await plan();
@@ -1237,6 +1265,7 @@ describe('route planner interactions', () => {
     const status = document.querySelector('.planner-route-status')!;
     expect(status).toHaveAttribute('role', 'status');
     expect(status).not.toHaveTextContent('Routing quota reached.');
+    expect(status.querySelector('[data-slot="badge"]')).toBeNull();
     expect(status.querySelector('button')).toBeNull();
     expect(screen.getAllByText(i18n.t('Routing quota reached.'))).toHaveLength(1);
     fireEvent.click(within(toast).getByRole('button', { name: 'Dismiss notification' }));
@@ -1410,7 +1439,7 @@ describe('route planner interactions', () => {
     });
     fireEvent.click(screen.getByLabelText('Add coordinates'));
     await act(async () => finish());
-    expect(await screen.findByText('Unsaved changes')).toBeInTheDocument();
+    expect(await screen.findByText('Not saved')).toHaveAttribute('title', 'Unsaved changes');
     await waitFor(async () =>
       expect((await routeDb.table('drafts').get('current'))?.snapshot.waypoints).toHaveLength(3),
     );

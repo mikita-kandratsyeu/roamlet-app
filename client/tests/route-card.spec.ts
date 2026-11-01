@@ -167,10 +167,23 @@ test('social export layout and shared scrollbars work in both languages and them
       await expect(body.locator('.route-card-actions')).toHaveCount(0);
       await expect(dialog.locator('.dialog-footer .route-card-actions')).toBeVisible();
       await expect(dialog).toHaveClass(/wide/);
+      await expect(dialog).toHaveCSS('opacity', '1');
+      await expect(dialog).toHaveCSS('scale', '1');
       await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0);
       await expect(dialog.getByRole('img')).toHaveCount(0);
-      const settings = (await dialog.locator('.route-card-settings').boundingBox())!;
-      const stage = (await dialog.locator('.route-card-stage').boundingBox())!;
+      const { settings, stage } = await dialog.evaluate((element) => {
+        const settingsBox = element.querySelector('.route-card-settings')!.getBoundingClientRect();
+        const stageBox = element.querySelector('.route-card-stage')!.getBoundingClientRect();
+        return {
+          settings: {
+            x: settingsBox.x,
+            y: settingsBox.y,
+            width: settingsBox.width,
+            height: settingsBox.height,
+          },
+          stage: { x: stageBox.x, y: stageBox.y },
+        };
+      });
       if (testInfo.project.name === 'desktop') {
         expect(stage.x).toBeGreaterThan(settings.x + settings.width);
         expect(stage.y).toBeCloseTo(settings.y, 0);
