@@ -34,7 +34,13 @@ export function ConnectorCard({
   return (
     <article className="connector-card" role="listitem">
       <div className="connector-card-heading">
-        <img src={icon} width="48" height="48" alt="" className="github-brand-mark" />
+        <img
+          src={icon}
+          width="48"
+          height="48"
+          alt=""
+          className={`connector-brand-mark${name === 'GitHub' ? ' github-brand-mark' : ''}`}
+        />
         <div>
           <h2>{name}</h2>
           <span

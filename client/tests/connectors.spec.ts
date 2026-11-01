@@ -193,7 +193,7 @@ test('scalable catalog opens a Russian dark-theme modal and restores focus', asy
   const setup = page.getByRole('button', { name: 'Настроить подключение' });
   const screen = page.getByRole('region', { name: 'Подключения', exact: true });
   await expect(screen.getByText('Не подключён', { exact: true })).toBeVisible();
-  await screen.getByRole('textbox', { name: 'Поиск коннекторов' }).fill('Drive');
+  await screen.getByRole('textbox', { name: 'Поиск коннекторов' }).fill('Missing service');
   await expect(screen.getByText('По этому фильтру коннекторы не найдены.')).toBeVisible();
   await screen.getByRole('textbox', { name: 'Поиск коннекторов' }).fill('');
   await setup.click();

@@ -30,7 +30,7 @@ test('local API loads server env without inventing a missing key or overriding p
   }
 });
 
-test('local API loads GitHub server variables only and preserves process precedence', () => {
+test('local API loads GitHub and Google Drive server variables only and preserves process precedence', () => {
   const directory = join(process.cwd(), `.roamlet-github-env-${randomUUID()}`);
   mkdirSync(directory);
   const names = [
@@ -39,47 +39,65 @@ test('local API loads GitHub server variables only and preserves process precede
     'GITHUB_APP_SLUG',
     'GITHUB_APP_CALLBACK_URL',
     'GITHUB_SESSION_SECRET',
+    'GOOGLE_DRIVE_CLIENT_ID',
+    'GOOGLE_DRIVE_CLIENT_SECRET',
+    'GOOGLE_DRIVE_CALLBACK_URL',
+    'GOOGLE_DRIVE_SESSION_SECRET',
   ];
   const previous = new Map(names.map((name) => [name, process.env[name]]));
-  const previousVite = process.env.VITE_GITHUB_TEST_SECRET;
+  const excluded = [
+    'VITE_GITHUB_TEST_SECRET',
+    'VITE_GOOGLE_DRIVE_TEST_SECRET',
+    'GOOGLE_OTHER_SECRET',
+  ];
+  const previousExcluded = new Map(excluded.map((name) => [name, process.env[name]]));
   try {
     for (const name of names) delete process.env[name];
-    delete process.env.VITE_GITHUB_TEST_SECRET;
+    for (const name of excluded) delete process.env[name];
     writeFileSync(
       join(directory, '.env.local'),
       names.map((name) => `${name}=synthetic-${name}`).join('\n') +
-        '\nVITE_GITHUB_TEST_SECRET=not-server-config\n',
+        '\n' +
+        excluded.map((name) => `${name}=not-server-config`).join('\n') +
+        '\n',
     );
     process.env.GITHUB_APP_CLIENT_SECRET = 'synthetic-process-secret';
+    process.env.GOOGLE_DRIVE_CLIENT_SECRET = 'synthetic-process-secret';
     localRoutingApi(directory).config({}, { mode: 'development' });
     for (const name of names)
       assert.equal(
         process.env[name],
-        name === 'GITHUB_APP_CLIENT_SECRET' ? 'synthetic-process-secret' : `synthetic-${name}`,
+        name.endsWith('CLIENT_SECRET') ? 'synthetic-process-secret' : `synthetic-${name}`,
       );
-    assert.equal(process.env.VITE_GITHUB_TEST_SECRET, undefined);
+    for (const name of excluded) assert.equal(process.env[name], undefined);
   } finally {
     for (const [name, value] of previous) {
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
     }
-    if (previousVite === undefined) delete process.env.VITE_GITHUB_TEST_SECRET;
-    else process.env.VITE_GITHUB_TEST_SECRET = previousVite;
+    for (const [name, value] of previousExcluded) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
 for (const hook of ['configureServer', 'configurePreviewServer']) {
-  test(`${hook} mounts shared routing and GitHub handlers and passes unknown paths through`, async (t) => {
+  test(`${hook} mounts shared routing and connector handlers and passes unknown paths through`, async (t) => {
     const previous = process.env.ORS_API_KEY;
     const previousGithub = process.env.GITHUB_APP_CLIENT_ID;
+    const previousGoogle = process.env.GOOGLE_DRIVE_CLIENT_ID;
     process.env.ORS_API_KEY = '';
     process.env.GITHUB_APP_CLIENT_ID = '';
+    process.env.GOOGLE_DRIVE_CLIENT_ID = '';
     t.after(() => {
       if (previous === undefined) delete process.env.ORS_API_KEY;
       else process.env.ORS_API_KEY = previous;
       if (previousGithub === undefined) delete process.env.GITHUB_APP_CLIENT_ID;
       else process.env.GITHUB_APP_CLIENT_ID = previousGithub;
+      if (previousGoogle === undefined) delete process.env.GOOGLE_DRIVE_CLIENT_ID;
+      else process.env.GOOGLE_DRIVE_CLIENT_ID = previousGoogle;
     });
     t.mock.method(console, 'info', () => {});
     const fetcher = t.mock.method(globalThis, 'fetch', () => {
@@ -96,6 +114,7 @@ for (const hook of ['configureServer', 'configurePreviewServer']) {
     for (const [url, method, status, expected] of [
       ['/api/routing-config?check=1', 'GET', 200, { available: false }],
       ['/api/github?action=session', 'GET', 200, { available: false, connected: false }],
+      ['/api/google-drive?action=session', 'GET', 200, { available: false, connected: false }],
       [
         '/api/route',
         'POST',

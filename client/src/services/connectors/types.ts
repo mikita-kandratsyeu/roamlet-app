@@ -1,8 +1,12 @@
-export interface StorageConnection {
+export interface GitHubStorageConnection {
   provider: 'github';
   owner: string;
   repository: string;
 }
+export interface GoogleDriveStorageConnection {
+  provider: 'google-drive';
+}
+export type StorageConnection = GitHubStorageConnection | GoogleDriveStorageConnection;
 
 export type ConnectorErrorCode =
   | 'configuration'

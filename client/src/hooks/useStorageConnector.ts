@@ -22,7 +22,7 @@ export interface BackupPreview {
 export function useStorageConnector() {
   const connector = useRef<StorageConnector | null>(null);
   const request = useRef<AbortController | null>(null);
-  const [connection, setConnection] = useState<{ owner: string; repository: string } | null>(null);
+  const [connection, setConnection] = useState<StorageConnection | null>(null);
   const [operation, setOperation] = useState<ConnectorOperation | null>(null);
   const operationRef = useRef<ConnectorOperation | null>(null);
   const [error, setError] = useState<ConnectorFailure | null>(null);
@@ -96,9 +96,17 @@ export function useStorageConnector() {
           await next.checkConnection(signal);
           if (!current()) return;
           connector.current = next;
-          saveGitHubRepository(config);
+          if (config.provider === 'github') saveGitHubRepository(config);
           setConnectionIssue(null);
-          setConnection({ owner: config.owner.trim(), repository: config.repository.trim() });
+          setConnection(
+            config.provider === 'github'
+              ? {
+                  provider: 'github',
+                  owner: config.owner.trim(),
+                  repository: config.repository.trim(),
+                }
+              : { provider: 'google-drive' },
+          );
           setBackups([]);
           setListed(false);
           setPreview(null);

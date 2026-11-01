@@ -28,7 +28,7 @@ function entry(value: unknown): BackupEntry {
 }
 export class GitHubStorageConnector implements StorageConnector {
   private readonly params: Record<string, string>;
-  constructor(connection: StorageConnection) {
+  constructor(connection: Extract<StorageConnection, { provider: 'github' }>) {
     if (
       connection.provider !== 'github' ||
       !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(connection.owner) ||

@@ -4,7 +4,7 @@ export function localRoutingApi(rootDirectory = new URL('../', import.meta.url).
   return {
     name: 'local-routing-api',
     config(_, { mode }) {
-      const environment = loadEnv(mode, rootDirectory, ['ORS_', 'GITHUB_']);
+      const environment = loadEnv(mode, rootDirectory, ['ORS_', 'GITHUB_', 'GOOGLE_DRIVE_']);
       for (const [name, value] of Object.entries(environment)) {
         if (process.env[name] === undefined) process.env[name] = value;
       }
@@ -17,6 +17,7 @@ export function localRoutingApi(rootDirectory = new URL('../', import.meta.url).
 async function attach(server) {
   const { routeHandler, configHandler } = await import('../server/routing.mjs');
   const { githubHandler } = await import('../server/github-handlers.mjs');
+  const { googleDriveHandler } = await import('../server/google-drive-handlers.mjs');
   server.middlewares.use((request, response, next) => {
     const pathname = request.url?.split('?')[0];
     const handler =
@@ -26,7 +27,9 @@ async function attach(server) {
           ? configHandler
           : pathname === '/api/github'
             ? githubHandler
-            : undefined;
+            : pathname === '/api/google-drive'
+              ? googleDriveHandler
+              : undefined;
     if (!handler) return next();
     void handler(request, response).catch(next);
   });
