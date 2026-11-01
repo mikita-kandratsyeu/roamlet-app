@@ -483,6 +483,18 @@ describe('route planner interactions', () => {
     expect(provider.calculateRoute).not.toHaveBeenCalled();
   });
 
+  it('opens connectors as a separate screen and restores planner navigation on return', async () => {
+    render(<App />);
+    openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Connections' }));
+    expect(screen.getByRole('region', { name: 'Connections' })).toBeVisible();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.querySelector('.app-header')?.closest('[inert]')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to map' }));
+    expect(screen.queryByRole('region', { name: 'Connections' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Menu' })).toHaveFocus());
+  });
+
   it('explains offline limits and JSON backups before the connection is lost', async () => {
     await i18n.changeLanguage('en');
     render(<App />);

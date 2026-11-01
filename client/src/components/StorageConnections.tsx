@@ -49,10 +49,7 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
   const [selectedConnector, setSelectedConnector] = useState(false);
   const backButton = useRef<HTMLButtonElement>(null);
   const ownerFocus = useRef<HTMLInputElement>(null);
-  const needsAttention =
-    connection &&
-    storage.error &&
-    ['auth', 'permission', 'not-found', 'network', 'timeout', 'quota'].includes(storage.error);
+  const needsAttention = connection && storage.connectionIssue;
   const id = useId();
   const busy = storage.operation !== null;
   const selectedBackup = storage.backups.find((entry) => entry.id === selected);
@@ -135,7 +132,12 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
                   />
                   <div>
                     <h2>GitHub</h2>
-                    <span className="connector-status" data-connected={!!connection} data-attention={!!needsAttention} role="status">
+                    <span
+                      className="connector-status"
+                      data-connected={!!connection}
+                      data-attention={!!needsAttention}
+                      role="status"
+                    >
                       {storage.operation === 'connecting'
                         ? t('Checking connection')
                         : needsAttention

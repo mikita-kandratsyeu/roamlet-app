@@ -148,8 +148,13 @@ describe('GitHub storage connector', () => {
   });
 
   it('bounds directory listings at the documented 1,000-entry API cap', async () => {
+    const belowCap = service(
+      json(repo),
+      json(Array.from({ length: 999 }, () => ({ name: 'notes' }))),
+    );
+    expect(await belowCap.connector.listBackups()).toEqual([]);
     const full = service(json(repo), json(Array.from({ length: 1000 }, () => ({ name: 'notes' }))));
-    expect(await full.connector.listBackups()).toEqual([]);
+    await expect(full.connector.listBackups()).rejects.toMatchObject({ code: 'too-large' });
     const excessive = service(
       json(repo),
       json(Array.from({ length: 1001 }, () => ({ name: 'notes' }))),
@@ -171,9 +176,80 @@ describe('GitHub storage connector', () => {
     await expect(connector.listBackups()).rejects.toMatchObject({ code: 'invalid-data' });
   });
 
+  it.each([999, 1000])('blocks upload at %s total directory entries without PUT', async (count) => {
+    const { connector, fetcher } = service(
+      json(repo),
+      json({ entries: Array.from({ length: count }, () => ({ name: 'notes' })) }),
+    );
+    await expect(connector.uploadBackup(new Uint8Array([1]))).rejects.toMatchObject({
+      code: 'too-large',
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(true);
+  });
+
+  it('accepts a missing directory preflight and uploads without repeating the privacy check', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+      if (init?.method === 'GET')
+        return String(url).endsWith('/contents/roamlet-backups') ? json({}, 404) : json(repo);
+      const path = String(url).split('/contents/')[1];
+      return json({ content: file({ path, name: path.split('/')[1] }) }, 201);
+    });
+    const result = await new GitHubStorageConnector(connection, fetcher).uploadBackup(
+      new Uint8Array([0, 1, 255]),
+    );
+    expect(result.size).toBe(3);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher.mock.calls.map(([, init]) => init?.method)).toEqual(['GET', 'GET', 'PUT']);
+  });
+
+  it('allows the final safe upload from 998 total entries to 999', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+      if (init?.method === 'GET')
+        return String(url).endsWith('/contents/roamlet-backups')
+          ? json(Array.from({ length: 998 }, () => ({ name: 'notes' })))
+          : json(repo);
+      const path = String(url).split('/contents/')[1];
+      return json({ content: file({ path, name: path.split('/')[1] }) }, 201);
+    });
+    await expect(
+      new GitHubStorageConnector(connection, fetcher).uploadBackup(new Uint8Array([0, 1, 255])),
+    ).resolves.toMatchObject({ size: 3 });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it('reuses snapshot validation in the upload directory preflight', async () => {
+    const { connector, fetcher } = service(json(repo), json([file({ path: '../outside' })]));
+    await expect(connector.uploadBackup(new Uint8Array([1]))).rejects.toMatchObject({
+      code: 'invalid-data',
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(true);
+  });
+
+  it('preserves cancellation after directory preflight without starting PUT', async () => {
+    const controller = new AbortController();
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+      if (String(url).endsWith('/contents/roamlet-backups')) {
+        controller.abort();
+        return json([]);
+      }
+      return json(repo);
+    });
+    await expect(
+      new GitHubStorageConnector(connection, fetcher).uploadBackup(
+        new Uint8Array([1]),
+        controller.signal,
+      ),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(true);
+  });
+
   it('uploads immutable unique UUID snapshots using base64 and no sha or token in the body', async () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
-      if (init?.method === 'GET') return json(repo);
+      if (init?.method === 'GET')
+        return String(url).endsWith('/contents/roamlet-backups') ? json([]) : json(repo);
       const path = String(url).split('/contents/')[1];
       return json({ content: file({ path, name: path.split('/')[1] }) }, 201);
     });
@@ -182,20 +258,20 @@ describe('GitHub storage connector', () => {
     const second = await connector.uploadBackup(new Uint8Array([0, 1, 255]));
     expect(first.id).not.toBe(second.id);
     expect(first.name).toMatch(/^[0-9a-f-]{36}\.roamlet$/);
-    expect(fetcher).toHaveBeenCalledTimes(4);
-    const body = JSON.parse(String(fetcher.mock.calls[1][1]?.body));
+    expect(fetcher).toHaveBeenCalledTimes(6);
+    const body = JSON.parse(String(fetcher.mock.calls[2][1]?.body));
     expect(body).toEqual({ message: 'Create encrypted Roamlet backup', content: 'AAH/' });
     expect(body.sha).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain(connection.token);
   });
 
   it('copies upload bytes before awaiting connection verification', async () => {
-    const { connector, fetcher } = service(json(repo), json({ content: file() }, 201));
+    const { connector, fetcher } = service(json(repo), json([]), json({ content: file() }, 201));
     const bytes = new Uint8Array([0, 1, 255]);
     const pending = connector.uploadBackup(bytes);
     bytes.fill(9);
     await expect(pending).rejects.toMatchObject({ code: 'invalid-data' });
-    expect(JSON.parse(String(fetcher.mock.calls[1][1]?.body)).content).toBe('AAH/');
+    expect(JSON.parse(String(fetcher.mock.calls[2][1]?.body)).content).toBe('AAH/');
   });
 
   it('bounds uploads before fetching and accepts exactly 30 MiB', async () => {
@@ -208,7 +284,8 @@ describe('GitHub storage connector', () => {
     });
     expect(fetcher).not.toHaveBeenCalled();
     fetcher.mockImplementation(async (url, init) => {
-      if (init?.method === 'GET') return json(repo);
+      if (init?.method === 'GET')
+        return String(url).endsWith('/contents/roamlet-backups') ? json([]) : json(repo);
       const path = String(url).split('/contents/')[1];
       return json(
         { content: file({ path, name: path.split('/')[1], size: ENCRYPTED_BACKUP_MAX_BYTES }) },

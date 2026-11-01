@@ -133,13 +133,18 @@ it('previews before importing and invalidates the preview when its password chan
   ).toBeVisible();
 });
 
-it('shows sanitized errors, supports retry and marks a failing verified connection', async () => {
-  render(<StorageConnections open onClose={vi.fn()} />);
+it('shows sanitized errors, preserves failing status across visits and supports retry', async () => {
+  const onClose = vi.fn();
+  const { rerender } = render(<StorageConnections open onClose={onClose} />);
   const user = await connect();
   vi.mocked(storage.listBackups).mockRejectedValueOnce(new ConnectorError('auth'));
   await user.click(screen.getByRole('button', { name: 'Refresh cloud backups' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('GitHub rejected the token.');
   expect(screen.getByText('Connection needs attention')).toBeVisible();
+  rerender(<StorageConnections open={false} onClose={onClose} />);
+  rerender(<StorageConnections open onClose={onClose} />);
+  expect(screen.getByText('Connection needs attention')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Manage connection' }));
   await user.click(screen.getByRole('button', { name: 'Refresh cloud backups' }));
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
   expect(screen.getByText('Connected', { exact: true })).toBeVisible();

@@ -144,6 +144,24 @@ test('installation metadata and branded icons stay available in the production o
   }
 });
 
+test('connector list and official GitHub mark are available on the first offline visit without provider requests', async ({ page, context }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Connections', exact: true }).click();
+  const connections = page.getByRole('region', { name: 'Connections', exact: true });
+  await expect(connections).toBeVisible();
+  await expect(connections.getByText('Not connected', { exact: true })).toBeVisible();
+  await expect.poll(() => connections.locator('.github-brand-mark').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(560);
+  await connections.getByRole('button', { name: 'Set up connection' }).click();
+  await expect(connections.getByLabel('GitHub access token')).toBeVisible();
+  await connections.getByRole('button', { name: 'Back to map' }).click();
+  await expect(connections).toHaveCount(0);
+});
+
 const gpx =
   '<gpx version="1.1" creator="Roamlet test" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Offline escape</name><trkseg><trkpt lat="47.2692" lon="11.4041"><ele>600</ele></trkpt><trkpt lat="47.271" lon="11.411"><ele>630</ele></trkpt></trkseg></trk></gpx>';
 test('production shell keeps saved routes and GPX export available offline, without caching maps', async ({

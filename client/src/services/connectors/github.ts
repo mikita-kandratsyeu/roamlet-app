@@ -11,6 +11,7 @@ const FOLDER = 'roamlet-backups';
 const SNAPSHOT = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.roamlet$/;
 const JSON_MAX_BYTES = 8 * 1024 * 1024;
 const SMALL_FILE_BYTES = 1_000_000;
+const DIRECTORY_API_CAP = 1000;
 const REQUEST_TIMEOUT_MS = 20_000;
 
 function object(value: unknown): Record<string, unknown> {
@@ -84,8 +85,9 @@ function decodeBase64(content: unknown, size: number): Uint8Array {
 /**
  * Browser-direct pilot for a dedicated PRIVATE repository with Contents read/write PAT access.
  * Every operation rechecks privacy and push permission (not cached). GitHub's directory Contents
- * API caps listings at 1,000 entries; a full page may be truncated, and this pilot does not paginate
- * with Trees. Repository privacy can change after verification; that race is not transactional.
+ * API caps listings at 1,000 entries; full pages are rejected as potentially truncated. Uploads
+ * require fewer than 999 total folder entries, but concurrent clients can race that preflight.
+ * This pilot does not paginate with Trees. Privacy changes after verification are not transactional.
  * https://docs.github.com/en/rest/repos/contents#get-repository-content
  */
 export class GitHubStorageConnector implements StorageConnector {
@@ -225,18 +227,21 @@ export class GitHubStorageConnector implements StorageConnector {
     if (permissions.push !== true) throw new ConnectorError('permission');
   }
 
-  async listBackups(signal?: AbortSignal): Promise<BackupEntry[]> {
-    await this.checkConnection(signal);
+  private async directory(signal?: AbortSignal): Promise<{
+    backups: BackupEntry[];
+    totalEntries: number;
+  }> {
     let data: unknown;
     try {
       data = await this.json(`/contents/${FOLDER}`, signal);
     } catch (error) {
-      if (error instanceof ConnectorError && error.code === 'not-found') return [];
+      if (error instanceof ConnectorError && error.code === 'not-found')
+        return { backups: [], totalEntries: 0 };
       throw error;
     }
     const entries = Array.isArray(data) ? data : object(data).entries;
     if (!Array.isArray(entries)) throw new ConnectorError('invalid-data');
-    if (entries.length > 1000) throw new ConnectorError('too-large');
+    if (entries.length >= DIRECTORY_API_CAP) throw new ConnectorError('too-large');
     const backups: BackupEntry[] = [];
     for (const value of entries) {
       const file = object(value);
@@ -244,7 +249,12 @@ export class GitHubStorageConnector implements StorageConnector {
       if (!file.name.endsWith('.roamlet')) continue;
       backups.push(fileEntry(file));
     }
-    return backups;
+    return { backups, totalEntries: entries.length };
+  }
+
+  async listBackups(signal?: AbortSignal): Promise<BackupEntry[]> {
+    await this.checkConnection(signal);
+    return (await this.directory(signal)).backups;
   }
 
   async uploadBackup(data: Uint8Array, signal?: AbortSignal): Promise<BackupEntry> {
@@ -253,6 +263,8 @@ export class GitHubStorageConnector implements StorageConnector {
     checkSize(data.byteLength);
     const snapshot = new Uint8Array(data);
     await this.checkConnection(signal);
+    if ((await this.directory(signal)).totalEntries >= DIRECTORY_API_CAP - 1)
+      throw new ConnectorError('too-large');
     let name: string;
     let content: string;
     try {

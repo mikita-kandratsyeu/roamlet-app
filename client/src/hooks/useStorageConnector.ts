@@ -25,6 +25,7 @@ export function useStorageConnector() {
   const [operation, setOperation] = useState<ConnectorOperation | null>(null);
   const operationRef = useRef<ConnectorOperation | null>(null);
   const [error, setError] = useState<ConnectorFailure | null>(null);
+  const [connectionIssue, setConnectionIssue] = useState<ConnectorFailure | null>(null);
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [listed, setListed] = useState(false);
   const [preview, setPreview] = useState<BackupPreview | null>(null);
@@ -67,7 +68,12 @@ export function useStorageConnector() {
     try {
       await task(controller.signal, current);
     } catch (failure) {
-      if (current()) setError(failure instanceof ConnectorError ? failure.code : fallback);
+      if (current()) {
+        const code = failure instanceof ConnectorError ? failure.code : fallback;
+        setError(code);
+        if (['auth', 'permission', 'not-found', 'network', 'timeout', 'quota'].includes(code))
+          setConnectionIssue(code);
+      }
     } finally {
       if (request.current === controller) {
         request.current = null;
@@ -85,6 +91,7 @@ export function useStorageConnector() {
         await next.checkConnection(signal);
         if (!current()) return;
         connector.current = next;
+        setConnectionIssue(null);
         setConnection({ owner: config.owner.trim(), repository: config.repository.trim() });
         setBackups([]);
         setListed(false);
@@ -98,6 +105,7 @@ export function useStorageConnector() {
     if (operationRef.current === 'restoring') return;
     cancel();
     connector.current = null;
+    setConnectionIssue(null);
     setConnection(null);
     setBackups([]);
     setListed(false);
@@ -111,6 +119,7 @@ export function useStorageConnector() {
       async (signal, current) => {
         const entries = await storage.listBackups(signal);
         if (current()) {
+          setConnectionIssue(null);
           setBackups(entries);
           setListed(true);
         }
@@ -139,6 +148,7 @@ export function useStorageConnector() {
         if (!current()) return;
         const entry = await storage.uploadBackup(payload, signal);
         if (current()) {
+          setConnectionIssue(null);
           setBackups((entries) => [entry, ...entries.filter((item) => item.id !== entry.id)]);
           setSuccess('uploaded');
         }
@@ -156,6 +166,7 @@ export function useStorageConnector() {
       async (signal, current) => {
         const payload = await storage.downloadBackup(entry, signal);
         if (!current()) return;
+        setConnectionIssue(null);
         let backup: RouteBackup;
         try {
           backup = await decryptBackup(payload, password);
@@ -197,6 +208,7 @@ export function useStorageConnector() {
     connection,
     operation,
     error,
+    connectionIssue,
     backups,
     listed,
     preview,
