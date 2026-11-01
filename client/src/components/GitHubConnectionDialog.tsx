@@ -372,7 +372,6 @@ export function GitHubConnectionDialog({
             {t('Cancel operation')}
           </Button>
         )}
-        {error && <p role="alert">{t(connectorErrors[error])}</p>}
         {storage.success === 'uploaded' && (
           <p role="status">{t('Encrypted backup saved to GitHub.')}</p>
         )}

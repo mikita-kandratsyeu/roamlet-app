@@ -182,6 +182,33 @@ test('scalable catalog opens a Russian dark-theme modal and restores focus', asy
   await expect(setup).toBeFocused();
 });
 
+test('connector errors use one Sonner toast while a dialog is open', async ({ page }) => {
+  await page.route('**/api/github?**', (route) => {
+    const action = new URL(route.request().url()).searchParams.get('action');
+    return action === 'session'
+      ? route.fulfill({ json: { available: true, connected: true, login: 'example' } })
+      : route.fulfill({
+          status: 502,
+          json: { error: { code: 'network', message: 'untrusted upstream text' } },
+        });
+  });
+  await openConnections(page);
+  await page.getByRole('button', { name: 'Manage connection' }).click();
+  const modal = page.getByRole('dialog', { name: 'GitHub connection settings' });
+  await modal.getByRole('button', { name: 'Load accessible repositories' }).click();
+  const toast = page.locator('[data-sonner-toast][data-type="error"]');
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toContainText('Could not reach GitHub. Check your connection, then retry.');
+  await expect(modal.locator('[role="alert"]')).toHaveCount(0);
+  await expect(page.getByText('Connection needs attention', { exact: true })).toBeVisible();
+  await toast.getByRole('button', { name: 'Dismiss notification' }).click();
+  await expect(toast).toHaveCount(0);
+  await modal.getByRole('button', { name: 'Load accessible repositories' }).click();
+  await expect(toast).toHaveCount(1);
+  await modal.getByRole('button', { name: 'Done' }).click();
+  await expect(toast).toHaveCount(1);
+});
+
 for (const theme of ['light', 'dark'] as const) {
   test(`connector toolbar matches library controls (${theme})`, async ({ page }, testInfo) => {
     if (testInfo.project.name === 'desktop')

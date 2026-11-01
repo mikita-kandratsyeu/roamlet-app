@@ -50,6 +50,11 @@ export function Dialog({
         className={cn('dialog roamlet-dialog block', wide && 'wide', compact && 'compact')}
         showCloseButton={false}
         {...(!description && { 'aria-describedby': undefined })}
+        onInteractOutside={(event) => {
+          const target = event.target;
+          if (target instanceof Element && target.closest('[data-sonner-toast]'))
+            event.preventDefault();
+        }}
         onOpenAutoFocus={(event) => {
           previous.current =
             document.activeElement instanceof HTMLElement ? document.activeElement : null;

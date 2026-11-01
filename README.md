@@ -8,7 +8,7 @@ Roamlet keeps routes, preferences and the current unsaved draft on this device. 
 
 ### Connections and GitHub App
 
-Open **Menu → Connections** for a searchable, filterable grid of available services. Search and filter controls reuse the route library's sizing, inset search icon, focus treatment and selected-filter styling, including its mobile layout. Cards show connection status and management/disconnect actions. Setup and encrypted-backup operations open in a modal; closing it clears the entered backup passwords. Local/manual planning, GPX, JSON backups and the route library remain independent of connections. There is no Roamlet account or application database.
+Open **Menu → Connections** for a searchable, filterable grid of available services. Search and filter controls reuse the route library's sizing, inset search icon, focus treatment and selected-filter styling, including its mobile layout. Cards show connection status and management/disconnect actions. Setup and encrypted-backup operations open in a modal; closing it clears the entered backup passwords. Connector and OAuth errors use one dismissible Sonner notification rather than duplicate inline alerts on the page or in dialogs; connection-attention status remains on the card. Local/manual planning, GPX, JSON backups and the route library remain independent of connections. There is no Roamlet account or application database.
 
 **Connect GitHub:**
 

@@ -497,7 +497,9 @@ describe('route planner interactions', () => {
     window.history.replaceState(null, '', '/?connectors=github&github=error');
     render(<App />);
     expect(screen.getByRole('region', { name: 'Connections' })).toBeVisible();
-    expect(screen.getByText('GitHub authorization was cancelled or failed. Open connection settings to try again.')).toBeVisible();
+    const message = await screen.findByText('GitHub authorization was cancelled or failed. Open connection settings to try again.');
+    expect(message.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'error');
+    expect(message).toBeVisible();
     expect(window.location.search).toBe('');
   });
 

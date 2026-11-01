@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Dialog } from './Dialog';
+import { Notification } from './Notification';
 import { useStorageConnector } from '../hooks/useStorageConnector';
 import { useGitHubSession } from '../hooks/useGitHubSession';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '../services/connectors/registry';
@@ -78,6 +79,12 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
     }
   }
   const problem = github.error || storage.connectionIssue;
+  const error = storage.error || github.error;
+  const errorMessage = authorizationFailed
+    ? t('GitHub authorization was cancelled or failed. Open connection settings to try again.')
+    : error
+      ? t(connectorErrors[error])
+      : null;
   const states: Record<
     StorageProviderId,
     {
@@ -147,16 +154,6 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
               'Connect your own services. Local planning and the route library work without connections.',
             )}
           </p>
-          {authorizationFailed && (
-            <p role="alert">
-              {t(
-                'GitHub authorization was cancelled or failed. Open connection settings to try again.',
-              )}{' '}
-              <Button variant="ghost" onClick={() => setAuthorizationFailed(false)}>
-                {t('Dismiss')}
-              </Button>
-            </p>
-          )}
           <div className="library-toolbar">
             <Label className="library-search">
               <Search size={18} aria-hidden="true" />
@@ -201,11 +198,6 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
           {!providers.length && (
             <p className="connector-empty">{t('No connectors match this filter.')}</p>
           )}
-          {problem && (
-            <p className="connector-error" role="alert">
-              {t(connectorErrors[problem])}
-            </p>
-          )}
           {github.error && (
             <Button
               variant="outline"
@@ -224,6 +216,14 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
           )}
         </div>
       </div>
+      {errorMessage && (
+        <Notification
+          title={t('GitHub connection settings')}
+          variant="error"
+          message={errorMessage}
+          onDismiss={authorizationFailed ? () => setAuthorizationFailed(false) : undefined}
+        />
+      )}
       {selected === 'github' && (
         <GitHubConnectionDialog
           storage={storage}
@@ -267,7 +267,6 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
               {t('Disconnect')}
             </Button>
           </div>
-          {github.error && <p role="alert">{t(connectorErrors[github.error])}</p>}
         </Dialog>
       )}
     </section>

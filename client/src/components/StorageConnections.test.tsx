@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor, within, fireEvent } from '@testing-li
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { StorageConnections } from './StorageConnections';
+import { Toaster } from './ui/sonner';
 import { createStorageConnector } from '../services/connectors/registry';
 import {
   getGitHubSession,
@@ -35,6 +36,7 @@ const authorized = {
 };
 let storage: StorageConnector;
 beforeEach(async () => {
+  render(<Toaster />);
   vi.stubGlobal('crypto', webcrypto);
   vi.stubGlobal('BroadcastChannel', undefined);
   localStorage.removeItem(GITHUB_REPOSITORY_KEY);
@@ -186,8 +188,14 @@ it('does not pretend disconnect succeeded after a server failure', async () => {
   const modal = screen.getByRole('dialog', { name: 'Disconnect GitHub?' });
   await user.click(within(modal).getByRole('button', { name: 'Disconnect' }));
   await waitFor(() =>
-    expect(within(modal).getByRole('alert')).toHaveTextContent('Could not reach GitHub.'),
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not reach GitHub.'),
   );
+  expect(screen.getAllByRole('alert')).toHaveLength(1);
+  expect(screen.getByRole('alert').closest('[data-sonner-toast]')).toHaveAttribute(
+    'data-type',
+    'error',
+  );
+  expect(modal.querySelector('[role="alert"]')).toBeNull();
   expect(localStorage.getItem(GITHUB_REPOSITORY_KEY)).not.toBeNull();
 });
 it('refreshes status after another tab signs out and drops access to backup operations', async () => {
@@ -221,13 +229,47 @@ it('offers reauthorization when a repository operation finds an expired session'
   vi.mocked(storage.listBackups).mockRejectedValueOnce(new ConnectorError('auth'));
   await user.click(screen.getByRole('button', { name: 'Refresh cloud backups' }));
   await waitFor(() =>
-    expect(screen.getByRole('dialog').querySelector('[role="alert"]')).toHaveTextContent(
-      'Your GitHub session has expired',
-    ),
+    expect(screen.getByRole('alert')).toHaveTextContent('Your GitHub session has expired'),
   );
   expect(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'Sign in with GitHub' }),
   ).toBeEnabled();
+});
+
+it('shows session failures once in Sonner, keeps card status and permits a fresh retry', async () => {
+  vi.mocked(getGitHubSession).mockRejectedValueOnce(new ConnectorError('network'));
+  render(<StorageConnections open onClose={vi.fn()} />);
+  const user = userEvent.setup();
+  const alert = await screen.findByRole('alert');
+  expect(alert.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'error');
+  expect(screen.getAllByRole('alert')).toHaveLength(1);
+  expect(screen.getByText('Connection needs attention')).toBeVisible();
+  screen.getByRole('button', { name: 'Dismiss notification' }).focus();
+  await user.keyboard('{Enter}');
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  await user.type(screen.getByRole('textbox', { name: 'Search connectors' }), 'Git');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Retry' }));
+  await screen.findByText('Not connected');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  vi.mocked(getGitHubSession).mockRejectedValueOnce(new ConnectorError('network'));
+  fireEvent(window, new Event('focus'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach GitHub.');
+});
+
+it('shows OAuth callback failure as a dismissible Sonner toast, not a page banner', async () => {
+  window.history.replaceState(null, '', '/?github=error');
+  render(<StorageConnections open onClose={vi.fn()} />);
+  window.history.replaceState(null, '', '/');
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('GitHub authorization was cancelled or failed.');
+  expect(alert.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'error');
+  expect(
+    screen.getByRole('region', { name: 'Connections' }).querySelector('[role="alert"]'),
+  ).toBeNull();
+  screen.getByRole('button', { name: 'Dismiss notification' }).focus();
+  await userEvent.setup().keyboard('{Enter}');
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
 });
 
 it('supports Russian setup copy without internal release names', async () => {
