@@ -4,7 +4,7 @@ import App from './App';
 import { watchUpdates } from './domain/appUpdate';
 import { ThemeProvider } from './theme';
 import './i18n';
-import '@fontsource-variable/onest';
+import '@fontsource-variable/manrope';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
 import './planner.css';

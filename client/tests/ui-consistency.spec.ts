@@ -8,7 +8,7 @@ async function expectDialogTypography(dialog: Locator) {
   await expect(title).toHaveCSS('font-weight', '650');
   await expect(title).toHaveCSS('line-height', '23.4px');
   await expect(title).toHaveCSS('letter-spacing', '-0.3px');
-  await expect(title).toHaveCSS('font-family', /Onest/);
+  await expect(title).toHaveCSS('font-family', /Manrope/);
   for (const text of await dialog.locator('.dialog-description, .dialog-body > p').all()) {
     await expect(text).toHaveCSS('font-size', '14px');
     await expect(text).toHaveCSS('font-weight', '400');

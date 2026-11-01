@@ -14,15 +14,15 @@ test.beforeEach(async ({ page }) => {
   const mapStyle = {
     version: 8,
     sources: {},
-    layers: [
-      { id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } },
-    ],
+    layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } }],
   };
   await page.route('**/osm-standard.json', (route) => route.fulfill({ json: mapStyle }));
   await page.route('**/*.openfreemap.org/**', (route) => route.fulfill({ json: mapStyle }));
   page.on('request', (request) => {
     const url = new URL(request.url());
     if (
+      url.hostname === 'fonts.googleapis.com' ||
+      url.hostname === 'fonts.gstatic.com' ||
       url.hostname === 'api.openrouteservice.org' ||
       url.hostname === 'api.heigit.org' ||
       url.hostname === 'mapbox.com' ||
@@ -99,7 +99,20 @@ test('production shell keeps saved routes and GPX export available offline, with
     return urls;
   });
   expect(cached.some((url) => url.includes('/assets/'))).toBe(true);
-  expect(cached.some((url) => url.endsWith('.woff2'))).toBe(true);
+  expect(
+    cached.some((url) => url.includes('manrope-latin-wght-normal') && url.endsWith('.woff2')),
+  ).toBe(true);
+  expect(
+    cached.some((url) => url.includes('manrope-cyrillic-wght-normal') && url.endsWith('.woff2')),
+  ).toBe(true);
+  const fontStatuses = await page.evaluate(async () =>
+    (await document.fonts.load('400 16px "Manrope Variable"', 'Маршрут Route')).map(
+      (face) => face.status,
+    ),
+  );
+  expect(fontStatuses.length).toBeGreaterThanOrEqual(2);
+  expect(fontStatuses.every((status) => status === 'loaded')).toBe(true);
+  await expect(page.locator('body')).toHaveCSS('font-family', /Manrope Variable/);
   expect(errors).toEqual([]);
   await expect(
     page.getByRole('region', { name: 'Interactive route map' }).getByRole('status'),
@@ -182,7 +195,10 @@ for (const viewport of [
   }
 }
 
-test('an unopened elevation chart loads on its first offline expansion', async ({ page, context }) => {
+test('an unopened elevation chart loads on its first offline expansion', async ({
+  page,
+  context,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.evaluate(async () => {
@@ -198,9 +214,13 @@ test('an unopened elevation chart loads on its first offline expansion', async (
   await expect(profile).toBeVisible();
   await expect(profile).not.toHaveAttribute('open');
   await expect(profile.locator('.elevation-chart')).toHaveCount(0);
-  expect(await page.evaluate(() => performance.getEntriesByType('resource').some(
-    (entry) => /\/assets\/ElevationChart-[^/]+\.js/.test(entry.name),
-  ))).toBe(false);
+  expect(
+    await page.evaluate(() =>
+      performance
+        .getEntriesByType('resource')
+        .some((entry) => /\/assets\/ElevationChart-[^/]+\.js/.test(entry.name)),
+    ),
+  ).toBe(false);
   await context.setOffline(true);
   try {
     await profile.locator('summary').click();
@@ -213,11 +233,16 @@ test('an unopened elevation chart loads on its first offline expansion', async (
 });
 
 for (const language of ['en', 'ru'] as const) {
-  test(`GPX worker imports exact segments on its first offline use (${language})`, async ({ page, context }) => {
+  test(`GPX worker imports exact segments on its first offline use (${language})`, async ({
+    page,
+    context,
+  }) => {
     await page.addInitScript((value) => localStorage.setItem('roamlet-language', value), language);
     if (language === 'ru') await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
-    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
     await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
     const workers = await page.evaluate(async () => {
       const urls: string[] = [];
@@ -228,31 +253,49 @@ for (const language of ['en', 'ru'] as const) {
       return urls.filter((url) => /gpxImport\.worker-[^/]+\.js$/.test(url));
     });
     expect(workers).toHaveLength(1);
-    expect(page.workers().filter((worker) => /gpxImport\.worker-/.test(worker.url()))).toHaveLength(0);
+    expect(page.workers().filter((worker) => /gpxImport\.worker-/.test(worker.url()))).toHaveLength(
+      0,
+    );
     await context.setOffline(true);
     try {
       await page.reload();
-      const xml = '<gpx><wpt lat="47" lon="11"/><trk><trkseg><trkpt lat="47" lon="11"><ele>100</ele></trkpt><trkpt lat="47.01" lon="11.01"><ele>120</ele></trkpt></trkseg><trkseg><trkpt lat="48" lon="12"/><trkpt lat="48.01" lon="12.01"><ele>90</ele></trkpt></trkseg></trk></gpx>';
-      const started = page.waitForEvent('worker', { predicate: (worker) => /gpxImport\.worker-/.test(worker.url()) });
-      await page.getByLabel(language === 'ru' ? 'Импорт файла GPX' : 'Import GPX file').setInputFiles({
-        name: 'first-offline.gpx 2', mimeType: 'application/octet-stream', buffer: Buffer.from(xml),
+      const xml =
+        '<gpx><wpt lat="47" lon="11"/><trk><trkseg><trkpt lat="47" lon="11"><ele>100</ele></trkpt><trkpt lat="47.01" lon="11.01"><ele>120</ele></trkpt></trkseg><trkseg><trkpt lat="48" lon="12"/><trkpt lat="48.01" lon="12.01"><ele>90</ele></trkpt></trkseg></trk></gpx>';
+      const started = page.waitForEvent('worker', {
+        predicate: (worker) => /gpxImport\.worker-/.test(worker.url()),
       });
+      await page
+        .getByLabel(language === 'ru' ? 'Импорт файла GPX' : 'Import GPX file')
+        .setInputFiles({
+          name: 'first-offline.gpx 2',
+          mimeType: 'application/octet-stream',
+          buffer: Buffer.from(xml),
+        });
       expect((await started).url()).toMatch(/gpxImport\.worker-/);
-      const title = language === 'ru'
-        ? page.getByRole('button', { name: /^Импортированный маршрут/ })
-        : page.getByRole('heading', { name: 'Imported route', exact: true });
+      const title =
+        language === 'ru'
+          ? page.getByRole('button', { name: /^Импортированный маршрут/ })
+          : page.getByRole('heading', { name: 'Imported route', exact: true });
       await expect(title).toBeVisible();
       const pending = page.waitForEvent('download');
-      await page.getByRole('button', { name: language === 'ru' ? 'Экспорт' : 'Export', exact: true }).click();
-      await page.getByRole('dialog').getByRole('button', {
-        name: language === 'ru' ? 'Скачать GPX' : 'Download GPX', exact: true,
-      }).click();
+      await page
+        .getByRole('button', { name: language === 'ru' ? 'Экспорт' : 'Export', exact: true })
+        .click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', {
+          name: language === 'ru' ? 'Скачать GPX' : 'Download GPX',
+          exact: true,
+        })
+        .click();
       const exported = await readFile((await (await pending).path())!, 'utf8');
       expect(exported.match(/<trkseg>/g)).toHaveLength(2);
       expect(exported.match(/<trkpt\s/g)).toHaveLength(4);
       expect(exported.match(/<ele>/g)).toHaveLength(3);
       expect(exported).toMatch(/<trkpt lat="48" lon="12">\s*<\/trkpt>/);
-      expect(exported).toContain(language === 'ru' ? '<name>Точка</name>' : '<name>Waypoint</name>');
+      expect(exported).toContain(
+        language === 'ru' ? '<name>Точка</name>' : '<name>Waypoint</name>',
+      );
       expect(exported).toContain('<ele>90</ele>');
     } finally {
       await context.setOffline(false);
@@ -360,8 +403,12 @@ test('missing routing key keeps the map usable but never substitutes a fake rout
     await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
     await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
   }
-  await expect(page.getByRole('alert')).toContainText('Automatic routing is currently unavailable.');
-  await expect(page.getByRole('alert').getByRole('button', { name: 'Use manual drawing', exact: true })).toBeEnabled();
+  await expect(page.getByRole('alert')).toContainText(
+    'Automatic routing is currently unavailable.',
+  );
+  await expect(
+    page.getByRole('alert').getByRole('button', { name: 'Use manual drawing', exact: true }),
+  ).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Export' })).toBeDisabled();
 });
 test('manual drawing calculates and exports offline without a routing key', async ({
@@ -438,12 +485,21 @@ test('offline reload restores an unsaved draft and exposes library backup withou
   }
 });
 
-test('first installation does not offer an app update or report a draft saving error', async ({ page }) => {
+test('first installation does not offer an app update or report a draft saving error', async ({
+  page,
+}) => {
   await page.goto('/');
-  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await expect(page.getByRole('button', { name: 'Update app', exact: true })).toHaveCount(0);
-  await expect(page.getByText('The update could not save your draft. Please retry; the app has not reloaded.', { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText(
+      'The update could not save your draft. Please retry; the app has not reloaded.',
+      { exact: true },
+    ),
+  ).toHaveCount(0);
 });
 
 test('confirming a waiting update saves the current draft before reloading', async ({ page }) => {

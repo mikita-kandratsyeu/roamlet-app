@@ -618,10 +618,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@fontsource-variable/onest@npm:^5.3.1":
-  version: 5.3.1
-  resolution: "@fontsource-variable/onest@npm:5.3.1"
-  checksum: 10c0/4da90718a28d4d508401534f7607f61788a6e425d78e228e58e8635b24586ea998a4c698d32b75cf921e2d9f9892384299b7a6b6a62071a442c1cc432a07da04
+"@fontsource-variable/manrope@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource-variable/manrope@npm:5.3.0"
+  checksum: 10c0/8b760dff605c6d43c64e39243568c89f7806e59e86ac80e83a0dab42dfadfb1498d8f1816c78c24875e2f743b5340653c8bdd33cd75d051a1af56ed3802bfd0d
   languageName: node
   linkType: hard
 
@@ -2183,7 +2183,7 @@ __metadata:
   resolution: "@roamlet/client@workspace:client"
   dependencies:
     "@eslint/js": "npm:^9.39.0"
-    "@fontsource-variable/onest": "npm:^5.3.1"
+    "@fontsource-variable/manrope": "npm:^5.3.0"
     "@playwright/test": "npm:^1.56.0"
     "@tailwindcss/vite": "npm:^4.3.3"
     "@testing-library/dom": "npm:^10.4.0"

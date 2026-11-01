@@ -214,12 +214,21 @@ test('comparison preserves editor and closes back to the selected library routes
   const compare = page.getByRole('button', { name: 'Compare routes', exact: true });
   await compare.click();
   const dialog = page.getByRole('dialog', { name: 'Compare saved routes', exact: true });
-  await expect(dialog).toHaveClass(/wide/);
-  const title = dialog.locator('.dialog-header h2');
+  await expect(dialog).toHaveClass(/comparison-screen/);
+  await expect(dialog.getByRole('button', { name: 'Back to routes', exact: true })).toBeFocused();
+  const screenBounds = (await dialog.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(screenBounds.x).toBe(0);
+  expect(screenBounds.y).toBe(0);
+  expect(screenBounds.width).toBe(viewport.width);
+  expect(screenBounds.height).toBe(viewport.height);
+  const title = dialog.locator('.comparison-screen-header h2');
   await expect(title).toHaveCSS('font-size', '18px');
   await expect(title).toHaveCSS('font-weight', '650');
   await expect(title).toHaveCSS('line-height', '23.4px');
-  await expect(title).toHaveCSS('font-family', /Onest/);
+  await expect(title).toHaveCSS('font-family', /Manrope/);
+  await expect(dialog.getByRole('table', { name: 'Saved route comparison' })).toHaveCount(0);
+  await dialog.locator('summary').filter({ hasText: 'Route statistics' }).click();
   await expect(dialog.getByRole('table', { name: 'Saved route comparison' })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Fit route', exact: true })).toBeEnabled();
   await expect(dialog.getByRole('group', { name: 'Map style', exact: true })).toHaveCount(0);
@@ -235,7 +244,30 @@ test('comparison preserves editor and closes back to the selected library routes
       }),
     )
     .toBeLessThanOrEqual(2);
-  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  const map = dialog.locator('.maplibregl-canvas');
+  const mapHandle = await map.elementHandle();
+  const beforeCollapse = (await map.boundingBox())!;
+  await dialog.getByRole('button', { name: 'Hide comparison panel', exact: true }).click();
+  await expect(dialog.getByRole('checkbox')).toHaveCount(0);
+  await expect.poll(async () => {
+    const box = (await map.boundingBox())!;
+    return box.width * box.height;
+  }).toBeGreaterThan(beforeCollapse.width * beforeCollapse.height);
+  expect(await map.evaluate((element, original) => element === original, mapHandle)).toBe(true);
+  await dialog.getByRole('button', { name: 'Show comparison panel', exact: true }).click();
+  const visibility = dialog.getByRole('checkbox');
+  await visibility.first().uncheck();
+  await expect(visibility.last()).toBeDisabled();
+  await dialog.getByRole('button', { name: /^Focus route / }).first().click();
+  await expect(visibility.first()).toBeChecked();
+  await dialog.getByRole('button', { name: 'Show all routes', exact: true }).click();
+  await expect(visibility.last()).toBeEnabled();
+  await expect(dialog.locator('.maplibregl-ctrl-attrib')).toBeVisible();
+  expect(await dialog.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
+  await dialog.getByRole('button', { name: 'Back to routes', exact: true }).click();
+  await expect(compare).toBeFocused();
+  await compare.click();
+  await page.keyboard.press('Escape');
   await expect(compare).toBeFocused();
   await expect(checks.nth(0)).toBeChecked();
   await page.getByRole('button', { name: 'Back to map', exact: true }).click();

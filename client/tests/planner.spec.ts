@@ -586,11 +586,11 @@ test('round trips route intermediate points with bounded search; responsive cont
   ).toBeVisible();
 });
 
-test('Onest loads Latin and Cyrillic faces and keeps Russian controls within a 320px viewport', async ({
+test('Manrope loads Latin and Cyrillic faces and keeps Russian controls within a 320px viewport', async ({
   page,
 }) => {
   const statuses = await page.evaluate(async () =>
-    (await document.fonts.load('400 16px "Onest Variable"', 'Маршрут Route')).map(
+    (await document.fonts.load('400 16px "Manrope Variable"', 'Маршрут Route')).map(
       (face) => face.status,
     ),
   );
@@ -608,7 +608,7 @@ test('Onest loads Latin and Cyrillic faces and keeps Russian controls within a 3
     page.getByRole('menuitem', { name: 'Мои маршруты' }),
     page.locator('.maplibregl-map'),
   ]) {
-    await expect(element).toHaveCSS('font-family', /Onest Variable/);
+    await expect(element).toHaveCSS('font-family', /Manrope Variable/);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
