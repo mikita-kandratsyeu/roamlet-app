@@ -18,8 +18,8 @@ export const connectorErrors: Record<ConnectorFailure, string> = {
     'GitHub connection is not configured on this deployment. Local routes remain available.',
   auth: 'Your GitHub session has expired or was revoked. Sign in again.',
   permission:
-    'Grant the GitHub App access to a private repository with Contents read and write permission.',
-  'not-found': 'Repository or backup not found. Check the GitHub App repository access.',
+    'Allow Roamlet to read and save backups in your private GitHub repository.',
+  'not-found': 'Repository or backup not found. Check which repositories you have shared with Roamlet.',
   quota: 'GitHub rate limit reached. Try again later.',
   network: 'Could not reach GitHub. Check your connection, then retry.',
   timeout: 'GitHub did not respond in time. Please retry.',
@@ -92,7 +92,7 @@ export function GitHubConnectionDialog({
       <div className="storage-connections">
         <p className="connector-note">
           {t(
-            'Authorization is shared across tabs in this browser through an encrypted HttpOnly cookie. Roamlet server functions process GitHub tokens without storing them in a database. Backup contents are encrypted on this device before upload.',
+            'Your backups are encrypted on this device before upload. Your GitHub connection works across tabs in this browser.',
           )}
         </p>
         {!authorized ? (
@@ -106,7 +106,7 @@ export function GitHubConnectionDialog({
             )}
             <p>
               {t(
-                'Install the GitHub App for selected private repositories, then sign in with GitHub. No personal access token is needed.',
+                'Allow Roamlet to access a private GitHub repository for your backups, then sign in with GitHub.',
               )}
             </p>
             {installUrl && (
@@ -116,7 +116,7 @@ export function GitHubConnectionDialog({
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {t('Install or configure GitHub App')}
+                {t('Manage repository access')}
               </a>
             )}
             <Button
@@ -144,7 +144,7 @@ export function GitHubConnectionDialog({
               </Button>
               {installUrl && (
                 <a href={installUrl} target="_blank" rel="noopener noreferrer">
-                  {t('Install or configure GitHub App')}
+                  {t('Manage repository access')}
                 </a>
               )}
               <label htmlFor={`${id}-repository`}>
@@ -184,7 +184,7 @@ export function GitHubConnectionDialog({
               </Button>
               <p className="connector-note">
                 {t(
-                  'Only private repositories accessible to the installed App are listed. If a repository is missing, update App access and reload the list.',
+                  'Choose a private repository you have shared with Roamlet. If it is missing, update repository access and reload the list.',
                 )}
               </p>
             </fieldset>
@@ -351,12 +351,12 @@ export function GitHubConnectionDialog({
           <summary>{t('Privacy and limits')}</summary>
           <p>
             {t(
-              'GitHub sees repository and file metadata. Roamlet relays encrypted backups through its server functions, without decrypting them. Sessions expire after at most 8 hours: sign in again to continue.',
+              'Roamlet processes GitHub access tokens without storing them in a database and transfers your backups without decrypting them. GitHub can see repository and file metadata. Your connection lasts up to 8 hours, then you need to sign in again.',
             )}
           </p>
           <p>
             {t(
-              'Encrypted backups are limited to 3 MiB by the server transport. Keep the backup directory below 1000 entries. No automatic sync or cloud deletion. A cancelled upload may still complete: refresh before retrying.',
+              'Each encrypted backup can be up to 3 MiB. Keep fewer than 1000 files in the backup folder. Backups are created manually and are not deleted automatically. A cancelled upload may still complete: refresh the list before trying again.',
             )}
           </p>
         </details>

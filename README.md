@@ -12,7 +12,7 @@ Open **Menu → Connections** for a searchable, filterable grid of available ser
 
 **Connect GitHub:**
 
-1. Open GitHub connection settings and **Install or configure GitHub App**. Grant the App access only to selected **private repositories**, with Contents read/write and Metadata read. Create an initial commit in the target repository. A dedicated repository is recommended: immutable snapshots accumulate in Git history.
+1. Open GitHub connection settings and **Manage repository access**. Authorize the service's GitHub App to access only selected **private repositories**, with Contents read/write and Metadata read. Users do not create a GitHub App or enter a personal access token. Create an initial commit in the target repository. A dedicated repository is recommended: immutable snapshots accumulate in Git history.
 2. Press **Sign in with GitHub**. Authorization returns to Connections; no personal access token is entered into Roamlet. Installation and authorization are separate: the user must have access to a repository included in an approved App installation.
 3. **Load accessible repositories**, select a private repository and **Use this repository**. The bounded list includes only writable private repositories accessible to the installed App. Missing repositories may need updated installation access or organization approval.
 4. Enter and confirm a password of at least 12 characters and **Create encrypted backup**. Each snapshot is a new UUID `.roamlet` file in `roamlet-backups` on the default branch. Only saved routes are included, not drafts, preferences, tokens or connection settings. Nothing is automatically uploaded or deleted.

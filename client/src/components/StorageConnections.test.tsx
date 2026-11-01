@@ -97,7 +97,18 @@ it('renders a searchable card grid and opens setup as an accessible modal with r
   expect(modal).toBeVisible();
   expect(screen.getByRole('button', { name: 'Sign in with GitHub' })).toBeEnabled();
   expect(modal.querySelector('input[type=password]')).toBeNull();
-  expect(screen.getByRole('link', { name: 'Install or configure GitHub App' })).toHaveAttribute(
+  expect(
+    within(modal).getByText(
+      'Allow Roamlet to access a private GitHub repository for your backups, then sign in with GitHub.',
+    ),
+  ).toBeVisible();
+  expect(modal.textContent).not.toMatch(/personal access token|install.*GitHub App|HttpOnly/i);
+  const privacy = within(modal).getByText('Privacy and limits').closest('details');
+  expect(privacy?.open).toBe(false);
+  expect(privacy).toHaveTextContent(
+    'Roamlet processes GitHub access tokens without storing them in a database',
+  );
+  expect(screen.getByRole('link', { name: 'Manage repository access' })).toHaveAttribute(
     'href',
     authorized.installUrl,
   );
