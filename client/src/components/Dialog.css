@@ -8,15 +8,14 @@
   width: calc(100vw - 48px);
   max-width: 668px;
   max-height: calc(100dvh - 48px);
-  gap: 20px;
+  gap: 8px;
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
   color: var(--foreground);
   box-shadow: 0 4px 20px color-mix(in srgb, var(--foreground) 8%, transparent);
-  overflow: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
 }
 
 .dialog.roamlet-dialog.wide {
@@ -81,12 +80,14 @@
 }
 
 .roamlet-dialog .dialog-body {
-  flex-shrink: 0;
+  flex-shrink: 1;
   min-height: 0;
   font-size: var(--font-size-body);
   font-weight: 400;
   line-height: 1.55;
   overflow-wrap: anywhere;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .roamlet-dialog .dialog-body > p {
@@ -263,8 +264,15 @@
 
   .roamlet-dialog .dialog-header {
     min-height: 64px;
-    padding: 10px 16px;
+    padding: 10px 20px;
     border-bottom: 1px solid var(--border);
+  }
+
+  .roamlet-dialog:not(.compact) .dialog-heading {
+    display: flex;
+    min-height: 44px;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .roamlet-dialog .dialog-body {
@@ -310,7 +318,7 @@
     padding: 20px;
     border: 1px solid var(--border);
     border-radius: 12px;
-    overflow: auto;
+    overflow: hidden;
   }
 
   .roamlet-dialog.compact .dialog-header {
@@ -321,9 +329,8 @@
 
   .roamlet-dialog.compact .dialog-body {
     display: block;
-    flex: none;
+    flex: 0 1 auto;
     padding: 0;
-    overflow: visible;
   }
 
   .roamlet-dialog.compact .dialog-body > .button-row {

@@ -376,6 +376,37 @@ test('comparison preserves editor and closes back to the selected library routes
         await expect.poll(() => card.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(background);
         await page.mouse.move(0, 0);
       }
+      if (testInfo.project.name === 'mobile') {
+        await workspace.getByRole('button', { name: language === 'en' ? 'Hide comparison panel' : 'Свернуть панель', exact: true }).click();
+        const reference = await page.evaluate(() => {
+          const title = getComputedStyle(document.querySelector('.sheet-identity strong')!);
+          const control = getComputedStyle(document.querySelector('.mobile-sheet-collapse-icon')!);
+          const toggle = getComputedStyle(document.querySelector('.mobile-sheet-toggle')!);
+          return { fontSize: title.fontSize, fontWeight: title.fontWeight, lineHeight: title.lineHeight, fontFamily: title.fontFamily,
+            width: control.width, height: control.height, radius: control.borderRadius, background: control.backgroundColor,
+            color: control.color, border: control.borderTopWidth, minHeight: toggle.minHeight };
+        });
+        const title = workspace.locator('.comparison-screen-panel-title h2');
+        await expect(title).toHaveCSS('font-size', reference.fontSize);
+        await expect(title).toHaveCSS('font-weight', reference.fontWeight);
+        await expect(title).toHaveCSS('line-height', reference.lineHeight);
+        await expect(title).toHaveCSS('font-family', reference.fontFamily);
+        const titleBox = (await title.boundingBox())!;
+        const counterBox = (await workspace.locator('.comparison-screen-panel-title [data-slot="badge"]').boundingBox())!;
+        expect(counterBox.x - titleBox.x - titleBox.width).toBeCloseTo(8, 0);
+        await expect(workspace.locator('.comparison-screen-panel-header')).toHaveCSS('min-height', reference.minHeight);
+        for (const control of [workspace.locator('.comparison-screen-collapse'), workspace.locator('.comparison-screen-overview')]) {
+          await expect(control).toHaveCSS('width', reference.width);
+          await expect(control).toHaveCSS('height', reference.height);
+          await expect(control).toHaveCSS('border-radius', reference.radius);
+          await expect(control).toHaveCSS('background-color', reference.background);
+          await expect(control).toHaveCSS('color', reference.color);
+          await expect(control).toHaveCSS('border-top-width', reference.border);
+          await expect(control).toHaveCSS('box-shadow', 'none');
+        }
+        if (language === 'ru') await page.screenshot({ path: testInfo.outputPath(`comparison-compact-${theme}.png`) });
+        await workspace.getByRole('button', { name: language === 'en' ? 'Show comparison panel' : 'Развернуть панель', exact: true }).click();
+      }
       if (language === 'ru') await page.screenshot({ path: testInfo.outputPath(`comparison-${theme}.png`) });
     }
   }

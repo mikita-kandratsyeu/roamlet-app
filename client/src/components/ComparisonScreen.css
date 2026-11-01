@@ -417,18 +417,39 @@ body:has(.comparison-screen[data-state='open'])
   }
   .panel-collapsed .comparison-screen-panel-title {
     display: flex;
+    flex: 1;
+  }
+  .panel-collapsed .comparison-screen-panel-title h2 {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
   }
   .panel-collapsed .comparison-screen-panel-header {
-    padding: 8px 4px 8px 12px;
+    min-width: 0;
+    min-height: 72px;
+    padding: 8px 4px 8px 16px;
     border-bottom: 0;
   }
   .panel-collapsed .comparison-screen-panel-actions {
+    display: grid;
+    align-items: center;
+    min-height: 72px;
     margin-top: 0;
     padding: 8px 12px 8px 4px;
   }
-  .panel-collapsed .comparison-screen-collapse {
-    background: transparent;
-    border: 0;
+  .panel-collapsed .comparison-screen-collapse,
+  .panel-collapsed .comparison-screen-overview {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--muted);
+    color: var(--muted-foreground);
     box-shadow: none;
   }
   .panel-collapsed .comparison-screen-error {
@@ -437,6 +458,13 @@ body:has(.comparison-screen[data-state='open'])
     grid-column: 1 / -1;
     border: 0;
     box-shadow: none;
+  }
+}
+@media (max-height: 550px) and (max-width: 700px) {
+  .panel-collapsed .comparison-screen-panel-header,
+  .panel-collapsed .comparison-screen-panel-actions {
+    min-height: 44px;
+    padding-block: 0;
   }
 }
 @media (max-width: 560px) {

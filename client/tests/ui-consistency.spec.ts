@@ -276,7 +276,8 @@ test('small-screen statistics keep labels readable and time ranges on one line',
       await expect(overview).toHaveCount(2);
       for (const card of await overview.all()) await expect(card.locator('dt')).toBeVisible();
       const details = statistics.locator('.statistics-details');
-      if ((await details.getAttribute('open')) === null) await details.locator('summary').press('Enter');
+      if ((await details.getAttribute('open')) === null)
+        await details.locator('summary').press('Enter');
       for (const card of await details.locator('.stat-card:not(.stat-card-personal)').all()) {
         await expect(card).toHaveCSS('grid-column', '1 / -1');
         await expect(card.locator('dd')).toHaveCSS('white-space', 'nowrap');
@@ -512,7 +513,9 @@ test('stop selection highlights the whole card without a text pill or layout shi
   const finish = cards.nth(1).locator('.stop-name');
   for (const theme of ['light', 'dark']) {
     await page.getByRole('button', { name: 'Menu', exact: true }).click();
-    await page.getByRole('menuitemradio', { name: theme === 'light' ? 'Light' : 'Dark', exact: true }).click();
+    await page
+      .getByRole('menuitemradio', { name: theme === 'light' ? 'Light' : 'Dark', exact: true })
+      .click();
     const before = await cards.nth(0).boundingBox();
     await start.click();
     await expect(start).toHaveAttribute('aria-pressed', 'true');
@@ -522,8 +525,9 @@ test('stop selection highlights the whole card without a text pill or layout shi
     const after = await cards.nth(0).boundingBox();
     expect(after!.width).toBeCloseTo(before!.width, 1);
     expect(after!.height).toBeCloseTo(before!.height, 1);
-    expect(await cards.nth(0).evaluate((card) => getComputedStyle(card).backgroundColor))
-      .not.toBe(await cards.nth(1).evaluate((card) => getComputedStyle(card).backgroundColor));
+    expect(await cards.nth(0).evaluate((card) => getComputedStyle(card).backgroundColor)).not.toBe(
+      await cards.nth(1).evaluate((card) => getComputedStyle(card).backgroundColor),
+    );
     await start.press('Tab');
     await page.keyboard.press('Shift+Tab');
     await expect(start).toBeFocused();
@@ -717,9 +721,9 @@ test('library loading uses an accessible local skeleton without blocking navigat
         await expect(skeleton.locator('.library-skeleton-card')).toHaveCount(4);
         await expect(skeleton.locator('.library-skeleton-card').first()).toBeInViewport();
         expect(
-          await skeleton.locator('.library-skeleton-list').evaluate(
-            (element) => element.scrollHeight <= element.clientHeight,
-          ),
+          await skeleton
+            .locator('.library-skeleton-list')
+            .evaluate((element) => element.scrollHeight <= element.clientHeight),
         ).toBe(true);
         await expect(skeleton.locator('.library-skeleton-list')).toHaveAttribute(
           'aria-hidden',
@@ -846,7 +850,90 @@ test('saved route cards keep uniform heights and aligned actions with long names
   await page.screenshot({ path: testInfo.outputPath('library-uniform-grid.png') });
 });
 
-test('standard dialogs share the close-route confirmation typography', async ({ page }, testInfo) => {
+test('help and export keep headers visible while their content scrolls', async ({
+  page,
+}, testInfo) => {
+  const mobile = testInfo.project.name === 'mobile';
+  await page.setViewportSize({ width: mobile ? 320 : 1024, height: 600 });
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'header-scroll.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(
+      '<gpx version="1.1"><trk><trkseg><trkpt lat="47.26" lon="11.4"/><trkpt lat="47.27" lon="11.41"/></trkseg></trk></gpx>',
+    ),
+  });
+  const menu = page.getByRole('button', { name: /^(Menu|Меню)$/ });
+  for (const language of ['en', 'ru']) {
+    await menu.click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' })
+      .click();
+    for (const theme of ['light', 'dark']) {
+      await menu.click();
+      await page
+        .locator('.header-menu-theme-option')
+        .nth(theme === 'dark' ? 1 : 0)
+        .click();
+      for (const kind of ['help', 'export']) {
+        const exportButton = page.getByRole('button', { name: /^(Export|Экспорт)$/ });
+        if (kind === 'help') {
+          await menu.click();
+          await page
+            .getByRole('menuitem', { name: /^(Help and data sources|Помощь и источники данных)$/ })
+            .click();
+        } else {
+          await exportButton.click();
+        }
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toHaveCSS('opacity', '1');
+        const header = dialog.locator('.dialog-header');
+        const body = dialog.locator('.dialog-body');
+        await body.evaluate((element) => {
+          element.scrollTop = 0;
+        });
+        const before = (await header.boundingBox())!;
+        const bodyBox = (await body.boundingBox())!;
+        expect(bodyBox.y - before.y - before.height).toBeCloseTo(mobile ? 0 : 8, 1);
+        await expect(body).toHaveCSS('overflow-y', 'auto');
+        await body.evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+        });
+        expect(await body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+        const after = (await header.boundingBox())!;
+        expect(after.y).toBeCloseTo(before.y, 1);
+        expect(after.height).toBeCloseTo(before.height, 1);
+        expect(await dialog.evaluate((element) => element.scrollTop)).toBe(0);
+        expect(await body.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+          true,
+        );
+        await expectDialogClosePosition(dialog);
+        if (mobile) {
+          await expect(header).toHaveCSS('padding-left', '20px');
+          await expect(header).toHaveCSS('padding-right', '20px');
+          const heading = header.locator('.dialog-heading');
+          await expect(heading).toHaveCSS('min-height', '44px');
+          const titleBox = (await header.locator('h2').boundingBox())!;
+          const headingBox = (await heading.boundingBox())!;
+          expect(titleBox.x).toBeCloseTo((await body.boundingBox())!.x + 20, 1);
+          expect(titleBox.y + titleBox.height / 2).toBeCloseTo(
+            headingBox.y + headingBox.height / 2,
+            1,
+          );
+        }
+        await page.screenshot({
+          path: testInfo.outputPath(`fixed-header-${kind}-${language}-${theme}.png`),
+        });
+        await dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }).click();
+        await expect(dialog).toHaveCount(0);
+        await expect(kind === 'help' ? menu : exportButton).toBeFocused();
+      }
+    }
+  }
+});
+
+test('standard dialogs share the close-route confirmation typography', async ({
+  page,
+}, testInfo) => {
   if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 740 });
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Help and data sources', exact: true }).click();
@@ -952,14 +1039,17 @@ test('reset confirmation uses shared action spacing and restores focus', async (
   await expectDialogTypography(dialog);
   await expect(dialog).toHaveClass(/\bcompact\b/);
   await expect(dialog).toHaveCSS('border-radius', '12px');
-  await expect(dialog).toHaveCSS('background-color', await page.locator('html').evaluate((element) => {
-    const surface = document.createElement('div');
-    surface.style.backgroundColor = getComputedStyle(element).getPropertyValue('--surface');
-    document.body.append(surface);
-    const color = getComputedStyle(surface).backgroundColor;
-    surface.remove();
-    return color;
-  }));
+  await expect(dialog).toHaveCSS(
+    'background-color',
+    await page.locator('html').evaluate((element) => {
+      const surface = document.createElement('div');
+      surface.style.backgroundColor = getComputedStyle(element).getPropertyValue('--surface');
+      document.body.append(surface);
+      const color = getComputedStyle(surface).backgroundColor;
+      surface.remove();
+      return color;
+    }),
+  );
   const bounds = (await dialog.boundingBox())!;
   expect(bounds.width).toBeLessThanOrEqual(480);
   expect(bounds.height).toBeLessThan(page.viewportSize()!.height - 32);
@@ -1000,22 +1090,32 @@ test('comparison selection keeps a clear remove icon and touch target with long 
   const feedback = page.locator('[data-sonner-toast][data-type="success"]');
   while (await feedback.count()) {
     const count = await feedback.count();
-    await feedback.first().getByRole('button', { name: 'Dismiss notification', exact: true }).click();
+    await feedback
+      .first()
+      .getByRole('button', { name: 'Dismiss notification', exact: true })
+      .click();
     await expect(feedback).toHaveCount(count - 1);
   }
   const select = page.getByRole('checkbox', { name: `Select ${name} for comparison`, exact: true });
   await select.check();
   await expect(page.getByRole('button', { name: 'Compare routes', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: `Duplicate ${name}`, exact: true }).click();
-  await page.getByRole('checkbox', { name: `Select ${name} (copy) for comparison`, exact: true }).check();
+  await page
+    .getByRole('checkbox', { name: `Select ${name} (copy) for comparison`, exact: true })
+    .check();
   await expect(page.getByRole('button', { name: 'Compare routes', exact: true })).toBeEnabled();
   while (await feedback.count()) {
     const count = await feedback.count();
-    await feedback.first().getByRole('button', { name: 'Dismiss notification', exact: true }).click();
+    await feedback
+      .first()
+      .getByRole('button', { name: 'Dismiss notification', exact: true })
+      .click();
     await expect(feedback).toHaveCount(count - 1);
   }
   const widget = page.locator('.library-comparison');
-  await expect(widget.locator('.library-comparison-heading [data-slot="badge"]')).toHaveText('2 / 5');
+  await expect(widget.locator('.library-comparison-heading [data-slot="badge"]')).toHaveText(
+    '2 / 5',
+  );
   const remove = page.getByRole('button', { name: `Remove ${name} from comparison`, exact: true });
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
@@ -1043,11 +1143,14 @@ test('comparison selection keeps a clear remove icon and touch target with long 
       expect(actionBox.height).toBeGreaterThanOrEqual(44);
       expect(actionBox.x + actionBox.width).toBeLessThanOrEqual(width);
     }
-    expect(await widget.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
+    expect(await widget.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(
+      false,
+    );
     const widgetBox = (await widget.boundingBox())!;
     const selectionBox = (await widget.locator('.library-comparison-selection').boundingBox())!;
     const actionsBox = (await actions.boundingBox())!;
-    if (width <= 700) expect(actionsBox.y).toBeGreaterThanOrEqual(selectionBox.y + selectionBox.height);
+    if (width <= 700)
+      expect(actionsBox.y).toBeGreaterThanOrEqual(selectionBox.y + selectionBox.height);
     else expect(actionsBox.y).toBeLessThan(selectionBox.y);
     expect(widgetBox.height).toBeLessThan(width <= 700 ? 420 : 260);
     await widget.scrollIntoViewIfNeeded();
@@ -1350,9 +1453,14 @@ test('notifications fit narrow, landscape and wide screens with an inset square 
       element.append(reference);
       const normal = getComputedStyle(reference);
       const icon = getComputedStyle(element.querySelector('[data-icon]')!);
-      const colors = { background: style.backgroundColor, border: style.borderColor,
-        normalBackground: normal.backgroundColor, normalBorder: normal.borderColor,
-        icon: icon.color, destructive: normal.color };
+      const colors = {
+        background: style.backgroundColor,
+        border: style.borderColor,
+        normalBackground: normal.backgroundColor,
+        normalBorder: normal.borderColor,
+        icon: icon.color,
+        destructive: normal.color,
+      };
       reference.remove();
       return colors;
     });
