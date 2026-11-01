@@ -319,7 +319,10 @@ test('comparison preserves editor and closes back to the selected library routes
         const route = getComputedStyle(element.querySelector('.comparison-screen-route strong')!);
         const panel = getComputedStyle(element.querySelector('.comparison-screen-panel')!);
         const header = getComputedStyle(element.querySelector('.comparison-screen-header')!);
-        return screen.color === route.color && header.backgroundColor === panel.backgroundColor;
+        const scroll = getComputedStyle(element.querySelector('.comparison-screen-details')!);
+        const plannerScroll = getComputedStyle(document.querySelector('.planner-scroll')!);
+        return screen.color === route.color && header.backgroundColor === panel.backgroundColor &&
+          scroll.scrollbarWidth === plannerScroll.scrollbarWidth && scroll.scrollbarColor === plannerScroll.scrollbarColor;
       })).toBe(true);
       await expect(workspace.getByRole('button', { name: language === 'en' ? 'Back to routes' : 'Назад к маршрутам', exact: true })).toBeVisible();
       for (const button of await workspace.locator('.comparison-screen-header button, .comparison-screen-panel-header button, .comparison-screen-panel-actions button, .comparison-screen-route, .comparison-screen-visibility').all()) {

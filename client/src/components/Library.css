@@ -1100,16 +1100,56 @@
 }
 
 .route-library .library-comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'summary actions' 'selection selection';
+  align-items: center;
+  gap: 14px 20px;
   margin-bottom: 20px;
-  padding: 14px;
+  padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface);
 }
+.route-library .library-comparison[data-ready='true'] {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+}
+.route-library .library-comparison-summary {
+  grid-area: summary;
+  min-width: 0;
+}
+.route-library .library-comparison-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.route-library .library-comparison-heading > svg {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+.route-library .library-comparison-heading h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.route-library .library-comparison-heading [data-slot='badge'] {
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-variant-numeric: tabular-nums;
+}
 .route-library .library-comparison p {
-  margin: 0 0 10px;
+  margin: 0;
   color: var(--library-quiet);
   font-size: var(--font-size-helper);
+  line-height: 1.55;
+}
+.route-library .library-comparison-filter-note {
+  display: block;
+  margin-top: 4px;
 }
 .route-library .library-comparison-actions,
 .route-library .library-comparison-selection {
@@ -1117,8 +1157,18 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+.route-library .library-comparison-actions {
+  grid-area: actions;
+  justify-content: flex-end;
+}
+.route-library .library-comparison-actions button {
+  min-width: 44px;
+  min-height: 44px;
+  height: auto;
+}
 .route-library .library-comparison-selection {
-  margin: 0 0 12px;
+  grid-area: selection;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -1136,9 +1186,38 @@
   white-space: normal;
   text-align: start;
 }
+.route-library .library-comparison-route-number {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
 .route-library .library-comparison-route-name {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .route-library .library-comparison {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'summary' 'selection' 'actions';
+    gap: 12px;
+    padding: 14px;
+  }
+  .route-library .library-comparison-actions > button:first-child {
+    flex: 1;
+  }
+  .route-library .library-comparison-clear {
+    width: 44px;
+    padding: 8px;
+  }
+  .route-library .library-comparison-clear span {
+    display: none;
+  }
 }
 .route-library .library-comparison-selection button svg {
   width: 20px;

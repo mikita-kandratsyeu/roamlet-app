@@ -884,16 +884,21 @@ it('selects 2–3 routes using keyboard-accessible checkboxes and enforces the m
   const onCompare = vi.fn();
   const { onOpen } = await openLibrary(onCompare);
   const compare = screen.getByRole('button', { name: 'Compare routes' });
+  expect(screen.getByRole('heading', { name: 'Route comparison' })).toBeVisible();
+  expect(screen.getByText('Choose 2–3 routes to compare on the map.')).toBeVisible();
   expect(compare).toBeDisabled();
   const select = (name: string) =>
     screen.getByRole('checkbox', { name: `Select ${name} for comparison` });
   select(alpine.name).focus();
   await user.keyboard(' ');
   expect(select(alpine.name)).toBeChecked();
+  expect(screen.getByText('1 route selected. Choose one more to compare.')).toBeVisible();
   expect(compare).toBeDisabled();
   await user.click(select(woodland.name));
+  expect(screen.getByText('2 routes selected. Add a third if needed.')).toBeVisible();
   expect(compare).toBeEnabled();
   await user.click(select(third.name));
+  expect(screen.getByText('3 routes selected — ready to compare.')).toBeVisible();
   expect(select(fourth.name)).toBeDisabled();
   expect(select(alpine.name)).toBeEnabled();
   await user.click(compare);

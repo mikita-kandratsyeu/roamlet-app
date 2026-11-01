@@ -33,6 +33,7 @@ import {
   Star,
   SlidersHorizontal,
   ArrowLeft,
+  ArrowLeftRight,
   X,
 } from 'lucide-react';
 
@@ -49,6 +50,7 @@ import {
 } from '../domain/backup';
 import { thumbnailPaths } from './routeThumbnail';
 import { Dialog } from './Dialog';
+import { ROUTE_COMPARISON_COLORS } from './RouteComparison';
 import { locale, translateMessage } from '../i18n';
 
 const MAX_VISIBLE_ROUTE_TAGS = 3;
@@ -673,18 +675,40 @@ export function Library({
             />
           )}
           {onCompare && !loading && !loadFailed && routes.length > 0 && (
-            <section className="library-comparison" aria-label={t('Compare saved routes')}>
-              <p id={comparisonHelpId} aria-live="polite" aria-atomic="true">
-                {t('Select 2–3 routes to compare. {{count}} selected.', {
-                  count: comparisonRoutes.length,
-                })}
-                {comparisonRoutes.some(
-                  (route) => !filtered.some((visible) => visible.id === route.id),
-                ) && ` ${t('Some selected routes are hidden by filters.')}`}
-              </p>
+            <section
+              className="library-comparison"
+              aria-label={t('Compare saved routes')}
+              data-ready={comparisonRoutes.length >= 2}
+            >
+              <div className="library-comparison-summary">
+                <div className="library-comparison-heading">
+                  <ArrowLeftRight size={20} aria-hidden="true" />
+                  <h2>{t('Route comparison')}</h2>
+                  <Badge variant="secondary" aria-hidden="true">
+                    {comparisonRoutes.length} / 3
+                  </Badge>
+                </div>
+                <p id={comparisonHelpId} aria-live="polite" aria-atomic="true">
+                  {t(
+                    [
+                      'Choose 2–3 routes to compare on the map.',
+                      '1 route selected. Choose one more to compare.',
+                      '2 routes selected. Add a third if needed.',
+                      '3 routes selected — ready to compare.',
+                    ][comparisonRoutes.length],
+                  )}
+                  {comparisonRoutes.some(
+                    (route) => !filtered.some((visible) => visible.id === route.id),
+                  ) && (
+                    <span className="library-comparison-filter-note">
+                      {t('Some selected routes are hidden by filters.')}
+                    </span>
+                  )}
+                </p>
+              </div>
               {comparisonRoutes.length > 0 && (
                 <ul className="library-comparison-selection" aria-label={t('Selected routes')}>
-                  {comparisonRoutes.map((route) => (
+                  {comparisonRoutes.map((route, index) => (
                     <li key={route.id}>
                       <Button
                         variant="outline"
@@ -693,6 +717,13 @@ export function Library({
                         aria-label={t('Remove {{name}} from comparison', { name: route.name })}
                         onClick={() => toggleComparison(route.id)}
                       >
+                        <span
+                          className="library-comparison-route-number"
+                          style={{ backgroundColor: ROUTE_COMPARISON_COLORS[index] }}
+                          aria-hidden="true"
+                        >
+                          {index + 1}
+                        </span>
                         <span className="library-comparison-route-name">{route.name}</span>
                         <X className="size-5" aria-hidden="true" />
                       </Button>
@@ -708,14 +739,19 @@ export function Library({
                   aria-describedby={comparisonHelpId}
                   onClick={() => onCompare(comparisonRoutes)}
                 >
+                  <ArrowLeftRight size={18} aria-hidden="true" />
                   {t('Compare routes')}
                 </Button>
                 <Button
                   variant="ghost"
+                  className="library-comparison-clear"
+                  aria-label={t('Clear selection')}
+                  title={t('Clear selection')}
                   disabled={busy || !!editing || !!deleting || !!backup || !comparisonRoutes.length}
                   onClick={() => setComparisonIds([])}
                 >
-                  {t('Clear selection')}
+                  <X size={18} aria-hidden="true" />
+                  <span>{t('Clear selection')}</span>
                 </Button>
               </div>
             </section>

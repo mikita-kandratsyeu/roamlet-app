@@ -998,12 +998,19 @@ test('comparison selection keeps a clear remove icon and touch target with long 
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
   const feedback = page.locator('[data-sonner-toast][data-type="success"]');
-  if (await feedback.count()) {
-    await feedback.getByRole('button', { name: 'Dismiss notification', exact: true }).click();
-    await expect(feedback).toHaveCount(0);
+  while (await feedback.count()) {
+    const count = await feedback.count();
+    await feedback.first().getByRole('button', { name: 'Dismiss notification', exact: true }).click();
+    await expect(feedback).toHaveCount(count - 1);
   }
   const select = page.getByRole('checkbox', { name: `Select ${name} for comparison`, exact: true });
   await select.check();
+  await expect(page.getByRole('button', { name: 'Compare routes', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: `Duplicate ${name}`, exact: true }).click();
+  await page.getByRole('checkbox', { name: `Select ${name} (copy) for comparison`, exact: true }).check();
+  await expect(page.getByRole('button', { name: 'Compare routes', exact: true })).toBeEnabled();
+  const widget = page.locator('.library-comparison');
+  await expect(widget.locator('.library-comparison-heading [data-slot="badge"]')).toHaveText('2 / 3');
   const remove = page.getByRole('button', { name: `Remove ${name} from comparison`, exact: true });
   for (const width of [320, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
@@ -1024,11 +1031,27 @@ test('comparison selection keeps a clear remove icon and touch target with long 
     expect(await remove.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
       true,
     );
+    const actions = widget.locator('.library-comparison-actions');
+    for (const action of await actions.getByRole('button').all()) {
+      const actionBox = (await action.boundingBox())!;
+      expect(actionBox.width).toBeGreaterThanOrEqual(44);
+      expect(actionBox.height).toBeGreaterThanOrEqual(44);
+      expect(actionBox.x + actionBox.width).toBeLessThanOrEqual(width);
+    }
+    expect(await widget.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
+    const widgetBox = (await widget.boundingBox())!;
+    const selectionBox = (await widget.locator('.library-comparison-selection').boundingBox())!;
+    const actionsBox = (await actions.boundingBox())!;
+    if (width <= 700) expect(actionsBox.y).toBeGreaterThanOrEqual(selectionBox.y + selectionBox.height);
+    else expect(actionsBox.y).toBeLessThan(selectionBox.y);
+    expect(widgetBox.height).toBeLessThan(width <= 700 ? 420 : 260);
     await page.screenshot({ path: testInfo.outputPath(`comparison-selection-${width}.png`) });
   }
   await remove.focus();
   await remove.press('Enter');
   await expect(select).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Compare routes', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Clear selection', exact: true }).click();
   await expect(page.getByRole('list', { name: 'Selected routes', exact: true })).toHaveCount(0);
 });
 
