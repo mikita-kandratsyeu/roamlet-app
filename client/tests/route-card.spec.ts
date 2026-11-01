@@ -54,6 +54,26 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
         ]),
       )
       .toEqual([1080, format === 'Post' ? 1350 : 1920]);
+    const iconPixels = await image.evaluate((element: HTMLImageElement) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = element.naturalWidth;
+      canvas.height = element.naturalHeight;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Canvas unavailable');
+      context.drawImage(element, 0, 0);
+      const pixels = context.getImageData(0, canvas.height - 240, canvas.width, 240).data;
+      let road = 0,
+        dot = 0;
+      for (let index = 0; index < pixels.length; index += 4) {
+        if (pixels[index] === 250 && pixels[index + 1] === 247 && pixels[index + 2] === 242) road++;
+        if (pixels[index] === 189 && pixels[index + 1] === 211 && pixels[index + 2] === 165) dot++;
+      }
+      canvas.width = 0;
+      canvas.height = 0;
+      return { road, dot };
+    });
+    expect(iconPixels.road).toBeGreaterThan(150);
+    expect(iconPixels.dot).toBeGreaterThan(60);
     await expect
       .poll(() => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth))
       .toBe(true);
