@@ -7,8 +7,8 @@ import {
   Eye,
   EyeOff,
   Footprints,
-  PanelRightClose,
-  PanelRightOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
   Route as RouteIcon,
   Scan,
   Table2,
@@ -158,13 +158,13 @@ export function ComparisonScreen({
                 onClick={() => setExpanded((value) => !value)}
               >
                 {expanded ? (
-                  <PanelRightClose
+                  <PanelLeftClose
                     className="comparison-screen-desktop-toggle"
                     size={18}
                     aria-hidden="true"
                   />
                 ) : (
-                  <PanelRightOpen
+                  <PanelLeftOpen
                     className="comparison-screen-desktop-toggle"
                     size={18}
                     aria-hidden="true"

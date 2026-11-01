@@ -54,14 +54,15 @@ const mapMotionDuration = () =>
 
 function mapFitPadding(container: HTMLElement | null) {
   const region = container?.parentElement;
-  const screen = container?.closest('.editor-screen');
+  const screen = container?.closest('.editor-screen, .comparison-screen');
+  const comparison = screen?.classList.contains('comparison-screen');
   return mapPadding({
     viewport: container?.getBoundingClientRect(),
-    planner: screen?.querySelector('#route-planner')?.getBoundingClientRect(),
+    planner: screen?.querySelector('#route-planner, .comparison-screen-panel')?.getBoundingClientRect(),
     stylePicker: region?.querySelector<HTMLElement>('.map-style-picker')?.getBoundingClientRect(),
     controls: region?.querySelector<HTMLElement>('.map-extra-controls')?.getBoundingClientRect(),
     editingToolbar: region?.querySelector<HTMLElement>('.map-editing-toolbar')?.getBoundingClientRect(),
-    compactPlanner: window.innerWidth <= 1024,
+    compactPlanner: window.innerWidth <= (comparison ? 700 : 1024),
   });
 }
 

@@ -16,6 +16,8 @@ Route stop actions adapt to the number of available buttons: one fills the row, 
 
 “Report a map issue” is available in the map’s “More map tools” (⋯) menu on desktop and mobile, rather than as an overlay on the map.
 
+Dialog close buttons share the header’s top-right alignment and a 44 × 44 px touch target, including compact confirmations with multiline titles or descriptions. On mobile, full-screen dialogs retain this alignment within their header; compact dialogs remain centered cards.
+
 ## Development
 
 Use Yarn 4.18.1 (the latest stable release verified on 28 October 2026), pinned in `packageManager` and bundled in `.yarn/releases`. `.yarnrc.yml` selects the standard npm registry and the familiar `node_modules` linker. Corepack uses the pin; existing Yarn Classic installations forward to the bundled release via `.yarnrc`. Without either launcher, use `node .yarn/releases/yarn-4.18.1.cjs` instead of `yarn`:

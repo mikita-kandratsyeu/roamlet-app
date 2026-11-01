@@ -2,7 +2,36 @@ import { clickMapTool, mapTool } from './mapControls';
 import { test, expect, type Locator } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
+async function expectDialogClosePosition(dialog: Locator) {
+  const header = dialog.locator('.dialog-header');
+  const close = header.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ });
+  await expect(close).toBeVisible();
+  await expect(close).toHaveCSS('width', '44px');
+  await expect(close).toHaveCSS('height', '44px');
+  await expect
+    .poll(() =>
+      close.evaluate((element) => {
+        const header = element.closest('.dialog-header')!;
+        const style = getComputedStyle(header);
+        const headerBox = header.getBoundingClientRect();
+        const closeBox = element.getBoundingClientRect();
+        const iconBox = element.querySelector('svg')!.getBoundingClientRect();
+        const round = (value: number) => Math.round(value * 10) / 10 || 0;
+        return {
+          top: round(closeBox.top - headerBox.top - parseFloat(style.paddingTop)),
+          right: round(headerBox.right - closeBox.right - parseFloat(style.paddingRight)),
+          width: round(closeBox.width),
+          height: round(closeBox.height),
+          iconX: round(iconBox.x + iconBox.width / 2 - closeBox.x - closeBox.width / 2),
+          iconY: round(iconBox.y + iconBox.height / 2 - closeBox.y - closeBox.height / 2),
+        };
+      }),
+    )
+    .toEqual({ top: 0, right: 0, width: 44, height: 44, iconX: 0, iconY: 0 });
+}
+
 async function expectDialogTypography(dialog: Locator) {
+  await expectDialogClosePosition(dialog);
   const title = dialog.locator('.dialog-header h2');
   await expect(title).toHaveCSS('font-size', '18px');
   await expect(title).toHaveCSS('font-weight', '650');
@@ -876,6 +905,40 @@ test('draft recovery uses the same compact confirmation layout', async ({ page }
   await expect(dialog.locator('.button-row.dialog-actions')).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('draft-dialog.png') });
   await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
+});
+
+test('dialog close stays in the top-right corner with localized multiline descriptions', async ({
+  page,
+}, testInfo) => {
+  const widths = testInfo.project.name === 'mobile' ? [320] : [768, 1440];
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 800 });
+    for (const language of ['en', 'ru']) {
+      const menu = page.getByRole('button', { name: /^(Menu|Меню)$/ });
+      await menu.click();
+      await page
+        .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' })
+        .click();
+      for (const theme of ['light', 'dark']) {
+        await menu.click();
+        await page
+          .locator('.header-menu-theme-option')
+          .nth(theme === 'dark' ? 1 : 0)
+          .click();
+        await menu.click();
+        await page.getByRole('menuitem', { name: /^(Reset settings|Сбросить настройки)$/ }).click();
+        const dialog = page.getByRole('dialog');
+        await expectDialogClosePosition(dialog);
+        await expect(dialog.locator('.dialog-description')).toBeVisible();
+        await page.screenshot({
+          path: testInfo.outputPath(`dialog-close-${width}-${language}-${theme}.png`),
+        });
+        await dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }).click();
+        await expect(dialog).toHaveCount(0);
+        await expect(menu).toBeFocused();
+      }
+    }
+  }
 });
 
 test('reset confirmation uses shared action spacing and restores focus', async ({

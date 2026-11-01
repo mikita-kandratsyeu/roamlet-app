@@ -39,12 +39,13 @@ body:has(.comparison-screen[data-state='open'])
 }
 .comparison-screen-workspace {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  display: block;
   flex: 1;
   min-height: 0;
 }
 .comparison-screen .comparison-map {
+  position: absolute;
+  inset: 0;
   height: 100%;
   min-height: 0;
   min-width: 0;
@@ -53,12 +54,22 @@ body:has(.comparison-screen[data-state='open'])
   border-radius: 0;
 }
 .comparison-screen-panel {
+  position: absolute;
+  top: var(--space, 24px);
+  left: var(--space, 24px);
+  z-index: 2;
   display: flex;
   flex-direction: column;
+  width: var(--panel-width, 420px);
+  max-width: calc(100% - 2 * var(--space, 24px));
+  max-height: calc(100% - var(--space, 24px) - max(var(--space, 24px), 40px));
   min-height: 0;
   min-width: 0;
-  border-left: 1px solid var(--border);
-  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-surface);
+  background: var(--surface);
+  overflow: hidden;
 }
 .comparison-screen-panel-header {
   display: flex;
@@ -77,8 +88,9 @@ body:has(.comparison-screen[data-state='open'])
 }
 .comparison-screen-panel-title h2 {
   margin: 0;
-  font-size: var(--font-size-body);
-  font-weight: 650;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.45;
 }
 .comparison-screen-panel-title [data-slot='badge'] {
   background: var(--accent);
@@ -295,8 +307,14 @@ body:has(.comparison-screen[data-state='open'])
   display: block;
   color: var(--muted-foreground);
 }
-.comparison-screen-workspace.panel-collapsed {
-  grid-template-columns: minmax(0, 1fr) 72px;
+.panel-collapsed .comparison-screen-panel {
+  width: 44px;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
 }
 .panel-collapsed .comparison-screen-panel-title,
 .panel-collapsed .comparison-screen-overview-label {
@@ -304,7 +322,28 @@ body:has(.comparison-screen[data-state='open'])
 }
 .panel-collapsed .comparison-screen-panel-header,
 .panel-collapsed .comparison-screen-panel-actions {
-  padding: 12px;
+  padding: 0;
+  border: 0;
+}
+.panel-collapsed .comparison-screen-panel-actions {
+  margin-top: 8px;
+}
+.panel-collapsed .comparison-screen-collapse,
+.panel-collapsed .comparison-screen-overview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-surface);
+}
+.panel-collapsed .comparison-screen-error {
+  position: absolute;
+  left: 56px;
+  top: 0;
+  width: min(360px, calc(100vw - 100px));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-surface);
 }
 .panel-collapsed .comparison-screen-overview {
   width: 44px;
@@ -313,13 +352,27 @@ body:has(.comparison-screen[data-state='open'])
 @media (max-width: 700px) {
   .comparison-screen-workspace,
   .comparison-screen-workspace.panel-collapsed {
+    display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
   }
-  .comparison-screen-panel {
+  .comparison-screen .comparison-map {
+    position: relative;
+    inset: auto;
+  }
+  .comparison-screen-panel,
+  .panel-collapsed .comparison-screen-panel {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 100%;
+    max-width: none;
     max-height: 50dvh;
-    border-left: 0;
+    border: 0;
     border-top: 1px solid var(--border);
+    border-radius: 18px 18px 0 0;
+    background: var(--surface);
+    overflow: hidden;
   }
   .comparison-screen-panel-header {
     padding: 8px 12px;
@@ -353,10 +406,20 @@ body:has(.comparison-screen[data-state='open'])
     border-bottom: 0;
   }
   .panel-collapsed .comparison-screen-panel-actions {
+    margin-top: 0;
     padding: 8px 12px 8px 4px;
   }
+  .panel-collapsed .comparison-screen-collapse {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
   .panel-collapsed .comparison-screen-error {
+    position: static;
+    width: auto;
     grid-column: 1 / -1;
+    border: 0;
+    box-shadow: none;
   }
 }
 @media (max-width: 560px) {

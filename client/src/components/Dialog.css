@@ -215,12 +215,7 @@
   box-shadow: var(--shadow-surface);
 }
 
-.roamlet-dialog.compact .dialog-header {
-  align-items: center;
-}
-
 .roamlet-dialog.compact .dialog-header .icon-button {
-  margin: -8px -8px -8px 0;
   color: var(--muted-foreground);
 }
 
@@ -267,7 +262,6 @@
   }
 
   .roamlet-dialog .dialog-header {
-    align-items: center;
     min-height: 64px;
     padding: 10px 16px;
     border-bottom: 1px solid var(--border);
