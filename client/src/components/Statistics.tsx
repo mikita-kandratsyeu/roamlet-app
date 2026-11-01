@@ -21,7 +21,7 @@ const ElevationChart = optionalLazy<ComponentProps<typeof import('./ElevationCha
   () => import('./ElevationChart').then(({ ElevationChart }) => ({ default: ElevationChart })),
 );
 
-function formatTimeRange(range: TimeRange) {
+export function formatTimeRange(range: TimeRange) {
   const rounded = outwardMinutes(range)!;
   return (
     <>
@@ -228,6 +228,49 @@ export function Statistics({
       </section>
     );
   const provider = route.source === 'openrouteservice' || route.source === 'mapbox';
+  const originalEstimate = (
+    <div className="stat-card">
+      <dt>
+        {t(route.source === 'mixed' ? 'Combined time estimate' : provider
+          ? 'Provider estimate' : speedKmh === undefined ? 'Est. moving time' : 'Original time estimate')}
+      </dt>
+      <dd>{formatDuration(route.stats.duration)}</dd>
+    </div>
+  );
+  const movingTime = personal && (
+    <div className="stat-card stat-card-personal">
+      <dt>{t('Personal moving time')}</dt>
+      <dd>{formatTimeRange(personal.movingRange)}</dd>
+    </div>
+  );
+  const totalTime = personal && (
+    <div className="stat-card stat-card-personal stat-card-total">
+      <dt>{t('Total time with stops')}</dt>
+      <dd>{formatTimeRange(personal.totalRange)}</dd>
+    </div>
+  );
+  const additionalStats = (
+    <>
+      {personal?.planningReference !== null && personal?.planningReference !== undefined && (
+        <div className="stat-card">
+          <dt>{t('Planning reference')}</dt>
+          <dd>{formatDuration(Math.ceil(personal.planningReference / 60) * 60)}</dd>
+        </div>
+      )}
+      {showElevation && (
+        <>
+          <div className="stat-card">
+            <dt>{t('Elevation gain')}</dt>
+            <dd>{formatNumber(Math.round(route.stats.ascent!))} {t('m')}</dd>
+          </div>
+          <div className="stat-card">
+            <dt>{t('Elevation loss')}</dt>
+            <dd>{formatNumber(Math.round(route.stats.descent!))} {t('m')}</dd>
+          </div>
+        </>
+      )}
+    </>
+  );
   return (
     <section className="statistics" aria-label={t('Route statistics')}>
       <dl className="stat-grid">
@@ -235,55 +278,22 @@ export function Statistics({
           <dt>{t('Distance')}</dt>
           <dd>{formatDistance(route.stats.distance)}</dd>
         </div>
-        <div className="stat-card">
-          <dt>
-            {t(
-              route.source === 'mixed'
-                ? 'Combined time estimate'
-                : provider
-                  ? 'Provider estimate'
-                  : speedKmh === undefined
-                    ? 'Est. moving time'
-                    : 'Original time estimate',
-            )}
-          </dt>
-          <dd>{formatDuration(route.stats.duration)}</dd>
-        </div>
-        {personal && (
-          <>
-            <div className="stat-card stat-card-personal">
-              <dt>{t('Personal moving time')}</dt>
-              <dd>{formatTimeRange(personal.movingRange)}</dd>
-            </div>
-            <div className="stat-card stat-card-personal stat-card-total">
-              <dt>{t('Total time with stops')}</dt>
-              <dd>{formatTimeRange(personal.totalRange)}</dd>
-            </div>
-          </>
-        )}
-        {personal?.planningReference !== null && personal?.planningReference !== undefined && (
-          <div className="stat-card">
-            <dt>{t('Planning reference')}</dt>
-            <dd>{formatDuration(Math.ceil(personal.planningReference / 60) * 60)}</dd>
-          </div>
-        )}
-        {showElevation && (
-          <>
-            <div className="stat-card">
-              <dt>{t('Elevation gain')}</dt>
-              <dd>
-                {formatNumber(Math.round(route.stats.ascent!))} {t('m')}
-              </dd>
-            </div>
-            <div className="stat-card">
-              <dt>{t('Elevation loss')}</dt>
-              <dd>
-                {formatNumber(Math.round(route.stats.descent!))} {t('m')}
-              </dd>
-            </div>
-          </>
-        )}
+        {compact && personal ? totalTime : originalEstimate}
+        {!compact && <>{movingTime}{totalTime}{additionalStats}</>}
       </dl>
+      {compact && (personal || showElevation) && (
+        <details className="statistics-details planner-disclosure">
+          <summary className="section-heading">
+            <span>{t('More statistics')}</span>
+            <span className="disclosure-toggle" aria-hidden="true"><ChevronDown size={18} /></span>
+          </summary>
+          <dl className="stat-grid stat-grid-details">
+            {personal && originalEstimate}
+            {movingTime}
+            {additionalStats}
+          </dl>
+        </details>
+      )}
       <p className="fine-print">
         {personal
           ? t('Original time excludes stops; personal total includes them.')

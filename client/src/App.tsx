@@ -19,6 +19,7 @@ import { useRoutingToast } from './hooks/useRoutingToast';
 import { useManualDetour } from './hooks/useManualDetour';
 import { ManualDetourToolbar } from './components/ManualDetourToolbar';
 import { PlannerTools } from './components/PlannerTools';
+import { PlannerPanel } from './components/PlannerPanel';
 import { PlannerDetails } from './components/PlannerDetails';
 import { PlannerChoice } from './components/PlannerChoice';
 import { CoordinateInput, type CoordinateInputHandle } from './components/CoordinateInput';
@@ -32,7 +33,7 @@ import { RouteComparison, ROUTE_COMPARISON_COLORS } from './components/RouteComp
 import { ClimbAnalysis } from './components/ClimbAnalysis';
 import { RouteSchedule } from './components/RouteSchedule';
 import './components/ComparisonMap.css';
-import { Statistics } from './components/Statistics';
+import { Statistics, formatTimeRange } from './components/Statistics';
 import { formatDistance, formatDuration } from './domain/format';
 import { useAppUpdate } from './hooks/useAppUpdate';
 import {
@@ -1198,26 +1199,20 @@ export default function App() {
               {t('Route planner')}
             </Button>
           )}
-          <aside id="route-planner" className="planner" aria-label={t('Route planner')} inert={drawingDetour}>
-            <Button
-              variant="ghost"
-              className="mobile-sheet-toggle"
-              onClick={() => setCollapsed(!collapsed)}
-              aria-expanded={!collapsed}
-            >
-              <span className="sheet-identity">
-                <strong>{name || t('New route')}</strong>
-                {(result || collapsed) && (
-                  <small>
-                    {result
-                      ? formatDistance(result.stats.distance) +
-                        ' · ' +
-                        formatDuration(result.stats.duration)
-                      : t('Start with two points on the map')}
-                  </small>
-                )}
-              </span>
-            </Button>
+          <PlannerPanel
+            title={name || t('New route')}
+            summary={result
+              ? routeStale ? t(busy ? 'Updating route…' : 'Route needs recalculation') : <>
+                  {formatDistance(result.stats.distance)}{' · '}
+                  <span title={t(personalTime ? 'Total time with stops' : 'Original time estimate')}>
+                    {personalTime ? formatTimeRange(personalTime.totalRange) : formatDuration(result.stats.duration)}
+                  </span>
+                </>
+              : collapsed ? t('Start with two points on the map') : undefined}
+            collapsed={collapsed}
+            onCollapsedChange={setCollapsed}
+            inert={drawingDetour}
+          >
             <div className="planner-heading">
               <div>
                 <h1>{name || t('New route')}</h1>
@@ -1250,7 +1245,7 @@ export default function App() {
                 </Button>
               </div>
             </div>
-            <div className="planner-scroll">
+            <div id="planner-scroll" className="planner-scroll">
               <div className={`planner-route-status ${routeStale && result ? 'is-stale' : ''}`}
                 role="status" aria-atomic="true">
                 <div className="planner-route-status-copy">
@@ -1932,7 +1927,7 @@ export default function App() {
                 </Button>
               )}
             </footer>
-          </aside>
+          </PlannerPanel>
           <RouteMap
             key={mapRetryToken}
             online={online}

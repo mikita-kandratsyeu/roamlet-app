@@ -71,6 +71,8 @@ test('long personal time ranges remain readable in both languages and themes', a
   });
   const statistics = page.locator('.statistics:not(.statistics-empty)');
   await expect(statistics.locator('.stat-card-personal')).toHaveCount(2);
+  const details = statistics.locator('.statistics-details');
+  if (await details.count()) await details.locator('summary').click();
   const importNotice = page.locator('[data-sonner-toast][data-type="success"]');
   await expect(importNotice).toBeVisible();
   await importNotice.locator('[data-close-button]').click();
@@ -172,6 +174,8 @@ test('personal adjustments change the range without routing or replacing provide
   await addPoint(page, '47.27, 11.41');
   await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
   const statistics = page.getByRole('region', { name: 'Route statistics', exact: true });
+  const details = statistics.locator('.statistics-details');
+  if (await details.count()) await details.locator('summary').click();
   await expect(statistics.getByText('Provider estimate', { exact: true })).toBeVisible();
   const providerTime = statistics
     .locator('dt')

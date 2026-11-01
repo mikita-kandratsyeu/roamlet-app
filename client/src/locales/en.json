@@ -1,4 +1,9 @@
 {
+  "Expand planner view": "Expand planner view",
+  "Restore planner view": "Restore planner view",
+  "More statistics": "More statistics",
+  "Updating route…": "Updating route…",
+  "Route needs recalculation": "Route needs recalculation",
   "Route stop actions": "Route stop actions",
   "Route stops": "Route stops",
   "≥{{length}} m · ≥{{ascent}} m gain": "≥{{length}} m · ≥{{ascent}} m gain",

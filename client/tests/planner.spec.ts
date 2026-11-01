@@ -547,7 +547,8 @@ test('round trips route intermediate points with bounded search; responsive cont
   if (testInfo.project.name === 'mobile') {
     await page.locator('.mobile-sheet-toggle').click();
     await expect(page.locator('.planner-scroll')).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
+    await expect(page.locator('.planner-footer')).not.toBeVisible();
+    await expect(page.locator('.mobile-sheet-toggle')).toContainText('km');
     await expect(page.getByRole('button', { name: 'Use my location' })).toBeVisible();
     await page.locator('.mobile-sheet-toggle').click();
     await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
@@ -1044,15 +1045,17 @@ test('matches Figma planner geometry while preserving branding and responsive el
     buffer: Buffer.from(gpx),
   });
   await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
-  if (mobile)
-    await expect(page.getByRole('button', { name: /Mountain morning 0.3 km/ })).toBeVisible();
-  else await expect(page.getByRole('heading', { name: 'Mountain morning' })).toBeVisible();
+  if (mobile) {
+    const header = page.getByRole('button', { name: 'Hide planner', exact: true });
+    await expect(header).toBeVisible();
+    await expect(header).toHaveAccessibleDescription(/Mountain morning 0.3 km/);
+  } else await expect(page.getByRole('heading', { name: 'Mountain morning' })).toBeVisible();
   await expect(page.locator('.planner')).toHaveCSS('width', mobile ? '390px' : '420px');
   if (mobile) {
     await expect(page.locator('.elevation-box')).not.toHaveAttribute('open');
     await expect(page.locator('.statistics .elevation-box')).toHaveCount(1);
     await page.locator('.mobile-sheet-toggle').click();
-    await expect(page.getByRole('button', { name: 'Export' })).toBeVisible();
+    await expect(page.locator('.planner-footer')).not.toBeVisible();
     if ((await page.locator('.mobile-sheet-toggle').getAttribute('aria-expanded')) === 'false')
       await page.locator('.mobile-sheet-toggle').click();
     await expect(page.locator('.elevation-preview')).toBeVisible();
@@ -1113,8 +1116,9 @@ test('planner header stays visible while its guidance and controls scroll', asyn
       expect(await header.boundingBox()).toEqual(headerBefore);
       expect((await status.boundingBox())!.y).toBeLessThan(statusBefore!.y);
       await expect(header).toBeInViewport();
-      await expect(header).toHaveCSS('border-bottom-width', '1px');
-      await expect(header).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      const surface = mobile ? page.locator('.mobile-sheet-header') : header;
+      await expect(surface).toHaveCSS('border-bottom-width', '1px');
+      await expect(surface).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     }
   }
   if (mobile) {

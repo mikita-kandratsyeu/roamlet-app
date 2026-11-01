@@ -1,4 +1,9 @@
 {
+  "Expand planner view": "Развернуть планнер",
+  "Restore planner view": "Вернуть карту и планнер",
+  "More statistics": "Подробная статистика",
+  "Updating route…": "Обновляем маршрут…",
+  "Route needs recalculation": "Нужно пересчитать маршрут",
   "Route stop actions": "Действия с точками маршрута",
   "Route stops": "Точки маршрута",
   "≥{{length}} m · ≥{{ascent}} m gain": "≥{{length}} м · набор ≥{{ascent}} м",

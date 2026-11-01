@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { Coordinate, PlannedRoute } from '../domain/types';
 import { calculateStats } from '../domain/stats';
@@ -32,6 +33,39 @@ function route(segments: Coordinate[][]): PlannedRoute {
     source: 'gpx',
   };
 }
+
+it('keeps the mobile overview compact and reveals unchanged statistics on demand', async () => {
+  vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+  const snapshot = route([[[11, 47, 100], [11.01, 47.01, 150]]]);
+  snapshot.stats = { distance: 18000, duration: 1800, ascent: 50, descent: 0 };
+  const before = structuredClone(snapshot);
+  const user = userEvent.setup();
+  const { container } = render(<Statistics route={snapshot} speedKmh={18} stopsMinutes={15} />);
+  const overview = container.querySelector<HTMLElement>('.stat-grid')!;
+  expect(within(overview).getByText('Distance')).toBeVisible();
+  expect(within(overview).getByText('Total time with stops')).toBeVisible();
+  expect(overview.children).toHaveLength(2);
+  expect(screen.getByText('Original time estimate')).not.toBeVisible();
+  expect(screen.getByText('Personal moving time')).not.toBeVisible();
+  expect(screen.getByText('Elevation gain')).not.toBeVisible();
+  await user.click(screen.getByText('More statistics'));
+  expect(screen.getByText('Original time estimate')).toBeVisible();
+  expect(screen.getByText('Personal moving time')).toBeVisible();
+  expect(screen.getByText('Elevation gain')).toBeVisible();
+  expect(screen.getByText('30 min')).toBeVisible();
+  await user.click(screen.getByText('More statistics'));
+  expect(screen.getByText('Original time estimate')).not.toBeVisible();
+  expect(screen.getByText('Total time with stops')).toBeVisible();
+  expect(snapshot).toEqual(before);
+});
+
+it('keeps the original estimate visible when the mobile personal estimate is unavailable', () => {
+  vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+  render(<Statistics route={route([[[11, 47], [11.01, 47.01]]])} speedKmh={0} />);
+  expect(screen.getByText('Original time estimate')).toBeVisible();
+  expect(screen.getByText('Personal estimate unavailable for these inputs.')).toBeVisible();
+  expect(screen.queryByText('More statistics')).not.toBeInTheDocument();
+});
 
 it('does not recalculate personal time when only the elevation selection changes', () => {
   const snapshot = route([[[11, 47, 100], [11.01, 47.01, 150]]]);

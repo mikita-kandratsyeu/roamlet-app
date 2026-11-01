@@ -242,10 +242,13 @@ test('small-screen statistics keep labels readable and time ranges on one line',
       await page.setViewportSize({ width, height: 1000 });
       const sheet = page.locator('.mobile-sheet-toggle');
       if ((await sheet.getAttribute('aria-expanded')) === 'false') await sheet.click();
-      const cards = page.locator('.stat-card');
-      for (const card of (await cards.all()).slice(0, 2))
-        await expect(card.locator('dt')).toBeVisible();
-      for (const card of (await cards.all()).slice(2)) {
+      const statistics = page.locator('.statistics:not(.statistics-empty)');
+      const overview = statistics.locator(':scope > .stat-grid > .stat-card');
+      await expect(overview).toHaveCount(2);
+      for (const card of await overview.all()) await expect(card.locator('dt')).toBeVisible();
+      const details = statistics.locator('.statistics-details');
+      if ((await details.getAttribute('open')) === null) await details.locator('summary').press('Enter');
+      for (const card of await details.locator('.stat-card:not(.stat-card-personal)').all()) {
         await expect(card).toHaveCSS('grid-column', '1 / -1');
         await expect(card.locator('dd')).toHaveCSS('white-space', 'nowrap');
         const label = (await card.locator('dt').boundingBox())!;
@@ -253,21 +256,25 @@ test('small-screen statistics keep labels readable and time ranges on one line',
         expect(value.x).toBeGreaterThanOrEqual(label.x + label.width + 10);
         expect(value.x + value.width).toBeLessThanOrEqual(width);
       }
+      for (const bound of await statistics.locator('.stat-time-bound').all())
+        await expect(bound).toHaveCSS('white-space', 'nowrap');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
-      await cards.nth(2).scrollIntoViewIfNeeded();
+      await details.scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath(`statistics-${language}-${width}.png`) });
     }
   }
 });
 
-test('mobile planner header toggles without a right-hand arrow', async ({ page }) => {
+test('mobile planner header exposes clear, keyboard-operable resize controls', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
   const header = page.locator('.mobile-sheet-toggle');
   await expect(header).toBeVisible();
-  await expect(header.locator('svg')).toHaveCount(0);
+  await expect(header.locator('svg')).toHaveCount(1);
+  await expect(header).toHaveAttribute('aria-controls', 'planner-scroll');
+  await expect(page.getByRole('button', { name: 'Expand planner view' })).toBeVisible();
   await expect(header.locator('.sheet-identity')).toBeVisible();
   await header.focus();
   await expect(header).toBeFocused();
