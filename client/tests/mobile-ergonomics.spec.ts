@@ -111,6 +111,41 @@ async function addStops(page: Page) {
   await expect(page.locator('[data-stop-id]')).toHaveCount(2);
 }
 
+test('footer divider spans the same width as the header while preserving action insets', async ({ page }, testInfo) => {
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((theme) => {
+      localStorage.setItem('roamlet-theme', theme);
+      window.dispatchEvent(new Event('roamlet-preferences-change'));
+    }, theme);
+    for (const viewport of [
+      { width: 1280, height: 900 },
+      { width: 844, height: 800 },
+      { width: 390, height: 844 },
+      { width: 320, height: 360 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await expandPlanner(page);
+      const footer = page.locator('.planner-footer');
+      const header = page.locator(viewport.width > 700 ? '.planner-heading' : '.mobile-sheet-header');
+      await expect(footer).toBeVisible();
+      const headerBox = (await header.boundingBox())!;
+      const footerBox = (await footer.boundingBox())!;
+      const actionsBox = (await footer.locator('.route-actions').boundingBox())!;
+      expect(footerBox.x).toBeCloseTo(headerBox.x, 1);
+      expect(footerBox.x + footerBox.width).toBeCloseTo(headerBox.x + headerBox.width, 1);
+      expect(actionsBox.x - footerBox.x).toBe(16);
+      expect(footerBox.x + footerBox.width - actionsBox.x - actionsBox.width).toBe(16);
+      await expect(footer).toHaveCSS('border-top-width', '1px');
+      await expect(header).toHaveCSS('border-bottom-width', '1px');
+      await expect.poll(async () =>
+        await footer.evaluate((element) => getComputedStyle(element).borderTopColor) ===
+        await header.evaluate((element) => getComputedStyle(element).borderBottomColor),
+      ).toBe(true);
+      await footer.screenshot({ path: testInfo.outputPath(`footer-${theme}-${viewport.width}.png`), animations: 'disabled' });
+    }
+  }
+});
+
 test('compact Russian sheet fits narrow screens in both themes and retains long route names', async ({ page }, testInfo) => {
   await page.evaluate(() => {
     localStorage.setItem('roamlet-language', 'ru');
