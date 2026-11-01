@@ -1604,6 +1604,23 @@ it('preserves comparison colors and disconnected segments across style changes',
   expect(props.onAdd).not.toHaveBeenCalled();
 });
 
+it.each([false, true])('hides editing tools in comparison (compact: %s)', async (compact) => {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: compact && query === '(max-width: 700px)',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  const user = userEvent.setup();
+  render(<RouteMap {...props} editable={false} comparisonMode segments={annotationSegments}
+    onToggleManualDrawing={vi.fn()} onUndo={vi.fn()} canUndo />);
+  act(() => mocks.handlers.get('load')?.());
+  expect(screen.queryByRole('button', { name: 'Manual drawing' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'More map tools' }));
+  expect(screen.queryByRole('button', { name: 'Manual drawing' })).not.toBeInTheDocument();
+  if (compact) expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+});
+
 it('highlights climbs without moving the map and clears stale highlights', () => {
   const options = { ...props, segments: annotationSegments, highlightSegments: annotationSegments };
   const { rerender } = render(<RouteMap {...options} />);

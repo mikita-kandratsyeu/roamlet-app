@@ -1148,7 +1148,7 @@ export function RouteMap(props: Props) {
       </Button>
     </>
   );
-  const editingControls = (
+  const editingControls = props.comparisonMode ? null : (
     <>
       <Button
         variant={props.manualDrawing ? 'default' : 'outline'}

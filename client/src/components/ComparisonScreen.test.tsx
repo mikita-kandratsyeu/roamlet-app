@@ -73,6 +73,35 @@ it('opens a full-screen workspace and restores focus after Back or Escape', asyn
   expect(trigger).toHaveFocus();
 });
 
+it('shows activity and saved metrics on route cards, with selection on the whole card', async () => {
+  const user = await open();
+  const card = within(screen.getByRole('list', { name: 'Routes to compare' })).getAllByRole(
+    'listitem',
+  )[0];
+  expect(within(card).getByText('Hiking')).toBeVisible();
+  expect(within(card).getByText('2.0 km')).toBeVisible();
+  expect(within(card).getByText('1 h 0 min')).toBeVisible();
+  await user.click(within(card).getByRole('button', { name: 'Focus route Lake' }));
+  expect(card).toHaveAttribute('data-focused', 'true');
+  await user.click(within(card).getByRole('checkbox'));
+  expect(card).toHaveAttribute('data-focused', 'false');
+  expect(card).toHaveAttribute('data-visible', 'false');
+});
+
+it('does not invent quick metrics for missing or invalid saved statistics', () => {
+  render(
+    <ComparisonScreen
+      routes={[{ ...routes[0], stats: { distance: NaN, duration: 0 } }, routes[1]]}
+      online={false}
+      onClose={() => {}}
+    />,
+  );
+  const card = within(screen.getByRole('list', { name: 'Routes to compare' })).getAllByRole(
+    'listitem',
+  )[0];
+  expect(within(card).getAllByText('Not available')).toHaveLength(2);
+});
+
 it('hides geometry without changing route colors, segments or snapshots and retains one visible route', async () => {
   const original = JSON.stringify(routes);
   const user = await open();

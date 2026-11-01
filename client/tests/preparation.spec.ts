@@ -210,14 +210,19 @@ test('schedule pause errors stay below editable inputs in English and Russian', 
 test('comparison preserves editor and closes back to the selected library routes', async ({
   page,
 }, testInfo) => {
-  await save(page, 'River');
+  const routeName = 'River · Riverside trail through the forest and mountain passes';
+  await save(page, routeName);
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
-  await page.getByRole('button', { name: 'Duplicate River', exact: true }).click();
+  await page.getByRole('button', { name: `Duplicate ${routeName}`, exact: true }).click();
   const checks = page.getByRole('checkbox', { name: /^Select .* for comparison$/ });
   await expect(checks).toHaveCount(2);
   await checks.nth(0).check();
   await checks.nth(1).check();
+  const libraryTitleStyle = await page.locator('.library-screen-heading h1').evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { fontSize: style.fontSize, fontWeight: style.fontWeight, lineHeight: style.lineHeight };
+  });
   const compare = page.getByRole('button', { name: 'Compare routes', exact: true });
   await compare.click();
   const dialog = page.getByRole('dialog', { name: 'Compare saved routes', exact: true });
@@ -229,19 +234,22 @@ test('comparison preserves editor and closes back to the selected library routes
   expect(screenBounds.y).toBe(0);
   expect(screenBounds.width).toBe(viewport.width);
   expect(screenBounds.height).toBe(viewport.height);
-  const title = dialog.locator('.comparison-screen-header h2');
-  await expect(title).toHaveCSS('font-size', '18px');
-  await expect(title).toHaveCSS('font-weight', '650');
-  await expect(title).toHaveCSS('line-height', '23.4px');
+  const title = dialog.locator('.comparison-screen-header h1');
+  await expect(title).toHaveCSS('font-size', libraryTitleStyle.fontSize);
+  await expect(title).toHaveCSS('font-weight', libraryTitleStyle.fontWeight);
+  await expect(title).toHaveCSS('line-height', libraryTitleStyle.lineHeight);
+  expect((await title.boundingBox())!.x).toBeLessThan((await dialog.getByRole('button', { name: 'Back to routes', exact: true }).boundingBox())!.x);
   await expect(title).toHaveCSS('font-family', /Manrope/);
   await expect(dialog.getByRole('table', { name: 'Saved route comparison' })).toHaveCount(0);
   await dialog.locator('summary').filter({ hasText: 'Route statistics' }).click();
   await expect(dialog.getByRole('table', { name: 'Saved route comparison' })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Fit route', exact: true })).toBeEnabled();
   await expect(dialog.getByRole('group', { name: 'Map style', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Manual drawing', exact: true })).toHaveCount(0);
   await dialog.getByRole('button', { name: 'More map tools', exact: true }).click();
   const tools = page.getByRole('dialog', { name: 'Map controls', exact: true });
   await expect(tools).toBeVisible();
+  await expect(tools.getByRole('button', { name: 'Manual drawing', exact: true })).toHaveCount(0);
   if (testInfo.project.name === 'mobile') await tools.getByRole('button', { name: 'Zoom in', exact: true }).click();
   await tools.getByRole('button', { name: 'Close map tools', exact: true }).click();
   await expect(dialog).toBeVisible();
@@ -295,13 +303,19 @@ test('comparison preserves editor and closes back to the selected library routes
         return screen.color === route.color && screen.backgroundColor === panel.backgroundColor;
       })).toBe(true);
       await expect(workspace.getByRole('button', { name: language === 'en' ? 'Back to routes' : 'Назад к маршрутам', exact: true })).toBeVisible();
-      for (const button of await workspace.locator('.comparison-screen-header button, .comparison-screen-panel-header button, .comparison-screen-route').all()) {
+      for (const button of await workspace.locator('.comparison-screen-header button, .comparison-screen-panel-header button, .comparison-screen-panel-actions button, .comparison-screen-route, .comparison-screen-visibility').all()) {
         const box = (await button.boundingBox())!;
         expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(box.width).toBeGreaterThanOrEqual(44);
         expect(box.x).toBeGreaterThanOrEqual(0);
         expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
       }
       expect(await workspace.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
+      const metricAlignment = await workspace.locator('.comparison-screen-card-metrics').first().evaluate((element) => {
+        const values = Array.from(element.querySelectorAll('dd')).map((value) => value.getBoundingClientRect().top);
+        return Math.abs(values[0] - values[1]);
+      });
+      expect(metricAlignment).toBeLessThanOrEqual(1);
       const attribution = (await workspace.locator('.maplibregl-ctrl-attrib').boundingBox())!;
       const panel = (await workspace.locator('.comparison-screen-panel').boundingBox())!;
       expect(attribution.y + attribution.height <= panel.y || attribution.x + attribution.width <= panel.x).toBe(true);
