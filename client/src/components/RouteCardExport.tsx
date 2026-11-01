@@ -304,7 +304,14 @@ export function RouteCardExport({
             {translateMessage(preview.message)}
           </p>
         )}
-        <p className="muted export-copy" role="status">
+        <p
+          className={
+            preview.status === 'idle' || preview.status === 'error'
+              ? 'sr-only'
+              : 'muted export-copy'
+          }
+          role="status"
+        >
           {preview.status === 'generating'
             ? t('Generating image…')
             : preview.status === 'ready'

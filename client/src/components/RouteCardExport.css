@@ -174,7 +174,7 @@
 .route-card-background-note {
   text-align: center;
 }
-.route-card-stage [role='status'] {
+.route-card-stage [role='status']:not(.sr-only) {
   min-height: 20px;
 }
 .route-card-actions {

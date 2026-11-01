@@ -183,37 +183,51 @@ test('social export layout and shared scrollbars work in both languages and them
       );
       await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0);
       await expect(dialog.getByRole('img')).toHaveCount(0);
-      const { settings, stage, footerInset, scrollGap } = await dialog.evaluate((element) => {
-        const settingsBox = element.querySelector('.route-card-settings')!.getBoundingClientRect();
-        const stageBox = element.querySelector('.route-card-stage')!.getBoundingClientRect();
-        return {
-          settings: {
-            x: settingsBox.x,
-            y: settingsBox.y,
-            width: settingsBox.width,
-            height: settingsBox.height,
-          },
-          stage: { x: stageBox.x, y: stageBox.y },
-          footerInset: (() => {
-            const footer = element.querySelector('.dialog-footer')!.getBoundingClientRect();
-            const dialog = element.getBoundingClientRect();
-            const style = getComputedStyle(element);
-            return {
-              left: footer.left - dialog.left - parseFloat(style.borderLeftWidth),
-              right: dialog.right - footer.right - parseFloat(style.borderRightWidth),
-            };
-          })(),
-          scrollGap: (() => {
-            const body = element.querySelector<HTMLElement>('.dialog-body')!;
-            const box = body.getBoundingClientRect();
-            const scrollbarWidth = body.offsetWidth - body.clientWidth;
-            return box.right - scrollbarWidth - Math.max(settingsBox.right, stageBox.right);
-          })(),
-        };
-      });
+      const { settings, stage, footerInset, scrollGap, captionGap, captionInset } =
+        await dialog.evaluate((element) => {
+          const settingsBox = element
+            .querySelector('.route-card-settings')!
+            .getBoundingClientRect();
+          const stageBox = element.querySelector('.route-card-stage')!.getBoundingClientRect();
+          return {
+            settings: {
+              x: settingsBox.x,
+              y: settingsBox.y,
+              width: settingsBox.width,
+              height: settingsBox.height,
+            },
+            stage: { x: stageBox.x, y: stageBox.y },
+            captionGap:
+              stageBox.bottom -
+              element.querySelector('.route-card-background-note')!.getBoundingClientRect().bottom,
+            captionInset:
+              parseFloat(
+                getComputedStyle(element.querySelector('.route-card-stage')!).paddingBottom,
+              ) +
+              parseFloat(
+                getComputedStyle(element.querySelector('.route-card-stage')!).borderBottomWidth,
+              ),
+            footerInset: (() => {
+              const footer = element.querySelector('.dialog-footer')!.getBoundingClientRect();
+              const dialog = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+              return {
+                left: footer.left - dialog.left - parseFloat(style.borderLeftWidth),
+                right: dialog.right - footer.right - parseFloat(style.borderRightWidth),
+              };
+            })(),
+            scrollGap: (() => {
+              const body = element.querySelector<HTMLElement>('.dialog-body')!;
+              const box = body.getBoundingClientRect();
+              const scrollbarWidth = body.offsetWidth - body.clientWidth;
+              return box.right - scrollbarWidth - Math.max(settingsBox.right, stageBox.right);
+            })(),
+          };
+        });
       expect(footerInset.left).toBeCloseTo(0, 0);
       expect(footerInset.right).toBeCloseTo(0, 0);
       expect(scrollGap).toBeGreaterThanOrEqual(16);
+      expect(captionGap).toBeCloseTo(captionInset, 0);
       if (testInfo.project.name === 'desktop') {
         expect(stage.x).toBeGreaterThan(settings.x + settings.width);
         expect(stage.y).toBeCloseTo(settings.y, 0);
