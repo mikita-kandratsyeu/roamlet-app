@@ -12,7 +12,7 @@ async function checkStopActions(page: Page) {
   for (const button of await buttons.all()) {
     await button.scrollIntoViewIfNeeded();
     if (await button.evaluate((element) => element.classList.contains('add-stop'))) {
-      await expect(button).toHaveAttribute('data-variant', 'default');
+      await expect(button).toHaveAttribute('data-variant', 'outline');
       await expect(button.locator('span')).toBeVisible();
     } else {
       await expect(button).toHaveAttribute('data-variant', 'outline');
@@ -291,7 +291,7 @@ test('disclosure arrows align and mobile route actions have labels and 44px targ
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
 });
 
-test('stop actions fit one accented action and named icons in both languages and themes', async ({ page }, testInfo) => {
+test('stop actions fit one labelled outline action and named icons in both languages and themes', async ({ page }, testInfo) => {
   const notification = page.locator('[data-sonner-toast][data-type="success"]');
   await expect(notification).toBeVisible();
   await notification.locator('[data-close-button]').click();
@@ -308,6 +308,15 @@ test('stop actions fit one accented action and named icons in both languages and
         await checkStopActions(page);
         const actions = page.locator('.waypoint-tools');
         await expect(actions.locator('button')).toHaveCount(3);
+        await page.mouse.move(0, 0);
+        await expect.poll(() => actions.evaluate((element) => {
+          const add = getComputedStyle(element.querySelector('.add-stop')!);
+          const reverse = getComputedStyle(element.querySelector('.reverse-stops')!);
+          const calculate = getComputedStyle(document.querySelector('.calculate-action .primary')!);
+          return add.backgroundColor === reverse.backgroundColor &&
+            add.borderColor === reverse.borderColor &&
+            add.backgroundColor !== calculate.backgroundColor;
+        })).toBe(true);
         const add = actions.getByRole('button', { name: language === 'en' ? 'Add a stop' : 'Добавить точку', exact: true });
         await add.click();
         await expect(page.getByRole('textbox', { name: language === 'en' ? 'Latitude' : 'Широта', exact: true })).toBeFocused();

@@ -1565,6 +1565,7 @@ export default function App() {
                   <div className="waypoint-tools" role="group" aria-label={t('Route stop actions')}>
                     {planningMode !== 'loop' && waypoints.length < stopLimit && (
                       <Button
+                        variant="outline"
                         className="add-stop"
                         title={t('Add a stop')}
                         onClick={() => {
