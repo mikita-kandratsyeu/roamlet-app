@@ -1565,8 +1565,8 @@ export default function App() {
                   <div className="waypoint-tools" role="group" aria-label={t('Route stop actions')}>
                     {planningMode !== 'loop' && waypoints.length < stopLimit && (
                       <Button
-                        variant="outline"
                         className="add-stop"
+                        title={t('Add a stop')}
                         onClick={() => {
                           setSearchTarget(null);
                           searchInput.current?.focus();
@@ -1579,17 +1579,19 @@ export default function App() {
                     {planningMode !== 'loop' && waypoints.length > 1 && (
                       <Button
                         variant="outline"
+                        size="icon"
                         className="reverse-stops"
                         aria-label={t('Reverse')}
+                        title={t('Reverse')}
                         onClick={() => changeWaypoints(reverseWaypoints(waypoints))}
                       >
                         <ArrowDownUp size={18} aria-hidden="true" />
-                        <span>{t('Reverse')}</span>
                       </Button>
                     )}
                     {!!waypoints.length && (
                       <Button
                         variant="outline"
+                        size="icon"
                         className="clear-stops"
                         aria-label={t('Clear stops')}
                         title={t('Clear stops')}
@@ -1603,7 +1605,6 @@ export default function App() {
                         }
                       >
                         <Trash2 size={18} aria-hidden="true" />
-                        <span className="clear-stops-label">{t('Clear stops')}</span>
                       </Button>
                     )}
                   </div>

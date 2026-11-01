@@ -11,8 +11,16 @@ async function checkStopActions(page: Page) {
   const buttons = actions.locator(':scope > button');
   for (const button of await buttons.all()) {
     await button.scrollIntoViewIfNeeded();
-    await expect(button).toHaveAttribute('data-variant', 'outline');
-    await expect(button.locator('span')).toBeVisible();
+    if (await button.evaluate((element) => element.classList.contains('add-stop'))) {
+      await expect(button).toHaveAttribute('data-variant', 'default');
+      await expect(button.locator('span')).toBeVisible();
+    } else {
+      await expect(button).toHaveAttribute('data-variant', 'outline');
+      await expect(button.locator('span')).toHaveCount(0);
+      const label = await button.getAttribute('aria-label');
+      expect(label).toBeTruthy();
+      await expect(button).toHaveAttribute('title', label!);
+    }
   }
   const layout = await actions.evaluate((group) => {
     const bounds = group.getBoundingClientRect();
@@ -47,13 +55,16 @@ async function checkStopActions(page: Page) {
   const add = layout.find((button) => button.kind === 'add');
   const reverse = layout.find((button) => button.kind === 'reverse');
   const clear = layout.find((button) => button.kind === 'clear');
-  if (add) expect(Math.abs(add.width - add.groupWidth)).toBeLessThanOrEqual(1);
-  if (reverse && clear) {
-    expect(Math.abs(reverse.width - clear.width)).toBeLessThanOrEqual(1);
-    expect(Math.abs(reverse.height - clear.height)).toBeLessThanOrEqual(1);
-    expect(Math.abs(reverse.top - clear.top)).toBeLessThanOrEqual(1);
-    if (add) expect(reverse.top - add.bottom).toBeGreaterThanOrEqual(8);
-  } else if (clear) expect(Math.abs(clear.width - clear.groupWidth)).toBeLessThanOrEqual(1);
+  for (const button of layout) {
+    expect(button.height).toBe(44);
+    expect(button.top).toBeCloseTo(layout[0].top, 1);
+  }
+  if (reverse) expect(reverse.width).toBe(44);
+  if (clear) expect(clear.width).toBe(44);
+  if (add) {
+    const icons = Number(Boolean(reverse)) + Number(Boolean(clear));
+    expect(add.width).toBeCloseTo(add.groupWidth - icons * (44 + 8), 1);
+  }
 }
 
 async function save(page: Page, name: string) {
@@ -275,9 +286,46 @@ test('disclosure arrows align and mobile route actions have labels and 44px targ
     expect(box.height).toBeGreaterThanOrEqual(44);
     expect(box.width).toBeGreaterThanOrEqual(44);
   }
-  await expect(actions.locator('.reverse-stops span')).toBeVisible();
-  await expect(actions.locator('.clear-stops-label')).toBeVisible();
+  await expect(actions.locator('.reverse-stops span')).toHaveCount(0);
+  await expect(actions.locator('.clear-stops span')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+});
+
+test('stop actions fit one accented action and named icons in both languages and themes', async ({ page }, testInfo) => {
+  const notification = page.locator('[data-sonner-toast][data-type="success"]');
+  await expect(notification).toBeVisible();
+  await notification.locator('[data-close-button]').click();
+  await expect(notification).toHaveCount(0);
+  for (const language of ['en', 'ru']) {
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(({ language, theme }) => {
+        localStorage.setItem('roamlet-language', language);
+        localStorage.setItem('roamlet-theme', theme);
+        window.dispatchEvent(new Event('roamlet-preferences-change'));
+      }, { language, theme });
+      for (const width of [320, 1280]) {
+        await page.setViewportSize({ width, height: 900 });
+        await checkStopActions(page);
+        const actions = page.locator('.waypoint-tools');
+        await expect(actions.locator('button')).toHaveCount(3);
+        const add = actions.getByRole('button', { name: language === 'en' ? 'Add a stop' : 'Добавить точку', exact: true });
+        await add.click();
+        await expect(page.getByRole('textbox', { name: language === 'en' ? 'Latitude' : 'Широта', exact: true })).toBeFocused();
+        for (const selector of ['.reverse-stops', '.clear-stops']) {
+          const icon = actions.locator(selector);
+          await icon.focus();
+          await expect(icon).toBeFocused();
+          expect(await icon.innerText()).toBe('');
+        }
+        await actions.screenshot({ path: testInfo.outputPath(`stop-actions-${language}-${theme}-${width}.png`), animations: 'disabled' });
+      }
+    }
+  }
+  await page.locator('.clear-stops').click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('[data-stop-id]')).toHaveCount(2);
 });
 
 test('stop actions keep one layout for empty, single, loop, manual and localized narrow planners', async ({

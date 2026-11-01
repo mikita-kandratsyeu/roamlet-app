@@ -885,7 +885,7 @@ describe('route planner interactions', () => {
     });
   });
 
-  it('allows 50 automatic stops, rejects the 51st and keeps labelled outline actions', async () => {
+  it('allows 50 automatic stops, rejects the 51st and keeps named icon actions', async () => {
     render(<App />);
     for (let index = 0; index < 26; index++) addCoordinate(`47.${2600 + index}, 11.4`);
     expect(screen.getByRole('button', { name: 'Add a stop' })).toBeInTheDocument();
@@ -903,8 +903,9 @@ describe('route planner interactions', () => {
     for (const label of ['Reverse', 'Clear stops']) {
       const button = actions.getByRole('button', { name: label });
       expect(button).toHaveAttribute('data-variant', 'outline');
-      expect(button.querySelector('span')).toHaveTextContent(label);
-      expect(button).not.toHaveClass('icon-button');
+      expect(button.querySelector('span')).toBeNull();
+      expect(button).toHaveAttribute('title', label);
+      expect(button).toHaveAttribute('data-size', 'icon');
     }
   }, 15_000);
 
