@@ -29,10 +29,9 @@ import { estimatePersonalTime } from './domain/time';
 import { draftWriter, loadDraft, type DraftRecord } from './domain/drafts';
 import { loadPreferences, savePreferences } from './domain/preferences';
 import { Library } from './components/Library';
-import { RouteComparison, ROUTE_COMPARISON_COLORS } from './components/RouteComparison';
+import { ComparisonScreen } from './components/ComparisonScreen';
 import { ClimbAnalysis } from './components/ClimbAnalysis';
 import { RouteSchedule } from './components/RouteSchedule';
-import './components/ComparisonMap.css';
 import { Statistics, formatTimeRange } from './components/Statistics';
 import { formatDistance, formatDuration } from './domain/format';
 import { useAppUpdate } from './hooks/useAppUpdate';
@@ -161,6 +160,10 @@ export default function App() {
   }, [panelHidden]);
   const automaticMode = editor.snapshot.automaticMode ?? 'point';
   const stopLimit = planningMode === 'manual' ? MANUAL_STOP_LIMIT : AUTOMATIC_POINT_LIMIT;
+  const canAddStop = planningMode !== 'loop' && waypoints.length < stopLimit;
+  const canReverseStops = planningMode !== 'loop' && waypoints.length > 1;
+  const stopActionCount = Number(canAddStop) + Number(canReverseStops) + Number(waypoints.length > 0);
+  const showStopActionLabels = stopActionCount < 3;
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [routeRevision, setRouteRevision] = useState(0);
@@ -208,27 +211,7 @@ export default function App() {
   }, [waypoints, selectedWaypointId]);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [comparisonRoutes, setComparisonRoutes] = useState<PlannedRoute[]>([]);
-  const [comparisonError, setComparisonError] = useState('');
   const [climbSegments, setClimbSegments] = useState<Coordinate[][]>([]);
-  const comparisonLayers = useMemo(
-    () =>
-      comparisonRoutes.flatMap((route, index) => {
-        const direct = route.source === 'manual' ? route.segments : (route.directSegments ?? []);
-        const directKeys = new Set(direct.map((segment) => JSON.stringify(segment)));
-        return [
-          {
-            segments: route.segments.filter((segment) => !directKeys.has(JSON.stringify(segment))),
-            color: ROUTE_COMPARISON_COLORS[index],
-          },
-          { segments: direct, color: ROUTE_COMPARISON_COLORS[index], dashed: true },
-        ];
-      }),
-    [comparisonRoutes],
-  );
-  const comparisonSegments = useMemo(
-    () => comparisonRoutes.flatMap((route) => route.segments),
-    [comparisonRoutes],
-  );
   const mainNavigation = useRef<HTMLElement>(null);
   const libraryReturnFocus = useRef<HTMLElement | null>(null);
   const libraryWasOpen = useRef(false);
@@ -1562,8 +1545,13 @@ export default function App() {
                         )}
                       </p>
                     )}
-                  <div className="waypoint-tools" role="group" aria-label={t('Route stop actions')}>
-                    {planningMode !== 'loop' && waypoints.length < stopLimit && (
+                  <div
+                    className="waypoint-tools"
+                    role="group"
+                    aria-label={t('Route stop actions')}
+                    data-action-count={stopActionCount}
+                  >
+                    {canAddStop && (
                       <Button
                         variant="outline"
                         className="add-stop"
@@ -1577,22 +1565,23 @@ export default function App() {
                         <span>{t('Add a stop')}</span>
                       </Button>
                     )}
-                    {planningMode !== 'loop' && waypoints.length > 1 && (
+                    {canReverseStops && (
                       <Button
                         variant="outline"
-                        size="icon"
+                        size={showStopActionLabels ? 'default' : 'icon'}
                         className="reverse-stops"
                         aria-label={t('Reverse')}
                         title={t('Reverse')}
                         onClick={() => changeWaypoints(reverseWaypoints(waypoints))}
                       >
                         <ArrowDownUp size={18} aria-hidden="true" />
+                        {showStopActionLabels && <span>{t('Reverse')}</span>}
                       </Button>
                     )}
                     {!!waypoints.length && (
                       <Button
                         variant="outline"
-                        size="icon"
+                        size={showStopActionLabels ? 'default' : 'icon'}
                         className="clear-stops"
                         aria-label={t('Clear stops')}
                         title={t('Clear stops')}
@@ -1606,6 +1595,7 @@ export default function App() {
                         }
                       >
                         <Trash2 size={18} aria-hidden="true" />
+                        {showStopActionLabels && <span>{t('Clear stops')}</span>}
                       </Button>
                     )}
                   </div>
@@ -2048,7 +2038,6 @@ export default function App() {
         <Library
           onClose={closeLibrary}
           onCompare={(routes) => {
-            setComparisonError('');
             setComparisonRoutes(routes);
           }}
           onOpen={(route) => {
@@ -2058,32 +2047,11 @@ export default function App() {
         />
       )}
       {comparisonRoutes.length >= 2 && (
-        <Dialog title={t('Compare saved routes')} wide onClose={() => setComparisonRoutes([])}>
-          <div className="comparison-map">
-            <RouteMap
-              online={online}
-              segments={comparisonSegments}
-              comparisonLayers={comparisonLayers}
-              comparisonMode
-              waypoints={[]}
-              editable={false}
-              plannerHidden
-              fitToken={1}
-              onAdd={() => {}}
-              onMove={() => {}}
-              onError={setComparisonError}
-            />
-          </div>
-          {comparisonError && (
-            <Notification
-              title={t('Map error')}
-              variant="error"
-              message={translateMessage(comparisonError)}
-              onDismiss={() => setComparisonError('')}
-            />
-          )}
-          <RouteComparison routes={comparisonRoutes} />
-        </Dialog>
+        <ComparisonScreen
+          routes={comparisonRoutes}
+          online={online}
+          onClose={() => setComparisonRoutes([])}
+        />
       )}
       {draft && !libraryOpen && (
         <DraftPrompt

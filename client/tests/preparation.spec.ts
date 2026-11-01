@@ -79,9 +79,16 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({
       json: {
         version: 8,
-        sources: {},
+        sources: {
+          fixture: {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+            attribution: 'Test map attribution',
+          },
+        },
         layers: [
           { id: 'background', type: 'background', paint: { 'background-color': '#e8efe7' } },
+          { id: 'fixture', type: 'circle', source: 'fixture' },
         ],
       },
     }),
@@ -202,7 +209,7 @@ test('schedule pause errors stay below editable inputs in English and Russian', 
 
 test('comparison preserves editor and closes back to the selected library routes', async ({
   page,
-}) => {
+}, testInfo) => {
   await save(page, 'River');
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
@@ -264,6 +271,33 @@ test('comparison preserves editor and closes back to the selected library routes
   await expect(visibility.last()).toBeEnabled();
   await expect(dialog.locator('.maplibregl-ctrl-attrib')).toBeVisible();
   expect(await dialog.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
+  if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 900 });
+  for (const language of ['en', 'ru']) {
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(({ language, theme }) => {
+        localStorage.setItem('roamlet-language', language);
+        localStorage.setItem('roamlet-theme', theme);
+        window.dispatchEvent(new Event('roamlet-preferences-change'));
+      }, { language, theme });
+      const workspace = page.locator('.comparison-screen');
+      await expect(workspace.getByRole('button', { name: language === 'en' ? 'Back to routes' : 'Назад к маршрутам', exact: true })).toBeVisible();
+      for (const button of await workspace.locator('.comparison-screen-header button, .comparison-screen-panel-header button, .comparison-screen-route').all()) {
+        const box = (await button.boundingBox())!;
+        expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+      }
+      expect(await workspace.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
+      const attribution = (await workspace.locator('.maplibregl-ctrl-attrib').boundingBox())!;
+      const panel = (await workspace.locator('.comparison-screen-panel').boundingBox())!;
+      expect(attribution.y + attribution.height <= panel.y || attribution.x + attribution.width <= panel.x).toBe(true);
+      if (language === 'ru') await page.screenshot({ path: testInfo.outputPath(`comparison-${theme}.png`) });
+    }
+  }
+  await page.evaluate(() => {
+    localStorage.setItem('roamlet-language', 'en');
+    window.dispatchEvent(new Event('roamlet-preferences-change'));
+  });
   await dialog.getByRole('button', { name: 'Back to routes', exact: true }).click();
   await expect(compare).toBeFocused();
   await compare.click();

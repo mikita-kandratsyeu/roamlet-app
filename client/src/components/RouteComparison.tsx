@@ -22,8 +22,8 @@ function hasEligibleElevation(route: PlannedRoute): boolean {
   );
 }
 
-/** Pure dialog content. The parent owns dismissal, focus restoration and the read-only map.
- * Keep route order identical for the legend and comparisonLayers, using ROUTE_COMPARISON_COLORS.
+/** Pure statistics content. The parent owns dismissal, focus restoration and the read-only map.
+ * Assign legend and map colors by the original route order using ROUTE_COMPARISON_COLORS.
  * Fit combined geometry without replacing the editor route or rendering it as the map's base layer.
  */
 export function RouteComparison({ routes }: { routes: PlannedRoute[] }) {

@@ -12,6 +12,8 @@ On mobile (up to 700 px), the planner has three sizes: a compact route header, a
 
 Desktop route statistics keep distance and the original time estimate side by side, stacking them when the summary is 280 px wide or narrower. Personal moving time and total time with stops each occupy a full-width row, with the label above the value and the total highlighted. Mobile shows distance and personal total first; “More statistics” reveals the original estimate, personal moving time, planning reference and available elevation metrics. If personal time is unavailable, the original estimate remains visible. Labels, values and the explanatory note share consistent left alignment. Long time ranges wrap between complete duration values on narrow screens; calculations and stored statistics are unchanged.
 
+Route stop actions adapt to the number of available buttons: one fills the row, two share it equally, and both layouts show icons with text. With three actions, Add a stop retains its label while Reverse and Clear stops remain icon buttons with accessible names and tooltips.
+
 “Report a map issue” is available in the map’s “More map tools” (⋯) menu on desktop and mobile, rather than as an overlay on the map.
 
 ## Development

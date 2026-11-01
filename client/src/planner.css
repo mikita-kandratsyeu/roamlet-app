@@ -503,6 +503,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.waypoint-tools[data-action-count="1"] > button,
+.waypoint-tools[data-action-count="2"] > button {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  align-self: stretch;
+  padding: 10px 12px;
+  white-space: normal;
+}
+.waypoint-tools[data-action-count="1"] > button > span,
+.waypoint-tools[data-action-count="2"] > button > span {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
 .waypoint-tools .clear-stops {
   color: var(--destructive);
 }

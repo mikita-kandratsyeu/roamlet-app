@@ -1,0 +1,222 @@
+.comparison-screen[data-slot='dialog-content'] {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  transform: none;
+  translate: none;
+  animation: none;
+  transition: none;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+}
+body:has(.comparison-screen[data-state='open'])
+  [data-sonner-toaster]:not(:has([data-type='error'], [data-type='warning'])) {
+  z-index: 40;
+}
+.comparison-screen-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding: max(8px, env(safe-area-inset-top)) 16px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.comparison-screen-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.comparison-screen-mobile-title {
+  display: none;
+}
+.comparison-screen button {
+  min-height: 44px;
+  white-space: normal;
+}
+.comparison-screen-workspace {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  flex: 1;
+  min-height: 0;
+}
+.comparison-screen .comparison-map {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+.comparison-screen-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  background: var(--background);
+}
+.comparison-screen-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.comparison-screen-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 12px;
+  overflow-wrap: anywhere;
+  color: var(--destructive);
+}
+.comparison-screen-details {
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+.comparison-screen-routes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.comparison-screen-routes li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.comparison-screen-route {
+  flex: 1;
+  justify-content: flex-start;
+  height: auto;
+  min-width: 0;
+  padding: 12px;
+  text-align: start;
+}
+.comparison-screen-route[aria-pressed='true'] {
+  background: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--ring);
+}
+.comparison-screen-route > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.comparison-screen-route strong,
+.comparison-screen-route small {
+  display: block;
+}
+.comparison-screen-route small {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.comparison-screen-visibility {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.comparison-screen-visibility input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+.comparison-screen-statistics summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+.comparison-screen-statistics summary::before {
+  content: '+';
+  margin-right: 8px;
+}
+.comparison-screen-statistics[open] summary::before {
+  content: '−';
+}
+.comparison-screen .route-comparison-legend {
+  display: none;
+}
+.comparison-screen .route-comparison-table,
+.comparison-screen .route-comparison-table tbody,
+.comparison-screen .route-comparison-table tr {
+  display: block;
+}
+.comparison-screen .route-comparison-table thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.comparison-screen .route-comparison-table tbody th {
+  display: block;
+}
+.comparison-screen .route-comparison-table td {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.comparison-screen .route-comparison-mobile-label {
+  display: block;
+  color: var(--muted-foreground);
+}
+.comparison-screen-workspace.panel-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.comparison-screen-workspace.panel-collapsed .comparison-screen-panel {
+  border-left: 0;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 700px) {
+  .comparison-screen-desktop-title {
+    display: none;
+  }
+  .comparison-screen-mobile-title {
+    display: inline;
+  }
+  .comparison-screen-header {
+    gap: 4px;
+    padding-inline: 8px;
+  }
+  .comparison-screen-header h2 {
+    flex: 1;
+    padding: 8px;
+  }
+  .comparison-screen-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .comparison-screen-panel {
+    max-height: 45dvh;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .comparison-screen-panel-header {
+    padding: 8px;
+    flex-shrink: 0;
+  }
+}

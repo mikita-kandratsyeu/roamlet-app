@@ -236,12 +236,14 @@ describe('route preparation features', () => {
     compare.focus();
     fireEvent.click(compare);
     const dialog = screen.getByRole('dialog', { name: 'Compare saved routes' });
+    expect(dialog).toHaveClass('comparison-screen');
+    fireEvent.click(within(dialog).getByText('Route statistics'));
     expect(
       within(dialog).getByRole('table', { name: 'Saved route comparison' }),
     ).toBeInTheDocument();
     expect(within(dialog).getByTestId('map')).toHaveAttribute('data-comparison', 'true');
     expect(editorMap).toHaveAttribute('data-geometry', before!);
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Close dialog' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Back to routes' }));
     await waitFor(() => expect(compare).toHaveFocus());
     fireEvent.click(screen.getByRole('button', { name: 'Back to map' }));
     expect(screen.getByTestId('map')).toBe(editorMap);
@@ -885,7 +887,49 @@ describe('route planner interactions', () => {
     });
   });
 
-  it('allows 50 automatic stops, rejects the 51st and keeps named icon actions', async () => {
+  it('labels one or two stop actions and preserves the three-action layout', () => {
+    render(<App />);
+    const group = screen.getByRole('group', { name: 'Route stop actions' });
+    const actions = within(group);
+    expect(group).toHaveAttribute('data-action-count', '1');
+    expect(actions.getByRole('button', { name: 'Add a stop' })).toHaveTextContent('Add a stop');
+
+    addCoordinate('47.26, 11.4');
+    expect(group).toHaveAttribute('data-action-count', '2');
+    expect(actions.getByRole('button', { name: 'Clear stops' })).toHaveTextContent('Clear stops');
+    expect(actions.getByRole('button', { name: 'Clear stops' })).toHaveAttribute('data-size', 'default');
+
+    addCoordinate('47.27, 11.41');
+    expect(group).toHaveAttribute('data-action-count', '3');
+    for (const label of ['Reverse', 'Clear stops']) {
+      const button = actions.getByRole('button', { name: label });
+      expect(button.querySelector('span')).toBeNull();
+      expect(button).toHaveAttribute('data-size', 'icon');
+    }
+  });
+
+  it('labels the single clear action in round-trip mode and keeps its confirmation', () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    render(<App />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Round trip' }));
+    const group = screen.getByRole('group', { name: 'Route stop actions' });
+    expect(within(group).queryAllByRole('button')).toHaveLength(0);
+    addCoordinate('47.26, 11.4');
+    expect(group).toHaveAttribute('data-action-count', '1');
+    const clear = within(group).getByRole('button', { name: 'Clear stops' });
+    expect(clear).toHaveTextContent('Clear stops');
+    fireEvent.click(clear);
+    expect(screen.getByRole('dialog', { name: 'Clear all stops?' })).toBeInTheDocument();
+  });
+
+  it('allows 50 automatic stops, rejects the 51st and labels both remaining actions', async () => {
     render(<App />);
     for (let index = 0; index < 26; index++) addCoordinate(`47.${2600 + index}, 11.4`);
     expect(screen.getByRole('button', { name: 'Add a stop' })).toBeInTheDocument();
@@ -903,9 +947,9 @@ describe('route planner interactions', () => {
     for (const label of ['Reverse', 'Clear stops']) {
       const button = actions.getByRole('button', { name: label });
       expect(button).toHaveAttribute('data-variant', 'outline');
-      expect(button.querySelector('span')).toBeNull();
+      expect(button).toHaveTextContent(label);
       expect(button).toHaveAttribute('title', label);
-      expect(button).toHaveAttribute('data-size', 'icon');
+      expect(button).toHaveAttribute('data-size', 'default');
     }
   }, 15_000);
 
