@@ -111,6 +111,55 @@ async function addStops(page: Page) {
   await expect(page.locator('[data-stop-id]')).toHaveCount(2);
 }
 
+test('ready-route footer keeps Russian save text and secondary icon actions on one row', async ({ page }, testInfo) => {
+  await addStops(page);
+  await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
+  const notification = page.locator('[data-sonner-toast][data-type="success"]');
+  await expect(notification).toBeVisible();
+  await notification.locator('[data-close-button]').click();
+  await expect(notification).toHaveCount(0);
+  await page.evaluate(() => {
+    localStorage.setItem('roamlet-language', 'ru');
+    window.dispatchEvent(new Event('roamlet-preferences-change'));
+  });
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((theme) => {
+      localStorage.setItem('roamlet-theme', theme);
+      window.dispatchEvent(new Event('roamlet-preferences-change'));
+    }, theme);
+    for (const width of [320, 1280]) {
+      await page.setViewportSize({ width, height: 800 });
+      await expandPlanner(page);
+      const footer = page.locator('.planner-footer');
+      const save = footer.getByRole('button', { name: 'Сохранить маршрут', exact: true });
+      const exportButton = footer.getByRole('button', { name: 'Экспорт', exact: true });
+      const importButton = footer.getByRole('button', { name: 'Импорт GPX', exact: true });
+      for (const button of [save, exportButton, importButton]) {
+        await expect(button).toBeVisible();
+        await expect(button).toBeEnabled();
+        await touchTarget(button);
+      }
+      const boxes = await footer.locator('.route-actions > button').evaluateAll((buttons) =>
+        buttons.map((button) => {
+          const box = button.getBoundingClientRect();
+          return { y: box.y, height: box.height };
+        }),
+      );
+      expect(boxes).toEqual(Array.from({ length: 3 }, () => ({ y: boxes[0].y, height: 44 })));
+      const fullLabel = await save.locator('.route-action-label').evaluate((element) => element.scrollWidth <= element.clientWidth);
+      expect(fullLabel).toBe(true);
+      await exportButton.focus();
+      await expect(exportButton).toBeFocused();
+      await expect(exportButton).toHaveAttribute('title', 'Экспорт');
+      await importButton.focus();
+      await expect(importButton).toBeFocused();
+      await expect(importButton).toHaveAttribute('title', 'Импорт GPX');
+      expect(await footer.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      await footer.screenshot({ path: testInfo.outputPath(`footer-ready-ru-${theme}-${width}.png`), animations: 'disabled' });
+    }
+  }
+});
+
 test('footer divider spans the same width as the header while preserving action insets', async ({ page }, testInfo) => {
   for (const theme of ['light', 'dark']) {
     await page.evaluate((theme) => {
@@ -131,6 +180,19 @@ test('footer divider spans the same width as the header while preserving action 
       const headerBox = (await header.boundingBox())!;
       const footerBox = (await footer.boundingBox())!;
       const actionsBox = (await footer.locator('.route-actions').boundingBox())!;
+      await expect(footer.locator('.route-actions > button')).toHaveCount(3);
+      for (const button of await footer.locator('.route-actions > button').all()) {
+        const box = (await button.boundingBox())!;
+        expect(box.y).toBeCloseTo(actionsBox.y, 1);
+        expect(box.height).toBe(44);
+        await touchTarget(button);
+      }
+      for (const label of ['Export', 'Import GPX']) {
+        const button = footer.getByRole('button', { name: label, exact: true });
+        await expect(button).toHaveAttribute('title', label);
+        expect((await button.boundingBox())!.width).toBe(44);
+        expect(await button.innerText()).toBe('');
+      }
       expect(footerBox.x).toBeCloseTo(headerBox.x, 1);
       expect(footerBox.x + footerBox.width).toBeCloseTo(headerBox.x + headerBox.width, 1);
       expect(actionsBox.x - footerBox.x).toBe(16);

@@ -832,9 +832,15 @@
   margin: 0;
 }
 .route-actions {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 44px 44px;
+  align-items: center;
+}
+.route-actions[data-importing] {
+  grid-template-columns: minmax(0, 1fr) repeat(3, 44px);
 }
 .route-actions .primary {
+  min-width: 0;
+  height: 44px;
   border: 0;
   background: var(--primary);
   color: var(--primary-foreground);
@@ -842,15 +848,19 @@
 .route-actions .primary:hover:not(:disabled) {
   background: color-mix(in srgb, var(--primary) 88%, var(--foreground));
 }
-.planner-footer .import-action {
-  color: var(--foreground);
-  padding: 10px 0;
-  min-height: 44px;
-  font-size: var(--font-size-control);
+.route-action-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.import-action span,
-.route-ready .import-action {
-  display: none;
+.planner-footer .footer-icon-action {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: var(--foreground);
 }
 .elevation-box {
   min-width: 0;
@@ -1378,9 +1388,6 @@
   .planner-footer {
     padding: 10px 16px max(12px, env(safe-area-inset-bottom));
   }
-  .route-actions {
-    grid-template-columns: 1fr 1fr;
-  }
   .route-actions button {
     font-size: var(--font-size-control);
     padding: 10px 8px;
@@ -1391,9 +1398,6 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
   .panel-collapsed .planner-footer {
-    display: none;
-  }
-  .panel-collapsed .route-ready .import-action {
     display: none;
   }
   .map-extra-controls {

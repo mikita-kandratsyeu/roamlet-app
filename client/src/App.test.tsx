@@ -279,6 +279,10 @@ describe('GPX file selection', () => {
     const original = screen.getByTestId('map').getAttribute('data-geometry');
     fireEvent.change(screen.getByLabelText('Import GPX file'), { target: { files: [new File(['<gpx/>'], 'large.gpx')] } });
     expect(await screen.findByText('Importing GPX…')).toHaveAttribute('role', 'status');
+    const importAction = screen.getByRole('button', { name: 'Import GPX' });
+    expect(importAction).toBeDisabled();
+    expect(importAction).toHaveAttribute('aria-busy', 'true');
+    expect(importAction).toHaveAttribute('title', 'Importing GPX…');
     const signal = vi.mocked(importGpxFile).mock.calls[0][1]!;
     fireEvent.click(screen.getByRole('button', { name: 'Cancel GPX import' }));
     expect(signal.aborted).toBe(true);
@@ -287,7 +291,9 @@ describe('GPX file selection', () => {
     });
     expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', original!);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Import GPX/ })).toHaveAttribute('aria-busy', 'false');
+    expect(importAction).toHaveAttribute('aria-busy', 'false');
+    expect(importAction).toBeEnabled();
+    expect(importAction).toHaveAttribute('title', 'Import GPX');
   });
   it('imports dropped GPX through the worker boundary and still confirms replacing unsaved work', async () => {
     render(<App />);

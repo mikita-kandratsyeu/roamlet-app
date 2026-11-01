@@ -1887,7 +1887,7 @@ export default function App() {
               )}
             </div>
             <footer className={`planner-footer ${canUseRoute ? 'route-ready' : ''}`}>
-              <div className="route-actions">
+              <div className="route-actions" data-importing={importing || undefined}>
                 <Button
                   className="primary"
                   disabled={!canUseRoute}
@@ -1896,36 +1896,50 @@ export default function App() {
                     setSaveOpen(true);
                   }}
                 >
-                  <Bookmark size={17} />
-                  {t('Save route')}
+                  <Bookmark size={17} aria-hidden="true" />
+                  <span className="route-action-label">{t('Save route')}</span>
                 </Button>
                 <Button
                   variant="outline"
-                  className="secondary"
+                  size="icon"
+                  className="secondary footer-icon-action"
+                  aria-label={t('Export')}
+                  title={t('Export')}
                   disabled={!canUseRoute}
                   onClick={() => {
                     if (!busy) setExportRoute(currentRoute());
                   }}
                 >
-                  <Download size={17} />
-                  {t('Export')}
+                  <Download size={17} aria-hidden="true" />
                 </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="import-action footer-icon-action"
+                  aria-label={t('Import GPX')}
+                  title={t(importing ? 'Importing GPX…' : 'Import GPX')}
+                  aria-busy={importing}
+                  disabled={importing}
+                  onClick={() => fileInput.current?.click()}
+                >
+                  {importing
+                    ? <LoaderCircle size={18} className="spin" aria-hidden="true" />
+                    : <FileUp size={18} aria-hidden="true" />}
+                </Button>
+                {importing && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="footer-icon-action"
+                    onClick={cancelImport}
+                    aria-label={t('Cancel GPX import')}
+                    title={t('Cancel GPX import')}
+                  >
+                    <X size={18} aria-hidden="true" />
+                  </Button>
+                )}
               </div>
-              <Button
-                variant="ghost"
-                className="import-action"
-                aria-busy={importing}
-                onClick={() => fileInput.current?.click()}
-              >
-                {importing ? <LoaderCircle size={18} className="spin" /> : <FileUp size={18} />}
-                {importing ? <span role="status">{t('Importing GPX…')}</span> : t('Import GPX')}
-                <span>{t('or drop a file anywhere')}</span>
-              </Button>
-              {importing && (
-                <Button variant="ghost" onClick={cancelImport} aria-label={t('Cancel GPX import')}>
-                  {t('Cancel')}
-                </Button>
-              )}
+              {importing && <span className="sr-only" role="status">{t('Importing GPX…')}</span>}
             </footer>
           </PlannerPanel>
           <RouteMap
