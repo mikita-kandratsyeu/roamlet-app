@@ -1621,6 +1621,26 @@ it.each([false, true])('hides editing tools in comparison (compact: %s)', async 
   if (compact) expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
 });
 
+it('fits comparison geometry beside the floating left panel, including at tablet widths', () => {
+  vi.stubGlobal('innerWidth', 900);
+  const { container } = render(<div className="comparison-screen">
+    <aside className="comparison-screen-panel" />
+    <RouteMap {...props} editable={false} comparisonMode segments={annotationSegments} fitToken={1} />
+  </div>);
+  vi.spyOn(container.querySelector<HTMLElement>('.map-canvas')!, 'getBoundingClientRect')
+    .mockReturnValue(new DOMRect(0, 0, 900, 800));
+  vi.spyOn(container.querySelector<HTMLElement>('.comparison-screen-panel')!, 'getBoundingClientRect')
+    .mockReturnValue(new DOMRect(24, 24, 420, 600));
+  act(() => mocks.handlers.get('load')?.());
+  expect(mocks.fit).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+    padding: { top: 65, bottom: 65, left: 468, right: 65 },
+  }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fit route' }));
+  expect(mocks.fit).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+    padding: { top: 65, bottom: 65, left: 468, right: 65 },
+  }));
+});
+
 it('highlights climbs without moving the map and clears stale highlights', () => {
   const options = { ...props, segments: annotationSegments, highlightSegments: annotationSegments };
   const { rerender } = render(<RouteMap {...options} />);

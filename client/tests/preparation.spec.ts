@@ -223,6 +223,10 @@ test('comparison preserves editor and closes back to the selected library routes
     const style = getComputedStyle(element);
     return { fontSize: style.fontSize, fontWeight: style.fontWeight, lineHeight: style.lineHeight };
   });
+  const plannerStyle = await page.locator('#route-planner').evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { width: style.width, borderRadius: style.borderRadius, boxShadow: style.boxShadow, left: element.getBoundingClientRect().left };
+  });
   const compare = page.getByRole('button', { name: 'Compare routes', exact: true });
   await compare.click();
   const dialog = page.getByRole('dialog', { name: 'Compare saved routes', exact: true });
@@ -240,6 +244,13 @@ test('comparison preserves editor and closes back to the selected library routes
   await expect(title).toHaveCSS('line-height', libraryTitleStyle.lineHeight);
   expect((await title.boundingBox())!.x).toBeLessThan((await dialog.getByRole('button', { name: 'Back to routes', exact: true }).boundingBox())!.x);
   await expect(title).toHaveCSS('font-family', /Manrope/);
+  if (testInfo.project.name === 'desktop') {
+    const panel = dialog.locator('.comparison-screen-panel');
+    await expect(panel).toHaveCSS('width', plannerStyle.width);
+    await expect(panel).toHaveCSS('border-radius', plannerStyle.borderRadius);
+    await expect(panel).toHaveCSS('box-shadow', plannerStyle.boxShadow);
+    expect((await panel.boundingBox())!.x).toBe(plannerStyle.left);
+  }
   await expect(dialog.getByRole('table', { name: 'Saved route comparison' })).toHaveCount(0);
   await dialog.locator('summary').filter({ hasText: 'Route statistics' }).click();
   await expect(dialog.getByRole('table', { name: 'Saved route comparison' })).toBeVisible();
@@ -270,10 +281,17 @@ test('comparison preserves editor and closes back to the selected library routes
   const beforeCollapse = (await map.boundingBox())!;
   await dialog.getByRole('button', { name: 'Hide comparison panel', exact: true }).click();
   await expect(dialog.getByRole('checkbox')).toHaveCount(0);
-  await expect.poll(async () => {
-    const box = (await map.boundingBox())!;
-    return box.width * box.height;
-  }).toBeGreaterThan(beforeCollapse.width * beforeCollapse.height);
+  if (testInfo.project.name === 'mobile') {
+    await expect.poll(async () => {
+      const box = (await map.boundingBox())!;
+      return box.width * box.height;
+    }).toBeGreaterThan(beforeCollapse.width * beforeCollapse.height);
+  } else {
+    const compactPanel = (await dialog.locator('.comparison-screen-panel').boundingBox())!;
+    expect(compactPanel.width).toBe(44);
+    expect(compactPanel.height).toBeLessThanOrEqual(100);
+    expect((await map.boundingBox())!.width).toBe(viewport.width);
+  }
   expect(await map.evaluate((element, original) => element === original, mapHandle)).toBe(true);
   await dialog.getByRole('button', { name: 'Show comparison panel', exact: true }).click();
   const visibility = dialog.getByRole('checkbox');
@@ -300,7 +318,8 @@ test('comparison preserves editor and closes back to the selected library routes
         const screen = getComputedStyle(element);
         const route = getComputedStyle(element.querySelector('.comparison-screen-route strong')!);
         const panel = getComputedStyle(element.querySelector('.comparison-screen-panel')!);
-        return screen.color === route.color && screen.backgroundColor === panel.backgroundColor;
+        const header = getComputedStyle(element.querySelector('.comparison-screen-header')!);
+        return screen.color === route.color && header.backgroundColor === panel.backgroundColor;
       })).toBe(true);
       await expect(workspace.getByRole('button', { name: language === 'en' ? 'Back to routes' : 'Назад к маршрутам', exact: true })).toBeVisible();
       for (const button of await workspace.locator('.comparison-screen-header button, .comparison-screen-panel-header button, .comparison-screen-panel-actions button, .comparison-screen-route, .comparison-screen-visibility').all()) {
@@ -318,7 +337,7 @@ test('comparison preserves editor and closes back to the selected library routes
       expect(metricAlignment).toBeLessThanOrEqual(1);
       const attribution = (await workspace.locator('.maplibregl-ctrl-attrib').boundingBox())!;
       const panel = (await workspace.locator('.comparison-screen-panel').boundingBox())!;
-      expect(attribution.y + attribution.height <= panel.y || attribution.x + attribution.width <= panel.x).toBe(true);
+      expect(attribution.y + attribution.height <= panel.y || attribution.y >= panel.y + panel.height || attribution.x + attribution.width <= panel.x || attribution.x >= panel.x + panel.width).toBe(true);
       if (language === 'ru') await page.screenshot({ path: testInfo.outputPath(`comparison-${theme}.png`) });
     }
   }
