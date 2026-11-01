@@ -11,6 +11,7 @@ const CHANGE_KEY = 'roamlet-github-session-change';
 export function useGitHubSession(open: boolean) {
   const [session, setSession] = useState<GitHubSession | null>(null);
   const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
+  const [repositoriesListed, setRepositoriesListed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ConnectorErrorCode | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -25,7 +26,10 @@ export function useGitHubSession(open: boolean) {
       const next = await getGitHubSession(controller.signal);
       if (request.current !== controller || controller.signal.aborted) return;
       setSession(next);
-      if (!next.connected) setRepositories([]);
+      if (!next.connected) {
+        setRepositories([]);
+        setRepositoriesListed(false);
+      }
     } catch (failure) {
       if (request.current === controller && !controller.signal.aborted)
         setError(failure instanceof ConnectorError ? failure.code : 'network');
@@ -76,7 +80,10 @@ export function useGitHubSession(open: boolean) {
     setError(null);
     try {
       const values = await getGitHubRepositories(controller.signal);
-      if (request.current === controller && !controller.signal.aborted) setRepositories(values);
+      if (request.current === controller && !controller.signal.aborted) {
+        setRepositories(values);
+        setRepositoriesListed(true);
+      }
     } catch (failure) {
       if (request.current === controller && !controller.signal.aborted)
         setError(failure instanceof ConnectorError ? failure.code : 'network');
@@ -98,6 +105,7 @@ export function useGitHubSession(open: boolean) {
       if (request.current !== controller || controller.signal.aborted) return false;
       setSession((value) => (value ? { ...value, connected: false, login: undefined } : value));
       setRepositories([]);
+      setRepositoriesListed(false);
       broadcast.current?.postMessage('changed');
       try {
         localStorage.setItem(CHANGE_KEY, String(Date.now()));
@@ -116,5 +124,14 @@ export function useGitHubSession(open: boolean) {
       }
     }
   }
-  return { session, repositories, loading, error, refresh, loadRepositories, disconnect };
+  return {
+    session,
+    repositories,
+    repositoriesListed,
+    loading,
+    error,
+    refresh,
+    loadRepositories,
+    disconnect,
+  };
 }

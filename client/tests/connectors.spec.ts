@@ -24,7 +24,7 @@ test.beforeEach(async ({ page, context }) => {
 });
 test('GitHub App modal backs up encrypted routes through same-origin functions and restores explicitly', async ({
   page,
-}) => {
+}, testInfo) => {
   let stored: Buffer | null = null;
   const entry = {
     id: 'roamlet-backups/11111111-1111-4111-8111-111111111111.roamlet',
@@ -78,16 +78,30 @@ test('GitHub App modal backs up encrypted routes through same-origin functions a
   await modal.getByLabel('Private repository').selectOption('example/backups');
   await modal.getByRole('button', { name: 'Use this repository' }).click();
   await expect(modal.getByText('Connected to example/backups')).toBeVisible();
+  await expect(modal.getByText('1 saved routes will be included')).toBeVisible();
+  await expect(modal.getByRole('button', { name: 'Create encrypted backup' })).toBeInViewport();
+  await expect(modal.getByLabel('Private repository')).toHaveCount(0);
+  await page.screenshot({
+    path: testInfo.outputPath('github-create-tab.png'),
+    fullPage: true,
+    animations: 'disabled',
+  });
   await modal.getByLabel('Backup password', { exact: true }).fill(password);
   await modal.getByLabel('Confirm backup password').fill(password);
   await modal.getByRole('button', { name: 'Create encrypted backup' }).click();
   await expect(modal.getByText('Encrypted backup saved to GitHub.')).toBeVisible();
+  await modal.getByRole('tab', { name: 'Restore a backup' }).click();
   await modal.getByRole('button', { name: 'Refresh cloud backups' }).click();
   await modal.getByLabel('Cloud backup').selectOption(entry.id);
   await modal.getByLabel('Restore password').fill(password);
   await modal.getByRole('button', { name: 'Preview restoration' }).click();
   await expect(modal.getByText('1 conflicting routes')).toBeVisible();
   await expect(modal.getByLabel('Conflicting routes')).toHaveValue('copy');
+  await page.screenshot({
+    path: testInfo.outputPath('github-restore-tab.png'),
+    fullPage: true,
+    animations: 'disabled',
+  });
   await modal.getByRole('button', { name: 'Import routes' }).click();
   await expect(
     modal.getByText('Library restored on this device. The current editor route is unchanged.'),

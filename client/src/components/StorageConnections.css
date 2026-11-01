@@ -148,6 +148,101 @@
   display: block;
   margin-top: 12px;
 }
+.connector-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.connector-modal-footer > button {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
+.connector-modal-footer > button:first-child:not(:last-child) {
+  flex: 1 1 180px;
+}
+.connector-modal-footer > button:last-child {
+  margin-left: auto;
+}
+.connector-operation-tabs {
+  display: flex;
+  gap: 8px;
+}
+.connector-operation-tabs [role='tab'] {
+  flex: 1;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+}
+.connector-operation-tabs [data-state='active'] {
+  background: var(--accent);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.connector-operation-tabs [role='tab']:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.connector-operation-tabs [role='tab']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.connector-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.connector-tab-panel[data-state='inactive'] {
+  display: none;
+}
+.connector-connection-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.connector-connection-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.connector-setup-steps {
+  display: grid;
+  gap: 16px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.connector-setup-steps li {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.connector-setup-steps li[aria-current='step'] {
+  border-color: var(--primary);
+}
+.connector-empty-backups {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: var(--muted);
+  border-radius: 8px;
+}
+.connector-field-hint {
+  color: var(--destructive);
+}
 .connector-account {
   display: flex;
   flex-wrap: wrap;

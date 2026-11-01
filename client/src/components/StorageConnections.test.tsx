@@ -100,9 +100,7 @@ it('renders a searchable card grid and opens setup as an accessible modal with r
   expect(screen.getByRole('button', { name: 'Sign in with GitHub' })).toBeEnabled();
   expect(modal.querySelector('input[type=password]')).toBeNull();
   expect(
-    within(modal).getByText(
-      'Allow Roamlet to access a private GitHub repository for your backups, then sign in with GitHub.',
-    ),
+    within(modal).getByText('Choose which private repositories Roamlet can use for your backups.'),
   ).toBeVisible();
   expect(modal.textContent).not.toMatch(/personal access token|install.*GitHub App|HttpOnly/i);
   const privacy = within(modal).getByText('Privacy and limits').closest('details');
@@ -227,6 +225,7 @@ it('restores repository choice after reload from the cookie session and local me
 it('offers reauthorization when a repository operation finds an expired session', async () => {
   const user = await setupRepository();
   vi.mocked(storage.listBackups).mockRejectedValueOnce(new ConnectorError('auth'));
+  await user.click(screen.getByRole('tab', { name: 'Restore a backup' }));
   await user.click(screen.getByRole('button', { name: 'Refresh cloud backups' }));
   await waitFor(() =>
     expect(screen.getByRole('alert')).toHaveTextContent('Your GitHub session has expired'),
@@ -270,6 +269,102 @@ it('shows OAuth callback failure as a dismissible Sonner toast, not a page banne
   screen.getByRole('button', { name: 'Dismiss notification' }).focus();
   await userEvent.setup().keyboard('{Enter}');
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+});
+
+it('keeps connected settings compact and edits repository only on request', async () => {
+  const user = await setupRepository();
+  expect(screen.queryByLabelText('Private repository')).not.toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: 'Create a backup' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await user.click(screen.getByRole('button', { name: 'Change repository' }));
+  expect(screen.getByLabelText('Private repository')).toHaveValue('example/backups');
+  expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+  expect(screen.queryByLabelText('Private repository')).not.toBeInTheDocument();
+  expect(screen.getByRole('tablist', { name: 'Backup actions' })).toBeVisible();
+});
+
+it('uses keyboard tabs, restores empty-state action and retains passwords between tabs', async () => {
+  const user = await setupRepository();
+  await screen.findByText('0 saved routes will be included');
+  await user.type(screen.getByLabelText('Backup password', { exact: true }), 'synthetic-password');
+  const create = screen.getByRole('tab', { name: 'Create a backup' });
+  create.focus();
+  await user.keyboard('{ArrowRight}');
+  expect(screen.getByRole('tab', { name: 'Restore a backup' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  expect(screen.queryByLabelText('Backup password', { exact: true })).not.toBeInTheDocument();
+  expect(storage.listBackups).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Refresh cloud backups' }));
+  await screen.findByText('No cloud backups yet.');
+  await user.click(screen.getByRole('button', { name: 'Create a backup' }));
+  expect(screen.getByLabelText('Backup password', { exact: true })).toHaveValue(
+    'synthetic-password',
+  );
+});
+
+it('explains password constraints next to inputs without firing error toasts', async () => {
+  const user = await setupRepository();
+  const password = screen.getByLabelText('Backup password', { exact: true });
+  await user.type(password, 'short');
+  await user.tab();
+  expect(password).toHaveAttribute('aria-invalid', 'true');
+  expect(password).toHaveAccessibleDescription('Use at least 12 characters.');
+  const confirmation = screen.getByLabelText('Confirm backup password');
+  await user.type(confirmation, 'different');
+  await user.tab();
+  expect(confirmation).toHaveAttribute('aria-invalid', 'true');
+  expect(confirmation).toHaveAccessibleDescription('Passwords do not match.');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Create encrypted backup' })).toBeDisabled();
+});
+
+it('requires confirmation to stop an upload and ignores its late completion', async () => {
+  let finish!: (value: typeof entry) => void;
+  const user = await setupRepository();
+  vi.mocked(storage.uploadBackup).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await user.type(screen.getByLabelText('Backup password', { exact: true }), 'synthetic-password');
+  await user.type(screen.getByLabelText('Confirm backup password'), 'synthetic-password');
+  await user.click(screen.getByRole('button', { name: 'Create encrypted backup' }));
+  await waitFor(() => expect(storage.uploadBackup).toHaveBeenCalled());
+  const signal = vi.mocked(storage.uploadBackup).mock.calls[0][1];
+  await user.click(screen.getByRole('button', { name: 'Done' }));
+  const prompt = screen.getByRole('dialog', { name: 'Stop this operation?' });
+  expect(within(prompt).getByRole('button', { name: 'Keep working' })).toHaveFocus();
+  expect(signal?.aborted).toBe(false);
+  expect(prompt).toHaveTextContent('The backup may already have reached GitHub.');
+  await user.click(within(prompt).getByRole('button', { name: 'Keep working' }));
+  expect(signal?.aborted).toBe(false);
+  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Stop and close' }));
+  expect(signal?.aborted).toBe(true);
+  finish(entry);
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(screen.queryByText('Encrypted backup saved to GitHub.')).not.toBeInTheDocument();
+});
+
+it('explains an empty accessible repository list after loading it', async () => {
+  vi.mocked(getGitHubSession).mockResolvedValue(authorized);
+  vi.mocked(getGitHubRepositories).mockResolvedValue([]);
+  render(<StorageConnections open onClose={vi.fn()} />);
+  await screen.findByText('Connected', { exact: true });
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Manage connection' }));
+  await user.click(screen.getByRole('button', { name: 'Load accessible repositories' }));
+  expect(
+    await screen.findByText(
+      'No accessible private repositories yet. Grant repository access, then reload the list.',
+    ),
+  ).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Use this repository' })).toBeDisabled();
 });
 
 it('supports Russian setup copy without internal release names', async () => {
