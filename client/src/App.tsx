@@ -34,7 +34,6 @@ import { ClimbAnalysis } from './components/ClimbAnalysis';
 import { RouteSchedule } from './components/RouteSchedule';
 import { Statistics, formatTimeRange } from './components/Statistics';
 import { formatDistance, formatDuration } from './domain/format';
-import { useAppUpdate } from './hooks/useAppUpdate';
 import {
   MapPinPlus,
   Plus,
@@ -80,6 +79,7 @@ import { RouteMap } from './components/RouteMap';
 import './route-editing.css';
 import { Dialog } from './components/Dialog';
 import { HeaderMenu } from './components/HeaderMenu';
+import { StorageConnections } from './components/StorageConnections';
 import i18n, { formatNumber, translateMessage } from './i18n';
 
 const emptySegments: Coordinate[][] = [];
@@ -210,6 +210,8 @@ export default function App() {
       setSelectedWaypointId(null);
   }, [waypoints, selectedWaypointId]);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [connectionsOpen, setConnectionsOpen] = useState(false);
+  const secondaryScreenOpen = libraryOpen || connectionsOpen;
   const [comparisonRoutes, setComparisonRoutes] = useState<PlannedRoute[]>([]);
   const [climbSegments, setClimbSegments] = useState<Coordinate[][]>([]);
   const mainNavigation = useRef<HTMLElement>(null);
@@ -223,13 +225,18 @@ export default function App() {
   function closeLibrary() {
     setLibraryOpen(false);
   }
+  function openConnections() {
+    libraryReturnFocus.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setConnectionsOpen(true);
+  }
   const [saveOpen, setSaveOpen] = useState(false);
   const [exportRoute, setExportRoute] = useState<PlannedRoute | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(preferences.collapsed);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   useEffect(() => {
-    if (libraryWasOpen.current && !libraryOpen) {
+    if (libraryWasOpen.current && !secondaryScreenOpen) {
       const previous = libraryReturnFocus.current;
       const target =
         previous?.isConnected && !previous.closest('[hidden], [inert], [aria-hidden="true"]')
@@ -239,8 +246,8 @@ export default function App() {
         (confirmation ? confirmationCancel.current : target)?.focus({ preventScroll: true }),
       );
     }
-    libraryWasOpen.current = libraryOpen;
-  }, [libraryOpen, confirmation]);
+    libraryWasOpen.current = secondaryScreenOpen;
+  }, [secondaryScreenOpen, confirmation]);
   const [alternatives, setAlternatives] = useState<RoutingResult[]>([]);
   const [selectedAlternative, setSelectedAlternative] = useState(-1);
   const routeIdentity = { current: editor.identity };
@@ -256,7 +263,6 @@ export default function App() {
   const [writer] = useState(() => draftWriter(() => setDraftError(true)));
   const latestSnapshot = useRef(editor.snapshot);
   latestSnapshot.current = editor.snapshot;
-  const update = useAppUpdate(writer.flush);
   const [online, setOnline] = useState(navigator.onLine);
   const offlineAutomatic = !online && planningMode !== 'manual';
   const detour = useManualDetour(waypoints,
@@ -456,7 +462,7 @@ export default function App() {
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (
-        libraryOpen ||
+        secondaryScreenOpen ||
         document.querySelector('[role="dialog"], dialog[open], .global-map-loader')
       )
         return;
@@ -1043,8 +1049,8 @@ export default function App() {
       )}
       <div
         className="editor-screen"
-        aria-hidden={libraryOpen || undefined}
-        inert={libraryOpen || undefined}
+        aria-hidden={secondaryScreenOpen || undefined}
+        inert={secondaryScreenOpen || undefined}
       >
         <header className="app-header" inert={drawingDetour}>
           <a
@@ -1066,6 +1072,7 @@ export default function App() {
             <HeaderMenu
               onNewRoute={() => guard(newRoute)}
               onLibrary={openLibrary}
+              onConnections={openConnections}
               onHelp={() => setHelpOpen(true)}
             />
           </nav>
@@ -1107,41 +1114,6 @@ export default function App() {
               </Button>
             </div>
           </Alert>
-        )}
-        {update.available && (
-          <Notification
-            title={t('Notification')}
-            message={t('An app update is ready.')}
-            duration={Infinity}
-            actions={
-              <Button
-                disabled={update.installing}
-                onClick={() =>
-                  setConfirmation({
-                    title: 'Update app?',
-                    text: 'Your draft will be saved before reloading.',
-                    label: 'Reload app',
-                    action: () => {
-                      void update.apply();
-                    },
-                  })
-                }
-              >
-                {t('Update app')}
-              </Button>
-            }
-          />
-        )}
-        {update.failed && (
-          <Notification
-            title={t('Notification')}
-            variant="error"
-            message={t(
-              update.failed === 'save-failed'
-                ? 'The update could not save your draft. Please retry; the app has not reloaded.'
-                : 'Your draft was saved, but the update could not be activated. Please retry or reload the page.',
-            )}
-          />
         )}
         {draftError && (
           <Notification
@@ -2043,6 +2015,7 @@ export default function App() {
           }}
         />
       </div>
+      <StorageConnections open={connectionsOpen} onClose={() => setConnectionsOpen(false)} />
       {libraryOpen && (
         <Library
           onClose={closeLibrary}
@@ -2066,7 +2039,7 @@ export default function App() {
           }}
         />
       )}
-      {draft && !libraryOpen && (
+      {draft && !secondaryScreenOpen && (
         <DraftPrompt
           onDismiss={() => setDraft(null)}
           onDelete={() => {
@@ -2087,14 +2060,14 @@ export default function App() {
           }}
         />
       )}
-      {exportRoute && !libraryOpen && (
+      {exportRoute && !secondaryScreenOpen && (
         <ExportDialog
           route={exportRoute}
           onDownload={download}
           onClose={() => setExportRoute(null)}
         />
       )}
-      {saveOpen && !libraryOpen && (
+      {saveOpen && !secondaryScreenOpen && (
         <Dialog
           title={t('Save your adventure')}
           initialFocusRef={routeNameInput}
@@ -2152,7 +2125,7 @@ export default function App() {
           </form>
         </Dialog>
       )}
-      {confirmation && !libraryOpen && (
+      {confirmation && !secondaryScreenOpen && (
         <Dialog
           title={t(confirmation.title)}
           compact
@@ -2183,7 +2156,7 @@ export default function App() {
           </div>
         </Dialog>
       )}
-      {helpOpen && !libraryOpen && (
+      {helpOpen && !secondaryScreenOpen && (
         <Dialog title={t('A few helpful things')} onClose={() => setHelpOpen(false)}>
           <div className="help-content">
             <h3>{t('Planning routes')}</h3>

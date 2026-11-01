@@ -1,33 +1,42 @@
-export const UPDATE_EVENT = 'roamlet-update-available';
-export function hasWaitingUpdate(registration: ServiceWorkerRegistration) {
-  return !!registration.active && !!registration.waiting;
-}
-export function watchUpdates(registration: ServiceWorkerRegistration) {
-  const announce = () => {
-    window.dispatchEvent(new CustomEvent(UPDATE_EVENT, { detail: registration }));
-  };
-  announce();
-  registration.addEventListener('updatefound', () => {
-    registration.installing?.addEventListener('statechange', announce);
+// Run before mounting the editor: only this startup may reload, never an editing tab.
+export function applyWaitingUpdateOnStartup(
+  workers: ServiceWorkerContainer,
+  reload: () => void,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    let waiting: ServiceWorker | null = null;
+    const finish = (reloading: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      workers.removeEventListener('controllerchange', activated);
+      resolve(reloading);
+    };
+    const activated = () => {
+      if (!settled && waiting && workers.controller === waiting) {
+        try {
+          reload();
+          finish(true);
+        } catch {
+          finish(false);
+        }
+      }
+    };
+    // A stalled registration or worker must not block the offline editor indefinitely.
+    const timer = setTimeout(() => finish(false), 3000);
+    void workers
+      .getRegistration('/')
+      .then((registration) => {
+        if (settled) return;
+        waiting = registration?.waiting ?? null;
+        if (!registration?.active || !waiting) {
+          finish(false);
+          return;
+        }
+        workers.addEventListener('controllerchange', activated);
+        waiting.postMessage({ type: 'SKIP_WAITING' });
+      })
+      .catch(() => finish(false));
   });
-}
-export async function activateUpdate(
-  registration: ServiceWorkerRegistration,
-  flush: () => Promise<boolean>,
-  onActivate?: () => void,
-): Promise<'activated' | 'current' | 'save-failed' | 'activation-failed'> {
-  try {
-    if (!(await flush())) return 'save-failed';
-  } catch {
-    return 'save-failed';
-  }
-  // Another tab may have activated the update while the draft was being saved.
-  if (!registration.waiting) return 'current';
-  try {
-    onActivate?.();
-    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-    return 'activated';
-  } catch {
-    return 'activation-failed';
-  }
 }

@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 function setup() {
-  const actions = { onNewRoute: vi.fn(), onLibrary: vi.fn(), onHelp: vi.fn() };
+  const actions = { onNewRoute: vi.fn(), onLibrary: vi.fn(), onHelp: vi.fn(), onConnections: vi.fn() };
   render(
     <ThemeProvider>
       <HeaderMenu {...actions} />
@@ -164,7 +164,7 @@ it.each([false, true])(
     render(
       <ThemeProvider>
         <button>Previous page control</button>
-        <HeaderMenu onNewRoute={vi.fn()} onLibrary={vi.fn()} onHelp={vi.fn()} />
+        <HeaderMenu onNewRoute={vi.fn()} onLibrary={vi.fn()} onHelp={vi.fn()} onConnections={vi.fn()} />
         <button disabled>Disabled control</button>
         <button hidden>Hidden control</button>
         <div style={{ display: 'none' }}>
@@ -196,6 +196,7 @@ it.each([false, true])(
 
 it.each([
   ['My routes', 'onLibrary'],
+  ['Connections', 'onConnections'],
   ['Help and data sources', 'onHelp'],
 ] as const)('closes and restores focus before performing %s', async (label, action) => {
   const { user, trigger, actions } = setup();
@@ -277,6 +278,7 @@ it('does not steal focus from a dialog opened by a menu action and restores its 
           onNewRoute={() => setOpen(true)}
           onLibrary={() => setOpen(true)}
           onHelp={() => setOpen(true)}
+          onConnections={() => setOpen(true)}
         />
         {open && (
           <Dialog title="Routes" onClose={() => setOpen(false)} initialFocusRef={input}>

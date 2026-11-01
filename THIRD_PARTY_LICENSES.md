@@ -19,6 +19,10 @@ Internationalization uses i18next 25.10.10 and react-i18next 16.6.6, both MIT-li
 
 UI components are generated from [shadcn/ui](https://github.com/shadcn-ui/ui/blob/main/LICENSE.md) under MIT; its copyright and license are retained in `client/src/components/ui/LICENSE`. Accessible primitives use [Radix UI](https://github.com/radix-ui/primitives/blob/main/LICENSE), and elevation charts use [Recharts](https://github.com/recharts/recharts/blob/main/LICENSE), both MIT-licensed. Class composition uses class-variance-authority (Apache-2.0), clsx (MIT), and tailwind-merge (MIT); retain the notices shipped in those packages. Styling uses Tailwind CSS and its Vite plugin (MIT). Exact dependency versions are pinned in `yarn.lock`.
 
+## GitHub connector brand asset
+
+The connector uses the unmodified [official GitHub Mark](https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png), bundled locally as `client/public/github-mark.png`, to identify GitHub integration. GitHub and its mark are trademarks of GitHub, Inc., not Roamlet artwork or ISC-licensed Lucide icons. Follow [GitHub's logo usage guidelines](https://github.com/logos). This integration is not endorsed by GitHub. The mark is loaded from the app origin at runtime, not from GitHub's CDN.
+
 ## Development libraries
 
 - TypeScript 5.9.3: [Apache-2.0](https://github.com/microsoft/TypeScript/blob/main/LICENSE.txt).

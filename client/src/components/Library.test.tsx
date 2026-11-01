@@ -908,7 +908,7 @@ it('keeps backup actions available while storage explanations are collapsed', as
     within(screen.getByRole('list', { name: 'Saved routes' })).getAllByRole('listitem'),
   ).toHaveLength(2);
   expect(group).toHaveAccessibleDescription(
-    'Routes stay only in this browser. No cloud copy. Clearing browser data deletes them. JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.',
+    'Routes stay only in this browser unless you create a backup. Connections offers optional encrypted GitHub copies. Clearing browser data deletes local routes. JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.',
   );
   expect(within(group).getByRole('button', { name: 'Download backup' })).toBeEnabled();
   expect(within(group).getByRole('button', { name: 'Restore from backup' })).toBeEnabled();

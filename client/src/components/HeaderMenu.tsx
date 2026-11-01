@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Menu, Check, CircleHelp, Library, Monitor, Moon, Plus, RotateCcw, Sun } from 'lucide-react';
+import { Menu, Check, CircleHelp, Library, Monitor, Moon, Plus, RotateCcw, Sun, Plug } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -21,9 +21,10 @@ interface Props {
   onNewRoute: () => void;
   onLibrary: () => void;
   onHelp: () => void;
+  onConnections: () => void;
 }
 
-export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
+export function HeaderMenu({ onNewRoute, onLibrary, onHelp, onConnections }: Props) {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
@@ -201,6 +202,13 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp }: Props) {
           >
             <Library size={18} aria-hidden="true" />
             <span>{t('My routes')}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="header-menu-item"
+            onSelect={() => activate(onConnections)}
+          >
+            <Plug size={18} aria-hidden="true" />
+            <span>{t('Connections')}</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator className="header-menu-separator" />
           <DropdownMenuLabel className="header-menu-label">

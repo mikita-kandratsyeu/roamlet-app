@@ -64,6 +64,7 @@ it('precaches not-yet-opened lazy panels from the same-origin manifest', async (
 const installAssets = [
   '/manifest.webmanifest',
   '/icon.svg',
+  '/github-mark.png',
   '/favicon-32.png',
   '/apple-touch-icon.png',
   '/icon-192.png',

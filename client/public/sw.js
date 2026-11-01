@@ -2,6 +2,7 @@ const CACHE = 'roamlet-shell-__BUILD_REVISION__';
 const INSTALL_ASSETS = [
   '/manifest.webmanifest',
   '/icon.svg',
+  '/github-mark.png',
   '/favicon-32.png',
   '/apple-touch-icon.png',
   '/icon-192.png',
@@ -70,7 +71,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
   if (event.request.mode === 'navigate') {
-    // Keep this worker's HTML and chunks together until the user approves its successor.
+    // Keep HTML and chunks together until the successor activates on a later app startup.
     event.respondWith(
       caches.open(CACHE).then(async (cache) => (await cache.match('/')) || fetch(event.request)),
     );

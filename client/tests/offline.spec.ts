@@ -188,7 +188,9 @@ test('production shell keeps saved routes and GPX export available offline, with
   await exportDialog.getByRole('button', { name: 'Create preview' }).click();
   const image = exportDialog.getByRole('img', { name: 'Generated route image' });
   await expect(image).toBeVisible();
-  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBe(1080);
+  await expect
+    .poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth))
+    .toBe(1080);
   const pngDownload = page.waitForEvent('download');
   await exportDialog.getByRole('button', { name: 'Download PNG' }).click();
   const png = await readFile((await (await pngDownload).path())!);
@@ -611,36 +613,93 @@ test('first installation does not offer an app update or report a draft saving e
   ).toHaveCount(0);
 });
 
-test('confirming a waiting update saves the current draft before reloading', async ({ page }) => {
+test('a waiting update stays silent and activates on the next offline reload without reloading other tabs', async ({
+  page,
+  context,
+}) => {
   const workerName = `__update-test-${crypto.randomUUID()}.js`;
   const workerPath = resolve('dist', workerName);
+  const worker = await readFile(resolve('dist', 'sw.js'), 'utf8');
   await writeFile(
     workerPath,
-    `self.addEventListener('message', event => { if(event.data?.type === 'SKIP_WAITING') self.skipWaiting(); }); self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));`,
+    worker.replace(/const CACHE = '[^']+';/, `const CACHE = 'roamlet-shell-${workerName}';`),
     { flag: 'wx' },
   );
+  const otherPage = await context.newPage();
   try {
     await page.goto('/');
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
     });
     await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+    const originalCaches = await page.evaluate(() => caches.keys());
+    await otherPage.route('**/*.openfreemap.org/**', (route) =>
+      route.fulfill({
+        json: { version: 8, sources: {}, layers: [] },
+      }),
+    );
+    await otherPage.goto('/');
+    await expect(otherPage.getByRole('heading', { name: 'New route', exact: true })).toBeVisible();
+    let otherReloads = 0;
+    otherPage.on('framenavigated', (frame) => {
+      if (frame === otherPage.mainFrame()) otherReloads++;
+    });
+    let reloads = 0;
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) reloads++;
+    });
     await clickMapTool(page, 'Manual drawing');
     for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
       await page.getByRole('textbox', { name: 'Latitude' }).fill(value);
       await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
     }
+    await page.waitForFunction(
+      () =>
+        new Promise<boolean>((resolve, reject) => {
+          const open = indexedDB.open('roamlet-routes');
+          open.onerror = () => reject(open.error);
+          open.onsuccess = () => {
+            const db = open.result;
+            const request = db.transaction('drafts').objectStore('drafts').get('current');
+            request.onsuccess = () => {
+              db.close();
+              resolve(request.result?.snapshot?.waypoints?.length === 2);
+            };
+            request.onerror = () => {
+              db.close();
+              reject(request.error);
+            };
+          };
+        }),
+    );
     await page.evaluate(async (name) => {
       await navigator.serviceWorker.register(`/${name}`, { scope: '/' });
     }, workerName);
     await page.waitForFunction(async () =>
       Boolean((await navigator.serviceWorker.getRegistration())?.waiting),
     );
-    await page.getByRole('button', { name: 'Update app', exact: true }).click();
-    const reloaded = page.waitForEvent('load');
-    await page.getByRole('button', { name: 'Reload app', exact: true }).click();
-    await reloaded;
+    await expect(page.getByRole('button', { name: 'Update app', exact: true })).toHaveCount(0);
+    await expect(page.getByText('An app update is ready.', { exact: true })).toHaveCount(0);
+    await expect(await mapTool(page, 'Manual drawing')).toHaveAttribute('aria-pressed', 'true');
+    expect(reloads).toBe(0);
+    await context.setOffline(true);
+    page.once('dialog', (dialog) => void dialog.accept());
+    await page.reload();
+    await expect.poll(() => page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.getRegistration('/');
+      return {
+        controller: navigator.serviceWorker.controller?.scriptURL.split('/').at(-1),
+        active: registration?.active?.scriptURL.split('/').at(-1),
+        waiting: registration?.waiting?.scriptURL.split('/').at(-1),
+      };
+    })).toMatchObject({ controller: workerName });
     await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
+    expect(reloads).toBe(2);
+    expect(otherReloads).toBe(0);
+    await expect(otherPage.getByRole('heading', { name: 'New route', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => caches.keys())).toEqual(
+      expect.arrayContaining(originalCaches),
+    );
     await expect(await mapTool(page, 'Manual drawing')).toHaveAttribute('aria-pressed', 'true');
     const pending = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Export', exact: true }).click();
@@ -652,6 +711,8 @@ test('confirming a waiting update saves the current draft before reloading', asy
     expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
   } finally {
     await rm(workerPath, { force: true });
+    await context.setOffline(false);
+    await otherPage.close();
   }
 });
 
