@@ -369,6 +369,36 @@ describe('conservative projected privacy areas', () => {
 });
 
 describe('offline PNG rendering', () => {
+  it.each(['light', 'dark'] as const)(
+    'distinguishes start and finish without changing the track in %s',
+    async (theme) => {
+      const { canvas, context, strokes } = canvasMock();
+      let radius: number | null = null;
+      const markers: { radius: number; color: string }[] = [];
+      context.beginPath.mockImplementation(() => {
+        radius = null;
+      });
+      context.arc.mockImplementation((_x: number, _y: number, value: number) => {
+        radius = value;
+      });
+      context.fill.mockImplementation(() => {
+        if (radius === 12 || radius === 4) markers.push({ radius, color: context.fillStyle });
+      });
+      const snapshot = JSON.stringify(request.segments);
+      await renderRouteCard({ ...request, theme }, canvas);
+      const green = theme === 'dark' ? '#9de4b5' : '#1f6846';
+      expect(markers).toEqual([
+        { radius: 12, color: green },
+        { radius: 12, color: '#faf7f2' },
+        { radius: 4, color: green },
+      ]);
+      expect(strokes.filter((stroke) => stroke.width === 3)).toEqual([
+        { width: 3, color: '#faf7f2' },
+        { width: 3, color: green },
+      ]);
+      expect(JSON.stringify(request.segments)).toBe(snapshot);
+    },
+  );
   it.each(
     (['cycling', 'hiking'] as const).flatMap((activity) =>
       (['light', 'dark'] as const).map((theme) => ({ activity, theme })),
@@ -448,7 +478,9 @@ describe('offline PNG rendering', () => {
         colors.push(context.fillStyle);
       });
       await renderRouteCard({ ...request, theme }, canvas);
-      expect(colors).toEqual(expect.arrayContaining(['#173b30', '#faf7f2', '#bdd3a5']));
+      expect(colors.slice(0, 3)).toEqual(
+        theme === 'dark' ? ['#bdd3a5', '#173b30', '#52745d'] : ['#173b30', '#faf7f2', '#bdd3a5'],
+      );
       expect(context.roundRect).toHaveBeenCalledWith(72, 76, 56, 56, 14);
       expect(context.bezierCurveTo.mock.calls.slice(54)).toEqual(
         [
@@ -529,7 +561,7 @@ describe('offline PNG rendering', () => {
       );
       expect(first.strokes.slice(19, 21)).toEqual([
         { width: 14, color: theme === 'dark' ? '#10251e' : '#faf7f2' },
-        { width: 9, color: theme === 'dark' ? '#86d5a3' : '#287348' },
+        { width: 11, color: theme === 'dark' ? '#9de4b5' : '#1f6846' },
       ]);
     },
   );
@@ -721,7 +753,7 @@ describe('offline PNG rendering', () => {
     expect(context.clip.mock.calls).toEqual([[], [], ['evenodd'], ['evenodd']]);
     const firstRouteStroke = strokes.findIndex((stroke) => stroke.width === 14);
     for (let index = firstRouteStroke; index < strokes.length; index++) {
-      if (strokes[index].width !== 14 && strokes[index].width !== 9) continue;
+      if (strokes[index].width !== 14 && strokes[index].width !== 11) continue;
       expect(context.clip.mock.invocationCallOrder[3]).toBeLessThan(
         context.stroke.mock.invocationCallOrder[index],
       );
@@ -743,7 +775,7 @@ describe('offline PNG rendering', () => {
     await renderRouteCard({ ...request, theme: 'dark', privacyRadius: 500 }, canvas);
     expect(context.arc.mock.calls.some((call) => call[2] === 12)).toBe(false);
     expect(context.moveTo).toHaveBeenCalledTimes(26);
-    expect(strokes).toContainEqual({ width: 9, color: '#86d5a3' });
+    expect(strokes).toContainEqual({ width: 11, color: '#9de4b5' });
     expect(context.strokeStyle).toBe('#adc5b62e');
   });
   it('follows sparse geodesic arcs rather than drawing a chord through a protected endpoint', () => {

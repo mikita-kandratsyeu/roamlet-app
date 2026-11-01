@@ -54,20 +54,38 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
         ]),
       )
       .toEqual([1080, format === 'Post' ? 1350 : 1920]);
-    const iconPixels = await image.evaluate((element: HTMLImageElement) => {
+    const iconPixels = await image.evaluate((element: HTMLImageElement, dark: boolean) => {
       const canvas = document.createElement('canvas');
       canvas.width = element.naturalWidth;
       canvas.height = element.naturalHeight;
       const context = canvas.getContext('2d');
       if (!context) throw new Error('Canvas unavailable');
       context.drawImage(element, 0, 0);
-      const pixels = context.getImageData(0, 0, canvas.width, 260).data;
+      const pixels = context.getImageData(72, 76, 56, 56).data;
+      const roadColor = dark ? [23, 59, 48] : [250, 247, 242];
+      const dotColor = dark ? [82, 116, 93] : [189, 211, 165];
       let road = 0,
         dot = 0;
       for (let index = 0; index < pixels.length; index += 4) {
-        if (pixels[index] === 250 && pixels[index + 1] === 247 && pixels[index + 2] === 242) road++;
-        if (pixels[index] === 189 && pixels[index + 1] === 211 && pixels[index + 2] === 165) dot++;
+        if (
+          pixels[index] === roadColor[0] &&
+          pixels[index + 1] === roadColor[1] &&
+          pixels[index + 2] === roadColor[2]
+        )
+          road++;
+        if (
+          pixels[index] === dotColor[0] &&
+          pixels[index + 1] === dotColor[1] &&
+          pixels[index + 2] === dotColor[2]
+        )
+          dot++;
       }
+      const tile = context.getImageData(84, 84, 1, 1).data;
+      const background = context.getImageData(64, 84, 1, 1).data;
+      const tileContrast =
+        Math.abs(tile[0] - background[0]) +
+        Math.abs(tile[1] - background[1]) +
+        Math.abs(tile[2] - background[2]);
       const dividerY = canvas.height - 72 - 200 + 36 + 52;
       const divider = context.getImageData(540, dividerY, 1, 1).data;
       const beside = context.getImageData(530, dividerY, 1, 1).data;
@@ -77,10 +95,11 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
         Math.abs(divider[2] - beside[2]);
       canvas.width = 0;
       canvas.height = 0;
-      return { road, dot, dividerContrast };
-    });
+      return { road, dot, dividerContrast, tileContrast };
+    }, format === 'Story');
     expect(iconPixels.road).toBeGreaterThan(150);
     expect(iconPixels.dot).toBeGreaterThan(30);
+    expect(iconPixels.tileContrast).toBeGreaterThan(100);
     expect(iconPixels.dividerContrast).toBeGreaterThan(8);
     await expect
       .poll(() => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth))

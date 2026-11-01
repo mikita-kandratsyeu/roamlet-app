@@ -358,7 +358,7 @@ function hasVisibleDrawing(points: RouteCardPoint[][], exclusions: RouteCardBoun
 
 type Context = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
-function drawBrand(context: Context, ink: string): void {
+function drawBrand(context: Context, ink: string, dark: boolean): void {
   const x = 72,
     y = 76,
     scale = 56 / 192;
@@ -366,7 +366,7 @@ function drawBrand(context: Context, ink: string): void {
   context.save();
   context.beginPath();
   context.roundRect(x, y, 56, 56, 14);
-  context.fillStyle = '#173b30';
+  context.fillStyle = dark ? '#bdd3a5' : '#173b30';
   context.fill();
   context.clip();
   context.beginPath();
@@ -380,11 +380,11 @@ function drawBrand(context: Context, ink: string): void {
   context.bezierCurveTo(...point(33, 108), ...point(98, 104), ...point(98, 89));
   context.bezierCurveTo(...point(98, 75), ...point(29, 57), ...point(38, 56));
   context.closePath();
-  context.fillStyle = '#faf7f2';
+  context.fillStyle = dark ? '#173b30' : '#faf7f2';
   context.fill();
   context.beginPath();
   context.arc(...point(125, 49), 17 * scale, 0, TAU);
-  context.fillStyle = '#bdd3a5';
+  context.fillStyle = dark ? '#52745d' : '#bdd3a5';
   context.fill();
   context.restore();
   context.fillStyle = ink;
@@ -537,13 +537,13 @@ export async function renderRouteCard(
     const context = canvas.getContext('2d');
     if (!context) throw new Error(RENDER_ERROR);
     const dark = request.theme === 'dark';
-    const background = dark ? '#10251e' : '#f4f7ef';
     const ink = dark ? '#f4f7ef' : '#183c2c';
     const muted = dark ? '#adc5b6' : '#597264';
-    const green = dark ? '#86d5a3' : '#287348';
+    const green = dark ? '#9de4b5' : '#1f6846';
     drawBackground(context, height, dark);
     context.textBaseline = 'top';
-    drawBrand(context, ink);
+    context.textAlign = 'left';
+    drawBrand(context, ink, dark);
     context.font = '600 20px sans-serif';
     const planned = fitText(context, safeText(request.plannedLabel), 408);
     const badgeWidth = Math.min(440, context.measureText(planned).width + 32);
@@ -568,12 +568,8 @@ export async function renderRouteCard(
     const rows = columns ? Math.ceil(request.metrics.length / columns) : 0;
     const metricPaddingX = 40;
     const metricPaddingY = 36;
-    const metricGap = 48;
     const metricRowHeight = 128;
     const panelHeight = rows ? metricPaddingY * 2 + rows * metricRowHeight : 0;
-    const metricWidth = columns
-      ? (936 - metricPaddingX * 2 - (columns - 1) * metricGap) / columns
-      : 0;
     const footerTop = height - 72 - panelHeight;
     const routeTop = activityTop + activity.length * 40 + 52;
     const routeBounds = { x: 104, y: routeTop, width: 872, height: footerTop - routeTop - 66 };
@@ -622,18 +618,27 @@ export async function renderRouteCard(
       context.lineWidth = 14;
       context.stroke();
       context.strokeStyle = green;
-      context.lineWidth = 9;
+      context.lineWidth = 11;
       context.stroke();
     }
     // Privacy cards deliberately have no endpoint markers.
     if (request.privacyRadius === 0) {
-      for (const point of [points[0]?.[0], points.at(-1)?.at(-1)]) {
+      const endpoints = [points[0]?.[0], points.at(-1)?.at(-1)];
+      for (const [index, point] of endpoints.entries()) {
         if (!point) continue;
         context.beginPath();
         context.arc(...point, 12, 0, TAU);
-        context.fillStyle = background;
+        context.fillStyle = index === 0 ? green : '#faf7f2';
         context.fill();
+        context.strokeStyle = index === 0 ? '#faf7f2' : green;
+        context.lineWidth = 3;
         context.stroke();
+        if (index === 1) {
+          context.beginPath();
+          context.arc(...point, 4, 0, TAU);
+          context.fillStyle = green;
+          context.fill();
+        }
       }
     }
     context.restore();
@@ -646,16 +651,23 @@ export async function renderRouteCard(
       context.lineWidth = 1;
       context.stroke();
     }
+    context.textAlign = 'center';
     request.metrics.forEach((metric, index) => {
-      const x = 72 + metricPaddingX + (index % columns) * (metricWidth + metricGap);
-      const y = footerTop + metricPaddingY + Math.floor(index / columns) * metricRowHeight;
-      if (index % columns > 0) {
+      const row = Math.floor(index / columns);
+      const column = index % columns;
+      const rowColumns = Math.min(columns, request.metrics.length - row * columns);
+      const cellWidth = 936 / rowColumns;
+      const cellLeft = 72 + column * cellWidth;
+      const metricWidth = cellWidth - metricPaddingX * 2;
+      const x = cellLeft + cellWidth / 2;
+      const y = footerTop + metricPaddingY + row * metricRowHeight;
+      if (column > 0) {
         context.strokeStyle = dark ? '#adc5b62e' : '#59726433';
         context.lineWidth = 1.5;
         context.lineCap = 'butt';
         context.beginPath();
-        context.moveTo(x - metricGap / 2, y + 4);
-        context.lineTo(x - metricGap / 2, y + 108);
+        context.moveTo(cellLeft, y + 4);
+        context.lineTo(cellLeft, y + 108);
         context.stroke();
       }
       context.fillStyle = muted;
