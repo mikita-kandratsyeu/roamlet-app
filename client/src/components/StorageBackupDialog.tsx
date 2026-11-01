@@ -31,6 +31,7 @@ export interface StorageBackupDialogProps {
   loading: boolean;
   error?: ConnectorFailure | null;
   connectionContent: ReactNode;
+  /** Disclosure body only; this dialog owns the details and summary elements. */
   privacy: ReactNode;
   uploadSuccess: string;
   uploadCancelWarning: string;

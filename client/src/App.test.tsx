@@ -9,6 +9,10 @@ import { exportGpx, importGpx } from './domain/gpx';
 import { checkRoutingConfiguration } from './services/routing';
 import { importGpxFile } from './services/gpxImport';
 import i18n, { detectLanguage, LANGUAGE_KEY } from './i18n';
+vi.mock('./services/connectors/googleDriveSession', () => ({
+  getGoogleDriveSession: vi.fn().mockResolvedValue({ available: false, connected: false }),
+  logoutGoogleDrive: vi.fn(),
+}));
 const provider = vi.hoisted(() => ({
   calculateRoute: vi.fn(),
   calculateAlternatives: vi.fn(),
@@ -503,6 +507,15 @@ describe('route planner interactions', () => {
     expect(window.location.search).toBe('');
   });
 
+  it('returns Google OAuth callbacks to the catalog and removes provider flags', async () => {
+    window.history.replaceState(null, '', '/?connectors=google-drive&google=error');
+    render(<App />);
+    expect(screen.getByRole('region', { name: 'Connections' })).toBeVisible();
+    const message = await screen.findByText('Google authorization was cancelled or failed. Open connection settings to try again.');
+    expect(message.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'error');
+    expect(window.location.search).toBe('');
+  });
+
   it('opens connectors as a separate screen and restores planner navigation on return', async () => {
     render(<App />);
     openMenu();
@@ -523,7 +536,7 @@ describe('route planner interactions', () => {
     const help = screen.getByRole('dialog', { name: 'Help and data sources' });
     expect(within(help).getByText('Without an internet connection')).toBeVisible();
     expect(within(help).getByText(/Visit the app online first/)).toBeVisible();
-    expect(within(help).getByText(/Optional encrypted GitHub backups are available in Connections/)).toBeVisible();
+    expect(within(help).getByText(/Optional encrypted cloud backups are available in Connections/)).toBeVisible();
     expect(within(help).getByText(/Internet required: loading the map/)).toBeVisible();
   });
 

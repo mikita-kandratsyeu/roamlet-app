@@ -99,8 +99,7 @@ export function GoogleDriveConnectionDialog({
         )
       }
       privacy={
-        <details>
-          <summary>{t('Privacy and limits')}</summary>
+        <>
           <p>
             {t(
               'Backups are stored in hidden Roamlet application storage in your Google Drive. They do not appear in My Drive. Create and restore them here; access is limited to Roamlet data.',
@@ -121,7 +120,7 @@ export function GoogleDriveConnectionDialog({
               'Each encrypted backup can be up to 3 MiB. Up to 1000 backups can be listed. Backups are created manually and are not deleted automatically. A cancelled upload may still complete: refresh before retrying.',
             )}
           </p>
-        </details>
+        </>
       }
     />
   );

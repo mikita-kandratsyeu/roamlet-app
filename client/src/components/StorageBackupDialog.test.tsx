@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { StorageBackupDialog, type StorageBackupDialogProps } from './StorageBackupDialog';
 import { Toaster } from './ui/sonner';
+import { GitHubConnectionDialog } from './GitHubConnectionDialog';
 import { listRoutes } from '../domain/storage';
 
 vi.mock('../domain/storage', () => ({ listRoutes: vi.fn() }));
@@ -32,7 +33,12 @@ function props(): StorageBackupDialogProps {
     enabled: true,
     loading: false,
     connectionContent: <p>Provider account summary</p>,
-    privacy: <p>Provider privacy details</p>,
+    privacy: (
+      <>
+        <p>Provider privacy details</p>
+        <p>Provider backup limits</p>
+      </>
+    ),
     uploadSuccess: 'Encrypted backup saved.',
     uploadCancelWarning: 'The provider may already have saved this backup.',
     onClose: vi.fn(),
@@ -58,9 +64,42 @@ it('renders provider-owned content and collapsed privacy without backup panels u
   const privacy = screen.getByText('Privacy and limits').closest('details');
   expect(privacy?.open).toBe(false);
   expect(privacy).toHaveTextContent('Provider privacy details');
+  expect(privacy).toHaveTextContent('Provider backup limits');
+  expect(screen.getByRole('dialog').querySelectorAll('details')).toHaveLength(1);
+  expect(privacy?.querySelector('details')).toBeNull();
+  expect(privacy?.querySelectorAll('summary')).toHaveLength(1);
   await userEvent.setup().click(screen.getByRole('button', { name: 'Done' }));
   expect(value.storage.cancel).toHaveBeenCalledOnce();
   expect(value.onClose).toHaveBeenCalledOnce();
+});
+
+it('keeps GitHub privacy as one collapsed disclosure with provider paragraphs', () => {
+  const value = props();
+  render(
+    <GitHubConnectionDialog
+      storage={value.storage}
+      onClose={value.onClose}
+      github={{
+        session: { available: true, connected: false },
+        repositories: [],
+        repositoriesListed: false,
+        loading: false,
+        error: null,
+        refresh: vi.fn().mockResolvedValue(undefined),
+        loadRepositories: vi.fn().mockResolvedValue(undefined),
+        disconnect: vi.fn().mockResolvedValue(true),
+      }}
+    />,
+  );
+  const dialog = screen.getByRole('dialog', { name: 'GitHub connection settings' });
+  const privacy = within(dialog).getByText('Privacy and limits').closest('details');
+  expect(dialog.querySelectorAll('details')).toHaveLength(1);
+  expect(privacy?.open).toBe(false);
+  expect(privacy?.querySelector('details')).toBeNull();
+  expect(privacy?.querySelectorAll('summary')).toHaveLength(1);
+  expect(privacy?.querySelectorAll('p')).toHaveLength(2);
+  expect(privacy).toHaveTextContent('Roamlet processes GitHub access tokens');
+  expect(privacy).toHaveTextContent('Each encrypted backup can be up to 3 MiB.');
 });
 
 it('clears both creation and restore passwords when the provider target changes', async () => {

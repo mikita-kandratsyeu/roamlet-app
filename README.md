@@ -6,9 +6,47 @@ An account-free, local-first cycling and hiking route planner.
 
 Roamlet keeps routes, preferences and the current unsaved draft on this device. No account, analytics or cloud synchronization is required; local workflows need no backend. **Export** opens a dialog with the route name, activity, distance, original time estimate, available ascent/descent, and separate counts of track points, GPX segments and waypoints, followed by an editable GPX filename and a download action. Elevation metrics require complete heights and an eligible GPX/ORS source; missing or partial heights are not invented. The summary adapts to small screens. Filename edits do not rename the route or change its geometry; GPX preserves existing track segments, available elevations, and waypoints. Separate collapsed Komoot and Strava guides link to official import instructions: import is manual, with no account connection or automatic upload. The Strava guide describes creating a route on the website, not uploading a completed activity, and notes that route creation may require a subscription. Downloading works offline; opening external help or Komoot requires internet. GPX is not a full backup of the editor or local library. Automatic routes and loops still use the existing OpenRouteService integration; manual drawing, GPX and library operations remain local.
 
-### Connections and GitHub App
+### Connections
 
 Open **Menu → Connections** for a searchable, filterable grid of available services. Search and filter controls reuse the route library's sizing, inset search icon, focus treatment and selected-filter styling, including its mobile layout. Cards show connection status and management/disconnect actions. Setup and encrypted-backup operations open in a modal. First connection separates repository access, GitHub sign-in and repository selection into steps. Once configured, the modal shows a compact account/repository overview with an explicit Change repository action, plus keyboard-accessible Create a backup / Restore a backup tabs. Creation previews the current saved-route count, shows password validation beside the fields and keeps its upload action in the fixed footer; restoration uses a separate password and retains explicit conflict confirmation. Repository, cloud-backup and conflict choices use the same accessible dropdown component and styling as the planner, not native browser select menus. Empty cloud/repository lists provide next actions. Closing clears entered passwords, but an active operation first prompts Keep working / Stop and close; cancelling an upload does not guarantee that GitHub has not already saved it. No timestamps or route counts are inferred from UUID snapshot filenames; storage formats remain unchanged. Connector and OAuth errors use one dismissible Sonner notification rather than duplicate inline alerts on the page or in dialogs; connection-attention status remains on the card. Local/manual planning, GPX, JSON backups and the route library remain independent of connections. There is no Roamlet account or application database.
+
+#### Google Drive
+
+Google Drive appears **before GitHub** in the connector grid. Connect it with **Sign in with Google**; no repository, folder selection or API key is required. The shared encrypted-backup dialog provides Create a backup / Restore a backup tabs, password validation, saved-route counts, planner-style dropdowns, explicit conflict confirmation and safe operation cancellation. Privacy and limits appear in a single collapsed section.
+
+This connector uses Drive's **hidden application data folder (`appDataFolder`)**, not My Drive. Roamlet can access only its own app data, not the user's other files. Backups are created and restored through Roamlet; they do not appear as ordinary files in Drive. A separate application/client registration for development may have different app-data visibility from production: verify this before treating development copies as production backups. The route JSON and encryption container are unchanged and remain portable through the existing importer.
+
+Google authorization uses `openid`, `email` and `https://www.googleapis.com/auth/drive.appdata`, PKCE S256 and a short-lived encrypted state cookie. The Google email identifies the connected account. Server functions exchange the authorization code and relay encrypted backups; no application database, plaintext backup storage or token logging is added. Tokens are stored only inside an encrypted, provider-specific HttpOnly/SameSite=Lax cookie (Secure over HTTPS). GitHub and Google sessions, selected targets, backup lists, errors and disconnect actions are independent.
+
+**Access-only:** Google sessions last no longer than the access token, capped at one hour. Roamlet neither requests offline access nor stores/uses refresh tokens. Sign in again when access expires. Sessions survive reloads and are shared across tabs in this browser; focus/cross-tab changes recheck status. Disconnect clears only the Google session and attempts to revoke its current access token; it does not delete cloud copies or disconnect GitHub. Revocation is best-effort during provider/network failures, and stateless copied cookies cannot be centrally invalidated without a session store. Rotate the Google session key to invalidate Google cookies if required.
+
+Encrypted transport is limited to **3 MiB** per backup, below Vercel Function request/response limits. Metadata discovery is paginated and bounded at 1000 snapshots, with validation of IDs, sizes, snapshot names and app-data ownership; repeated/duplicate or potentially incomplete results are rejected. Requests use fixed Google endpoints and a 20-second server operation deadline. There are no automatic retries, synchronization, cloud deletion or retention jobs. Concurrent writes can race storage preflight checks. Cancellation cannot guarantee that a submitted upload did not finish remotely. Local routes, manual planning and GPX remain available with no Google configuration or network.
+
+##### Google Cloud setup
+
+1. Create/select a project in [Google Cloud Console](https://console.cloud.google.com/), then enable **Google Drive API** under **APIs & Services → Library**.
+2. Configure **Google Auth Platform** (or the OAuth consent screen): Branding/app name and support/developer contact emails, Audience **External** if users outside your Workspace need access. Add your application's homepage/privacy-policy URLs and verify authorized production domains where Google requires them.
+3. Under **Data Access**, configure `openid`, `email` and `https://www.googleapis.com/auth/drive.appdata`. Do not request full Drive, `drive.readonly`, `drive.file`, profile or offline access for this connector. Google documents `drive.appdata` as [non-sensitive](https://developers.google.com/workspace/drive/api/guides/api-specific-auth). Follow the console's current consent/publication requirements; non-sensitive scope does not guarantee that all branding or verification steps can be omitted.
+4. Create an **OAuth client ID → Web application** under Clients/Credentials. Register the exact redirect URI `https://YOUR_DOMAIN/api/google-drive?action=callback`. Authorized JavaScript origins may include the app origin but do not replace the required redirect URI; the token exchange is server-side.
+5. For development, prefer a separate OAuth client/project and redirect `http://127.0.0.1:5173/api/google-drive?action=callback`. Open the application on that exact origin. While Audience is **Testing**, add permitted Google accounts under Test users. Only listed test users can authorize an External testing application; testing authorizations may expire after seven days regardless of this connector's one-hour session.
+6. Copy the OAuth Client ID and create/copy its client secret. Configure the following **server-only** variables in root `.env.local` for local development, or Vercel Environment Variables for production, following [.env.example](./.env.example):
+
+| Variable | Value |
+| --- | --- |
+| `GOOGLE_DRIVE_CLIENT_ID` | Web application OAuth client ID |
+| `GOOGLE_DRIVE_CLIENT_SECRET` | OAuth client secret |
+| `GOOGLE_DRIVE_CALLBACK_URL` | Exact redirect URI registered above |
+| `GOOGLE_DRIVE_SESSION_SECRET` | Canonical base64 of 32 cryptographically random bytes |
+
+Generate a **separate** Google session key locally:
+
+```sh
+node --input-type=module -e "import {randomBytes} from 'node:crypto'; console.log(randomBytes(32).toString('base64'))"
+```
+
+Never commit secrets, share them in chat, use `VITE_` prefixes or embed tokens in URLs. Mark client/session secrets **Sensitive** on Vercel. Restart Vite after local changes; redeploy Vercel after changing production variables. Missing configuration shows Google Drive as unavailable without blocking other connectors or local workflows. Apply Vercel Firewall limits to `/api/google-drive` before public access and verify real consent, callbacks, cookie flags, account switch, app-data isolation and backup/restore on the permanent HTTPS origin. Mocked tests do not validate live Google Cloud setup or approval/publication status.
+
+#### GitHub App
 
 **Connect GitHub:**
 
@@ -57,6 +95,8 @@ For local development, use root `.env.local` following [.env.example](./.env.exa
 The OAuth callback accepts an optional `iss` parameter only when it exactly equals `https://github.com/login/oauth`; invalid issuers, duplicate parameters and unknown parameters are rejected. Callbacks without `iss` retain state/PKCE validation.
 
 **Extension points:** [registry.ts](./client/src/services/connectors/registry.ts) owns service-card metadata and adapter construction; [types.ts](./client/src/services/connectors/types.ts) defines provider-independent backup operations. [githubSession.ts](./client/src/services/connectors/githubSession.ts) and [useGitHubSession](./client/src/hooks/useGitHubSession.ts) own GitHub-specific session transport/lifecycle; [github.ts](./client/src/services/connectors/github.ts) implements storage operations. [useStorageConnector](./client/src/hooks/useStorageConnector.ts) orchestrates encrypted backup/restore. [StorageConnections](./client/src/components/StorageConnections.tsx) renders the catalog and [GitHubConnectionDialog](./client/src/components/GitHubConnectionDialog.tsx) renders GitHub setup/operations. Add provider metadata, an adapter, its authentication/settings modal and contract tests without changing encryption/import. AI providers should have a separate capability contract, not implement the storage interface. No arbitrary third-party plugin execution is introduced.
+
+Google implementation uses [googleDrive.ts](./client/src/services/connectors/googleDrive.ts), [googleDriveSession.ts](./client/src/services/connectors/googleDriveSession.ts) and [useGoogleDriveSession](./client/src/hooks/useGoogleDriveSession.ts). Both provider-specific settings dialogs compose [StorageBackupDialog](./client/src/components/StorageBackupDialog.tsx); bounded same-origin transport is shared in [http.ts](./client/src/services/connectors/http.ts). Provider-specific authentication remains separate from backup operations, and the registry order controls the service-card order.
 
 ### Route images for social media
 

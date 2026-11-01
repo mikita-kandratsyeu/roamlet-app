@@ -31,15 +31,16 @@ export function fileSize(size, status = 502) {
   if (number < 52) throw new ConnectorError('invalid-data', status);
   return number;
 }
-export function fileEntry(value) {
+export function fileEntry(value, folderId) {
   const file = object(value);
   if (
     !validId(file.id) ||
     typeof file.name !== 'string' ||
     !SNAPSHOT.test(file.name) ||
+    !validId(folderId) ||
     !Array.isArray(file.parents) ||
-    !file.parents.includes('appDataFolder') ||
-    file.parents.some((parent) => typeof parent !== 'string') ||
+    (!file.parents.includes(folderId) && !file.parents.includes('appDataFolder')) ||
+    file.parents.some((parent) => !validId(parent)) ||
     file.mimeType !== MIME ||
     object(file.appProperties).roamlet !== 'backup-v1' ||
     file.trashed === true
@@ -172,7 +173,14 @@ export function createGoogleDriveClient(fetcher = globalThis.fetch) {
     )
       throw new ConnectorError('invalid-data');
   }
-  async function list(token, signal) {
+  async function resolveFolder(token, signal) {
+    const folder = object(
+      await request(`${API}/appDataFolder?fields=id`, { token, signal, limit: 16 * 1024 }),
+    );
+    if (!validId(folder.id)) throw new ConnectorError('invalid-data');
+    return folder.id;
+  }
+  async function list(token, signal, context = {}) {
     const backups = [];
     const ids = new Set();
     const tokens = new Set();
@@ -190,8 +198,11 @@ export function createGoogleDriveClient(fetcher = globalThis.fetch) {
       if (!Array.isArray(payload.files)) throw new ConnectorError('invalid-data');
       if (payload.files.length > 100 || backups.length + payload.files.length > 1000)
         throw new ConnectorError('too-large', 413);
+      // Empty appDataFolder listings work before Google creates the folder on the first save.
+      if (payload.files.length && !context.folderId)
+        context.folderId = await resolveFolder(token, signal);
       for (const file of payload.files) {
-        const entry = fileEntry(file);
+        const entry = fileEntry(file, context.folderId);
         if (ids.has(entry.id)) throw new ConnectorError('invalid-data');
         ids.add(entry.id);
         backups.push(entry);
@@ -209,6 +220,9 @@ export function createGoogleDriveClient(fetcher = globalThis.fetch) {
     throw new ConnectorError('too-large', 413);
   }
   async function upload(bytes, token, signal) {
+    const context = {};
+    if ((await list(token, signal, context)).length >= 1000)
+      throw new ConnectorError('too-large', 413);
     const name = `${randomUUID()}.roamlet`;
     const boundary = `roamlet_${randomBytes(24).toString('hex')}`;
     const metadata = {
@@ -234,6 +248,7 @@ export function createGoogleDriveClient(fetcher = globalThis.fetch) {
         contentType: `multipart/related; boundary=${boundary}`,
         limit: 16 * 1024,
       }),
+      context.folderId ?? (await resolveFolder(token, signal)),
     );
     if (result.name !== name || result.size !== bytes.length)
       throw new ConnectorError('invalid-data');
@@ -248,6 +263,7 @@ export function createGoogleDriveClient(fetcher = globalThis.fetch) {
         signal,
         limit: 16 * 1024,
       }),
+      await resolveFolder(token, signal),
     );
     if (metadata.id !== id || metadata.size !== size) throw new ConnectorError('invalid-data');
     const bytes = await request(`${API}/${id}?alt=media`, {

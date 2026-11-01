@@ -26,6 +26,7 @@ test.beforeEach(async ({ page }) => {
       url.hostname === 'api.openrouteservice.org' ||
       url.hostname === 'api.heigit.org' ||
       url.hostname === 'api.github.com' ||
+      ['oauth2.googleapis.com', 'www.googleapis.com', 'openidconnect.googleapis.com'].includes(url.hostname) ||
       url.hostname === 'mapbox.com' ||
       url.hostname.endsWith('.mapbox.com')
     ) {
@@ -33,7 +34,7 @@ test.beforeEach(async ({ page }) => {
     } else if (
       url.pathname.startsWith('/api/') &&
       url.pathname !== '/api/routing-config' &&
-      !(url.pathname === '/api/github' && url.searchParams.get('action') === 'session') &&
+      !(['/api/github', '/api/google-drive'].includes(url.pathname) && url.searchParams.get('action') === 'session') &&
       !(allowUnavailableRoutingRequest && url.pathname === '/api/route')
     ) {
       forbiddenRequests.push(url.pathname);
@@ -98,6 +99,7 @@ test('installation metadata and branded icons stay available in the production o
     ['/icon-512.png', 512],
     ['/icon-maskable-512.png', 512],
     ['/github-mark.png', 560],
+    ['/google-drive.png', 96],
     ['/icon.svg', null],
   ] as const) {
     const pixels = await page.evaluate(async (src) => {
@@ -145,7 +147,7 @@ test('installation metadata and branded icons stay available in the production o
   }
 });
 
-test('connector list and official GitHub mark are available on the first offline visit without provider requests', async ({ page, context }) => {
+test('connector list and official provider icons are available on the first offline visit without provider requests', async ({ page, context }) => {
   await page.goto('/');
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
@@ -157,10 +159,19 @@ test('connector list and official GitHub mark are available on the first offline
   await expect(connections).toBeVisible();
   await expect(connections.getByRole('heading', { name: 'GitHub', exact: true })).toBeVisible();
   await expect.poll(() => connections.locator('.github-brand-mark').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(560);
-  await connections.getByRole('button', { name: 'Set up connection' }).click();
-  await expect(page.getByRole('dialog', { name: 'GitHub connection settings' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sign in with GitHub' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Done' }).click();
+  const googleCard = connections.locator('.connector-card').filter({ has: page.getByRole('heading', { name: 'Google Drive', exact: true }) });
+  await expect.poll(() => googleCard.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(96);
+  for (const [provider, title, login] of [
+    ['Google Drive', 'Google Drive connection settings', 'Sign in with Google'],
+    ['GitHub', 'GitHub connection settings', 'Sign in with GitHub'],
+  ]) {
+    const card = connections.locator('.connector-card').filter({ has: page.getByRole('heading', { name: provider, exact: true }) });
+    await card.getByRole('button', { name: 'Set up connection' }).click();
+    const dialog = page.getByRole('dialog', { name: title });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: login })).toBeDisabled();
+    await dialog.getByRole('button', { name: 'Done' }).click();
+  }
   await connections.getByRole('button', { name: 'Back to map' }).click();
   await expect(connections).toHaveCount(0);
 });

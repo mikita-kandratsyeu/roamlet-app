@@ -408,7 +408,9 @@ it('supports Russian setup copy without internal release names', async () => {
   await i18n.changeLanguage('ru');
   render(<StorageConnections open onClose={vi.fn()} />);
   await screen.findByText('Не подключён');
-  await userEvent.setup().click(githubCard().getByRole('button', { name: 'Настроить подключение' }));
+  await userEvent
+    .setup()
+    .click(githubCard().getByRole('button', { name: 'Настроить подключение' }));
   const modal = screen.getByRole('dialog', { name: 'Настройки подключения GitHub' });
   expect(within(modal).getByRole('button', { name: 'Войти через GitHub' })).toBeEnabled();
   expect(modal.textContent).not.toMatch(/пилот|MVP/i);

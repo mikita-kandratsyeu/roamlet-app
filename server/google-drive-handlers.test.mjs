@@ -24,6 +24,7 @@ const TOKEN = 'synthetic-google-access-token-not-for-clients';
 const SECRET = 'synthetic-google-client-secret-not-for-clients';
 const NAME = '12345678-1234-4123-8123-123456789abc.roamlet';
 const ID = 'synthetic_google-file_123';
+const FOLDER_ID = 'synthetic_canonical-app-folder_123';
 const ORIGIN = 'https://roamlet.example';
 const USER = { sub: 'google-stable-sub-123', email: 'alice@example.com', email_verified: true };
 const env = () => ({
@@ -79,8 +80,9 @@ function fixture(overrides = {}, options = {}) {
     },
     user: USER,
     probe: { files: [] },
-    list: { files: [entry()] },
-    metadata: entry(),
+    folder: { id: FOLDER_ID },
+    list: { files: [entry({ parents: [options.folderParent ?? FOLDER_ID] })] },
+    metadata: entry({ parents: [options.folderParent ?? FOLDER_ID] }),
     media: () => new Response(data()),
     revoke: () => new Response(null, { status: 200 }),
     upload: (_url, init) => {
@@ -101,7 +103,12 @@ function fixture(overrides = {}, options = {}) {
       });
       assert.match(metadata.name, /^[0-9a-f-]{14}4[0-9a-f-]{21}\.roamlet$/);
       assert.deepEqual(body.subarray(binaryStart, binaryEnd), options.bytes ?? data());
-      return entry({ name: metadata.name, size: String(binaryEnd - binaryStart) });
+      options.onUpload?.();
+      return entry({
+        name: metadata.name,
+        size: String(binaryEnd - binaryStart),
+        parents: [options.folderParent ?? FOLDER_ID],
+      });
     },
     ...overrides,
   };
@@ -117,7 +124,10 @@ function fixture(overrides = {}, options = {}) {
       if (parsed.pathname === '/upload/drive/v3/files') key = 'upload';
       else if (parsed.pathname === '/drive/v3/files')
         key = parsed.searchParams.get('pageSize') === '1' ? 'probe' : 'list';
-      else if (parsed.pathname === `/drive/v3/files/${ID}`)
+      else if (parsed.pathname === '/drive/v3/files/appDataFolder') {
+        assert.equal(parsed.search, '?fields=id');
+        key = 'folder';
+      } else if (parsed.pathname === `/drive/v3/files/${ID}`)
         key = parsed.searchParams.get('alt') === 'media' ? 'media' : 'metadata';
       else assert.fail(`Unexpected fixed-path request ${parsed.pathname}`);
     }
@@ -559,7 +569,9 @@ test('list queries owned snapshots, fixed fields and preserves createdTime-desc 
       { id: 'second', name: '00000000-0000-4000-8000-000000000000.roamlet', size: 60 },
     ],
   });
-  for (const { url } of fx.calls.slice(1)) {
+  const listCalls = fx.calls.filter(({ url }) => new URL(url).pathname === '/drive/v3/files');
+  assert.equal(listCalls.length, 2);
+  for (const { url } of listCalls) {
     const parsed = new URL(url);
     assert.equal(parsed.origin + parsed.pathname, 'https://www.googleapis.com/drive/v3/files');
     assert.equal(parsed.searchParams.get('spaces'), 'appDataFolder');
@@ -574,7 +586,7 @@ test('list queries owned snapshots, fixed fields and preserves createdTime-desc 
     assert.equal(parsed.searchParams.get('pageSize'), '100');
     assert.equal(parsed.searchParams.get('orderBy'), 'createdTime desc');
   }
-  assert.equal(new URL(fx.calls[2].url).searchParams.get('pageToken'), 'opaque_page-token=');
+  assert.equal(new URL(listCalls[1].url).searchParams.get('pageToken'), 'opaque_page-token=');
 });
 
 test('pagination rejects duplicate ids, malformed/repeated tokens and never silently truncates', async () => {
@@ -609,7 +621,7 @@ test('pagination rejects duplicate ids, malformed/repeated tokens and never sile
     const result = await invoke(fx.handler, 'list');
     if (continued) assertError(result, 'too-large', 413);
     else assert.equal(result.data.backups.length, 1000);
-    assert.equal(fx.calls.length, 11);
+    assert.equal(fx.calls.length, 12);
   }
 });
 
@@ -740,7 +752,11 @@ test('download validates id/size before transport, then metadata, binary length 
     fx.calls[1].url,
     `https://www.googleapis.com/drive/v3/files/${ID}?fields=id%2Cname%2Csize%2Cparents%2CappProperties%2CmimeType`,
   );
-  assert.equal(fx.calls[2].url, `https://www.googleapis.com/drive/v3/files/${ID}?alt=media`);
+  assert.equal(
+    fx.calls[2].url,
+    'https://www.googleapis.com/drive/v3/files/appDataFolder?fields=id',
+  );
+  assert.equal(fx.calls[3].url, `https://www.googleapis.com/drive/v3/files/${ID}?alt=media`);
   for (const query of [
     '&id=../file&size=60',
     '&id=https://evil.example&size=60',
@@ -995,7 +1011,7 @@ test('real local HTTP streams ciphertext through shared handler without UTF-8 co
   });
   assert.equal(response.status, 200);
   assert.equal(response.body.backup.size, 60);
-  assert.equal(fx.calls.length, 2);
+  assert.equal(fx.calls.length, 4);
 });
 
 test('OAuth exchange streams are bounded and timed out with sanitized callback redirect and state deletion', async () => {
@@ -1043,4 +1059,197 @@ test('maximum valid identity/token fits encrypted cookie budget and invalid byte
     'https://roamlet.example:443/api/google-drive?action=callback',
   ])
     assert.equal(googleDriveConfig({ ...env(), GOOGLE_DRIVE_CALLBACK_URL: callback }), null);
+});
+
+test('upload preflight refuses 1000 existing backups without a provider POST', async () => {
+  let page = 0;
+  const fx = fixture({
+    list: () => {
+      const current = page++;
+      return {
+        files: Array.from({ length: 100 }, (_, i) => entry({ id: `full_${current}_${i}` })),
+        ...(current < 9 ? { nextPageToken: `full_page_${current + 1}` } : {}),
+      };
+    },
+  });
+  const result = await invoke(fx.handler, 'upload', {
+    method: 'POST',
+    headers: mutation,
+    body: data(),
+  });
+  assertError(result, 'too-large', 413);
+  assert.equal(page, 10);
+  assert.ok(fx.calls.every(({ init }) => init.method === 'GET'));
+  assert.equal(fx.calls.length, 12);
+});
+
+test('upload preflight allows 999 existing backups and creates one new immutable snapshot', async () => {
+  let page = 0;
+  const fx = fixture({
+    list: () => {
+      const current = page++;
+      return {
+        files: Array.from({ length: current === 9 ? 99 : 100 }, (_, i) =>
+          entry({ id: `almost_full_${current}_${i}` }),
+        ),
+        ...(current < 9 ? { nextPageToken: `page_${current + 1}` } : {}),
+      };
+    },
+  });
+  const result = await invoke(fx.handler, 'upload', {
+    method: 'POST',
+    headers: mutation,
+    body: data(),
+  });
+  assert.equal(result.status, 200);
+  assert.equal(result.data.backup.size, 60);
+  assert.equal(page, 10);
+  assert.equal(fx.calls.length, 13);
+  const uploads = fx.calls.filter(({ init }) => init.method === 'POST');
+  assert.equal(uploads.length, 1);
+  assert.equal(new URL(uploads[0].url).pathname, '/upload/drive/v3/files');
+  assert.equal(fx.calls.at(-1), uploads[0]);
+  assert.equal(uploads[0].init.body.includes(Buffer.from('almost_full_')), false);
+});
+
+test('upload preflight reuses bounded listing and rejects duplicate IDs, repeated tokens and oversized metadata', async () => {
+  for (const list of [
+    { files: [entry(), entry()] },
+    { files: [], nextPageToken: 'repeated_page' },
+    { files: [entry()], nextPageToken: 'duplicate_id_page' },
+    new Response('a'.repeat(256 * 1024 + 1)),
+    { files: [], nextPageToken: 'https://evil.example/page' },
+  ]) {
+    const fx = fixture({ list });
+    const result = await invoke(fx.handler, 'upload', {
+      method: 'POST',
+      headers: mutation,
+      body: data(),
+    });
+    assertError(
+      result,
+      list instanceof Response ? 'too-large' : 'invalid-data',
+      list instanceof Response ? 413 : 502,
+    );
+    assert.ok(fx.calls.every(({ init }) => init.method === 'GET'));
+    assert.ok(fx.calls.length <= 4);
+  }
+});
+
+test('upload preflight shares the original operation deadline and never writes after a stalled listing', async () => {
+  let signal;
+  const fx = fixture(
+    {
+      list: (_url, init) => {
+        signal = init.signal;
+        return new Promise(() => {});
+      },
+    },
+    { timeoutMs: 15 },
+  );
+  const result = await invoke(fx.handler, 'upload', {
+    method: 'POST',
+    headers: mutation,
+    body: data(),
+  });
+  assertError(result, 'timeout', 504);
+  assert.equal(signal.aborted, true);
+  assert.equal(fx.calls.length, 2);
+  assert.ok(fx.calls.every(({ init }) => init.signal === signal && init.method === 'GET'));
+});
+
+test('canonical appDataFolder parents work for listing, upload and download with one local resolution', async () => {
+  for (const action of ['list', 'upload', 'download']) {
+    const fx = fixture({}, { folderParent: FOLDER_ID });
+    const result = await invoke(
+      fx.handler,
+      action,
+      action === 'upload'
+        ? { method: 'POST', headers: mutation, body: data() }
+        : { query: action === 'download' ? download : '' },
+    );
+    assert.equal(result.status, 200);
+    const folderCalls = fx.calls.filter(
+      ({ url }) => url === 'https://www.googleapis.com/drive/v3/files/appDataFolder?fields=id',
+    );
+    assert.equal(folderCalls.length, 1);
+    assert.equal(folderCalls[0].init.method, 'GET');
+    if (action === 'download') assert.deepEqual(result.raw, data());
+    if (action === 'upload') assert.equal(result.data.backup.size, 60);
+    if (action === 'list')
+      assert.deepEqual(result.data.backups, [{ id: ID, name: NAME, size: 60 }]);
+  }
+});
+
+test('missing appDataFolder never prevents empty listing or first upload; resolve canonical parent after creation', async () => {
+  let created = false;
+  const fx = fixture(
+    {
+      list: { files: [] },
+      folder: () => (created ? { id: FOLDER_ID } : new Response('{}', { status: 404 })),
+    },
+    {
+      folderParent: FOLDER_ID,
+      onUpload: () => {
+        created = true;
+      },
+    },
+  );
+  assert.deepEqual((await invoke(fx.handler, 'list')).data, { backups: [] });
+  assert.equal(
+    fx.calls.some(({ url }) => url.includes('/appDataFolder?')),
+    false,
+  );
+  const result = await invoke(fx.handler, 'upload', {
+    method: 'POST',
+    headers: mutation,
+    body: data(),
+  });
+  assert.equal(result.status, 200);
+  assert.equal(created, true);
+  const post = fx.calls.findIndex(({ init }) => init.method === 'POST');
+  const folder = fx.calls.findIndex(({ url }) => url.includes('/appDataFolder?'));
+  assert.ok(post >= 0 && folder > post);
+  assert.equal(fx.calls.filter(({ url }) => url.includes('/appDataFolder?')).length, 1);
+});
+
+test('canonical parent validation rejects foreign folders and invalid folder resolution without media or upload', async () => {
+  for (const folder of [
+    { id: '' },
+    { id: '../folder' },
+    { id: 'a'.repeat(201) },
+    null,
+    { id: 'foreign-folder' },
+  ]) {
+    for (const action of ['list', 'upload', 'download']) {
+      const fx = fixture({ folder }, { folderParent: FOLDER_ID });
+      const result = await invoke(
+        fx.handler,
+        action,
+        action === 'upload'
+          ? { method: 'POST', headers: mutation, body: data() }
+          : { query: action === 'download' ? download : '' },
+      );
+      assertError(result, 'invalid-data', 502);
+      assert.ok(fx.calls.every(({ init }) => init.method === 'GET'));
+      assert.ok(!fx.calls.some(({ url }) => url.includes('alt=media')));
+    }
+  }
+});
+
+test('folder resolution shares operation deadline and bounded response reader', async () => {
+  for (const folder of [() => new Promise(() => {}), new Response('a'.repeat(16 * 1024 + 1))]) {
+    const fx = fixture({ folder }, { timeoutMs: 15, folderParent: FOLDER_ID });
+    const result = await invoke(fx.handler, 'upload', {
+      method: 'POST',
+      headers: mutation,
+      body: data(),
+    });
+    assertError(
+      result,
+      folder instanceof Response ? 'too-large' : 'timeout',
+      folder instanceof Response ? 413 : 504,
+    );
+    assert.ok(fx.calls.every(({ init }) => init.method === 'GET'));
+  }
 });

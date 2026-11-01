@@ -19,6 +19,9 @@ test.beforeEach(async ({ page, context }) => {
     }),
   );
   await page.route('https://api.github.com/**', (route) => route.abort());
+  await context.route('**/api/google-drive?**', (route) =>
+    route.fulfill({ json: { available: false, connected: false } }),
+  );
   await page.goto('/');
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
 });
@@ -190,7 +193,10 @@ test('scalable catalog opens a Russian dark-theme modal and restores focus', asy
   await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
   await page.getByRole('button', { name: 'Меню', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Подключения', exact: true }).click();
-  const setup = page.getByRole('button', { name: 'Настроить подключение' });
+  const setup = page
+    .getByRole('heading', { name: 'GitHub', exact: true })
+    .locator('xpath=ancestor::article')
+    .getByRole('button', { name: 'Настроить подключение' });
   const screen = page.getByRole('region', { name: 'Подключения', exact: true });
   await expect(screen.getByText('Не подключён', { exact: true })).toBeVisible();
   await screen.getByRole('textbox', { name: 'Поиск коннекторов' }).fill('Missing service');
