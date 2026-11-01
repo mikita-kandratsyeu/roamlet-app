@@ -81,12 +81,21 @@ test('production shell keeps saved routes and GPX export available offline, with
   await page.getByRole('menuitem', { name: 'My routes' }).click();
   await page.getByRole('button', { name: /Offline escape Hiking/ }).click();
   await expect(page.getByRole('heading', { name: 'Offline escape' })).toBeVisible();
-  const downloaded = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export' }).click();
-  await page
-    .getByRole('dialog', { name: 'Export route', exact: true })
-    .getByRole('button', { name: 'Download GPX', exact: true })
-    .click();
+  const exportDialog = page.getByRole('dialog', { name: 'Export route', exact: true });
+  await exportDialog.getByRole('radio', { name: 'For social media' }).click();
+  await expect(exportDialog.getByRole('img', { name: 'Generated route image' })).toHaveCount(0);
+  await exportDialog.getByRole('button', { name: 'Create preview' }).click();
+  const image = exportDialog.getByRole('img', { name: 'Generated route image' });
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBe(1080);
+  const pngDownload = page.waitForEvent('download');
+  await exportDialog.getByRole('button', { name: 'Download PNG' }).click();
+  const png = await readFile((await (await pngDownload).path())!);
+  expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  await exportDialog.getByRole('radio', { name: 'GPX', exact: true }).click();
+  const downloaded = page.waitForEvent('download');
+  await exportDialog.getByRole('button', { name: 'Download GPX', exact: true }).click();
   const text = await readFile((await (await downloaded).path())!, 'utf8');
   expect(text.match(/<trkpt\s/g)).toHaveLength(2);
   const cached = await page.evaluate(async () => {

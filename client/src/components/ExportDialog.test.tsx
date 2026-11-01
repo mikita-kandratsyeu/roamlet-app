@@ -5,6 +5,9 @@ import userEvent from '@testing-library/user-event';
 import { ExportDialog } from './ExportDialog';
 import type { PlannedRoute } from '../domain/types';
 import i18n from '../i18n';
+import { generateRouteCard } from '../services/routeCard';
+
+vi.mock('../services/routeCard', () => ({ generateRouteCard: vi.fn() }));
 
 vi.mock('./ExportRouteMap', () => ({
   ExportRouteMap: () => <figure aria-label="Route map preview" />,
@@ -32,6 +35,20 @@ beforeEach(() => render(<Toaster />));
 afterEach(() => cleanup());
 
 describe('ExportDialog', () => {
+  it('switches to on-demand image export and back without generating or downloading', async () => {
+    const user = userEvent.setup();
+    const onDownload = vi.fn();
+    render(<ExportDialog route={route} onDownload={onDownload} onClose={vi.fn()} />);
+    await user.click(screen.getByRole('radio', { name: 'For social media' }));
+    expect(screen.getByRole('region', { name: 'Image for social media' })).toBeVisible();
+    expect(screen.queryByRole('figure', { name: 'Route map preview' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Elevation gain' })).not.toBeInTheDocument();
+    expect(generateRouteCard).not.toHaveBeenCalled();
+    expect(onDownload).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('radio', { name: 'GPX' }));
+    expect(screen.getByRole('textbox', { name: 'File name' })).toHaveValue('Forest walk.gpx');
+    expect(screen.getByRole('button', { name: 'Download GPX' })).toBeVisible();
+  });
   it('shows route details and a collapsed guide without downloading', () => {
     const onDownload = vi.fn();
     render(<ExportDialog route={route} onDownload={onDownload} onClose={vi.fn()} />);

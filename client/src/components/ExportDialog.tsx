@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Download, ExternalLink } from 'lucide-react';
 import { Dialog } from './Dialog';
 import { ExportRouteMap } from './ExportRouteMap';
+import { RouteCardExport } from './RouteCardExport';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Notification } from './Notification';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -23,6 +25,7 @@ export function ExportDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const [mode, setMode] = useState<'gpx' | 'image'>('gpx');
   const [filename, setFilename] = useState(() => gpxFilename(route.name));
   const [error, setError] = useState<string | null>(null);
   const filenameInput = useRef<HTMLInputElement>(null);
@@ -53,6 +56,12 @@ export function ExportDialog({
 
   return (
     <Dialog title={t('Export route')} initialFocusRef={filenameInput} onClose={onClose}>
+      <ToggleGroup type="single" value={mode} variant="outline" className="export-mode" aria-label={t('Export format')}
+        onValueChange={(value) => { if (value === 'gpx' || value === 'image') setMode(value); }}>
+        <ToggleGroupItem value="gpx">GPX</ToggleGroupItem>
+        <ToggleGroupItem value="image">{t('For social media')}</ToggleGroupItem>
+      </ToggleGroup>
+      {mode === 'image' ? <RouteCardExport route={route} elevationGain={showElevation ? route.stats.ascent : undefined} /> : <>
       <section className="export-route-overview" aria-label={t('Route details')}>
         <p className="export-route-summary">
           <strong>{route.name || t('Untitled adventure')}</strong>
@@ -154,6 +163,7 @@ export function ExportDialog({
           <ExternalLink size={14} aria-hidden="true" />
         </a>
       </details>
+      </>}
     </Dialog>
   );
 }

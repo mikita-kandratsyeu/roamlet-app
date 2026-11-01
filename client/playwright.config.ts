@@ -6,6 +6,7 @@ export default defineConfig({
     'map-view.spec.ts',
     'lifecycle.spec.ts',
     'ui-consistency.spec.ts',
+    'route-card.spec.ts',
     'time-model.spec.ts',
     'preparation.spec.ts',
     'routing-tools.spec.ts',

@@ -1,0 +1,116 @@
+.route-card-export {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+.route-card-field {
+  display: grid;
+  gap: 8px;
+}
+.route-card-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.route-card-export fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.route-card-export legend {
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: var(--font-size-label);
+}
+.route-card-options [data-slot='toggle-group'] {
+  display: flex;
+  width: 100%;
+}
+.route-card-options [data-slot='toggle-group-item'] {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 44px;
+  height: auto;
+  padding: 8px;
+}
+.route-card-options [data-slot='toggle-group-item'] span {
+  font-size: var(--font-size-helper);
+  font-weight: 400;
+}
+.route-card-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.roamlet-dialog .route-card-metrics label {
+  flex-direction: row;
+  align-items: center;
+  min-height: 44px;
+  gap: 8px;
+  font-weight: 400;
+}
+.roamlet-dialog .route-card-metrics input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  accent-color: var(--primary);
+}
+.route-card-preview {
+  display: grid;
+  justify-items: center;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+}
+.route-card-preview img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-height: 440px;
+  max-width: 100%;
+  border-radius: 8px;
+}
+.route-card-placeholder {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 12px;
+  min-height: 160px;
+  color: var(--muted-foreground);
+  text-align: center;
+}
+.route-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.route-card-actions button {
+  flex: 1 1 150px;
+  min-height: 44px;
+}
+.route-card-error {
+  color: var(--destructive);
+}
+.export-mode {
+  display: flex;
+  width: 100%;
+  margin-top: 12px;
+  margin-bottom: 16px;
+}
+.export-mode [data-slot='toggle-group-item'] {
+  flex: 1;
+  min-height: 44px;
+}
+@media (max-width: 480px) {
+  .route-card-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .route-card-preview {
+    padding: 8px;
+  }
+}
