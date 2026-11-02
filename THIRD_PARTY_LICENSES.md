@@ -23,6 +23,10 @@ UI components are generated from [shadcn/ui](https://github.com/shadcn-ui/ui/blo
 
 The connector uses the unmodified [official GitHub Mark](https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png), bundled locally as `client/public/github-mark.png`, to identify GitHub integration. GitHub and its mark are trademarks of GitHub, Inc., not Roamlet artwork or ISC-licensed Lucide icons. Follow [GitHub's logo usage guidelines](https://github.com/logos). This integration is not endorsed by GitHub. The mark is loaded from the app origin at runtime, not from GitHub's CDN.
 
+## Google Drive connector brand asset
+
+The connector identifies Google Drive using the unmodified [official Google Drive product icon](https://www.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png), bundled as `client/public/google-drive.png` and served only from the application origin at runtime. Google Drive and its icon are Google trademarks, not Roamlet artwork or Lucide icons. Follow [Google's brand guidance](https://about.google/brand-resource-center/) and applicable [Drive branding guidance](https://developers.google.com/workspace/drive/api/guides/branding). This integration is not endorsed by Google.
+
 ## Development libraries
 
 - TypeScript 5.9.3: [Apache-2.0](https://github.com/microsoft/TypeScript/blob/main/LICENSE.txt).

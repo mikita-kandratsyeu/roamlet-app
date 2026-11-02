@@ -4,6 +4,7 @@ export default defineConfig({
   testMatch: [
     'planner.spec.ts',
     'connectors.spec.ts',
+    'google-drive.spec.ts',
     'map-view.spec.ts',
     'lifecycle.spec.ts',
     'ui-consistency.spec.ts',

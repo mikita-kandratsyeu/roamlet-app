@@ -26,7 +26,10 @@ afterEach(() => {
 });
 it('registers GitHub metadata independently from the storage contract', () => {
   expect(createStorageConnector(config)).toBeInstanceOf(GitHubStorageConnector);
-  expect(STORAGE_PROVIDERS[0]).toMatchObject({ id: 'github', icon: '/github-mark.png' });
+  expect(STORAGE_PROVIDERS.find((provider) => provider.id === 'github')).toMatchObject({
+    id: 'github',
+    icon: '/github-mark.png',
+  });
 });
 it.each([
   { owner: '../escape' },

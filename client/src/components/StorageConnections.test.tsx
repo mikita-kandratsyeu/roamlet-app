@@ -2,6 +2,10 @@ import { cleanup, render, screen, waitFor, within, fireEvent } from '@testing-li
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { StorageConnections } from './StorageConnections';
+import {
+  getGoogleDriveSession,
+  logoutGoogleDrive,
+} from '../services/connectors/googleDriveSession';
 import { Toaster } from './ui/sonner';
 import { createStorageConnector } from '../services/connectors/registry';
 import {
@@ -13,6 +17,13 @@ import { ConnectorError, type StorageConnector } from '../services/connectors/ty
 import { routeDb } from '../domain/storage';
 import { GITHUB_REPOSITORY_KEY } from '../domain/connectorPreferences';
 import i18n from '../i18n';
+vi.mock('../services/connectors/googleDriveSession', () => ({
+  getGoogleDriveSession: vi.fn(),
+  logoutGoogleDrive: vi.fn(),
+}));
+function githubCard() {
+  return within(screen.getByRole('heading', { name: 'GitHub' }).closest('article')!);
+}
 const { webcrypto } = await vi.importActual<{ webcrypto: Crypto }>('node:crypto');
 vi.mock('../services/connectors/registry', async (original) => ({
   ...(await original<typeof import('../services/connectors/registry')>()),
@@ -37,6 +48,10 @@ const authorized = {
 let storage: StorageConnector;
 beforeEach(async () => {
   render(<Toaster />);
+  vi.mocked(getGoogleDriveSession)
+    .mockReset()
+    .mockResolvedValue({ available: false, connected: false });
+  vi.mocked(logoutGoogleDrive).mockReset().mockResolvedValue(undefined);
   vi.stubGlobal('crypto', webcrypto);
   vi.stubGlobal('BroadcastChannel', undefined);
   localStorage.removeItem(GITHUB_REPOSITORY_KEY);
@@ -77,10 +92,9 @@ async function setupRepository() {
 it('renders a searchable card grid and opens setup as an accessible modal with restored focus', async () => {
   render(<StorageConnections open onClose={vi.fn()} />);
   await screen.findByText('Not connected');
-  const card = within(screen.getByRole('list', { name: 'Available connectors' })).getByRole(
-    'listitem',
-  );
+  const card = screen.getByRole('heading', { name: 'GitHub' }).closest('article')!;
   expect(card.querySelector('img')).toHaveAttribute('src', '/github-mark.png');
+  expect(within(card).queryByRole('button', { name: 'Disconnect GitHub' })).not.toBeInTheDocument();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   const search = screen.getByRole('textbox', { name: 'Search connectors' });
   expect(search.closest('label')).toHaveClass('library-search');
@@ -94,7 +108,7 @@ it('renders a searchable card grid and opens setup as an accessible modal with r
     'true',
   );
   const user = userEvent.setup();
-  const setup = screen.getByRole('button', { name: 'Set up connection' });
+  const setup = githubCard().getByRole('button', { name: 'Set up connection' });
   await user.click(setup);
   const modal = screen.getByRole('dialog', { name: 'GitHub connection settings' });
   expect(modal).toBeVisible();
@@ -115,7 +129,7 @@ it('renders a searchable card grid and opens setup as an accessible modal with r
   );
   await user.keyboard('{Escape}');
   await waitFor(() => expect(setup).toHaveFocus());
-  await user.type(screen.getByRole('textbox', { name: 'Search connectors' }), 'drive');
+  await user.type(screen.getByRole('textbox', { name: 'Search connectors' }), 'missing-service');
   expect(screen.getByText('No connectors match this filter.')).toBeVisible();
   await user.clear(screen.getByRole('textbox', { name: 'Search connectors' }));
   await user.click(screen.getByRole('button', { name: 'Connected connectors' }));
@@ -133,8 +147,8 @@ it('disables authorization with missing server configuration without hiding loca
   vi.mocked(getGitHubSession).mockResolvedValue({ available: false, connected: false });
   const close = vi.fn();
   render(<StorageConnections open onClose={close} />);
-  await screen.findByText('Unavailable');
-  await userEvent.setup().click(screen.getByRole('button', { name: 'Set up connection' }));
+  await githubCard().findByText('Unavailable');
+  await userEvent.setup().click(githubCard().getByRole('button', { name: 'Set up connection' }));
   expect(screen.getByRole('button', { name: 'Sign in with GitHub' })).toBeDisabled();
   await userEvent.setup().keyboard('{Escape}');
   await userEvent.setup().click(screen.getByRole('button', { name: 'Back to map' }));
@@ -169,7 +183,14 @@ it('keeps ciphertext upload explicit and clears passwords when the modal closes'
 it('confirms disconnect for all tabs without removing routes or cloud files', async () => {
   const user = await setupRepository();
   await user.click(screen.getByRole('button', { name: 'Done' }));
-  await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+  const disconnect = githubCard().getByRole('button', { name: 'Disconnect GitHub' });
+  expect(disconnect.closest('.connector-card-heading')).toBeInTheDocument();
+  expect(
+    githubCard()
+      .getByRole('button', { name: 'Manage connection' })
+      .closest('.connector-card-actions'),
+  ).toBeInTheDocument();
+  await user.click(disconnect);
   const dialog = screen.getByRole('dialog', { name: 'Disconnect GitHub?' });
   expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
   expect(logoutGitHub).not.toHaveBeenCalled();
@@ -183,7 +204,7 @@ it('does not pretend disconnect succeeded after a server failure', async () => {
   const user = await setupRepository();
   await user.click(screen.getByRole('button', { name: 'Done' }));
   vi.mocked(logoutGitHub).mockRejectedValue(new ConnectorError('network'));
-  await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+  await user.click(githubCard().getByRole('button', { name: 'Disconnect GitHub' }));
   const modal = screen.getByRole('dialog', { name: 'Disconnect GitHub?' });
   await user.click(within(modal).getByRole('button', { name: 'Disconnect' }));
   await waitFor(() =>
@@ -257,12 +278,22 @@ it('shows session failures once in Sonner, keeps card status and permits a fresh
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach GitHub.');
 });
 
+it('rechecks Google Drive inside its own card after a session failure', async () => {
+  vi.mocked(getGoogleDriveSession).mockRejectedValueOnce(new ConnectorError('network'));
+  render(<StorageConnections open onClose={vi.fn()} />);
+  const card = within(screen.getByRole('heading', { name: 'Google Drive' }).closest('article')!);
+  await card.findByText('Connection needs attention');
+  await userEvent.setup().click(card.getByRole('button', { name: 'Check connection' }));
+  await card.findByText('Unavailable');
+  expect(getGoogleDriveSession).toHaveBeenCalledTimes(2);
+});
+
 it('keeps retry inside the provider card with progress, no duplicate requests and keyboard focus', async () => {
   vi.mocked(getGitHubSession).mockRejectedValueOnce(new ConnectorError('network'));
   render(<StorageConnections open onClose={vi.fn()} />);
   await screen.findByText('Connection needs attention');
   const card = screen.getByRole('heading', { name: 'GitHub' }).closest('article');
-  const retry = screen.getByRole('button', { name: 'Check connection' });
+  const retry = githubCard().getByRole('button', { name: 'Check connection' });
   expect(card).toContainElement(retry);
   expect(retry.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
   expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
@@ -275,7 +306,7 @@ it('keeps retry inside the provider card with progress, no duplicate requests an
   const user = userEvent.setup();
   retry.focus();
   await user.keyboard('{Enter}');
-  const pending = screen.getByRole('button', { name: 'Checking connection' });
+  const pending = githubCard().getByRole('button', { name: 'Checking connection' });
   expect(pending).toBeDisabled();
   expect(pending).toHaveAttribute('aria-busy', 'true');
   expect(pending.querySelector('svg')).toHaveClass('connector-spinner');
@@ -283,9 +314,9 @@ it('keeps retry inside the provider card with progress, no duplicate requests an
   expect(getGitHubSession).toHaveBeenCalledTimes(2);
   complete(authorized);
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Check connection' })).toBeEnabled(),
+    expect(githubCard().getByRole('button', { name: 'Check connection' })).toBeEnabled(),
   );
-  expect(screen.getByRole('button', { name: 'Check connection' })).toHaveFocus();
+  expect(githubCard().getByRole('button', { name: 'Check connection' })).toHaveFocus();
   expect(screen.getByText('Connected', { exact: true })).toBeVisible();
 });
 
@@ -299,12 +330,12 @@ it('does not steal focus if the user moves away while a connection check is pend
     }),
   );
   const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: 'Check connection' }));
+  await user.click(githubCard().getByRole('button', { name: 'Check connection' }));
   const search = screen.getByRole('textbox', { name: 'Search connectors' });
   search.focus();
   complete(authorized);
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Check connection' })).toBeEnabled(),
+    expect(githubCard().getByRole('button', { name: 'Check connection' })).toBeEnabled(),
   );
   expect(search).toHaveFocus();
 });
@@ -368,7 +399,9 @@ it('explains password constraints next to inputs without firing error toasts', a
   await user.type(password, 'short');
   await user.tab();
   expect(password).toHaveAttribute('aria-invalid', 'true');
-  expect(password).toHaveAccessibleDescription('Use at least 12 characters.');
+  expect(password).toHaveAccessibleDescription(
+    'Use at least 12 characters. Password strength: Weak (estimate)',
+  );
   const confirmation = screen.getByLabelText('Confirm backup password');
   await user.type(confirmation, 'different');
   await user.tab();
@@ -447,7 +480,9 @@ it('supports Russian setup copy without internal release names', async () => {
   await i18n.changeLanguage('ru');
   render(<StorageConnections open onClose={vi.fn()} />);
   await screen.findByText('Не подключён');
-  await userEvent.setup().click(screen.getByRole('button', { name: 'Настроить подключение' }));
+  await userEvent
+    .setup()
+    .click(githubCard().getByRole('button', { name: 'Настроить подключение' }));
   const modal = screen.getByRole('dialog', { name: 'Настройки подключения GitHub' });
   expect(within(modal).getByRole('button', { name: 'Войти через GitHub' })).toBeEnabled();
   expect(modal.textContent).not.toMatch(/пилот|MVP/i);

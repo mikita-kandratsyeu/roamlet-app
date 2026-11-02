@@ -81,7 +81,11 @@ it('does nothing until explicitly connected and forgets the memory-only connecti
   await act(async () => {
     await result.current.connect(config);
   });
-  expect(result.current.connection).toEqual({ owner: 'example', repository: 'backups' });
+  expect(result.current.connection).toEqual({
+    provider: 'github',
+    owner: 'example',
+    repository: 'backups',
+  });
   expect(result.current.connection).not.toHaveProperty('token');
   expect(storage.listBackups).not.toHaveBeenCalled();
   act(() => result.current.disconnect());
@@ -169,7 +173,10 @@ it.each(['resolve', 'reject'] as const)(
       await pending;
     });
     expect(signal?.aborted).toBe(true);
-    expect(result.current.connection?.repository).toBe('new-backups');
+    expect(result.current.connection).toMatchObject({
+      provider: 'github',
+      repository: 'new-backups',
+    });
     expect(result.current.error).toBeNull();
   },
 );

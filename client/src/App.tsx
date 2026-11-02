@@ -211,13 +211,14 @@ export default function App() {
   }, [waypoints, selectedWaypointId]);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(
-    () => new URLSearchParams(window.location.search).get('connectors') === 'github',
+    () => ['github', 'google-drive'].includes(new URLSearchParams(window.location.search).get('connectors') || ''),
   );
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (url.searchParams.get('connectors') !== 'github') return;
+    if (!['github', 'google-drive'].includes(url.searchParams.get('connectors') || '')) return;
     url.searchParams.delete('connectors');
     url.searchParams.delete('github');
+    url.searchParams.delete('google');
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
   }, []);
   const secondaryScreenOpen = libraryOpen || connectionsOpen;

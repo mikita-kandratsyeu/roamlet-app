@@ -65,6 +65,7 @@ const installAssets = [
   '/manifest.webmanifest',
   '/icon.svg',
   '/github-mark.png',
+  '/google-drive.png',
   '/favicon-32.png',
   '/apple-touch-icon.png',
   '/icon-192.png',

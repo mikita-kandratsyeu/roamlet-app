@@ -1,6 +1,6 @@
-import type { StorageConnection } from '../services/connectors/types';
+import type { GitHubStorageConnection } from '../services/connectors/types';
 export const GITHUB_REPOSITORY_KEY = 'roamlet-github-repository';
-export function loadGitHubRepository(): StorageConnection | null {
+export function loadGitHubRepository(): GitHubStorageConnection | null {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(GITHUB_REPOSITORY_KEY) || 'null');
     if (
@@ -20,7 +20,7 @@ export function loadGitHubRepository(): StorageConnection | null {
     return null;
   }
 }
-export function saveGitHubRepository(connection: StorageConnection | null): void {
+export function saveGitHubRepository(connection: GitHubStorageConnection | null): void {
   try {
     if (connection)
       localStorage.setItem(

@@ -63,13 +63,28 @@
   align-items: center;
   gap: 12px;
 }
+.connector-card-heading > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.connector-disconnect-action {
+  margin-left: auto;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  color: var(--muted-foreground);
+}
+.connector-disconnect-action:hover {
+  color: var(--destructive);
+}
 .connector-card h2,
 .storage-connections h2 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
 }
-.github-brand-mark {
+.connector-brand-mark {
   flex-shrink: 0;
   border-radius: 10px;
   background: white;
@@ -249,6 +264,57 @@
 }
 .connector-field-hint {
   color: var(--destructive);
+}
+.connector-password-input {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+.connector-password-input input {
+  padding-inline-end: 52px;
+}
+.storage-connections .connector-password-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+.connector-password-strength,
+.connector-password-generator {
+  display: grid;
+  gap: 8px;
+}
+.connector-strength-track {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--muted);
+  overflow: hidden;
+}
+.connector-strength-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--destructive);
+}
+.connector-strength-track [data-strength='weak'] {
+  width: 33%;
+}
+.connector-strength-track [data-strength='fair'] {
+  width: 66%;
+  background: var(--primary);
+}
+.connector-strength-track [data-strength='strong'] {
+  width: 100%;
+  background: var(--primary);
+}
+.connector-password-generator > button {
+  justify-self: start;
+}
+.connector-password-match {
+  color: var(--primary);
 }
 .connector-account {
   display: flex;
