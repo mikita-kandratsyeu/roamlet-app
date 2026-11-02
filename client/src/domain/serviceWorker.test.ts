@@ -101,6 +101,49 @@ it.each(installAssets)(
     expect(fetch).not.toHaveBeenCalled();
   },
 );
+it.each([
+  '/api',
+  '/api/github?action=start',
+  '/api/github?action=callback&code=synthetic-code&state=synthetic-state',
+  '/api/github?action=session',
+  '/api/google-drive?action=start',
+  '/api/google-drive?action=callback&code=synthetic-code&state=synthetic-state',
+  '/api/route',
+  '/api/routing-config',
+  '/api/future-connector?action=start',
+])('leaves API endpoint %s to the network instead of serving the cached app shell', (path) => {
+  for (const mode of ['navigate', 'cors']) {
+    const { handlers, caches, cache, fetch } = worker();
+    const respondWith = vi.fn();
+    handlers.get('fetch')!({
+      request: { url: `https://roamlet.example${path}`, method: 'GET', mode },
+      respondWith,
+    });
+    expect(respondWith).not.toHaveBeenCalled();
+    expect(caches.open).not.toHaveBeenCalled();
+    expect(caches.match).not.toHaveBeenCalled();
+    expect(cache.put).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  }
+});
+
+it.each(['/', '/?connectors=github&github=connected', '/apiary'])(
+  'continues serving the matching cached app shell for %s',
+  async (path) => {
+    const { handlers, shell, caches, fetch } = worker();
+    let navigation!: Promise<unknown>;
+    handlers.get('fetch')!({
+      request: { url: `https://roamlet.example${path}`, method: 'GET', mode: 'navigate' },
+      respondWith: (response) => {
+        navigation = response;
+      },
+    });
+    expect(await navigation).toBe(shell);
+    expect(caches.open).toHaveBeenCalledOnce();
+    expect(fetch).not.toHaveBeenCalled();
+  },
+);
+
 it('does not activate without an explicit message or mix a newer navigation shell', async () => {
   const { handlers, self, fetch, shell } = worker();
   expect(self.skipWaiting).not.toHaveBeenCalled();

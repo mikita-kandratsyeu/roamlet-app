@@ -71,6 +71,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
+  // OAuth navigations and callbacks must reach the server, never the cached app shell.
+  if (url.pathname === '/api' || url.pathname.startsWith('/api/')) return;
   if (event.request.mode === 'navigate') {
     // Keep HTML and chunks together until the successor activates on a later app startup.
     event.respondWith(

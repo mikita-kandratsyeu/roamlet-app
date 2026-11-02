@@ -136,6 +136,8 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
       account?: string;
       busy: boolean;
       onDisconnect: () => void;
+      onRetry: () => void;
+      retrying: boolean;
     }
   > = {
     'google-drive': {
@@ -152,6 +154,8 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
       account: googleAuthenticated ? google.session?.email : undefined,
       busy: google.loading || googleStorage.operation === 'restoring',
       onDisconnect: () => setDisconnecting('google-drive'),
+      onRetry: () => void google.refresh(),
+      retrying: google.loading,
     },
     github: {
       connected: !!authenticated,
@@ -169,6 +173,8 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
         : undefined,
       busy: github.loading || storage.operation === 'restoring',
       onDisconnect: () => setDisconnecting('github'),
+      onRetry: () => void github.refresh(),
+      retrying: github.loading,
     },
   };
   const providers = STORAGE_PROVIDERS.filter(
@@ -255,24 +261,6 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
           </div>
           {!providers.length && (
             <p className="connector-empty">{t('No connectors match this filter.')}</p>
-          )}
-          {github.error && (
-            <Button
-              variant="outline"
-              disabled={github.loading}
-              onClick={() => void github.refresh()}
-            >
-              {t('Retry')}
-            </Button>
-          )}
-          {google.error && (
-            <Button
-              variant="outline"
-              disabled={google.loading}
-              onClick={() => void google.refresh()}
-            >
-              {t('Retry Google Drive')}
-            </Button>
           )}
           {available === false && !problem && (
             <p className="connector-note">

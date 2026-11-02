@@ -2,12 +2,15 @@ import { clickMapTool, mapTool } from './mapControls';
 import { test, expect } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { createServer } from 'node:http';
 
 let forbiddenRequests: string[] = [];
 let allowUnavailableRoutingRequest = false;
+let allowConnectorNavigation = false;
 test.beforeEach(async ({ page }) => {
   forbiddenRequests = [];
   allowUnavailableRoutingRequest = false;
+  allowConnectorNavigation = false;
   await page.route('**/*.mapbox.com/**', (route) => route.abort());
   await page.route('https://api.openrouteservice.org/**', (route) => route.abort());
   await page.route('https://api.heigit.org/**', (route) => route.abort());
@@ -26,7 +29,9 @@ test.beforeEach(async ({ page }) => {
       url.hostname === 'api.openrouteservice.org' ||
       url.hostname === 'api.heigit.org' ||
       url.hostname === 'api.github.com' ||
-      ['oauth2.googleapis.com', 'www.googleapis.com', 'openidconnect.googleapis.com'].includes(url.hostname) ||
+      ['oauth2.googleapis.com', 'www.googleapis.com', 'openidconnect.googleapis.com'].includes(
+        url.hostname,
+      ) ||
       url.hostname === 'mapbox.com' ||
       url.hostname.endsWith('.mapbox.com')
     ) {
@@ -34,7 +39,15 @@ test.beforeEach(async ({ page }) => {
     } else if (
       url.pathname.startsWith('/api/') &&
       url.pathname !== '/api/routing-config' &&
-      !(['/api/github', '/api/google-drive'].includes(url.pathname) && url.searchParams.get('action') === 'session') &&
+      !(
+        ['/api/github', '/api/google-drive'].includes(url.pathname) &&
+        url.searchParams.get('action') === 'session'
+      ) &&
+      !(
+        allowConnectorNavigation &&
+        ['/api/github', '/api/google-drive'].includes(url.pathname) &&
+        ['start', 'callback'].includes(url.searchParams.get('action') || '')
+      ) &&
       !(allowUnavailableRoutingRequest && url.pathname === '/api/route')
     ) {
       forbiddenRequests.push(url.pathname);
@@ -147,10 +160,15 @@ test('installation metadata and branded icons stay available in the production o
   }
 });
 
-test('connector list and official provider icons are available on the first offline visit without provider requests', async ({ page, context }) => {
+test('connector list and official provider icons are available on the first offline visit without provider requests', async ({
+  page,
+  context,
+}) => {
   await page.goto('/');
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
-  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
@@ -158,14 +176,26 @@ test('connector list and official provider icons are available on the first offl
   const connections = page.getByRole('region', { name: 'Connections', exact: true });
   await expect(connections).toBeVisible();
   await expect(connections.getByRole('heading', { name: 'GitHub', exact: true })).toBeVisible();
-  await expect.poll(() => connections.locator('.github-brand-mark').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(560);
-  const googleCard = connections.locator('.connector-card').filter({ has: page.getByRole('heading', { name: 'Google Drive', exact: true }) });
-  await expect.poll(() => googleCard.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(96);
+  await expect
+    .poll(() =>
+      connections
+        .locator('.github-brand-mark')
+        .evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBe(560);
+  const googleCard = connections
+    .locator('.connector-card')
+    .filter({ has: page.getByRole('heading', { name: 'Google Drive', exact: true }) });
+  await expect
+    .poll(() => googleCard.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBe(96);
   for (const [provider, title, login] of [
     ['Google Drive', 'Google Drive connection settings', 'Sign in with Google'],
     ['GitHub', 'GitHub connection settings', 'Sign in with GitHub'],
   ]) {
-    const card = connections.locator('.connector-card').filter({ has: page.getByRole('heading', { name: provider, exact: true }) });
+    const card = connections
+      .locator('.connector-card')
+      .filter({ has: page.getByRole('heading', { name: provider, exact: true }) });
     await card.getByRole('button', { name: 'Set up connection' }).click();
     const dialog = page.getByRole('dialog', { name: title });
     await expect(dialog).toBeVisible();
@@ -175,6 +205,263 @@ test('connector list and official provider icons are available on the first offl
   await connections.getByRole('button', { name: 'Back to map' }).click();
   await expect(connections).toHaveCount(0);
 });
+
+test('production service worker lets OAuth API navigations and callbacks reach the network', async ({
+  page,
+  context,
+}) => {
+  allowConnectorNavigation = true;
+  await page.goto('/');
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  const requests: string[] = [];
+  const providerServer = createServer((_request, response) => {
+    response.writeHead(200, { 'Content-Type': 'text/html' });
+    response.end(
+      '<!doctype html><title>Authorization test</title><p>Mock provider authorization</p>',
+    );
+  });
+  await new Promise<void>((resolve, reject) => {
+    providerServer.once('error', reject);
+    providerServer.listen(0, '127.0.0.1', () => {
+      providerServer.off('error', reject);
+      resolve();
+    });
+  });
+  const address = providerServer.address();
+  if (!address || typeof address === 'string') throw new Error('Provider fixture did not start');
+  const providerOrigin = `http://127.0.0.1:${address.port}`;
+  try {
+    await context.route('**/api/github?**', (route) => {
+      const url = new URL(route.request().url());
+      const action = url.searchParams.get('action');
+      if (action !== 'start' && action !== 'callback') return route.continue();
+      requests.push(`github:${action}`);
+      return route.fulfill({
+        status: 302,
+        headers: {
+          Location:
+            action === 'start'
+              ? `${providerOrigin}/authorize?provider=github`
+              : '/?connectors=github&github=error',
+          'Cache-Control': 'no-store',
+        },
+      });
+    });
+    await context.route('**/api/google-drive?**', (route) => {
+      const url = new URL(route.request().url());
+      const action = url.searchParams.get('action');
+      if (action !== 'start' && action !== 'callback') return route.continue();
+      requests.push(`google-drive:${action}`);
+      return route.fulfill({
+        status: 302,
+        headers: {
+          Location: action === 'start' ? `${providerOrigin}/authorize?provider=google-drive` : '/',
+          'Cache-Control': 'no-store',
+        },
+      });
+    });
+    for (const provider of ['github', 'google-drive']) {
+      await page.goto(`/api/${provider}?action=start`);
+      await expect(page).toHaveURL(`${providerOrigin}/authorize?provider=${provider}`);
+      await expect(page.getByText('Mock provider authorization')).toBeVisible();
+      await page.goto(
+        `http://127.0.0.1:4175/api/${provider}?action=callback&code=synthetic-code&state=synthetic-state`,
+      );
+      await expect(page).toHaveTitle('Roamlet');
+      await expect(page.locator('.brand')).toBeAttached();
+      expect(new URL(page.url()).pathname).toBe('/');
+    }
+    expect(requests).toEqual([
+      'github:start',
+      'github:callback',
+      'google-drive:start',
+      'google-drive:callback',
+    ]);
+    const cachedUrls = await page.evaluate(async () => {
+      const urls: string[] = [];
+      for (const name of await caches.keys()) {
+        if (!name.startsWith('roamlet-shell-')) continue;
+        for (const request of await (await caches.open(name)).keys())
+          urls.push(new URL(request.url).pathname);
+      }
+      return urls;
+    });
+    expect(cachedUrls.some((path) => path === '/api' || path.startsWith('/api/'))).toBe(false);
+  } finally {
+    providerServer.closeAllConnections();
+    await new Promise<void>((resolve, reject) =>
+      providerServer.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
+for (const width of [320, 390, 1440]) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`offline banner buttons fit Russian labels at ${width}px in ${colorScheme}`, async ({
+      page,
+      context,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ colorScheme });
+      await page.addInitScript(() => localStorage.setItem('roamlet-language', 'ru'));
+      await page.goto('/');
+      await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+      await context.setOffline(true);
+      try {
+        const banner = page.locator('.offline-banner');
+        await expect(
+          banner.getByText('Нет подключения к интернету', { exact: true }),
+        ).toBeVisible();
+        const manual = banner.getByRole('button', { name: 'Рисовать вручную', exact: true });
+        const retry = banner.getByRole('button', { name: 'Проверить подключение', exact: true });
+        for (const button of [manual, retry]) {
+          await expect(button).toBeVisible();
+          const measured = await button.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            return {
+              height: bounds.height,
+              fits: Array.from(range.getClientRects()).every(
+                (line) =>
+                  line.top >= bounds.top &&
+                  line.bottom <= bounds.bottom &&
+                  line.left >= bounds.left &&
+                  line.right <= bounds.right,
+              ),
+            };
+          });
+          expect(measured.height).toBeGreaterThanOrEqual(44);
+          expect(measured.fits).toBe(true);
+        }
+        expect(await banner.evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(width);
+        if (width === 320)
+          expect((await retry.boundingBox())!.y).toBeGreaterThanOrEqual(
+            (await manual.boundingBox())!.y + (await manual.boundingBox())!.height,
+          );
+        if (width === 390)
+          expect((await manual.boundingBox())!.height).toBe((await retry.boundingBox())!.height);
+        await page.screenshot({
+          path: testInfo.outputPath('offline-banner-ru.png'),
+          animations: 'disabled',
+        });
+        await manual.click();
+        await expect(manual).toHaveCount(0);
+        await expect(retry).toBeVisible();
+        if (width <= 700)
+          expect((await retry.boundingBox())!.width).toBeCloseTo(
+            (await banner.locator('.offline-banner-actions').boundingBox())!.width,
+            0,
+          );
+        await retry.click();
+        await expect(banner).toBeVisible();
+      } finally {
+        await context.setOffline(false);
+      }
+    });
+  }
+}
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 320, height: 568 },
+  { width: 430, height: 932 },
+  { width: 667, height: 375 },
+]) {
+  test(`offline planner resizes without blank space at ${viewport.width}x${viewport.height}`, async ({
+    page,
+    context,
+  }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+    await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+    await context.setOffline(true);
+    try {
+      const planner = page.getByRole('complementary', { name: 'Route planner' });
+      const header = planner.locator('.mobile-sheet-header');
+      const toggle = planner.locator('.mobile-sheet-toggle');
+      const workspace = page.locator('.workspace-offline');
+      if ((await toggle.getAttribute('aria-expanded')) === 'true') await toggle.click();
+      async function settlePlanner() {
+        await planner.evaluate(async (element) => {
+          element.getBoundingClientRect();
+          await Promise.all(
+            element.getAnimations().map((animation) => animation.finished.catch(() => {})),
+          );
+        });
+      }
+      async function compactFits() {
+        await expect(planner).toHaveAttribute('data-sheet-state', 'compact');
+        await settlePlanner();
+        await expect(planner.locator('.planner-scroll')).toBeHidden();
+        await workspace.evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+        });
+        const panelBox = (await planner.boundingBox())!;
+        const headerBox = (await header.boundingBox())!;
+        const workspaceBox = (await workspace.boundingBox())!;
+        expect(panelBox.height).toBeLessThanOrEqual(headerBox.height + 2);
+        expect(panelBox.y + panelBox.height).toBeCloseTo(workspaceBox.y + workspaceBox.height, 0);
+        const mapBox = (await page.locator('.workspace-offline .map-offline').boundingBox())!;
+        const contentBox = (await page
+          .locator('.workspace-offline .offline-map-content')
+          .boundingBox())!;
+        if (viewport.height > 550 && mapBox.height > contentBox.height + 40) {
+          const mapCenter = mapBox.y + mapBox.height / 2;
+          const contentCenter = contentBox.y + contentBox.height / 2;
+          expect(Math.abs(contentCenter - mapCenter)).toBeLessThanOrEqual(4);
+        }
+      }
+      await compactFits();
+      await page.screenshot({
+        path: testInfo.outputPath('offline-planner-compact.png'),
+        animations: 'disabled',
+      });
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await toggle.click();
+        await expect(planner).toHaveAttribute('data-sheet-state', 'planning');
+        await settlePlanner();
+        await expect(planner.locator('.planner-scroll')).toBeVisible();
+        const planningHeight = (await planner.boundingBox())!.height;
+        expect(
+          await planner.locator('.planner-scroll').evaluate((element) => element.clientHeight),
+        ).toBeGreaterThan(20);
+        await planner.getByRole('button', { name: 'Expand planner view' }).click();
+        await expect(planner).toHaveAttribute('data-sheet-state', 'expanded');
+        await settlePlanner();
+        expect((await planner.boundingBox())!.height).toBeGreaterThanOrEqual(planningHeight);
+        await planner.getByRole('button', { name: 'Restore planner view' }).click();
+        await expect(planner).toHaveAttribute('data-sheet-state', 'planning');
+        await toggle.click();
+        await compactFits();
+      }
+      await page.getByRole('button', { name: 'Use manual drawing', exact: true }).click();
+      if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+      for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
+        await planner.getByRole('textbox', { name: 'Latitude', exact: true }).fill(value);
+        await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
+      }
+      await expect(page.locator('[data-stop-id]')).toHaveCount(2);
+      const download = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Export route', exact: true });
+      await dialog.getByRole('button', { name: 'Download GPX', exact: true }).click();
+      const xml = await readFile((await (await download).path())!, 'utf8');
+      expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
+      await expect(dialog).toHaveCount(0);
+      await toggle.click();
+      await compactFits();
+      await context.setOffline(false);
+      await expect(page.locator('.offline-banner')).toHaveCount(0);
+      await expect(planner).toHaveAttribute('data-sheet-state', 'compact');
+    } finally {
+      await context.setOffline(false);
+    }
+  });
+}
 
 const gpx =
   '<gpx version="1.1" creator="Roamlet test" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Offline escape</name><trkseg><trkpt lat="47.2692" lon="11.4041"><ele>600</ele></trkpt><trkpt lat="47.271" lon="11.411"><ele>630</ele></trkpt></trkseg></trk></gpx>';

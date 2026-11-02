@@ -1563,6 +1563,11 @@
   gap: 8px;
 }
 .offline-banner-actions button {
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  padding: 10px 12px;
+  line-height: 1.4;
   white-space: normal;
 }
 .offline-planner-notice {
@@ -1646,10 +1651,13 @@
     gap: 8px;
   }
   .offline-banner-copy {
+    display: grid;
     flex-basis: calc(100% - 26px);
     font-size: var(--font-size-body);
   }
   .offline-banner-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
     width: 100%;
   }
   .offline-banner-actions button {
@@ -1661,9 +1669,13 @@
     overscroll-behavior: contain;
   }
   .workspace-offline .map-offline {
-    flex: none;
-    min-height: 280px;
-    overflow: visible;
+    flex: 1 1 0;
+    min-height: 96px;
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+  .workspace-offline .offline-map-content {
+    margin-block: auto;
   }
   .offline-map-content {
     gap: 12px;
@@ -1677,16 +1689,6 @@
   }
   .offline-map-content small {
     font-size: var(--font-size-helper);
-  }
-  .workspace-offline .planner {
-    flex: none;
-    height: auto;
-    min-height: 0;
-    max-height: none;
-  }
-  .workspace-offline .planner-scroll {
-    overflow-x: clip;
-    overflow-y: visible;
   }
 }
 @media (max-height: 550px) and (max-width: 700px) {
@@ -1716,5 +1718,26 @@
     gap: calc(var(--space) / 2);
     padding-top: calc(var(--space) / 2);
     padding-bottom: max(calc(var(--space) / 2), env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 700px) {
+  /* Keep header, footer and a usable scroll area even below the tall offline banner. */
+  .workspace-offline .planner {
+    flex: none;
+    height: 48%;
+    min-height: min(360px, max(182px, calc(100% - 96px)));
+    max-height: max(182px, calc(100% - 96px));
+  }
+  .workspace-offline .planner[data-sheet-state='expanded'] {
+    height: max(182px, calc(100% - 96px));
+  }
+  .workspace-offline.panel-collapsed .planner {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+  }
+  .workspace-offline .planner-scroll {
+    overflow-x: clip;
+    overflow-y: auto;
   }
 }

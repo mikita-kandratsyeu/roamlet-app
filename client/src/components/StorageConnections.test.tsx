@@ -262,12 +262,74 @@ it('shows session failures once in Sonner, keeps card status and permits a fresh
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
   await user.type(screen.getByRole('textbox', { name: 'Search connectors' }), 'Git');
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'Retry' }));
+  await user.click(screen.getByRole('button', { name: 'Check connection' }));
   await screen.findByText('Not connected');
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   vi.mocked(getGitHubSession).mockRejectedValueOnce(new ConnectorError('network'));
   fireEvent(window, new Event('focus'));
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach GitHub.');
+});
+
+it('rechecks Google Drive inside its own card after a session failure', async () => {
+  vi.mocked(getGoogleDriveSession).mockRejectedValueOnce(new ConnectorError('network'));
+  render(<StorageConnections open onClose={vi.fn()} />);
+  const card = within(screen.getByRole('heading', { name: 'Google Drive' }).closest('article')!);
+  await card.findByText('Connection needs attention');
+  await userEvent.setup().click(card.getByRole('button', { name: 'Check connection' }));
+  await card.findByText('Unavailable');
+  expect(getGoogleDriveSession).toHaveBeenCalledTimes(2);
+});
+
+it('keeps retry inside the provider card with progress, no duplicate requests and keyboard focus', async () => {
+  vi.mocked(getGitHubSession).mockRejectedValueOnce(new ConnectorError('network'));
+  render(<StorageConnections open onClose={vi.fn()} />);
+  await screen.findByText('Connection needs attention');
+  const card = screen.getByRole('heading', { name: 'GitHub' }).closest('article');
+  const retry = githubCard().getByRole('button', { name: 'Check connection' });
+  expect(card).toContainElement(retry);
+  expect(retry.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  let complete!: (value: typeof authorized) => void;
+  vi.mocked(getGitHubSession).mockReturnValueOnce(
+    new Promise((resolve) => {
+      complete = resolve;
+    }),
+  );
+  const user = userEvent.setup();
+  retry.focus();
+  await user.keyboard('{Enter}');
+  const pending = githubCard().getByRole('button', { name: 'Checking connection' });
+  expect(pending).toBeDisabled();
+  expect(pending).toHaveAttribute('aria-busy', 'true');
+  expect(pending.querySelector('svg')).toHaveClass('connector-spinner');
+  fireEvent.click(pending);
+  expect(getGitHubSession).toHaveBeenCalledTimes(2);
+  complete(authorized);
+  await waitFor(() =>
+    expect(githubCard().getByRole('button', { name: 'Check connection' })).toBeEnabled(),
+  );
+  expect(githubCard().getByRole('button', { name: 'Check connection' })).toHaveFocus();
+  expect(screen.getByText('Connected', { exact: true })).toBeVisible();
+});
+
+it('does not steal focus if the user moves away while a connection check is pending', async () => {
+  render(<StorageConnections open onClose={vi.fn()} />);
+  await screen.findByText('Not connected');
+  let complete!: (value: typeof authorized) => void;
+  vi.mocked(getGitHubSession).mockReturnValueOnce(
+    new Promise((resolve) => {
+      complete = resolve;
+    }),
+  );
+  const user = userEvent.setup();
+  await user.click(githubCard().getByRole('button', { name: 'Check connection' }));
+  const search = screen.getByRole('textbox', { name: 'Search connectors' });
+  search.focus();
+  complete(authorized);
+  await waitFor(() =>
+    expect(githubCard().getByRole('button', { name: 'Check connection' })).toBeEnabled(),
+  );
+  expect(search).toHaveFocus();
 });
 
 it('shows OAuth callback failure as a dismissible Sonner toast, not a page banner', async () => {

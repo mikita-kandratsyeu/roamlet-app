@@ -111,7 +111,9 @@ async function addStops(page: Page) {
   await expect(page.locator('[data-stop-id]')).toHaveCount(2);
 }
 
-test('ready-route footer keeps Russian save text and secondary icon actions on one row', async ({ page }, testInfo) => {
+test('ready-route footer keeps Russian save text and secondary icon actions on one row', async ({
+  page,
+}, testInfo) => {
   await addStops(page);
   await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
   const notification = page.locator('[data-sonner-toast][data-type="success"]');
@@ -146,7 +148,9 @@ test('ready-route footer keeps Russian save text and secondary icon actions on o
         }),
       );
       expect(boxes).toEqual(Array.from({ length: 3 }, () => ({ y: boxes[0].y, height: 44 })));
-      const fullLabel = await save.locator('.route-action-label').evaluate((element) => element.scrollWidth <= element.clientWidth);
+      const fullLabel = await save
+        .locator('.route-action-label')
+        .evaluate((element) => element.scrollWidth <= element.clientWidth);
       expect(fullLabel).toBe(true);
       await exportButton.focus();
       await expect(exportButton).toBeFocused();
@@ -154,13 +158,20 @@ test('ready-route footer keeps Russian save text and secondary icon actions on o
       await importButton.focus();
       await expect(importButton).toBeFocused();
       await expect(importButton).toHaveAttribute('title', 'Импорт GPX');
-      expect(await footer.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-      await footer.screenshot({ path: testInfo.outputPath(`footer-ready-ru-${theme}-${width}.png`), animations: 'disabled' });
+      expect(await footer.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      );
+      await footer.screenshot({
+        path: testInfo.outputPath(`footer-ready-ru-${theme}-${width}.png`),
+        animations: 'disabled',
+      });
     }
   }
 });
 
-test('footer divider spans the same width as the header while preserving action insets', async ({ page }, testInfo) => {
+test('footer divider spans the same width as the header while preserving action insets', async ({
+  page,
+}, testInfo) => {
   for (const theme of ['light', 'dark']) {
     await page.evaluate((theme) => {
       localStorage.setItem('roamlet-theme', theme);
@@ -175,7 +186,9 @@ test('footer divider spans the same width as the header while preserving action 
       await page.setViewportSize(viewport);
       await expandPlanner(page);
       const footer = page.locator('.planner-footer');
-      const header = page.locator(viewport.width > 700 ? '.planner-heading' : '.mobile-sheet-header');
+      const header = page.locator(
+        viewport.width > 700 ? '.planner-heading' : '.mobile-sheet-header',
+      );
       await expect(footer).toBeVisible();
       const headerBox = (await header.boundingBox())!;
       const footerBox = (await footer.boundingBox())!;
@@ -199,16 +212,24 @@ test('footer divider spans the same width as the header while preserving action 
       expect(footerBox.x + footerBox.width - actionsBox.x - actionsBox.width).toBe(16);
       await expect(footer).toHaveCSS('border-top-width', '1px');
       await expect(header).toHaveCSS('border-bottom-width', '1px');
-      await expect.poll(async () =>
-        await footer.evaluate((element) => getComputedStyle(element).borderTopColor) ===
-        await header.evaluate((element) => getComputedStyle(element).borderBottomColor),
-      ).toBe(true);
-      await footer.screenshot({ path: testInfo.outputPath(`footer-${theme}-${viewport.width}.png`), animations: 'disabled' });
+      await expect
+        .poll(
+          async () =>
+            (await footer.evaluate((element) => getComputedStyle(element).borderTopColor)) ===
+            (await header.evaluate((element) => getComputedStyle(element).borderBottomColor)),
+        )
+        .toBe(true);
+      await footer.screenshot({
+        path: testInfo.outputPath(`footer-${theme}-${viewport.width}.png`),
+        animations: 'disabled',
+      });
     }
   }
 });
 
-test('compact Russian sheet fits narrow screens in both themes and retains long route names', async ({ page }, testInfo) => {
+test('compact Russian sheet fits narrow screens in both themes and retains long route names', async ({
+  page,
+}, testInfo) => {
   await page.evaluate(() => {
     localStorage.setItem('roamlet-language', 'ru');
     window.dispatchEvent(new Event('roamlet-preferences-change'));
@@ -223,12 +244,16 @@ test('compact Russian sheet fits narrow screens in both themes and retains long 
       await page.setViewportSize({ width, height: 740 });
       const toggle = page.locator('.mobile-sheet-toggle');
       if ((await toggle.getAttribute('aria-expanded')) === 'true') await toggle.click();
-      await expect(toggle).toHaveAccessibleDescription('Новый маршрут Начните с двух точек на карте');
+      await expect(toggle).toHaveAccessibleDescription(
+        'Новый маршрут Начните с двух точек на карте',
+      );
       await touchTarget(toggle);
       await touchTarget(page.getByRole('button', { name: 'Развернуть планнер', exact: true }));
       await alignedSheetHeader(page);
       const panel = page.locator('#route-planner');
-      expect(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      expect(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      );
       const grip = await page.locator('.mobile-sheet-header').evaluate((element) => {
         const style = getComputedStyle(element, '::before');
         return parseFloat(style.left) + parseFloat(style.width) / 2;
@@ -238,15 +263,22 @@ test('compact Russian sheet fits narrow screens in both themes and retains long 
         path: testInfo.outputPath(`compact-${theme}-${width}.png`),
         animations: 'disabled',
       });
-      expect(await panel.evaluate((element) =>
-        element.clientHeight - element.querySelector<HTMLElement>('.mobile-sheet-header')!.offsetHeight,
-      )).toBe(0);
+      expect(
+        await panel.evaluate(
+          (element) =>
+            element.clientHeight -
+            element.querySelector<HTMLElement>('.mobile-sheet-header')!.offsetHeight,
+        ),
+      ).toBe(0);
     }
   }
   const name = 'Очень длинное название маршрута для поездки выходного дня через горы и долины';
   await page.getByLabel('Импорт файла GPX').setInputFiles({
-    name: 'long-title.gpx', mimeType: 'application/gpx+xml',
-    buffer: Buffer.from(`<gpx version="1.1"><trk><name>${name}</name><trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.01" lon="11.01"/></trkseg></trk></gpx>`),
+    name: 'long-title.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(
+      `<gpx version="1.1"><trk><name>${name}</name><trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.01" lon="11.01"/></trkseg></trk></gpx>`,
+    ),
   });
   await page.setViewportSize({ width: 320, height: 740 });
   const toggle = page.locator('.mobile-sheet-toggle');
@@ -261,18 +293,23 @@ test('a vertical touch swipe opens the compact sheet without a second click', as
   const toggle = page.locator('.mobile-sheet-toggle');
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect.poll(async () => {
-    const panel = (await page.locator('#route-planner').boundingBox())!;
-    const header = (await page.locator('.mobile-sheet-header').boundingBox())!;
-    return panel.height - header.height;
-  }).toBeCloseTo(1, 1);
+  await expect
+    .poll(async () => {
+      const panel = (await page.locator('#route-planner').boundingBox())!;
+      const header = (await page.locator('.mobile-sheet-header').boundingBox())!;
+      return panel.height - header.height;
+    })
+    .toBeCloseTo(1, 1);
   const box = (await toggle.boundingBox())!;
   const client = await page.context().newCDPSession(page);
   try {
     const x = box.x + box.width / 2;
     const y = box.y + box.height / 2;
     await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
-    await client.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - 60 }] });
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x, y: y - 60 }],
+    });
     await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await expect(page.locator('#route-planner')).toHaveAttribute('data-sheet-state', 'planning');
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
@@ -281,7 +318,43 @@ test('a vertical touch swipe opens the compact sheet without a second click', as
   }
 });
 
-test('mobile sheet balances map space, expands for editing and keeps statistics on demand', async ({ page }, testInfo) => {
+test('map canvas stays mounted and matches its container through planner and viewport resizing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const canvas = page.locator('.maplibregl-canvas');
+  const mapContainer = page.locator('.maplibregl-map');
+  await expect(canvas).toHaveCount(1);
+  const identity = await mapContainer.evaluate((element) => {
+    element.dataset.resizeRegressionId = 'persistent-map-instance';
+    return element.dataset.resizeRegressionId;
+  });
+  async function mapRemainsMounted() {
+    await expect(mapContainer).toBeVisible();
+    expect(await mapContainer.getAttribute('data-resize-regression-id')).toBe(identity);
+    expect(await canvas.count()).toBe(1);
+  }
+  const toggle = page.locator('.mobile-sheet-toggle');
+  await toggle.click();
+  await expect(page.locator('#route-planner')).toHaveAttribute('data-sheet-state', 'compact');
+  await expect.poll(mapRemainsMounted).toBeUndefined();
+  await toggle.click();
+  await expect(page.locator('#route-planner')).toHaveAttribute('data-sheet-state', 'planning');
+  await expect.poll(mapRemainsMounted).toBeUndefined();
+  await page.getByRole('button', { name: 'Expand planner view' }).click();
+  await expect(page.locator('#route-planner')).toHaveAttribute('data-sheet-state', 'expanded');
+  await expect.poll(mapRemainsMounted).toBeUndefined();
+  await page.setViewportSize({ width: 430, height: 932 });
+  await expect.poll(mapRemainsMounted).toBeUndefined();
+  await page.setViewportSize({ width: 320, height: 740 });
+  await expect.poll(mapRemainsMounted).toBeUndefined();
+  await expect(mapContainer).toBeVisible();
+  await expect(canvas).toHaveCount(1);
+});
+
+test('mobile sheet balances map space, expands for editing and keeps statistics on demand', async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const panel = page.locator('#route-planner');
   const toggle = page.locator('.mobile-sheet-toggle');
@@ -293,13 +366,17 @@ test('mobile sheet balances map space, expands for editing and keeps statistics 
   await expect(panel).toHaveAttribute('data-sheet-state', 'compact');
   await expect(page.locator('.planner-footer')).not.toBeVisible();
   await expect(page.locator('.planner-scroll')).not.toBeVisible();
-  await expect.poll(async () => (await page.locator('.map-region').boundingBox())!.height).toBeGreaterThan(initialMap.height);
+  await expect
+    .poll(async () => (await page.locator('.map-region').boundingBox())!.height)
+    .toBeGreaterThan(initialMap.height);
   await page.screenshot({ path: testInfo.outputPath('compact-planner.png') });
   await toggle.press('Enter');
   await expect(panel).toHaveAttribute('data-sheet-state', 'planning');
   await resize.press('Enter');
   await expect(panel).toHaveAttribute('data-sheet-state', 'expanded');
-  await expect.poll(async () => (await page.locator('.map-region').boundingBox())!.height).toBeCloseTo(140, 0);
+  await expect
+    .poll(async () => (await page.locator('.map-region').boundingBox())!.height)
+    .toBeCloseTo(140, 0);
   await page.getByRole('button', { name: 'Restore planner view' }).click();
   await expect(panel).toHaveAttribute('data-sheet-state', 'planning');
   const latitude = page.getByRole('textbox', { name: 'Latitude', exact: true });
