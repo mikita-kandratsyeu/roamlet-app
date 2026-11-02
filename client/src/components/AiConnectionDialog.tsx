@@ -61,7 +61,13 @@ export function AiConnectionDialog({
             )}
           </AlertDescription>
         </Alert>
-        {!ai.online && <p role="status">{t('AI needs an internet connection. Manual planning and saved routes remain available.')}</p>}
+        {!ai.online && (
+          <p role="status">
+            {t(
+              'AI needs an internet connection. Manual planning and saved routes remain available.',
+            )}
+          </p>
+        )}
         {ai.online && ai.session?.available === false && (
           <p role="status">
             {t('AI is not configured on this deployment. Local planning remains available.')}
@@ -173,7 +179,12 @@ export function AiConnectionDialog({
             <Button
               type="submit"
               disabled={
-                ai.loading || !ai.session?.available || !provider || !model.trim() || !apiKey.trim()
+                ai.loading ||
+                !ai.online ||
+                !ai.session?.available ||
+                !provider ||
+                !model.trim() ||
+                !apiKey.trim()
               }
             >
               {ai.loading && <LoaderCircle className="animate-spin" aria-hidden="true" />}

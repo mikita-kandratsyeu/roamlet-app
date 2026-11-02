@@ -24,7 +24,10 @@ export function useAiConnection(active: boolean) {
     const connectedToNetwork = navigator.onLine !== false;
     setOnline(connectedToNetwork);
     setError(null);
-    if (!connectedToNetwork) { setLoading(false); return false; }
+    if (!connectedToNetwork) {
+      setLoading(false);
+      return false;
+    }
     setLoading(true);
     try {
       if (operation) await operation(abort.signal);
