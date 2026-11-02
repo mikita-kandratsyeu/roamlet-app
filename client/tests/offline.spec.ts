@@ -276,6 +276,81 @@ for (const width of [320, 390, 1440]) {
   }
 }
 
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 320, height: 568 },
+  { width: 430, height: 932 },
+  { width: 667, height: 375 },
+]) {
+  test(`offline planner resizes without blank space at ${viewport.width}x${viewport.height}`, async ({ page, context }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+    await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+    await context.setOffline(true);
+    try {
+      const planner = page.getByRole('complementary', { name: 'Route planner' });
+      const header = planner.locator('.mobile-sheet-header');
+      const toggle = planner.locator('.mobile-sheet-toggle');
+      const workspace = page.locator('.workspace-offline');
+      if (await toggle.getAttribute('aria-expanded') === 'true') await toggle.click();
+      async function settlePlanner() {
+        await planner.evaluate(async (element) => {
+          element.getBoundingClientRect();
+          await Promise.all(element.getAnimations().map((animation) => animation.finished.catch(() => {})));
+        });
+      }
+      async function compactFits() {
+        await expect(planner).toHaveAttribute('data-sheet-state', 'compact');
+        await settlePlanner();
+        await expect(planner.locator('.planner-scroll')).toBeHidden();
+        await workspace.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+        const panelBox = (await planner.boundingBox())!;
+        const headerBox = (await header.boundingBox())!;
+        const workspaceBox = (await workspace.boundingBox())!;
+        expect(panelBox.height).toBeLessThanOrEqual(headerBox.height + 2);
+        expect(panelBox.y + panelBox.height).toBeCloseTo(workspaceBox.y + workspaceBox.height, 0);
+      }
+      await compactFits();
+      await page.screenshot({ path: testInfo.outputPath('offline-planner-compact.png'), animations: 'disabled' });
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await toggle.click();
+        await expect(planner).toHaveAttribute('data-sheet-state', 'planning');
+        await settlePlanner();
+        await expect(planner.locator('.planner-scroll')).toBeVisible();
+        const planningHeight = (await planner.boundingBox())!.height;
+        expect(await planner.locator('.planner-scroll').evaluate((element) => element.clientHeight)).toBeGreaterThan(20);
+        await planner.getByRole('button', { name: 'Expand planner view' }).click();
+        await expect(planner).toHaveAttribute('data-sheet-state', 'expanded');
+        await settlePlanner();
+        expect((await planner.boundingBox())!.height).toBeGreaterThanOrEqual(planningHeight);
+        await planner.getByRole('button', { name: 'Restore planner view' }).click();
+        await expect(planner).toHaveAttribute('data-sheet-state', 'planning');
+        await toggle.click();
+        await compactFits();
+      }
+      await page.getByRole('button', { name: 'Use manual drawing', exact: true }).click();
+      if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+      for (const value of ['47.2692, 11.4041', '47.271, 11.411']) {
+        await planner.getByRole('textbox', { name: 'Latitude', exact: true }).fill(value);
+        await page.getByRole('button', { name: 'Add coordinates', exact: true }).click();
+      }
+      await expect(page.locator('[data-stop-id]')).toHaveCount(2);
+      const download = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Export', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Export route', exact: true });
+      await dialog.getByRole('button', { name: 'Download GPX', exact: true }).click();
+      const xml = await readFile((await (await download).path())!, 'utf8');
+      expect(xml.match(/<trkpt\s/g)).toHaveLength(2);
+      await expect(dialog).toHaveCount(0);
+      await toggle.click();
+      await compactFits();
+      await context.setOffline(false);
+      await expect(page.locator('.offline-banner')).toHaveCount(0);
+      await expect(planner).toHaveAttribute('data-sheet-state', 'compact');
+    } finally { await context.setOffline(false); }
+  });
+}
+
 const gpx =
   '<gpx version="1.1" creator="Roamlet test" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Offline escape</name><trkseg><trkpt lat="47.2692" lon="11.4041"><ele>600</ele></trkpt><trkpt lat="47.271" lon="11.411"><ele>630</ele></trkpt></trkseg></trk></gpx>';
 test('production shell keeps saved routes and GPX export available offline, without caching maps', async ({
