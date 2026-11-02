@@ -324,7 +324,7 @@ export function Library({
     try {
       await promise;
     } catch (error) {
-      if (editing || deleting || backup || action.startsWith('favorite:'))
+      if (action.startsWith('favorite:'))
         setError(error instanceof Error ? error.message : fallback);
     } finally {
       actionLocked.current = false;
@@ -637,7 +637,6 @@ export function Library({
                     ]}
                   />
                   <p>{t('Import changes only your library, not the route in the editor.')}</p>
-                  {error && <p role="alert">{translateMessage(error)}</p>}
                   <div className="button-row dialog-actions">
                     <Button
                       variant="ghost"
@@ -680,7 +679,7 @@ export function Library({
               )}
             />
           )}
-          {error && !editing && !deleting && !backup && (
+          {error && (
             <Notification
               title={t('Notification')}
               variant="error"
@@ -1082,7 +1081,6 @@ export function Library({
                     <Star size={16} aria-hidden="true" />
                     {t('Favorite')}
                   </Button>
-                  {error && <p role="alert">{translateMessage(error)}</p>}
                   <div className="button-row dialog-actions">
                     <Button
                       variant="ghost"
@@ -1125,7 +1123,6 @@ export function Library({
                     {t('Delete')} <strong>{deleting.name}</strong>{' '}
                     {t('from this device? This cannot be undone.')}
                   </p>
-                  {error && <p>{translateMessage(error)}</p>}
                   <div className="button-row dialog-actions">
                     <Button
                       variant="ghost"

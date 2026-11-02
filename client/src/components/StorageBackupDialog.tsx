@@ -444,11 +444,17 @@ export function StorageBackupDialog({
               {t('Cancel operation')}
             </Button>
           )}
-          {storage.success === 'uploaded' && <p role="status">{uploadSuccess}</p>}
-          {storage.success === 'restored' && (
-            <p role="status">
-              {t('Library restored on this device. The current editor route is unchanged.')}
-            </p>
+          {storage.success && (
+            <Notification
+              key={storage.success}
+              title={title}
+              variant="success"
+              message={
+                storage.success === 'uploaded'
+                  ? uploadSuccess
+                  : t('Library restored on this device. The current editor route is unchanged.')
+              }
+            />
           )}
         </div>
       </Dialog>

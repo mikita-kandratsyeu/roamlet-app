@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Dialog } from './Dialog';
 import { RouteComparison } from './RouteComparison';
 import i18next from 'i18next';
+import { translateMessage } from '../i18n';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { PlannedRoute } from '../domain/types';
 import { deleteRoute, duplicateRoute, listRoutes, saveRoute } from '../domain/storage';
@@ -359,7 +360,11 @@ it('keeps failed edits available with an error and returns focus to the name fie
   fireEvent.click(screen.getByRole('button', { name: 'Edit Alpine loop' }));
   vi.mocked(saveRoute).mockRejectedValue(new Error('Could not update your library.'));
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-  await screen.findByRole('alert');
+  const message = translateMessage('Could not update your library.');
+  await waitFor(() =>
+    expect(document.querySelector('[data-sonner-toast][data-type="error"]')).toHaveTextContent(message),
+  );
+  expect(screen.getByRole('dialog')).not.toHaveTextContent(message);
   await waitFor(() => expect(screen.getByRole('textbox', { name: 'Route name' })).toHaveFocus());
   expect(screen.getByRole('button', { name: 'Save changes' })).not.toBeDisabled();
 });
@@ -616,7 +621,7 @@ it.each([
 });
 
 it.each(['save', 'delete', 'duplicate', 'import'] as const)(
-  'reports a rejected %s promise once and preserves actionable dialog errors', async (action) => {
+  'reports a rejected %s promise only in Sonner and preserves retry controls', async (action) => {
     await openLibrary();
     const error = new Error('Storage is unavailable');
     vi.mocked(saveRoute).mockRejectedValue(error);
@@ -632,7 +637,8 @@ it.each(['save', 'delete', 'duplicate', 'import'] as const)(
     expect(document.querySelectorAll('[data-sonner-toast][data-type="error"]')).toHaveLength(1);
     const dialog = screen.queryByRole('dialog');
     if (action !== 'duplicate') {
-      expect(dialog).toHaveTextContent(error.message);
+      expect(dialog).not.toHaveTextContent(error.message);
+      expect(screen.getAllByText(error.message)).toHaveLength(1);
       expect(within(dialog!).getByRole('button', {
         name: action === 'save' ? 'Save changes' : action === 'delete' ? 'Delete route' : 'Import routes',
       })).toBeEnabled();
@@ -646,7 +652,8 @@ it('reports a failed refresh as a promise error, without an import success or cl
   vi.mocked(listRoutes).mockRejectedValueOnce(new Error('Refresh failed'));
   await startPromiseAction('import');
   await waitFor(() => expect(document.querySelector('[data-sonner-toast][data-type="error"]')).toHaveTextContent('Refresh failed'));
-  expect(screen.getByRole('dialog')).toHaveTextContent('Refresh failed');
+  expect(screen.getByRole('dialog')).not.toHaveTextContent('Refresh failed');
+  expect(screen.getAllByText('Refresh failed')).toHaveLength(1);
   expect(screen.getByRole('button', { name: 'Cancel import' })).toHaveFocus();
   expect(screen.getByRole('button', { name: 'Import routes' })).toBeEnabled();
   expect(screen.queryByText('Imported 1 routes; skipped 0.')).not.toBeInTheDocument();

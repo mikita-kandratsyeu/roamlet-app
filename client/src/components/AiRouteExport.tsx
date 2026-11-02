@@ -53,33 +53,37 @@ export function AiRouteExport({
           'Copy this request into an AI chat. No API key is needed and Roamlet sends nothing automatically. Review the text before sharing; statistics alone do not guarantee anonymity.',
         )}
       </p>
-      <Label className="ai-export-privacy" htmlFor="ai-export-sensitive">
-        <Input
-          id="ai-export-sensitive"
-          type="checkbox"
-          checked={includeSensitive}
-          aria-describedby="ai-export-privacy-hint"
-          onChange={(event) => setIncludeSensitive(event.target.checked)}
+      <div className="ai-export-privacy-section">
+        <Label className="ai-export-privacy" htmlFor="ai-export-sensitive">
+          <Input
+            id="ai-export-sensitive"
+            type="checkbox"
+            checked={includeSensitive}
+            aria-describedby="ai-export-privacy-hint"
+            onChange={(event) => setIncludeSensitive(event.target.checked)}
+          />
+          <span>{t('Include names, coordinates and departure date')}</span>
+        </Label>
+        <p id="ai-export-privacy-hint" className="muted export-copy">
+          {t(
+            'Off by default. Enabling this includes the full track and can reveal your home address and travel plans. Descriptions, account data and keys are never included.',
+          )}
+        </p>
+      </div>
+      <div className="ai-export-preview">
+        <Label htmlFor="ai-export-text">{t('Request preview')}</Label>
+        <Textarea
+          id="ai-export-text"
+          className="ai-export-text"
+          readOnly
+          value={text}
+          spellCheck={false}
+          aria-describedby="ai-export-manual-hint"
         />
-        {t('Include names, coordinates and departure date')}
-      </Label>
-      <p id="ai-export-privacy-hint" className="muted export-copy">
-        {t(
-          'Off by default. Enabling this includes the full track and can reveal your home address and travel plans. Descriptions, account data and keys are never included.',
-        )}
-      </p>
-      <Label htmlFor="ai-export-text">{t('Request preview')}</Label>
-      <Textarea
-        id="ai-export-text"
-        className="ai-export-text"
-        readOnly
-        value={text}
-        spellCheck={false}
-        aria-describedby="ai-export-manual-hint"
-      />
-      <p id="ai-export-manual-hint" className="muted export-copy">
-        {t('You can also select and copy the preview manually.')}
-      </p>
+        <p id="ai-export-manual-hint" className="muted export-copy">
+          {t('You can also select and copy the preview manually.')}
+        </p>
+      </div>
       <Button
         type="button"
         className="export-download"

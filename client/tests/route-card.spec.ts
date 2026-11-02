@@ -39,6 +39,13 @@ test('AI export preview stays private and usable in both languages and themes', 
       await expect(preview).toBeVisible();
       expect(await preview.inputValue()).not.toContain('Forest escape');
       expect(await preview.inputValue()).not.toContain('"locationData"');
+      const privacy = dialog.getByRole('checkbox');
+      await expect(privacy.locator('..')).toHaveCSS('flex-direction', 'row');
+      await expect(privacy).toHaveCSS('width', '20px');
+      await expect(privacy).toHaveCSS('height', '20px');
+      const privacyRow = await privacy.locator('..').boundingBox();
+      expect(privacyRow!.height).toBeGreaterThanOrEqual(44);
+      expect(await preview.evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(180);
       const copy = dialog.getByRole('button', { name: /^(Copy for AI|Скопировать для ИИ)$/ });
       await copy.scrollIntoViewIfNeeded();
       await expect(copy).toBeInViewport();

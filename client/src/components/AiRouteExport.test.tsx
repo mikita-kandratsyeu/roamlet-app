@@ -61,6 +61,25 @@ it('copies exactly the preview after a click, with location excluded by default'
   expect(write).toHaveBeenCalledTimes(1);
 });
 
+it('toggles sensitive data through its label and keyboard without copying', async () => {
+  const user = userEvent.setup();
+  const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+  render(<AiRouteExport route={route} />);
+  const checkbox = screen.getByRole('checkbox', {
+    name: 'Include names, coordinates and departure date',
+  });
+  expect(checkbox).not.toBeChecked();
+  await user.click(screen.getByText('Include names, coordinates and departure date'));
+  expect(checkbox).toBeChecked();
+  checkbox.focus();
+  await user.keyboard(' ');
+  expect(checkbox).not.toBeChecked();
+  expect(
+    screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Request preview' }).value,
+  ).not.toContain('Private name');
+  expect(write).not.toHaveBeenCalled();
+});
+
 it('keeps manual copying available after a failure and supports retry', async () => {
   const user = userEvent.setup();
   const write = vi

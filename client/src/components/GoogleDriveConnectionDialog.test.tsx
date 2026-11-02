@@ -113,7 +113,11 @@ it('shares encrypted backup and restore UX without GitHub configuration or reque
   await user.type(screen.getByLabelText('Backup password', { exact: true }), 'synthetic-password');
   await user.type(screen.getByLabelText('Confirm backup password'), 'synthetic-password');
   await user.click(screen.getByRole('button', { name: 'Create encrypted backup' }));
-  await screen.findByText('Encrypted backup saved to Google Drive.');
+  const uploaded = await screen.findByText('Encrypted backup saved to Google Drive.');
+  expect(uploaded.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'success');
+  expect(screen.getByRole('dialog')).not.toHaveTextContent(
+    'Encrypted backup saved to Google Drive.',
+  );
   const bytes = vi.mocked(googleAdapter.uploadBackup).mock.calls[0][0];
   expect((await decryptBackup(bytes, 'synthetic-password')).routes).toEqual([]);
   expect(githubAdapter.checkConnection).not.toHaveBeenCalled();
@@ -131,7 +135,11 @@ it('shares encrypted backup and restore UX without GitHub configuration or reque
     'Import copies',
   );
   await user.click(screen.getByRole('button', { name: 'Import routes' }));
-  await screen.findByText(
+  const restored = await screen.findByText(
+    'Library restored on this device. The current editor route is unchanged.',
+  );
+  expect(restored.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'success');
+  expect(screen.getByRole('dialog')).not.toHaveTextContent(
     'Library restored on this device. The current editor route is unchanged.',
   );
 });

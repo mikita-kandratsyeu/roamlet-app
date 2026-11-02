@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { StorageBackupDialog, type StorageBackupDialogProps } from './StorageBackupDialog';
@@ -211,6 +211,71 @@ it('reports a failed local summary with an error Sonner toast using the supplied
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
 });
 
+it.each(['uploaded', 'restored'] as const)(
+  'reports %s once through dismissible Sonner without inline duplicates',
+  async (success) => {
+    const value = props();
+    const message =
+      success === 'uploaded'
+        ? value.uploadSuccess
+        : 'Library restored on this device. The current editor route is unchanged.';
+    const { rerender } = render(
+      <>
+        <Toaster />
+        <StorageBackupDialog {...value} />
+      </>,
+    );
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+    value.storage = { ...value.storage, success };
+    rerender(
+      <>
+        <Toaster />
+        <StorageBackupDialog {...value} />
+      </>,
+    );
+    const notification = await screen.findByText(message);
+    expect(notification.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'success');
+    expect(screen.getByRole('dialog')).not.toHaveTextContent(message);
+    expect(screen.getAllByText(message)).toHaveLength(1);
+    rerender(
+      <>
+        <Toaster />
+        <StorageBackupDialog {...value} />
+      </>,
+    );
+    expect(screen.getAllByText(message)).toHaveLength(1);
+    const close = within(notification.closest('[data-sonner-toast]') as HTMLElement).getByRole(
+      'button',
+      { name: 'Dismiss notification' },
+    );
+    fireEvent.click(close);
+    await waitFor(() => expect(screen.queryByText(message)).not.toBeInTheDocument());
+    rerender(
+      <>
+        <Toaster />
+        <StorageBackupDialog {...value} />
+      </>,
+    );
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+    value.storage = { ...value.storage, success: null };
+    rerender(
+      <>
+        <Toaster />
+        <StorageBackupDialog {...value} />
+      </>,
+    );
+    value.storage = { ...value.storage, success };
+    rerender(
+      <>
+        <Toaster />
+        <StorageBackupDialog {...value} />
+      </>,
+    );
+    expect(await screen.findByText(message)).toBeVisible();
+    expect(screen.getAllByText(message)).toHaveLength(1);
+  },
+);
+
 it('uses the provider upload warning and confirms cancellation before closing', async () => {
   const value = props();
   value.storage.operation = 'uploading';
@@ -241,13 +306,21 @@ it('does not interrupt atomic local restoration when closing or pressing Escape'
   expect(value.onClose).not.toHaveBeenCalled();
 });
 
-it('uses a provider-neutral connection operation label and supplied upload success', () => {
+it('uses a provider-neutral connection operation label and supplied upload success', async () => {
   const value = props();
   const { rerender } = render(
-    <StorageBackupDialog {...value} storage={{ ...value.storage, operation: 'connecting' }} />,
+    <>
+      <Toaster />
+      <StorageBackupDialog {...value} storage={{ ...value.storage, operation: 'connecting' }} />
+    </>,
   );
   expect(screen.getByText('Checking connection')).toBeVisible();
   expect(screen.queryByText(/Checking GitHub/)).not.toBeInTheDocument();
-  rerender(<StorageBackupDialog {...value} storage={{ ...value.storage, success: 'uploaded' }} />);
-  expect(screen.getByText(value.uploadSuccess)).toBeVisible();
+  rerender(
+    <>
+      <Toaster />
+      <StorageBackupDialog {...value} storage={{ ...value.storage, success: 'uploaded' }} />
+    </>,
+  );
+  expect(await screen.findByText(value.uploadSuccess)).toBeVisible();
 });
