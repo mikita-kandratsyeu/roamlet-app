@@ -24,6 +24,56 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
 });
 
+test('planned-route badge text is vertically centered in both languages and themes', async ({
+  page,
+}) => {
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' })
+      .click();
+    await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: /^(Export route|Экспорт маршрута)$/ });
+    await dialog.getByRole('radio', { name: /^(For social media|Для соцсетей)$/ }).click();
+    for (const theme of ['Light', 'Dark']) {
+      const themeLabel = language === 'en' ? theme : theme === 'Light' ? 'Светлая' : 'Тёмная';
+      await dialog.getByRole('radio', { name: themeLabel, exact: true }).click();
+      await dialog
+        .getByRole('button', {
+          name: /^(Create preview|Regenerate preview|Создать предпросмотр|Обновить предпросмотр)$/,
+        })
+        .click();
+      const image = dialog.getByRole('img');
+      await expect(image).toBeVisible();
+      const center = await image.evaluate((element: HTMLImageElement, dark: boolean) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = element.naturalWidth;
+        canvas.height = element.naturalHeight;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Canvas unavailable');
+        context.drawImage(element, 0, 0);
+        const color = dark ? [157, 228, 181] : [31, 104, 70];
+        const pixels = context.getImageData(568, 86, 440, 36).data;
+        let top = Infinity;
+        let bottom = -Infinity;
+        for (let index = 0; index < pixels.length; index += 4) {
+          if (color.every((channel, offset) => pixels[index + offset] === channel)) {
+            const y = Math.floor(index / 4 / 440);
+            top = Math.min(top, y);
+            bottom = Math.max(bottom, y);
+          }
+        }
+        return (top + bottom) / 2;
+      }, theme === 'Dark');
+      expect(
+        Math.abs(center - 17.5),
+        `${language} ${theme}: text center ${center}`,
+      ).toBeLessThanOrEqual(0.5);
+    }
+    await dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }).click();
+  }
+});
+
 test('route image is generated on demand with real PNG sizes, privacy and preserved GPX', async ({
   page,
 }, testInfo) => {
@@ -43,9 +93,15 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
     await dialog
       .getByRole('textbox', { name: 'Image title' })
       .fill('Long scenic route · Длинный заголовок маршрута');
+    const placeholderBox = await dialog.locator('.route-card-placeholder').boundingBox();
+    expect(placeholderBox).not.toBeNull();
     await dialog.getByRole('button', { name: 'Create preview', exact: true }).click();
     const image = dialog.getByRole('img', { name: 'Generated route image' });
     await expect(image).toBeVisible();
+    const readyBox = await image.boundingBox();
+    expect(readyBox).not.toBeNull();
+    expect(Math.abs(readyBox!.width - placeholderBox!.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(readyBox!.height - placeholderBox!.height)).toBeLessThanOrEqual(1);
     await expect
       .poll(() =>
         image.evaluate((element: HTMLImageElement) => [
@@ -101,13 +157,13 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
           {
             kind: 'label',
             y: panelY + 36,
-            height: 28,
+            height: 128,
             color: dark ? [173, 197, 182] : [89, 114, 100],
           },
           {
             kind: 'value',
-            y: panelY + 104,
-            height: 48,
+            y: panelY + 36,
+            height: 128,
             color: dark ? [244, 247, 239] : [24, 60, 44],
           },
         ]) {

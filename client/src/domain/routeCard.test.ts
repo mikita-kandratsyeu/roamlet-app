@@ -46,6 +46,9 @@ function canvasMock() {
     font: string;
     width: number;
     align: string;
+    baseline: string;
+    ascent: number;
+    descent: number;
   }[] = [];
   const context = {
     save: vi.fn(),
@@ -63,9 +66,14 @@ function canvasMock() {
     moveTo: vi.fn(),
     lineTo: vi.fn(),
     fillText: vi.fn(),
-    measureText: vi.fn((text: string) => ({
-      width: Array.from(text).length * Number(context.font.match(/(\d+)px/)?.[1] ?? 32) * 0.6,
-    })),
+    measureText: vi.fn((text: string) => {
+      const size = Number(context.font.match(/(\d+)px/)?.[1] ?? 32);
+      return {
+        width: Array.from(text).length * size * 0.6,
+        actualBoundingBoxAscent: size * 0.75,
+        actualBoundingBoxDescent: /[gjpqyруф]/u.test(text) ? size * 0.2 : 0,
+      };
+    }),
     createLinearGradient: vi.fn(gradient),
     createRadialGradient: vi.fn(gradient),
     fillStyle: '',
@@ -88,6 +96,9 @@ function canvasMock() {
       font: context.font,
       width: context.measureText(text).width,
       align: context.textAlign,
+      baseline: context.textBaseline,
+      ascent: context.measureText(text).actualBoundingBoxAscent,
+      descent: context.measureText(text).actualBoundingBoxDescent,
     });
   });
   const canvas = document.createElement('canvas');
@@ -384,6 +395,18 @@ describe('conservative projected privacy areas', () => {
 });
 
 describe('offline PNG rendering', () => {
+  it.each(['План маршрута', 'Planned route', 'PLANNED ROUTE', 'gyp route'])(
+    'centers visible badge glyphs rather than the font box for %s',
+    async (plannedLabel) => {
+      const { canvas, context, texts } = canvasMock();
+      await renderRouteCard({ ...request, plannedLabel }, canvas);
+      const badge = texts.find((text) => text.text === plannedLabel)!;
+      const [, top, , height] = context.roundRect.mock.calls[1];
+      expect(badge.baseline).toBe('alphabetic');
+      expect(badge.y + (badge.descent - badge.ascent) / 2).toBe(top + height / 2);
+      expect(context.textBaseline).toBe('top');
+    },
+  );
   it.each(['light', 'dark'] as const)(
     'distinguishes start and finish without changing the track in %s',
     async (theme) => {
@@ -433,7 +456,9 @@ describe('offline PNG rendering', () => {
       const arcs = context.arc.mock.calls.filter((call) => call[2] === radius);
       expect(arcs).toHaveLength(activity === 'cycling' ? 2 : 1);
       expect(arcs[0][0]).toBe(72 + (activity === 'cycling' ? 5 : 13) * scale);
-      expect(arcs[0][1]).toBe(label.y + (activity === 'cycling' ? 17 : 4) * scale);
+      const labelCenter = label.y + (label.descent - label.ascent) / 2;
+      expect(label.baseline).toBe('alphabetic');
+      expect(arcs[0][1]).toBe(labelCenter - 16 + (activity === 'cycling' ? 17 : 4) * scale);
       expect(strokes).toContainEqual({ width: 2, color: theme === 'dark' ? '#adc5b6' : '#597264' });
     },
   );
@@ -478,11 +503,15 @@ describe('offline PNG rendering', () => {
         const rowColumns = Math.min(columns, count - row * columns);
         expect(label.align).toBe('center');
         expect(label.x).toBe(72 + (column + 0.5) * (936 / rowColumns));
+        const rowTop = canvas.height - 72 - (72 + rows * 128) + 36 + row * 128;
+        const center = label.y + (label.descent - label.ascent) / 2;
+        expect(label.baseline).toBe('alphabetic');
+        expect(center).toBe(rowTop + 32);
         return column
           ? [
               {
-                from: [label.x - 468 / rowColumns, label.y + 4],
-                to: [label.x - 468 / rowColumns, label.y + 108],
+                from: [label.x - 468 / rowColumns, rowTop + 4],
+                to: [label.x - 468 / rowColumns, rowTop + 108],
               },
             ]
           : [];
@@ -529,7 +558,11 @@ describe('offline PNG rendering', () => {
         0,
         Math.PI * 2,
       );
-      expect(context.fillText).toHaveBeenNthCalledWith(1, 'Roamlet', 144, 86);
+      const wordmark = texts[0];
+      expect(wordmark.text).toBe('Roamlet');
+      expect(wordmark.x).toBe(144);
+      expect(wordmark.baseline).toBe('alphabetic');
+      expect(wordmark.y + (wordmark.descent - wordmark.ascent) / 2).toBe(104);
       expect(texts[0].font).toBe('600 36px sans-serif');
       expect(context.fillText.mock.invocationCallOrder[0]).toBeLessThan(
         context.fillText.mock.invocationCallOrder[1],
@@ -640,9 +673,11 @@ describe('offline PNG rendering', () => {
         const left = text.align === 'center' ? text.x - text.width / 2 : text.x;
         expect(left).toBeGreaterThanOrEqual(72);
         expect(left + text.width).toBeLessThanOrEqual(1008);
-        expect(text.y + Number(text.font.match(/(\d+)px/)![1])).toBeLessThanOrEqual(
-          canvas.height - 72,
-        );
+        const bottom =
+          text.baseline === 'alphabetic'
+            ? text.y + text.descent
+            : text.y + Number(text.font.match(/(\d+)px/)![1]);
+        expect(bottom).toBeLessThanOrEqual(canvas.height - 72);
       }
       const [routeX, routeY, routeWidth, routeHeight] = context.rect.mock.calls[0];
       expect(routeX).toBe(72);
@@ -673,19 +708,19 @@ describe('offline PNG rendering', () => {
         const x = panelX + ((index % columns) + 0.5) * cellWidth;
         const y = panelY + 36 + row * 128;
         expect(value.x).toBe(x);
-        expect(value.y + Number(value.font.match(/(\d+)px/)![1])).toBe(y + 112);
+        expect(value.baseline).toBe('alphabetic');
+        expect(value.y + (value.descent - value.ascent) / 2).toBe(y + 100);
         for (const text of [value, ...labels.slice(index * 2, index * 2 + 2)]) {
           expect(text.align).toBe('center');
           expect(text.x).toBe(x);
           expect(text.width).toBeLessThanOrEqual(cellWidth - 80);
           expect(text.x - text.width / 2).toBeGreaterThanOrEqual(x - cellWidth / 2 + 40);
           expect(text.x + text.width / 2).toBeLessThanOrEqual(x + cellWidth / 2 - 40);
-          expect(text.y).toBeGreaterThanOrEqual(panelY + 32);
-          expect(text.y + Number(text.font.match(/(\d+)px/)![1])).toBeLessThanOrEqual(
-            panelY + panelHeight - 32,
-          );
+          expect(text.y - text.ascent).toBeGreaterThanOrEqual(panelY + 32);
+          expect(text.y + text.descent).toBeLessThanOrEqual(panelY + panelHeight - 32);
         }
-        expect(labels[index * 2 + 1].y + 22).toBeLessThan(value.y);
+        const lastLabel = labels[index * 2 + 1];
+        expect(lastLabel.y + lastLabel.descent).toBeLessThan(value.y - value.ascent);
       });
     },
   );
@@ -752,17 +787,20 @@ describe('offline PNG rendering', () => {
       expect([canvas.width, canvas.height]).toEqual([1080, format === 'post' ? 1350 : 1920]);
       expect(blob.type).toBe('image/png');
       expect(canvas.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
-      expect(context.fillText).toHaveBeenCalledWith('Roamlet', 144, 86);
+      expect(texts[0]).toMatchObject({ text: 'Roamlet', x: 144, baseline: 'alphabetic' });
+      expect(texts[0].y + (texts[0].descent - texts[0].ascent) / 2).toBe(104);
       expect(context.roundRect).toHaveBeenCalledWith(72, 76, 56, 56, 14);
       const title = texts.filter((call) => call.font === '800 64px sans-serif');
       expect(title).toHaveLength(3);
       expect(title.at(-1)!.text).toContain('…');
-      for (const { x, y, width, font, align } of texts) {
+      for (const { x, y, width, font, align, baseline, ascent, descent } of texts) {
         const left = align === 'center' ? x - width / 2 : x;
         expect(left).toBeGreaterThanOrEqual(72);
         expect(left + width).toBeLessThanOrEqual(1008);
-        expect(y).toBeGreaterThanOrEqual(72);
-        expect(y + Number(font.match(/(\d+)px/)![1])).toBeLessThanOrEqual(canvas.height - 72);
+        expect(baseline === 'alphabetic' ? y - ascent : y).toBeGreaterThanOrEqual(72);
+        expect(
+          baseline === 'alphabetic' ? y + descent : y + Number(font.match(/(\d+)px/)![1]),
+        ).toBeLessThanOrEqual(canvas.height - 72);
       }
     },
   );

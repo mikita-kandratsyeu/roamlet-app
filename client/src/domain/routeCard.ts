@@ -358,6 +358,15 @@ function hasVisibleDrawing(points: RouteCardPoint[][], exclusions: RouteCardBoun
 
 type Context = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
+function drawCenteredText(context: Context, text: string, x: number, centerY: number): void {
+  const baseline = context.textBaseline;
+  context.textBaseline = 'alphabetic';
+  const metrics = context.measureText(text);
+  const y = centerY + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2;
+  context.fillText(text, x, y);
+  context.textBaseline = baseline;
+}
+
 function drawBrand(context: Context, ink: string, dark: boolean): void {
   const x = 72,
     y = 76,
@@ -389,7 +398,7 @@ function drawBrand(context: Context, ink: string, dark: boolean): void {
   context.restore();
   context.fillStyle = ink;
   context.font = '600 36px sans-serif';
-  context.fillText('Roamlet', 144, 86);
+  drawCenteredText(context, 'Roamlet', 144, y + 28);
 }
 
 function drawBackground(context: Context, height: number, dark: boolean): void {
@@ -553,7 +562,7 @@ export async function renderRouteCard(
     context.roundRect(badgeX, 86, badgeWidth, 36, 18);
     context.fill();
     context.fillStyle = green;
-    context.fillText(planned, badgeX + 16, 94);
+    drawCenteredText(context, planned, badgeX + 16, 104);
     context.fillStyle = ink;
     context.font = '800 64px sans-serif';
     const lines = titleLines(context, request.title, 936);
@@ -563,7 +572,9 @@ export async function renderRouteCard(
     context.font = '500 30px sans-serif';
     drawActivityIcon(context, request.activity, 72, activityTop, muted);
     const activity = titleLines(context, request.activityLabel, 892, 2);
-    activity.forEach((line, index) => context.fillText(line, 116, activityTop + index * 40));
+    activity.forEach((line, index) =>
+      drawCenteredText(context, line, 116, activityTop + 16 + index * 40),
+    );
     const columns = request.metrics.length === 4 ? 2 : Math.min(3, request.metrics.length);
     const rows = columns ? Math.ceil(request.metrics.length / columns) : 0;
     const metricPaddingX = 40;
@@ -672,8 +683,12 @@ export async function renderRouteCard(
       }
       context.fillStyle = muted;
       context.font = '500 22px sans-serif';
-      titleLines(context, metric.label, metricWidth, 2).forEach((line, lineIndex) =>
-        context.fillText(line, x, y + lineIndex * 28),
+      const labels = titleLines(context, metric.label, metricWidth, 2);
+      const labelHeight = labels.length * 28;
+      const groupHeight = labelHeight + 16 + 48;
+      const groupTop = y + (metricRowHeight - groupHeight) / 2;
+      labels.forEach((line, lineIndex) =>
+        drawCenteredText(context, line, x, groupTop + 14 + lineIndex * 28),
       );
       context.fillStyle = ink;
       context.font = '700 44px sans-serif';
@@ -686,7 +701,12 @@ export async function renderRouteCard(
         ),
       );
       context.font = `700 ${valueSize}px sans-serif`;
-      context.fillText(fitText(context, value, metricWidth), x, y + 112 - valueSize);
+      drawCenteredText(
+        context,
+        fitText(context, value, metricWidth),
+        x,
+        groupTop + labelHeight + 16 + 24,
+      );
     });
     const blob =
       'convertToBlob' in canvas

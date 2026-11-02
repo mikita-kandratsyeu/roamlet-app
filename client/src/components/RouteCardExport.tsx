@@ -290,33 +290,31 @@ export function RouteCardExport({
               height={format === 'post' ? 1350 : 1920}
             />
           ) : (
-            <div className="route-card-placeholder">
-              <Image size={32} aria-hidden="true" />
-              <p>{t('The preview is generated only when you press the button.')}</p>
+            <div className="route-card-placeholder" aria-hidden="true">
+              {preview.status === 'generating' ? (
+                <LoaderCircle size={32} className="spin" />
+              ) : (
+                <Image size={32} />
+              )}
             </div>
           )}
         </div>
-        <p className="route-card-background-note muted export-copy">
-          {t('Decorative contours, not a terrain map.')}
-        </p>
         {preview.status === 'error' && (
           <p className="route-card-error" role="alert">
             {translateMessage(preview.message)}
           </p>
         )}
-        <p
-          className={
-            preview.status === 'idle' || preview.status === 'error'
-              ? 'sr-only'
-              : 'muted export-copy'
-          }
-          role="status"
-        >
+        <p className={preview.status === 'error' ? 'sr-only' : 'muted export-copy'} role="status">
           {preview.status === 'generating'
             ? t('Generating image…')
             : preview.status === 'ready'
               ? t('Preview ready. Check it before sharing.')
-              : ''}
+              : preview.status === 'idle'
+                ? t('The preview is generated only when you press the button.')
+                : ''}
+        </p>
+        <p className="route-card-background-note muted export-copy">
+          {t('Decorative contours, not a terrain map.')}
         </p>
         {notice?.request === request && (
           <p role={notice.error ? 'alert' : 'status'}>{translateMessage(notice.message)}</p>
