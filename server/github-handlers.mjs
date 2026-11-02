@@ -1,4 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
+import { connectorLogger, logConnectorFailure } from './connector-logging.mjs';
 import {
   createGithubClient,
   fileEntry,
@@ -61,13 +63,18 @@ export function createGithubHandler({
   fetcher = globalThis.fetch,
   now = Date.now,
   timeoutMs,
+  logger = connectorLogger,
 } = {}) {
   const client = createGithubClient(fetcher);
   return async function githubHandler(req, res) {
+    const started = performance.now();
     headers(res);
     const lifetime = requestLifetime(req, res, timeoutMs);
     let config;
     let callback = false;
+    let actionName = 'invalid';
+    let callbackStage = 'request';
+    let callbackReason = 'failed';
     try {
       // Determine callback intent before parsing so even malformed OAuth parameters are removed.
       callback =
@@ -75,6 +82,7 @@ export function createGithubHandler({
         new URL(req.url, 'https://unused.invalid').searchParams.get('action') === 'callback';
       config = getConfig();
       const { action, params } = parse(req);
+      actionName = action;
       if (req.method !== ACTIONS[action][0]) {
         res.setHeader('Allow', ACTIONS[action][0]);
         throw new GithubError('configuration', 405);
@@ -125,6 +133,7 @@ export function createGithubHandler({
         return redirect(res, url.href);
       }
       if (action === 'callback') {
+        callbackStage = 'state';
         res.setHeader('Set-Cookie', cookie(config, 'state', '', 0));
         if (params.has('iss') && params.get('iss') !== 'https://github.com/login/oauth')
           throw new GithubError('auth', 401);
@@ -136,9 +145,18 @@ export function createGithubHandler({
           params.has('error') ||
           typeof code !== 'string' ||
           !/^[A-Za-z0-9_-]{1,512}$/.test(code)
-        )
+        ) {
+          callbackReason = params.has('error')
+            ? 'provider-denied'
+            : !state
+              ? 'missing-state-cookie'
+              : !equalState(state.state, params.get('state'))
+                ? 'state-mismatch'
+                : 'invalid-code';
           throw new GithubError('auth', 401);
+        }
         const issuedAt = now();
+        callbackStage = 'token-exchange';
         const access = object(
           await client.request('', {
             signal: lifetime.signal,
@@ -154,6 +172,7 @@ export function createGithubHandler({
           }),
         );
         // Require expiring GitHub App user tokens; refresh tokens are deliberately discarded.
+        callbackStage = 'token-validation';
         if (
           typeof access.access_token !== 'string' ||
           !/^[\x21-\x7e]{1,1024}$/.test(access.access_token) ||
@@ -162,11 +181,13 @@ export function createGithubHandler({
           access.expires_in <= 0
         )
           throw new GithubError('auth', 401);
+        callbackStage = 'identity';
         const user = object(
           await client.request('/user', { token: access.access_token, signal: lifetime.signal }),
         );
         if (!validLogin(user.login) || !Number.isSafeInteger(user.id) || user.id <= 0)
           throw new GithubError('invalid-data');
+        callbackStage = 'session';
         const seconds = Math.min(SESSION_SECONDS, access.expires_in);
         if (issuedAt + seconds * 1000 <= now()) throw new GithubError('auth', 401);
         const payload = {
@@ -293,6 +314,17 @@ export function createGithubHandler({
       if (entry.id !== id || entry.size !== bytes.length) throw new GithubError('invalid-data');
       return json(res, 200, { backup: entry });
     } catch (error) {
+      const safe = error instanceof GithubError ? error : new GithubError();
+      logConnectorFailure(
+        logger,
+        'github',
+        actionName,
+        callback ? callbackStage : 'request',
+        callback ? callbackReason : 'failed',
+        safe,
+        safe.status,
+        started,
+      );
       if (callback) {
         if (config) res.setHeader('Set-Cookie', cookie(config, 'state', '', 0));
         return redirect(res, '/?connectors=github&github=error');

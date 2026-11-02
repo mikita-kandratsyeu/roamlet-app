@@ -925,3 +925,89 @@ test('unknown actions/methods/extra query params are rejected without upstream',
   }
   assert.equal(calls.length, 0);
 });
+
+test('connector failure logs are safe, success produces no logs, logger errors are swallowed', async () => {
+  const logs = [];
+  const logger = (entry) => logs.push(entry);
+  const handler = createGithubHandler({
+    getConfig: () => config(),
+    now: () => NOW,
+    fetcher: () => {
+      throw new Error('unreachable');
+    },
+    logger,
+  });
+  // Non-callback failure
+  const result = await invoke(handler, 'repositories');
+  assert.equal(result.status, 502);
+  assert.equal(logs.length, 1);
+  const entry = logs[0];
+  assert.equal(entry.event, 'connector_failure');
+  assert.equal(entry.provider, 'github');
+  assert.equal(entry.action, 'repositories');
+  assert.equal(entry.stage, 'request');
+  assert.equal(entry.reason, 'failed');
+  assert.equal(entry.code, 'network');
+  assert.equal(entry.status, 502);
+  assert.equal(typeof entry.durationMs, 'number');
+  assert.ok(entry.durationMs >= 0);
+  // No secrets in log
+  const serialized = JSON.stringify(entry);
+  assert.ok(!serialized.includes(TOKEN));
+  assert.ok(!serialized.includes(SECRET));
+  assert.ok(!serialized.includes('alice'));
+  assert.ok(!serialized.includes('backups'));
+
+  // Success produces no log
+  const logs2 = [];
+  const { handler: okHandler } = fixture({}, { logger: (e) => logs2.push(e) });
+  const ok = await invoke(okHandler, 'session');
+  assert.equal(ok.status, 200);
+  assert.equal(logs2.length, 0);
+
+  // Logger that throws does not affect response
+  const logs3 = [];
+  const throwingLogger = (entry) => {
+    logs3.push(entry);
+    throw new Error('logger crash');
+  };
+  const handler3 = createGithubHandler({
+    getConfig: () => config(),
+    now: () => NOW,
+    fetcher: () => {
+      throw new Error('unreachable');
+    },
+    logger: throwingLogger,
+  });
+  const result3 = await invoke(handler3, 'repositories');
+  assert.equal(result3.status, 502);
+  assert.equal(logs3.length, 1);
+});
+
+test('callback failure logs include stage and reason', async () => {
+  const logs = [];
+  const logger = (entry) => logs.push(entry);
+  const handler = createGithubHandler({
+    getConfig: () => config(),
+    now: () => NOW,
+    fetcher: () => {
+      throw new Error('unreachable');
+    },
+    logger,
+  });
+  const result = await invoke(handler, 'callback', {
+    query: '&code=abc123&state=any',
+    headers: { cookie: '' },
+  });
+  assert.equal(result.status, 303);
+  assert.ok(String(result.headers.location).includes('github=error'));
+  assert.equal(logs.length, 1);
+  const entry = logs[0];
+  assert.equal(entry.event, 'connector_failure');
+  assert.equal(entry.provider, 'github');
+  assert.equal(entry.action, 'callback');
+  assert.equal(entry.stage, 'state');
+  assert.equal(entry.reason, 'missing-state-cookie');
+  assert.equal(entry.code, 'auth');
+  assert.equal(entry.status, 401);
+});

@@ -83,13 +83,7 @@ test('handlers and ORS client work with isolated dependencies', async () => {
   assert.equal(calls.length, 1);
   assert.equal(calls[0][1].headers.Authorization, 'injected-key');
   assert.deepEqual(JSON.parse(calls[0][1].body).coordinates, body().coordinates);
-  assert.equal(logs.length, 1);
-  assert.equal(logs[0].requestId, result.headers['x-request-id']);
-  assert.match(logs[0].requestId, /^[\da-f-]{36}$/);
-  assert.equal(logs[0].category, 'success');
-  assert.ok(logs[0].durationMs >= 0);
-  assert.ok(!JSON.stringify(logs).includes('injected-key'));
-  assert.ok(!JSON.stringify(logs).includes('coordinates'));
+  assert.deepEqual(logs, []);
 });
 
 test('validation and configuration failures do not call the provider', async () => {
@@ -112,6 +106,114 @@ test('validation and configuration failures do not call the provider', async () 
     assert.equal(result.statusCode, status);
     assert.equal(result.data.error.code, code);
   }
+});
+
+test('both endpoints log only sanitized failure metadata and never successes', async () => {
+  const logs = [];
+  const handlers = createRoutingHandlers({
+    getApiKey: () => 'injected-key',
+    requestRoute: async () => ({
+      status: 503,
+      code: 'UPSTREAM_RATE_LIMITED',
+      category: 'upstream_rate_limited',
+    }),
+    logger: (entry) => logs.push(entry),
+  });
+  assert.equal((await invoke(handlers.configHandler, { method: 'GET' })).statusCode, 200);
+  assert.equal(logs.length, 0);
+  const rejectedConfig = await invoke(handlers.configHandler, {
+    method: 'POST',
+    url: '/api/routing-config?key=injected-key',
+  });
+  assert.equal(rejectedConfig.statusCode, 405);
+  assert.equal(rejectedConfig.headers.allow, 'GET');
+  const forbiddenConfig = await invoke(handlers.configHandler, {
+    method: 'GET',
+    headers: { 'sec-fetch-site': 'cross-site', authorization: 'injected-key' },
+  });
+  assert.equal(forbiddenConfig.statusCode, 403);
+  const rejectedRoute = await invoke(handlers.routeHandler, {
+    method: 'GET',
+    url: '/api/route?coordinates=injected-key',
+  });
+  assert.equal(rejectedRoute.statusCode, 405);
+  const failedRoute = await invoke(handlers.routeHandler);
+  assert.equal(failedRoute.statusCode, 503);
+  assert.equal(failedRoute.data.error.code, 'UPSTREAM_RATE_LIMITED');
+  assert.equal(logs.length, 4);
+  for (const [index, status, category, event] of [
+    [0, 405, 'invalid_request', 'routing_config_request'],
+    [1, 403, 'invalid_request', 'routing_config_request'],
+    [2, 405, 'invalid_request', 'routing_request'],
+    [3, 503, 'upstream_rate_limited', 'routing_request'],
+  ]) {
+    const entry = logs[index];
+    assert.deepEqual(Object.keys(entry), [
+      'event',
+      'requestId',
+      'durationMs',
+      'status',
+      'category',
+    ]);
+    assert.equal(entry.event, event);
+    assert.match(entry.requestId, /^[\da-f-]{36}$/);
+    assert.ok(Number.isInteger(entry.durationMs) && entry.durationMs >= 0);
+    assert.equal(entry.status, status);
+    assert.equal(entry.category, category);
+  }
+  assert.equal(logs[2].requestId, rejectedRoute.headers['x-request-id']);
+  assert.equal(logs[3].requestId, failedRoute.headers['x-request-id']);
+  assert.ok(!JSON.stringify(logs).includes('injected-key'));
+  assert.ok(!JSON.stringify(logs).includes('coordinates'));
+  assert.ok(!JSON.stringify(logs).includes('authorization'));
+  assert.ok(!JSON.stringify(logs).includes('/api/'));
+});
+
+test('unexpected handler errors return sanitized failures and log fixed categories', async () => {
+  const logs = [];
+  const handlers = createRoutingHandlers({
+    getApiKey: () => {
+      throw new Error('injected-key coordinates /api/route');
+    },
+    logger: (entry) => logs.push(entry),
+  });
+  for (const [handler, method] of [
+    [handlers.configHandler, 'GET'],
+    [handlers.routeHandler, 'POST'],
+  ]) {
+    const result = await invoke(handler, { method });
+    assert.equal(result.statusCode, 502);
+    assert.equal(result.data.error.code, 'UPSTREAM_UNAVAILABLE');
+    assert.ok(!result.raw.includes('injected-key'));
+  }
+  const provider = createRoutingHandlers({
+    getApiKey: () => 'injected-key',
+    requestRoute: async () => {
+      throw new Error('injected-key coordinates /api/route');
+    },
+    logger: (entry) => logs.push(entry),
+  });
+  const result = await invoke(provider.routeHandler);
+  assert.equal(result.statusCode, 502);
+  assert.equal(logs.length, 3);
+  for (const entry of logs) {
+    assert.equal(entry.category, 'internal_failure');
+    assert.equal(entry.status, 502);
+    assert.ok(!JSON.stringify(entry).includes('injected-key'));
+    assert.ok(!JSON.stringify(entry).includes('coordinates'));
+  }
+});
+
+test('untrusted provider categories cannot enter failure logs', async () => {
+  const logs = [];
+  const { routeHandler } = createRoutingHandlers({
+    getApiKey: () => 'injected-key',
+    requestRoute: async () => ({ status: 502, category: 'injected-key coordinates' }),
+    logger: (entry) => logs.push(entry),
+  });
+  assert.equal((await invoke(routeHandler)).statusCode, 502);
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].category, 'upstream_failure');
 });
 
 test('provider credentials and quota failures are service errors, not user authorization errors', async () => {
@@ -188,14 +290,15 @@ test('oversized valid geometry returns a bounded error and accurate metadata', a
   assert.equal(logs[0].status, 502);
 });
 
-test('logging failure cannot break a successful routing response', async () => {
-  const { routeHandler } = createRoutingHandlers({
+test('logging failure cannot break either endpoint response', async () => {
+  const { routeHandler, configHandler } = createRoutingHandlers({
     getApiKey: () => 'injected-key',
     requestRoute: createOrsClient({ fetcher: async () => Response.json(geojson()) }),
     logger: () => {
       throw new Error('Logging unavailable');
     },
   });
-  const result = await invoke(routeHandler);
-  assert.equal(result.statusCode, 200);
+  assert.equal((await invoke(routeHandler)).statusCode, 200);
+  assert.equal((await invoke(routeHandler, { method: 'GET' })).statusCode, 405);
+  assert.equal((await invoke(configHandler, { method: 'POST' })).statusCode, 405);
 });

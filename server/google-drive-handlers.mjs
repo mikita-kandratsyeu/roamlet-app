@@ -1,4 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
+import { connectorLogger, logConnectorFailure } from './connector-logging.mjs';
 import {
   headers,
   json,
@@ -27,17 +29,6 @@ import {
   STATE_SECONDS,
 } from './google-drive-session.mjs';
 
-const CALLBACK_LOG_CODES = new Set([
-  'auth',
-  'configuration',
-  'invalid-data',
-  'network',
-  'permission',
-  'quota',
-  'timeout',
-  'too-large',
-  'unavailable',
-]);
 const ACTIONS = {
   session: ['GET', []],
   start: ['GET', []],
@@ -89,13 +80,16 @@ export function createGoogleDriveHandler({
   fetcher = globalThis.fetch,
   now = Date.now,
   timeoutMs,
+  logger = connectorLogger,
 } = {}) {
   const client = createGoogleDriveClient(fetcher);
   return async function googleDriveHandler(req, res) {
+    const started = performance.now();
     headers(res);
     const lifetime = requestLifetime(req, res, timeoutMs);
     let config;
     let callback = false;
+    let actionName = 'invalid';
     let callbackStage = 'request';
     let callbackReason = 'failed';
     try {
@@ -106,6 +100,7 @@ export function createGoogleDriveHandler({
           .includes('callback');
       config = getConfig();
       const { action, params } = parse(req);
+      actionName = action;
       if (req.method !== ACTIONS[action][0]) {
         res.setHeader('Allow', ACTIONS[action][0]);
         throw new ConnectorError('configuration', 405);
@@ -119,6 +114,7 @@ export function createGoogleDriveHandler({
         (action !== 'callback' && !sameOrigin(req, config, req.method === 'POST'))
       )
         throw new ConnectorError('permission', 403);
+      callbackStage = 'session';
       const session = openCookie(req, config, 'session', now());
       if (action === 'session') {
         if (!session) clearSession(res, config);
@@ -272,20 +268,21 @@ export function createGoogleDriveHandler({
       res.setHeader('Content-Length', raw.length);
       return res.end(raw);
     } catch (error) {
+      const safe = error instanceof ConnectorError ? error : new ConnectorError();
+      logConnectorFailure(
+        logger,
+        'google-drive',
+        actionName,
+        callback ? callbackStage : 'request',
+        callback ? callbackReason : 'failed',
+        safe,
+        safe.status,
+        started,
+      );
       if (callback) {
-        // Temporary diagnostics: fixed labels only; never log URLs, cookies or upstream errors.
-        console.warn('[google-drive-oauth] callback failed', {
-          stage: callbackStage,
-          reason: callbackReason,
-          code:
-            error instanceof ConnectorError && CALLBACK_LOG_CODES.has(error.code)
-              ? error.code
-              : 'unexpected',
-        });
         if (config) res.setHeader('Set-Cookie', cookie(config, 'state', '', 0));
         return redirect(res, '/?connectors=google-drive&google=error');
       }
-      const safe = error instanceof ConnectorError ? error : new ConnectorError();
       if (config && safe.code === 'auth') clearSession(res, config);
       return json(res, safe.status, {
         error: { code: safe.code, message: 'Google Drive connector request failed.' },

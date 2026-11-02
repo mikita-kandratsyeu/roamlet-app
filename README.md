@@ -22,8 +22,6 @@ Google authorization uses `openid`, `email` and `https://www.googleapis.com/auth
 
 Encrypted transport is limited to **3 MiB** per backup, below Vercel Function request/response limits. Metadata discovery is paginated and bounded at 1000 snapshots, with validation of IDs, sizes, snapshot names and app-data ownership; repeated/duplicate or potentially incomplete results are rejected. Requests use fixed Google endpoints and a 20-second server operation deadline. Compressed Google responses are bounded by decoded body size; their wire Content-Length is not compared to the decoded byte count. There are no automatic retries, synchronization, cloud deletion or retention jobs. Concurrent writes can race storage preflight checks. Cancellation cannot guarantee that a submitted upload did not finish remotely. Local routes, manual planning and GPX remain available with no Google configuration or network.
 
-Temporary OAuth diagnostics: after a failed sign-in, filter Vercel Function logs for `[google-drive-oauth] callback failed`. The `stage`, `reason` and `code` fields contain only fixed labels; do not share raw Vercel request URLs, cookies, tokens or full provider responses. Remove this diagnostic logging after resolving the production issue.
-
 ##### Google Cloud setup
 
 1. Create/select a project in [Google Cloud Console](https://console.cloud.google.com/), then enable **Google Drive API** under **APIs & Services → Library**.
@@ -195,6 +193,8 @@ Vite development/preview middleware and Vercel entry points use the same default
 Provider `401`/`403` responses are not forwarded as user authorization failures. Provider `429` becomes `503` with `UPSTREAM_RATE_LIMITED`; the browser still reports quota exhaustion and does not retry loop candidates. Firewall-generated `429` remains a separate deployment-level rate limit, handled by the browser by status regardless of response format.
 
 Each route request returns a server-generated `X-Request-Id`. Structured function logs contain only the event name, that ID, duration in milliseconds, final HTTP status and a fixed outcome category. Coordinates, keys, request bodies and raw provider errors are excluded. Logging failures do not change the response. API caching remains disabled; no shared route cache or application database is introduced.
+
+Connector handlers (GitHub, Google Drive) log only failures as `connector_failure` events with `provider`, `action`, `stage`, `reason`, `code`, `status` and `durationMs`. All fields use fixed allowlisted values; URLs, cookies, tokens, emails, repository names and provider responses are never included. Successful requests and unauthenticated session probes produce no log entries.
 
 ```sh
 yarn typecheck
