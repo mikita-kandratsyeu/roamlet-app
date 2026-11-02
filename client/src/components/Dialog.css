@@ -227,7 +227,21 @@
 
 .roamlet-dialog button:focus-visible {
   outline: 2px solid var(--ring, var(--primary));
-  outline-offset: 2px;
+  outline-offset: -4px;
+  box-shadow: none;
+}
+
+.roamlet-dialog
+  button:is(.primary, [data-variant='default'], [data-variant='destructive']):focus-visible {
+  outline-color: currentColor;
+}
+
+@media (forced-colors: active) {
+  .roamlet-dialog button:focus-visible,
+  .roamlet-dialog
+    button:is(.primary, [data-variant='default'], [data-variant='destructive']):focus-visible {
+    outline-color: Highlight;
+  }
 }
 
 .roamlet-dialog .error-inline {

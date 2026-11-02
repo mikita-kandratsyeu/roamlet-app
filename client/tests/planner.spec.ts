@@ -734,8 +734,12 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
   await menu.press('ArrowDown');
   const menuLibrary = page.getByRole('menuitem', { name: 'My routes' });
-  await menuLibrary.press('ArrowDown');
-  await page.keyboard.press('ArrowUp');
+  const firstMenuItem = page.getByRole('menu').getByRole('menuitem').first();
+  await firstMenuItem.press('Home');
+  await expect(firstMenuItem).toBeFocused();
+  if (!(await menuLibrary.evaluate((element) => element === document.activeElement))) {
+    await page.keyboard.press('ArrowDown');
+  }
   await expect(menuLibrary).toBeFocused();
   await expect(menuLibrary).toHaveCSS('outline-offset', '-2px');
   await page.getByRole('menuitem', { name: 'My routes' }).press('Enter');
@@ -752,6 +756,10 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await createRoute(page);
   const newRoute = await requestNewRoute(page);
   await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toHaveCSS(
+    'outline-offset',
+    '-4px',
+  );
   await page.keyboard.press('Enter');
   await expect(newRoute).toBeFocused();
   await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();

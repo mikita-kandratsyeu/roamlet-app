@@ -149,3 +149,100 @@ for (const touch of [false, true]) {
     }
   });
 }
+
+test('modal button focus stays inside clipped bodies with contrast on filled actions', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const width of [320, 1280]) {
+      await page.setViewportSize({ width, height: 800 });
+      for (const theme of ['', 'dark']) {
+        for (const kind of ['', 'compact', 'wide']) {
+          await page.setContent(`<style>${css}</style>
+            <section class="dialog roamlet-dialog ${kind}">
+              <div class="dialog-header"><h2>Восстановить черновик?</h2>
+                <button class="icon-button" data-variant="ghost" aria-label="Close">×</button>
+              </div>
+              <div class="dialog-body">
+                <div class="button-row dialog-actions">
+                  <button class="secondary" data-variant="outline">Удалить черновик</button>
+                  <button class="primary" data-variant="default">Восстановить черновик</button>
+                </div>
+              </div>
+              <div class="dialog-footer"><div class="button-row">
+                <button data-variant="destructive" style="background: var(--destructive); color: var(--background)">Delete</button>
+              </div></div>
+            </section>`);
+          await page.evaluate((theme) => {
+            document.documentElement.className = theme;
+          }, theme);
+          await page.keyboard.press('Tab');
+          for (const button of await page.locator('button').all()) {
+            const before = await button.boundingBox();
+            await button.focus();
+            const focus = await button.evaluate((element) => {
+              const style = getComputedStyle(element);
+              const rect = element.getBoundingClientRect();
+              const body = element.closest('.dialog-body');
+              const clip = (body ?? element.closest('.dialog')).getBoundingClientRect();
+              const outset = Math.max(
+                0,
+                parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth),
+              );
+              return {
+                outline: style.outlineStyle,
+                width: style.outlineWidth,
+                offset: style.outlineOffset,
+                outlineColor: style.outlineColor,
+                color: style.color,
+                shadow: style.boxShadow,
+                clipped:
+                  rect.left - outset < clip.left ||
+                  rect.right + outset > clip.right ||
+                  rect.top - outset < clip.top ||
+                  rect.bottom + outset > clip.bottom,
+              };
+            });
+            assert.equal(focus.outline, 'solid');
+            assert.equal(focus.width, '2px');
+            assert.equal(focus.offset, '-4px');
+            assert.equal(focus.shadow, 'none');
+            assert.equal(focus.clipped, false, `${kind}, ${theme}, ${width}px`);
+            if (
+              await button.evaluate((element) =>
+                element.matches('.primary, [data-variant="destructive"]'),
+              )
+            ) {
+              assert.equal(
+                focus.outlineColor,
+                focus.color,
+                'filled actions use their contrasting text color',
+              );
+            }
+            assert.deepEqual(
+              await button.boundingBox(),
+              before,
+              'focus does not shift modal actions',
+            );
+          }
+          await page.emulateMedia({ forcedColors: 'active' });
+          for (const button of await page.locator('button').all()) {
+            await button.focus();
+            const color = await button.evaluate((element) => {
+              const sample = document.createElement('span');
+              sample.style.color = 'Highlight';
+              document.body.append(sample);
+              const expected = getComputedStyle(sample).color;
+              sample.remove();
+              return { actual: getComputedStyle(element).outlineColor, expected };
+            });
+            assert.equal(color.actual, color.expected);
+          }
+          await page.emulateMedia({ forcedColors: 'none' });
+        }
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+});
