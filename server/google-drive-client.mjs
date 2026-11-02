@@ -127,7 +127,13 @@ export function createGoogleDriveClient(fetcher = globalThis.fetch) {
           throw new ConnectorError('auth', 401);
         throw upstreamError(response.status);
       }
-      if (length !== null && Number(length) !== bytes.length)
+      // Fetch may decode compressed bodies while retaining the encoded wire Content-Length.
+      const encoding = response.headers.get('content-encoding')?.trim().toLowerCase();
+      if (
+        length !== null &&
+        (!encoding || encoding === 'identity') &&
+        Number(length) !== bytes.length
+      )
         throw new ConnectorError('invalid-data');
       if (raw) return bytes;
       if (bytes.length === 0 && url === 'https://oauth2.googleapis.com/revoke') return null;

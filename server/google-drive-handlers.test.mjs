@@ -906,11 +906,28 @@ test('upstream failures use safe ConnectorError codes, no provider messages or t
   assert.ok(new ConnectorError('timeout', 504) instanceof Error);
 });
 
+test('token exchange accepts decoded compressed responses with wire-length headers', async () => {
+  const payload = {
+    access_token: TOKEN,
+    token_type: 'Bearer',
+    expires_in: 3600,
+    scope: SCOPES,
+  };
+  const token = Response.json(payload, {
+    headers: { 'content-encoding': 'gzip', 'content-length': '32' },
+  });
+  const response = await oauth(fixture({ token }));
+  assert.equal(response.headers.location, '/?connectors=google-drive&google=connected');
+});
+
 test('bounded response consumption rejects headers, actual overflows and length mismatches; cancels reader', async () => {
   for (const list of [
     new Response('{}', { headers: { 'content-length': String(256 * 1024 + 1) } }),
     new Response('{}', { headers: { 'content-length': 'invalid' } }),
     new Response('a'.repeat(256 * 1024 + 1)),
+    new Response('a'.repeat(256 * 1024 + 1), {
+      headers: { 'content-encoding': 'gzip', 'content-length': '128' },
+    }),
   ])
     assertError(await invoke(fixture({ list }).handler, 'list'), 'too-large', 413);
   assertError(
