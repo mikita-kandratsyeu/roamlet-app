@@ -26,8 +26,8 @@ function pending<T>() {
 function worker() {
   return Object.assign(new EventTarget(), {
     state: 'activated',
-    postMessage: vi.fn((_data: unknown, ports: FakeChannel['port2'][]) => {
-      ports[0].postMessage({ type: 'OFFLINE_STATUS', ready: true });
+    postMessage: vi.fn((data: { type: string }, ports: FakeChannel['port2'][]) => {
+      ports[0].postMessage({ type: data.type, ready: true });
     }),
   });
 }
@@ -107,8 +107,8 @@ it.each([false, undefined])(
     );
     const { result } = renderHook(usePwa);
     await waitFor(() => expect(result.current.offlineStatus).toBe('error'));
-    env.active.postMessage.mockImplementation((_data, ports) =>
-      ports[0].postMessage({ type: 'OFFLINE_STATUS', ready: true }),
+    env.active.postMessage.mockImplementation((data, ports) =>
+      ports[0].postMessage({ type: data.type, ready: true }),
     );
     await act(async () => result.current.retryOffline());
     expect(result.current.offlineStatus).toBe('ready');
@@ -364,6 +364,50 @@ it('ignores lookup/install/storage completions after unmount', async () => {
   expect(env.workers.getRegistration).toHaveBeenCalledOnce();
 });
 
+it('repairs the active worker after update, then verifies status without activating waiting workers', async () => {
+  const { result } = await ready();
+  env.active.postMessage.mockClear();
+  env.active.postMessage.mockImplementation((data, ports) => {
+    if (typeof data === 'object' && data !== null && 'type' in data)
+      ports[0].postMessage({ type: data.type, ready: true });
+  });
+  env.registration.waiting = worker();
+  await act(async () => result.current.retryOffline());
+  expect(env.registration.update).toHaveBeenCalledOnce();
+  expect(env.active.postMessage.mock.calls.map(([data]) => data)).toEqual([
+    { type: 'REPAIR_OFFLINE' },
+    { type: 'OFFLINE_STATUS' },
+  ]);
+  expect(env.registration.waiting.postMessage).not.toHaveBeenCalled();
+  expect(result.current.offlineStatus).toBe('ready');
+});
+it.each(['failed', 'stalled'] as const)(
+  'settles a %s repair as error without probing readiness or activating waiting updates',
+  async (kind) => {
+    const { result } = await ready();
+    if (kind === 'stalled') vi.useFakeTimers();
+    env.registration.waiting = worker();
+    env.active.postMessage.mockClear();
+    env.active.postMessage.mockImplementation((data, ports) => {
+      if (kind === 'failed') ports[0].postMessage({ type: data.type, ready: false });
+    });
+    let operation!: Promise<void>;
+    act(() => {
+      operation = result.current.retryOffline();
+    });
+    expect(result.current.offlineStatus).toBe('checking');
+    await act(async () => {});
+    if (kind === 'stalled') await act(async () => vi.advanceTimersByTimeAsync(10000));
+    await act(async () => operation);
+    expect(result.current.offlineStatus).toBe('error');
+    expect(result.current.updateAvailable).toBe(true);
+    expect(env.active.postMessage.mock.calls.map(([data]) => data)).toEqual([
+      { type: 'REPAIR_OFFLINE' },
+    ]);
+    expect(env.registration.waiting.postMessage).not.toHaveBeenCalled();
+    if (kind === 'stalled') expect(vi.getTimerCount()).toBe(0);
+  },
+);
 it('retries a stalled message without accepting its obsolete reply', async () => {
   env.active.postMessage.mockImplementationOnce(() => {});
   const { result } = renderHook(usePwa);
@@ -428,6 +472,8 @@ describe('service worker completion protocol', () => {
     type WorkerEvent = {
       data?: unknown;
       ports: { postMessage(data: unknown): void }[];
+      request?: { url: string; method: string; mode: string };
+      respondWith?(promise: Promise<unknown>): void;
       waitUntil(promise: Promise<unknown>): void;
     };
     const listeners = new Map<string, (event: WorkerEvent) => void>();
@@ -450,6 +496,9 @@ describe('service worker completion protocol', () => {
         entries.set(path, new Response(path.endsWith('.css') ? 'url(./font.woff2)' : 'asset'));
     });
     const match = vi.fn(async (entries: Map<string, Response>, key: string) => entries.get(key));
+    const put = vi.fn(async (entries: Map<string, Response>, key: string, value: Response) => {
+      entries.set(key, value);
+    });
     const open = async (name: string) => {
       let entries = cachesByName.get(name);
       if (!entries) {
@@ -459,18 +508,20 @@ describe('service worker completion protocol', () => {
       const current = entries;
       return {
         match: (key: string) => match(current, key),
-        put: async (key: string, value: Response) => {
-          current.set(key, value);
-        },
+        put: (key: string, value: Response) => put(current, key, value),
         addAll: (paths: string[]) => addAll(current, paths),
       };
     };
-    const fetch = vi.fn(
-      async (path: string) =>
+    const fetch = vi.fn<(path: string, options?: RequestInit) => Promise<Response>>(
+      async (path) =>
         new Response(
-          path === '/'
-            ? '<script src="/assets/app.js"></script>'
-            : JSON.stringify({ app: { file: 'assets/app.js', css: ['assets/app.css'] } }),
+          path === '/sw.js'
+            ? workerSource
+            : path === '/'
+              ? '<script src="/assets/app.js"></script>'
+              : path.endsWith('.css')
+                ? 'url(./font.woff2)'
+                : JSON.stringify({ app: { file: 'assets/app.js', css: ['assets/app.css'] } }),
         ),
     );
     const skipWaiting = vi.fn();
@@ -499,7 +550,19 @@ describe('service worker completion protocol', () => {
       await operation;
       return postMessage;
     }
-    return { cachesByName, addAll, match, fetch, dispatch, skipWaiting, Response };
+    async function navigate() {
+      let response: Promise<unknown> | undefined;
+      listeners.get('fetch')?.({
+        ports: [],
+        request: { url: 'https://example.test/', method: 'GET', mode: 'navigate' },
+        waitUntil: () => {},
+        respondWith: (promise) => {
+          response = promise;
+        },
+      });
+      return response;
+    }
+    return { cachesByName, addAll, match, put, fetch, dispatch, navigate, skipWaiting, Response };
   }
   it('only reports readiness after all shell caching succeeds, including fonts', async () => {
     const { addAll, dispatch } = shell();
@@ -509,14 +572,21 @@ describe('service worker completion protocol', () => {
       await blocked.promise;
       await add(entries, paths);
     });
-    const installing = dispatch('install');
     expect(await dispatch('message', { type: 'OFFLINE_STATUS' })).toHaveBeenCalledWith({
       type: 'OFFLINE_STATUS',
       ready: false,
     });
+    const installing = dispatch('install');
+    let responded = false;
+    const checking = dispatch('message', { type: 'OFFLINE_STATUS' }).then((response) => {
+      responded = true;
+      return response;
+    });
+    await Promise.resolve();
+    expect(responded).toBe(false);
     blocked.resolve();
     await installing;
-    expect(await dispatch('message', { type: 'OFFLINE_STATUS' })).toHaveBeenCalledWith({
+    expect(await checking).toHaveBeenCalledWith({
       type: 'OFFLINE_STATUS',
       ready: true,
     });
@@ -559,6 +629,156 @@ describe('service worker completion protocol', () => {
       });
     },
   );
+  it.each(['/assets/app.js', '/assets/font.woff2', '/__roamlet_offline_complete__'])(
+    'repairs unchanged-version cache missing %s through the hook',
+    async (asset) => {
+      const { dispatch, cachesByName, fetch, skipWaiting } = shell();
+      await dispatch('install');
+      cachesByName.get('roamlet-shell-__BUILD_REVISION__')?.delete(asset);
+      env.active.postMessage.mockImplementation((data, ports) => {
+        void dispatch('message', data).then((response) =>
+          ports[0].postMessage(response.mock.calls[0][0]),
+        );
+      });
+      const { result } = renderHook(usePwa);
+      await waitFor(() => expect(result.current.offlineStatus).toBe('error'));
+      await act(async () => result.current.retryOffline());
+      expect(result.current.offlineStatus).toBe('ready');
+      expect(env.registration.update).toHaveBeenCalledOnce();
+      expect(fetch).toHaveBeenCalledWith('/sw.js', {
+        cache: 'no-store',
+        signal: expect.any(AbortSignal),
+      });
+      expect(skipWaiting).not.toHaveBeenCalled();
+      const marker = cachesByName
+        .get('roamlet-shell-__BUILD_REVISION__')
+        ?.get('/__roamlet_offline_complete__');
+      expect(marker).toBeDefined();
+      const completion = await marker?.json();
+      expect(completion).toMatchObject({
+        revision: 'roamlet-shell-__BUILD_REVISION__',
+        cacheName: expect.stringContaining('-repair-'),
+      });
+    },
+  );
+  it('preserves the entire old cache and marker after a repair network failure', async () => {
+    const { dispatch, cachesByName, fetch, skipWaiting } = shell();
+    await dispatch('install');
+    const before = new Map(cachesByName.get('roamlet-shell-__BUILD_REVISION__'));
+    const download = fetch.getMockImplementation()!;
+    fetch.mockImplementation(async (path) => {
+      if (path === '/assets/app.js') throw new Error('network');
+      return download(path);
+    });
+    expect(await dispatch('message', { type: 'REPAIR_OFFLINE' })).toHaveBeenCalledWith({
+      type: 'REPAIR_OFFLINE',
+      ready: false,
+    });
+    expect(cachesByName.get('roamlet-shell-__BUILD_REVISION__')).toEqual(before);
+    expect([...cachesByName.keys()].some((name) => name.includes('-repair-'))).toBe(false);
+    expect(await dispatch('message', { type: 'OFFLINE_STATUS' })).toHaveBeenCalledWith({
+      type: 'OFFLINE_STATUS',
+      ready: true,
+    });
+    expect(skipWaiting).not.toHaveBeenCalled();
+  });
+  it('rejects a newer deployed revision before fetching HTML and preserves the active cache', async () => {
+    const { dispatch, cachesByName, fetch, Response, skipWaiting } = shell();
+    await dispatch('install');
+    const before = new Map(cachesByName.get('roamlet-shell-__BUILD_REVISION__'));
+    fetch.mockClear();
+    fetch.mockResolvedValue(new Response("const CACHE = 'roamlet-shell-newer';"));
+    expect(await dispatch('message', { type: 'REPAIR_OFFLINE' })).toHaveBeenCalledWith({
+      type: 'REPAIR_OFFLINE',
+      ready: false,
+    });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledWith('/sw.js', {
+      cache: 'no-store',
+      signal: expect.any(AbortSignal),
+    });
+    expect(cachesByName.get('roamlet-shell-__BUILD_REVISION__')).toEqual(before);
+    expect(skipWaiting).not.toHaveBeenCalled();
+  });
+  it('rejects a revision change during download without publishing staged HTML', async () => {
+    const { dispatch, cachesByName, fetch, Response } = shell();
+    await dispatch('install');
+    const before = new Map(cachesByName.get('roamlet-shell-__BUILD_REVISION__'));
+    const download = fetch.getMockImplementation()!;
+    let checks = 0;
+    fetch.mockImplementation(async (path) =>
+      path === '/sw.js' && ++checks === 2
+        ? new Response("const CACHE = 'roamlet-shell-newer';")
+        : download(path),
+    );
+    expect(await dispatch('message', { type: 'REPAIR_OFFLINE' })).toHaveBeenCalledWith({
+      type: 'REPAIR_OFFLINE',
+      ready: false,
+    });
+    expect(cachesByName.get('roamlet-shell-__BUILD_REVISION__')).toEqual(before);
+  });
+  it('serializes concurrent repairs so each publishes only a completely downloaded cache', async () => {
+    const { dispatch, fetch } = shell();
+    await dispatch('install');
+    const blocked = pending<void>();
+    const download = fetch.getMockImplementation()!;
+    fetch.mockImplementationOnce(async (path) => {
+      await blocked.promise;
+      return download(path);
+    });
+    fetch.mockClear();
+    const first = dispatch('message', { type: 'REPAIR_OFFLINE' });
+    const second = dispatch('message', { type: 'REPAIR_OFFLINE' });
+    await Promise.resolve();
+    expect(fetch).toHaveBeenCalledOnce();
+    blocked.resolve();
+    expect(await first).toHaveBeenCalledWith({ type: 'REPAIR_OFFLINE', ready: true });
+    expect(await second).toHaveBeenCalledWith({ type: 'REPAIR_OFFLINE', ready: true });
+  });
+  it('keeps the old marker when atomic publication fails', async () => {
+    const { dispatch, cachesByName, put } = shell();
+    await dispatch('install');
+    const before = new Map(cachesByName.get('roamlet-shell-__BUILD_REVISION__'));
+    const write = put.getMockImplementation()!;
+    put.mockImplementation(async (entries, key, value) => {
+      if (key === '/__roamlet_offline_complete__') throw new Error('quota');
+      await write(entries, key, value);
+    });
+    expect(await dispatch('message', { type: 'REPAIR_OFFLINE' })).toHaveBeenCalledWith({
+      type: 'REPAIR_OFFLINE',
+      ready: false,
+    });
+    expect(cachesByName.get('roamlet-shell-__BUILD_REVISION__')).toEqual(before);
+  });
+  it('serves navigation from the repaired cache and cleans up superseded repairs', async () => {
+    const { dispatch, navigate, cachesByName } = shell();
+    await dispatch('install');
+    await dispatch('message', { type: 'REPAIR_OFFLINE' });
+    await dispatch('message', { type: 'REPAIR_OFFLINE' });
+    const repaired = [...cachesByName.entries()].filter(([name]) => name.includes('-repair-'));
+    expect(repaired).toHaveLength(1);
+    expect(await navigate()).toBe(repaired[0][1].get('/'));
+  });
+  it('bounds stalled staging itself, releases the operation queue and prevents late publication', async () => {
+    const { dispatch, cachesByName, match, Response } = shell();
+    await dispatch('install');
+    const before = new Map(cachesByName.get('roamlet-shell-__BUILD_REVISION__'));
+    vi.useFakeTimers();
+    const blocked = pending<Awaited<ReturnType<typeof match>>>();
+    match.mockReturnValueOnce(blocked.promise);
+    const repairing = dispatch('message', { type: 'REPAIR_OFFLINE' });
+    await vi.advanceTimersByTimeAsync(8000);
+    expect(await repairing).toHaveBeenCalledWith({ type: 'REPAIR_OFFLINE', ready: false });
+    expect(await dispatch('message', { type: 'OFFLINE_STATUS' })).toHaveBeenCalledWith({
+      type: 'OFFLINE_STATUS',
+      ready: true,
+    });
+    blocked.resolve(new Response('url(./font.woff2)'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(cachesByName.get('roamlet-shell-__BUILD_REVISION__')).toEqual(before);
+    expect([...cachesByName.keys()].some((name) => name.includes('-repair-'))).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it('rejects wrong markers/cache errors and preserves explicit startup activation', async () => {
     const { cachesByName, Response, match, dispatch, skipWaiting } = shell();
     await dispatch('install');

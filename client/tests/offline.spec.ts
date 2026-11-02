@@ -1047,6 +1047,64 @@ test('waypoint-only GPX remains usable and cannot crash route conversion', async
   await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();
 });
 
+test('device dialog repairs an incomplete active cache without reloading the app', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'App on this device', exact: true }).click();
+  await expect(page.getByText('Ready to work offline', { exact: true })).toBeVisible();
+  await page.evaluate(async () => {
+    for (const key of await caches.keys()) {
+      if (key.startsWith('roamlet-shell-')) await (await caches.open(key)).delete('/icon-192.png');
+    }
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'App on this device', exact: true }).click();
+  await expect(page.getByText('Offline preparation could not be verified', { exact: true })).toBeVisible();
+  let reloads = 0;
+  page.on('framenavigated', (frame) => { if (frame === page.mainFrame()) reloads++; });
+  await page.getByRole('button', { name: 'Retry offline preparation', exact: true }).click();
+  await expect(page.getByText('Ready to work offline', { exact: true })).toBeVisible();
+  expect(await page.evaluate(async () => Boolean(await caches.match('/icon-192.png')))).toBe(true);
+  expect(reloads).toBe(0);
+});
+
+test('device dialog explains a waiting update without reloading an open editor', async ({ page, context }) => {
+  const workerPath = resolve('dist', 'sw.js');
+  const original = await readFile(workerPath, 'utf8');
+  const otherPage = await context.newPage();
+  let reloads = 0;
+  let otherReloads = 0;
+  try {
+    await otherPage.route('**/osm-standard.json', (route) => route.fulfill({ json: { version: 8, sources: {}, layers: [] } }));
+    await otherPage.goto('/');
+    await expect(otherPage.getByRole('heading', { name: 'New route', exact: true })).toBeVisible();
+    otherPage.on('framenavigated', (frame) => { if (frame === otherPage.mainFrame()) otherReloads++; });
+    await page.goto('/');
+    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+    page.on('framenavigated', (frame) => { if (frame === page.mainFrame()) reloads++; });
+    await writeFile(workerPath, original.replace(/const CACHE = '[^']+';/, `const CACHE = 'roamlet-shell-dialog-${crypto.randomUUID()}';`));
+    await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration('/'))?.update(); });
+    await page.waitForFunction(async () => Boolean((await navigator.serviceWorker.getRegistration('/'))?.waiting));
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'App on this device', exact: true }).click();
+    await expect(page.getByText('An update is ready. It will apply on the next app launch or reload, not while you are editing.', { exact: true })).toBeVisible();
+    expect(reloads).toBe(0);
+    await page.reload();
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'App on this device', exact: true }).click();
+    await expect(page.getByText('Ready to work offline', { exact: true })).toBeVisible();
+    expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration('/'))?.waiting))).toBe(false);
+    expect(reloads).toBe(2);
+    expect(otherReloads).toBe(0);
+    await expect(otherPage.getByRole('heading', { name: 'New route', exact: true })).toBeVisible();
+  } finally {
+    await writeFile(workerPath, original);
+    await otherPage.close();
+  }
+});
+
 test('device dialog verifies the production offline shell and remains available after offline reload', async ({ page, context }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Menu', exact: true }).click();

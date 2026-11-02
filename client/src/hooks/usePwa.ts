@@ -133,24 +133,54 @@ export function usePwa() {
       setOfflineStatus('checking');
       return new Promise((resolve) => {
         let settled = false;
-        let channel: MessageChannel | undefined;
-        let messageTimer: ReturnType<typeof setTimeout> | undefined;
+        let cancelMessage = () => {};
         const valid = () => mounted && current === version && !settled;
         const finish = (status?: OfflineStatus) => {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
-          clearTimeout(messageTimer);
-          if (channel) {
-            channel.port1.onmessage = null;
-            channel.port1.close();
-            channel.port2.close();
-          }
+          cancelMessage();
           if (status && mounted && current === version) setOfflineStatus(status);
           resolve();
         };
         const timer = setTimeout(() => finish('error'), OFFLINE_TIMEOUT);
         cancelOperation = () => finish();
+        const request = (worker: ServiceWorker, type: 'OFFLINE_STATUS' | 'REPAIR_OFFLINE') =>
+          new Promise<boolean>((done) => {
+            const channel = new MessageChannel();
+            let completed = false;
+            const complete = (ready: boolean) => {
+              if (completed) return;
+              completed = true;
+              clearTimeout(messageTimer);
+              channel.port1.onmessage = null;
+              channel.port1.close();
+              channel.port2.close();
+              done(ready);
+            };
+            const messageTimer = setTimeout(
+              () => complete(false),
+              type === 'REPAIR_OFFLINE' ? OFFLINE_TIMEOUT : MESSAGE_TIMEOUT,
+            );
+            cancelMessage = () => complete(false);
+            channel.port1.onmessage = (event: MessageEvent<unknown>) => {
+              const data = event.data;
+              complete(
+                valid() &&
+                  typeof data === 'object' &&
+                  data !== null &&
+                  'type' in data &&
+                  data.type === type &&
+                  'ready' in data &&
+                  data.ready === true,
+              );
+            };
+            try {
+              worker.postMessage({ type }, [channel.port2]);
+            } catch {
+              complete(false);
+            }
+          });
         void (async () => {
           try {
             const existing = registration ?? (await navigator.serviceWorker.getRegistration('/'));
@@ -167,23 +197,17 @@ export function usePwa() {
               if (!next.installing && !next.waiting) finish('error');
               return;
             }
-            channel = new MessageChannel();
-            channel.port1.onmessage = (event: MessageEvent<unknown>) => {
+            const active = next.active;
+            if (forceUpdate && existing) {
+              const repaired = await request(active, 'REPAIR_OFFLINE');
               if (!valid()) return;
-              const data = event.data;
-              finish(
-                typeof data === 'object' &&
-                  data !== null &&
-                  'type' in data &&
-                  data.type === 'OFFLINE_STATUS' &&
-                  'ready' in data &&
-                  data.ready === true
-                  ? 'ready'
-                  : 'error',
-              );
-            };
-            messageTimer = setTimeout(() => finish('error'), MESSAGE_TIMEOUT);
-            next.active.postMessage({ type: 'OFFLINE_STATUS' }, [channel.port2]);
+              if (!repaired) {
+                finish('error');
+                return;
+              }
+            }
+            const ready = await request(active, 'OFFLINE_STATUS');
+            if (valid()) finish(ready ? 'ready' : 'error');
           } catch {
             finish('error');
           }
