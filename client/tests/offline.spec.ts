@@ -112,7 +112,7 @@ test('installation metadata and branded icons stay available in the production o
     ['/icon-512.png', 512],
     ['/icon-maskable-512.png', 512],
     ['/github-mark.png', 560],
-    ['/google-drive.png', 96],
+    ['/google-drive-2026.png', 128],
     ['/icon.svg', null],
   ] as const) {
     const pixels = await page.evaluate(async (src) => {

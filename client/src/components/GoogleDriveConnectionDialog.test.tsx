@@ -95,7 +95,7 @@ it('places Google Drive first, with its own logo, state and sign-in modal', asyn
   const cards = screen.getAllByRole('listitem');
   expect(within(cards[0]).getByRole('heading')).toHaveTextContent('Google Drive');
   expect(within(cards[1]).getByRole('heading')).toHaveTextContent('GitHub');
-  expect(cards[0].querySelector('img')).toHaveAttribute('src', '/google-drive.png');
+  expect(cards[0].querySelector('img')).toHaveAttribute('src', '/google-drive-2026.png');
   await userEvent
     .setup()
     .click(card('Google Drive').getByRole('button', { name: 'Set up connection' }));

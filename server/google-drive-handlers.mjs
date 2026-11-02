@@ -67,6 +67,9 @@ function parse(req) {
   return { action, params: url.searchParams };
 }
 function clearSession(res, config) {
+  res.setHeader('Set-Cookie', cookie(config, 'session', '', 0));
+}
+function clearAuthorization(res, config) {
   res.setHeader('Set-Cookie', [cookie(config, 'session', '', 0), cookie(config, 'state', '', 0)]);
 }
 export function createGoogleDriveHandler({
@@ -188,7 +191,7 @@ export function createGoogleDriveHandler({
         return redirect(res, '/?connectors=google-drive&google=connected');
       }
       if (action === 'logout') {
-        clearSession(res, config);
+        clearAuthorization(res, config);
         if (session)
           try {
             await client.revoke(session.token, lifetime.signal);

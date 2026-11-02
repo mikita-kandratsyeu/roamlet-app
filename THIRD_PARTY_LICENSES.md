@@ -25,7 +25,7 @@ The connector uses the unmodified [official GitHub Mark](https://github.githubas
 
 ## Google Drive connector brand asset
 
-The connector identifies Google Drive using the unmodified [official Google Drive product icon](https://www.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png), bundled as `client/public/google-drive.png` and served only from the application origin at runtime. Google Drive and its icon are Google trademarks, not Roamlet artwork or Lucide icons. Follow [Google's brand guidance](https://about.google/brand-resource-center/) and applicable [Drive branding guidance](https://developers.google.com/workspace/drive/api/guides/branding). This integration is not endorsed by Google.
+The connector identifies Google Drive using the unmodified [official 2026 Google Drive product icon](https://www.gstatic.com/images/branding/productlogos/drive_2026/v2/web-64dp/logo_drive_2026_color_2x_web_64dp.png), bundled as `client/public/google-drive-2026.png` and served only from the application origin at runtime. Google Drive and its icon are Google trademarks, not Roamlet artwork or Lucide icons. Follow [Google's brand guidance](https://about.google/brand-resource-center/) and applicable [Drive branding guidance](https://developers.google.com/workspace/drive/api/guides/branding). This integration is not endorsed by Google.
 
 ## Development libraries
 

@@ -6,7 +6,7 @@ export const STORAGE_PROVIDERS = [
   {
     id: 'google-drive',
     name: 'Google Drive',
-    icon: '/google-drive.png',
+    icon: '/google-drive-2026.png',
     description:
       'Encrypted library backups in your Google Drive, with access only to Roamlet data.',
   },

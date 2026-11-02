@@ -289,9 +289,33 @@ test('session is local, fixed expiry, provider-distinct and origin/client/key/pu
   ]) {
     const response = await invoke(fx.handler, 'session', { headers: { cookie: value } });
     assert.deepEqual(response.data, { available: true, connected: false });
-    assert.ok(response.headers['set-cookie'].every((item) => item.includes('Max-Age=0')));
+    assert.match(
+      response.headers['set-cookie'],
+      /^__Host-roamlet-google-drive-session=.*Max-Age=0;/,
+    );
   }
   assert.equal(openCookie({ headers: { cookie: valid } }, config(), 'state', NOW), null);
+});
+
+test('session polling during OAuth does not erase the state cookie needed by the callback', async () => {
+  const fx = fixture();
+  const start = await invoke(fx.handler, 'start');
+  const stateCookie = start.headers['set-cookie'].split(';')[0];
+  const session = await invoke(fx.handler, 'session', { headers: { cookie: stateCookie } });
+  assert.deepEqual(session.data, { available: true, connected: false });
+  assert.equal(typeof session.headers['set-cookie'], 'string');
+  assert.ok(session.headers['set-cookie'].startsWith(`${cookieName(config(), 'session')}=`));
+  assert.ok(!session.headers['set-cookie'].includes(cookieName(config(), 'state')));
+  const check = await invoke(fx.handler, 'check', { headers: { cookie: stateCookie } });
+  assertError(check, 'auth', 401);
+  assert.ok(check.headers['set-cookie'].startsWith(`${cookieName(config(), 'session')}=`));
+  assert.ok(!check.headers['set-cookie'].includes(cookieName(config(), 'state')));
+  const state = new URL(start.headers.location).searchParams.get('state');
+  const callback = await invoke(fx.handler, 'callback', {
+    query: `&code=4%2Fsynthetic-code&state=${state}`,
+    headers: { cookie: stateCookie, 'sec-fetch-site': 'cross-site' },
+  });
+  assert.equal(callback.headers.location, '/?connectors=google-drive&google=connected');
 });
 
 test('Google OAuth uses online-only exact scopes, PKCE S256, browser state and fixed form exchange', async () => {
@@ -548,7 +572,7 @@ test('check verifies current token identity and actual Drive appDataFolder acces
   const rejected = await invoke(changed.handler, 'check');
   assertError(rejected, 'auth', 401);
   assert.equal(changed.calls.length, 1);
-  assert.ok(rejected.headers['set-cookie'].every((item) => item.includes('Max-Age=0')));
+  assert.match(rejected.headers['set-cookie'], /^__Host-roamlet-google-drive-session=.*Max-Age=0;/);
   const expired = await invoke(fx.handler, 'check', {
     headers: { cookie: sessionCookie({ expiresAt: NOW }) },
   });
