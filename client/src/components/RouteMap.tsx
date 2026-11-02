@@ -1,5 +1,6 @@
 import './map-controls.css';
 import { lineFeatures, pointFeature, routeAnnotations } from '../domain/mapAnnotations';
+import { observeSettledMapResize } from '../domain/mapResize';
 import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Popover } from 'radix-ui';
@@ -330,6 +331,7 @@ export function RouteMap(props: Props) {
         dragPan: MAP_PAN_OPTIONS,
         doubleClickZoom: false,
         attributionControl: false,
+        trackResize: false,
         locale: {
           'NavigationControl.ZoomIn': i18n.t('Zoom in'),
           'NavigationControl.ZoomOut': i18n.t('Zoom out'),
@@ -713,13 +715,12 @@ export function RouteMap(props: Props) {
     }, (until) => { suppressClickUntil.current = until; });
     lineDrag.current = drag;
     canvas.addEventListener('mouseleave', clearHover);
-    const observer = new ResizeObserver(() => instance.resize());
-    observer.observe(container.current);
+    const stopObservingResize = observeSettledMapResize(container.current, () => instance.resize());
     return () => {
       window.clearTimeout(timeout);
       window.removeEventListener('pagehide', persistOnHide);
       window.removeEventListener(PREFERENCES_CHANGE_EVENT, preferencesChanged);
-      observer.disconnect();
+      stopObservingResize();
       drag.destroy();
       cancelMarkerDrag.current?.();
       lineDrag.current = null;
