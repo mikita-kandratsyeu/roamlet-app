@@ -45,7 +45,9 @@ test('AI export preview stays private and usable in both languages and themes', 
       await copy.focus();
       await expect(copy).toBeFocused();
       await copy.press('Enter');
-      await expect(dialog.getByRole('status')).toBeVisible();
+      const notification = page.locator('[data-sonner-toast][data-type="success"]').filter({ hasText: /Request copied|Запрос скопирован/ });
+      await expect(notification).toBeVisible();
+      await expect(dialog.getByText(/Request copied|Запрос скопирован/)).toHaveCount(0);
       expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await preview.inputValue());
       expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       expect(await dialog.locator('.dialog-body').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);

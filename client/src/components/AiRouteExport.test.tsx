@@ -1,5 +1,6 @@
-import { afterEach, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { Toaster } from './ui/sonner';
 import userEvent from '@testing-library/user-event';
 import { AiRouteExport } from './AiRouteExport';
 import type { PlannedRoute } from '../domain/types';
@@ -22,6 +23,8 @@ const route: PlannedRoute = {
   createdAt: '2026-01-01',
   updatedAt: '2026-01-01',
 };
+const copiedMessage = 'Request copied. Paste it into your AI chat.';
+beforeEach(() => render(<Toaster />));
 afterEach(async () => {
   cleanup();
   vi.restoreAllMocks();
@@ -41,14 +44,20 @@ it('copies exactly the preview after a click, with location excluded by default'
   expect(write).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'Copy for AI' }));
   expect(write).toHaveBeenCalledExactlyOnceWith((preview as HTMLTextAreaElement).value);
-  expect(screen.getByRole('status')).toHaveTextContent('Request copied');
+  expect((await screen.findByText(copiedMessage)).closest('[data-sonner-toast]')).toHaveAttribute(
+    'data-type',
+    'success',
+  );
+  expect(
+    within(screen.getByRole('region', { name: 'For AI' })).queryByText(copiedMessage),
+  ).not.toBeInTheDocument();
   await user.click(
     screen.getByRole('checkbox', { name: 'Include names, coordinates and departure date' }),
   );
   expect(
     screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Request preview' }).value,
   ).toContain('Private name');
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByText(copiedMessage)).not.toBeInTheDocument());
   expect(write).toHaveBeenCalledTimes(1);
 });
 
@@ -60,11 +69,19 @@ it('keeps manual copying available after a failure and supports retry', async ()
     .mockResolvedValue();
   render(<AiRouteExport route={route} />);
   await user.click(screen.getByRole('button', { name: 'Copy for AI' }));
-  expect(screen.getByRole('alert')).toHaveTextContent('copy it manually');
+  const error = await screen.findByRole('alert');
+  expect(error).toHaveTextContent('copy it manually');
+  expect(error.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'error');
+  expect(
+    within(screen.getByRole('region', { name: 'For AI' })).queryByRole('alert'),
+  ).not.toBeInTheDocument();
   expect(screen.getByRole('textbox', { name: 'Request preview' })).toBeEnabled();
   await user.click(screen.getByRole('button', { name: 'Copy for AI' }));
-  expect(screen.getByRole('status')).toBeVisible();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect((await screen.findByText(copiedMessage)).closest('[data-sonner-toast]')).toHaveAttribute(
+    'data-type',
+    'success',
+  );
+  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
   expect(write).toHaveBeenCalledTimes(2);
 });
 
@@ -75,7 +92,7 @@ it('handles browsers without the clipboard API', async () => {
   vi.stubGlobal('navigator', withoutClipboard);
   render(<AiRouteExport route={route} />);
   await user.click(screen.getByRole('button', { name: 'Copy for AI' }));
-  expect(screen.getByRole('alert')).toBeVisible();
+  expect(await screen.findByRole('alert')).toBeVisible();
 });
 
 it('ignores an obsolete copy result after the route changes or the component closes', async () => {
@@ -93,10 +110,25 @@ it('ignores an obsolete copy result after the route changes or the component clo
   view.rerender(<AiRouteExport route={{ ...route, stats: { distance: 14000, duration: 900 } }} />);
   finish();
   await waitFor(() => expect(screen.getByRole('button', { name: 'Copy for AI' })).toBeEnabled());
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(screen.queryByText(copiedMessage)).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Copy for AI' }));
   view.unmount();
   finish();
+});
+
+it('supports toast dismissal and removes owned notifications on close', async () => {
+  const user = userEvent.setup();
+  vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+  const view = render(<AiRouteExport route={route} />);
+  await user.click(screen.getByRole('button', { name: 'Copy for AI' }));
+  await screen.findByText(copiedMessage);
+  screen.getByRole('button', { name: 'Dismiss notification' }).focus();
+  await user.keyboard('{Enter}');
+  await waitFor(() => expect(screen.queryByText(copiedMessage)).not.toBeInTheDocument());
+  await user.click(screen.getByRole('button', { name: 'Copy for AI' }));
+  await screen.findByText(copiedMessage);
+  view.unmount();
+  await waitFor(() => expect(screen.queryByText(copiedMessage)).not.toBeInTheDocument());
 });
 
 it('localizes the interface and request to Russian', async () => {

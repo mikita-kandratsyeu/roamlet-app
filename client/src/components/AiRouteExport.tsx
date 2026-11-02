@@ -8,6 +8,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import { Notification } from './Notification';
 
 export function AiRouteExport({
   route,
@@ -92,13 +93,18 @@ export function AiRouteExport({
         )}
         {t(state === 'copying' ? 'Copying…' : 'Copy for AI')}
       </Button>
-      {state === 'copied' && (
-        <p role="status">{t('Request copied. Paste it into your AI chat.')}</p>
-      )}
-      {state === 'error' && (
-        <p role="alert">
-          {t('Copying failed. Select the preview and copy it manually, or try again.')}
-        </p>
+      {(state === 'copied' || state === 'error') && (
+        <Notification
+          key={state}
+          title={t('Notification')}
+          variant={state === 'copied' ? 'success' : 'error'}
+          message={t(
+            state === 'copied'
+              ? 'Request copied. Paste it into your AI chat.'
+              : 'Copying failed. Select the preview and copy it manually, or try again.',
+          )}
+          onDismiss={() => setStatus(null)}
+        />
       )}
     </section>
   );
