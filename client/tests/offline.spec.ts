@@ -2,12 +2,15 @@ import { clickMapTool, mapTool } from './mapControls';
 import { test, expect } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { createServer } from 'node:http';
 
 let forbiddenRequests: string[] = [];
 let allowUnavailableRoutingRequest = false;
+let allowConnectorNavigation = false;
 test.beforeEach(async ({ page }) => {
   forbiddenRequests = [];
   allowUnavailableRoutingRequest = false;
+  allowConnectorNavigation = false;
   await page.route('**/*.mapbox.com/**', (route) => route.abort());
   await page.route('https://api.openrouteservice.org/**', (route) => route.abort());
   await page.route('https://api.heigit.org/**', (route) => route.abort());
@@ -34,6 +37,7 @@ test.beforeEach(async ({ page }) => {
       url.pathname.startsWith('/api/') &&
       url.pathname !== '/api/routing-config' &&
       !(url.pathname === '/api/github' && url.searchParams.get('action') === 'session') &&
+      !(allowConnectorNavigation && ['/api/github', '/api/google-drive'].includes(url.pathname) && ['start', 'callback'].includes(url.searchParams.get('action') || '')) &&
       !(allowUnavailableRoutingRequest && url.pathname === '/api/route')
     ) {
       forbiddenRequests.push(url.pathname);
@@ -164,6 +168,113 @@ test('connector list and official GitHub mark are available on the first offline
   await connections.getByRole('button', { name: 'Back to map' }).click();
   await expect(connections).toHaveCount(0);
 });
+
+test('production service worker lets OAuth API navigations and callbacks reach the network', async ({ page, context }) => {
+  allowConnectorNavigation = true;
+  await page.goto('/');
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  const requests: string[] = [];
+  const providerServer = createServer((_request, response) => {
+    response.writeHead(200, { 'Content-Type': 'text/html' });
+    response.end('<!doctype html><title>Authorization test</title><p>Mock provider authorization</p>');
+  });
+  await new Promise<void>((resolve, reject) => {
+    providerServer.once('error', reject);
+    providerServer.listen(0, '127.0.0.1', () => {
+      providerServer.off('error', reject);
+      resolve();
+    });
+  });
+  const address = providerServer.address();
+  if (!address || typeof address === 'string') throw new Error('Provider fixture did not start');
+  const providerOrigin = `http://127.0.0.1:${address.port}`;
+  try {
+  await context.route('**/api/github?**', (route) => {
+    const url = new URL(route.request().url());
+    const action = url.searchParams.get('action');
+    if (action !== 'start' && action !== 'callback') return route.continue();
+    requests.push(`github:${action}`);
+    return route.fulfill({ status: 302, headers: {
+      Location: action === 'start' ? `${providerOrigin}/authorize?provider=github` : '/?connectors=github&github=error',
+      'Cache-Control': 'no-store',
+    } });
+  });
+  await context.route('**/api/google-drive?**', (route) => {
+    const url = new URL(route.request().url());
+    const action = url.searchParams.get('action');
+    requests.push(`google-drive:${action}`);
+    return route.fulfill({ status: 302, headers: {
+      Location: action === 'start' ? `${providerOrigin}/authorize?provider=google-drive` : '/',
+      'Cache-Control': 'no-store',
+    } });
+  });
+  for (const provider of ['github', 'google-drive']) {
+    await page.goto(`/api/${provider}?action=start`);
+    await expect(page).toHaveURL(`${providerOrigin}/authorize?provider=${provider}`);
+    await expect(page.getByText('Mock provider authorization')).toBeVisible();
+    await page.goto(`http://127.0.0.1:4175/api/${provider}?action=callback&code=synthetic-code&state=synthetic-state`);
+    await expect(page).toHaveTitle('Roamlet');
+    await expect(page.locator('.brand')).toBeAttached();
+    expect(new URL(page.url()).pathname).toBe('/');
+  }
+  expect(requests).toEqual(['github:start', 'github:callback', 'google-drive:start', 'google-drive:callback']);
+  const cachedUrls = await page.evaluate(async () => {
+    const urls: string[] = [];
+    for (const name of await caches.keys()) {
+      if (!name.startsWith('roamlet-shell-')) continue;
+      for (const request of await (await caches.open(name)).keys()) urls.push(new URL(request.url).pathname);
+    }
+    return urls;
+  });
+  expect(cachedUrls.some((path) => path === '/api' || path.startsWith('/api/'))).toBe(false);
+  } finally {
+    providerServer.closeAllConnections();
+    await new Promise<void>((resolve, reject) => providerServer.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+for (const width of [320, 390, 1440]) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`offline banner buttons fit Russian labels at ${width}px in ${colorScheme}`, async ({ page, context }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ colorScheme });
+      await page.addInitScript(() => localStorage.setItem('roamlet-language', 'ru'));
+      await page.goto('/');
+      await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+      await context.setOffline(true);
+      try {
+        const banner = page.locator('.offline-banner');
+        await expect(banner.getByText('Нет подключения к интернету', { exact: true })).toBeVisible();
+        const manual = banner.getByRole('button', { name: 'Рисовать вручную', exact: true });
+        const retry = banner.getByRole('button', { name: 'Проверить подключение', exact: true });
+        for (const button of [manual, retry]) {
+          await expect(button).toBeVisible();
+          const measured = await button.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            return { height: bounds.height, fits: Array.from(range.getClientRects()).every((line) => line.top >= bounds.top && line.bottom <= bounds.bottom && line.left >= bounds.left && line.right <= bounds.right) };
+          });
+          expect(measured.height).toBeGreaterThanOrEqual(44);
+          expect(measured.fits).toBe(true);
+        }
+        expect(await banner.evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(width);
+        if (width === 320) expect((await retry.boundingBox())!.y).toBeGreaterThanOrEqual((await manual.boundingBox())!.y + (await manual.boundingBox())!.height);
+        if (width === 390) expect((await manual.boundingBox())!.height).toBe((await retry.boundingBox())!.height);
+        await page.screenshot({ path: testInfo.outputPath('offline-banner-ru.png'), animations: 'disabled' });
+        await manual.click();
+        await expect(manual).toHaveCount(0);
+        await expect(retry).toBeVisible();
+        if (width <= 700) expect((await retry.boundingBox())!.width).toBeCloseTo((await banner.locator('.offline-banner-actions').boundingBox())!.width, 0);
+        await retry.click();
+        await expect(banner).toBeVisible();
+      } finally {
+        await context.setOffline(false);
+      }
+    });
+  }
+}
 
 const gpx =
   '<gpx version="1.1" creator="Roamlet test" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>Offline escape</name><trkseg><trkpt lat="47.2692" lon="11.4041"><ele>600</ele></trkpt><trkpt lat="47.271" lon="11.411"><ele>630</ele></trkpt></trkseg></trk></gpx>';

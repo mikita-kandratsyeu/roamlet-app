@@ -1563,6 +1563,11 @@
   gap: 8px;
 }
 .offline-banner-actions button {
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  padding: 10px 12px;
+  line-height: 1.4;
   white-space: normal;
 }
 .offline-planner-notice {
@@ -1646,10 +1651,13 @@
     gap: 8px;
   }
   .offline-banner-copy {
+    display: grid;
     flex-basis: calc(100% - 26px);
     font-size: var(--font-size-body);
   }
   .offline-banner-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
     width: 100%;
   }
   .offline-banner-actions button {
