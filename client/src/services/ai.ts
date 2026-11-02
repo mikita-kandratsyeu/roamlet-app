@@ -47,7 +47,7 @@ async function request(action: string, signal: AbortSignal, body?: unknown): Pro
       signal,
       ...(body === undefined
         ? {}
-        : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+        : { headers: { 'Content-Type': 'application/json', 'X-Roamlet-Request': '1' }, body: JSON.stringify(body) }),
     });
   } catch (error) {
     if (signal.aborted) throw error;
