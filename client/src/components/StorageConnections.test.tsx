@@ -94,6 +94,7 @@ it('renders a searchable card grid and opens setup as an accessible modal with r
   await screen.findByText('Not connected');
   const card = screen.getByRole('heading', { name: 'GitHub' }).closest('article')!;
   expect(card.querySelector('img')).toHaveAttribute('src', '/github-mark.png');
+  expect(within(card).queryByRole('button', { name: 'Disconnect GitHub' })).not.toBeInTheDocument();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   const search = screen.getByRole('textbox', { name: 'Search connectors' });
   expect(search.closest('label')).toHaveClass('library-search');
@@ -182,7 +183,14 @@ it('keeps ciphertext upload explicit and clears passwords when the modal closes'
 it('confirms disconnect for all tabs without removing routes or cloud files', async () => {
   const user = await setupRepository();
   await user.click(screen.getByRole('button', { name: 'Done' }));
-  await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+  const disconnect = githubCard().getByRole('button', { name: 'Disconnect GitHub' });
+  expect(disconnect.closest('.connector-card-heading')).toBeInTheDocument();
+  expect(
+    githubCard()
+      .getByRole('button', { name: 'Manage connection' })
+      .closest('.connector-card-actions'),
+  ).toBeInTheDocument();
+  await user.click(disconnect);
   const dialog = screen.getByRole('dialog', { name: 'Disconnect GitHub?' });
   expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
   expect(logoutGitHub).not.toHaveBeenCalled();
@@ -196,7 +204,7 @@ it('does not pretend disconnect succeeded after a server failure', async () => {
   const user = await setupRepository();
   await user.click(screen.getByRole('button', { name: 'Done' }));
   vi.mocked(logoutGitHub).mockRejectedValue(new ConnectorError('network'));
-  await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+  await user.click(githubCard().getByRole('button', { name: 'Disconnect GitHub' }));
   const modal = screen.getByRole('dialog', { name: 'Disconnect GitHub?' });
   await user.click(within(modal).getByRole('button', { name: 'Disconnect' }));
   await waitFor(() =>
@@ -391,7 +399,9 @@ it('explains password constraints next to inputs without firing error toasts', a
   await user.type(password, 'short');
   await user.tab();
   expect(password).toHaveAttribute('aria-invalid', 'true');
-  expect(password).toHaveAccessibleDescription('Use at least 12 characters.');
+  expect(password).toHaveAccessibleDescription(
+    'Use at least 12 characters. Password strength: Weak (estimate)',
+  );
   const confirmation = screen.getByLabelText('Confirm backup password');
   await user.type(confirmation, 'different');
   await user.tab();

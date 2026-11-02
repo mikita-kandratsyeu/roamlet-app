@@ -156,7 +156,7 @@ test('Google Drive encrypted backup and restore reuse planner menus and preserve
   await page
     .getByRole('menuitemradio', { name: new RegExp(entry.name.replaceAll('.', '\\.')) })
     .click();
-  await dialog.getByLabel('Restore password').fill('synthetic-password');
+  await dialog.getByLabel('Restore password', { exact: true }).fill('synthetic-password');
   await dialog.getByRole('button', { name: 'Preview restoration' }).click();
   await expect(dialog.getByText('1 conflicting routes')).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Conflicting routes' })).toContainText(
@@ -216,7 +216,9 @@ test('expired Google access uses one Sonner error and Google logout leaves GitHu
   await toast.getByRole('button', { name: 'Dismiss notification' }).click();
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Done' }).click();
-  await googleCard(page).getByRole('button', { name: 'Disconnect', exact: true }).click();
+  await googleCard(page)
+    .getByRole('button', { name: 'Disconnect Google Drive', exact: true })
+    .click();
   await page
     .getByRole('dialog', { name: 'Disconnect Google Drive?' })
     .getByRole('button', { name: 'Disconnect', exact: true })

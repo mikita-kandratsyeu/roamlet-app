@@ -157,7 +157,7 @@ it('confirms Google-only logout across tabs while preserving GitHub repository m
   );
   const user = await setup();
   await user.click(screen.getByRole('button', { name: 'Done' }));
-  await user.click(card('Google Drive').getByRole('button', { name: 'Disconnect' }));
+  await user.click(card('Google Drive').getByRole('button', { name: 'Disconnect Google Drive' }));
   const prompt = screen.getByRole('dialog', { name: 'Disconnect Google Drive?' });
   expect(within(prompt).getByRole('button', { name: 'Cancel' })).toHaveFocus();
   await user.click(within(prompt).getByRole('button', { name: 'Disconnect' }));

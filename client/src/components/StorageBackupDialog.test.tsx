@@ -147,6 +147,51 @@ it('clears both creation and restore passwords when the provider target changes'
   expect(screen.getByLabelText('Confirm backup password')).toHaveValue('');
 });
 
+it('shows a strength estimate and allows a generated password to be inspected and confirmed', async () => {
+  const value = props();
+  render(<StorageBackupDialog {...value} />);
+  const user = userEvent.setup();
+  await screen.findByText('0 saved routes will be included');
+  const password = screen.getByLabelText('Backup password', { exact: true });
+  const confirmation = screen.getByLabelText('Confirm backup password');
+  expect(password).toHaveAttribute('type', 'password');
+  await user.type(password, 'aaaaaaaaaaaa');
+  expect(screen.getByText('Password strength: Weak (estimate)')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Generate password' }));
+  const generated = (password as HTMLInputElement).value;
+  expect(generated).toHaveLength(24);
+  expect(screen.getByText('Password strength: Strong (estimate)')).toBeVisible();
+  expect(password).toHaveAttribute('type', 'text');
+  expect(confirmation).toHaveValue('');
+  expect(screen.getByRole('button', { name: 'Create encrypted backup' })).toBeDisabled();
+  await user.click(screen.getByRole('button', { name: 'Hide backup password' }));
+  expect(password).toHaveAttribute('type', 'password');
+  await user.type(confirmation, 'wrong-password');
+  expect(screen.getByText('Passwords do not match.')).toBeVisible();
+  await user.clear(confirmation);
+  await user.type(confirmation, generated);
+  expect(screen.getByText('Passwords match.')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Show confirmation password' }));
+  expect(confirmation).toHaveAttribute('type', 'text');
+  await user.click(screen.getByRole('button', { name: 'Create encrypted backup' }));
+  expect(value.storage.upload).toHaveBeenCalledWith(generated);
+});
+
+it('toggles restore password visibility without changing the preview input', async () => {
+  const value = props();
+  value.storage.backups = [{ id: 'snapshot', name: 'snapshot.roamlet', size: 100 }];
+  render(<StorageBackupDialog {...value} />);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('tab', { name: 'Restore a backup' }));
+  const password = screen.getByLabelText('Restore password');
+  await user.type(password, 'old-backup-secret');
+  await user.click(screen.getByRole('button', { name: 'Show restore password' }));
+  expect(password).toHaveAttribute('type', 'text');
+  expect(password).toHaveValue('old-backup-secret');
+  await user.click(screen.getByRole('button', { name: 'Hide restore password' }));
+  expect(password).toHaveAttribute('type', 'password');
+});
+
 it('reports a failed local summary with an error Sonner toast using the supplied title', async () => {
   vi.mocked(listRoutes).mockRejectedValueOnce(new Error('Local library unavailable'));
   const value = props();

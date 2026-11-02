@@ -100,7 +100,7 @@ test('GitHub App modal backs up encrypted routes through same-origin functions a
   await page
     .getByRole('menuitemradio', { name: new RegExp(entry.name.replaceAll('.', '\\.')) })
     .click();
-  await modal.getByLabel('Restore password').fill(password);
+  await modal.getByLabel('Restore password', { exact: true }).fill(password);
   await modal.getByRole('button', { name: 'Preview restoration' }).click();
   await expect(modal.getByText('1 conflicting routes')).toBeVisible();
   await expect(modal.getByRole('button', { name: 'Conflicting routes' })).toContainText(
@@ -139,7 +139,7 @@ test('GitHub App modal backs up encrypted routes through same-origin functions a
 test('shared cookie-session status survives reload and logout synchronizes to another tab', async ({
   page,
   context,
-}) => {
+}, testInfo) => {
   let authenticated = true;
   await context.route('**/api/github?**', (route) => {
     const action = new URL(route.request().url()).searchParams.get('action');
@@ -168,7 +168,13 @@ test('shared cookie-session status survives reload and logout synchronizes to an
   await expect(other.getByTestId('global-map-loader')).toHaveCount(0);
   await openConnections(other);
   await expect(other.getByText('Connected', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
+  const disconnect = page.getByRole('button', { name: 'Disconnect GitHub', exact: true });
+  await expect(disconnect).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath('connected-connector-card.png'),
+    animations: 'disabled',
+  });
+  await disconnect.click();
   const modal = page.getByRole('dialog', { name: 'Disconnect GitHub?' });
   await expect(modal.getByRole('button', { name: 'Cancel' })).toBeFocused();
   await modal.getByRole('button', { name: 'Disconnect', exact: true }).click();

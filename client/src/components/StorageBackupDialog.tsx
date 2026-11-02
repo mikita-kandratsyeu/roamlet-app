@@ -3,7 +3,8 @@ import { Tabs } from 'radix-ui';
 import { useBackupSummary } from '../hooks/useBackupSummary';
 import { Notification } from './Notification';
 import { useTranslation } from 'react-i18next';
-import { LoaderCircle } from 'lucide-react';
+import { Eye, EyeOff, LoaderCircle, RefreshCw } from 'lucide-react';
+import { backupPasswordStrength, generateBackupPassword } from '../domain/backupPassword';
 import { Dialog } from './Dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -59,6 +60,10 @@ export function StorageBackupDialog({
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmationTouched, setConfirmationTouched] = useState(false);
   const [restorePassword, setRestorePassword] = useState('');
+  const [visiblePassword, setVisiblePassword] = useState(false);
+  const [visibleConfirmation, setVisibleConfirmation] = useState(false);
+  const [visibleRestore, setVisibleRestore] = useState(false);
+  const [generated, setGenerated] = useState(false);
   const [selected, setSelected] = useState('');
   const [mode, setMode] = useState<ConflictMode>('copy');
   const [closeConfirm, setCloseConfirm] = useState(false);
@@ -69,12 +74,20 @@ export function StorageBackupDialog({
   const summary = useBackupSummary(enabled && tab === 'create', storage.success);
   const shortPassword = passwordTouched && password.length > 0 && password.length < 12;
   const mismatch = confirmationTouched && confirmation.length > 0 && password !== confirmation;
+  const strength = password ? backupPasswordStrength(password) : null;
+  const strengthLabel = strength
+    ? t({ weak: 'Weak', fair: 'Fair', strong: 'Strong' }[strength])
+    : null;
   const connection = storage.connection;
 
   useEffect(() => {
     setPassword('');
     setConfirmation('');
     setRestorePassword('');
+    setVisiblePassword(false);
+    setVisibleConfirmation(false);
+    setVisibleRestore(false);
+    setGenerated(false);
     setSelected('');
     setPasswordTouched(false);
     setConfirmationTouched(false);
@@ -167,19 +180,33 @@ export function StorageBackupDialog({
                 )}
                 <fieldset className="connector-fields" disabled={busy}>
                   <legend>{t('Create a backup')}</legend>
-                  <label htmlFor={`${id}-password`}>
-                    {t('Backup password')}
+                  <label htmlFor={`${id}-password`}>{t('Backup password')}</label>
+                  <span className="connector-password-input">
                     <Input
                       id={`${id}-password`}
-                      type="password"
+                      type={visiblePassword ? 'text' : 'password'}
                       autoComplete="new-password"
                       value={password}
                       aria-invalid={shortPassword}
-                      aria-describedby={`${id}-password-help`}
+                      aria-describedby={`${id}-password-help${strength ? ` ${id}-strength` : ''}`}
                       onBlur={() => setPasswordTouched(true)}
-                      onChange={(event) => setPassword(event.target.value)}
+                      onChange={(event) => {
+                        setPassword(event.target.value);
+                        setGenerated(false);
+                      }}
                     />
-                  </label>
+                    <Button
+                      variant="ghost"
+                      className="connector-password-toggle"
+                      aria-label={t(
+                        visiblePassword ? 'Hide backup password' : 'Show backup password',
+                      )}
+                      aria-pressed={visiblePassword}
+                      onClick={() => setVisiblePassword(!visiblePassword)}
+                    >
+                      {visiblePassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+                    </Button>
+                  </span>
                   <p className="connector-note" id={`${id}-password-help`}>
                     {shortPassword
                       ? t('Use at least 12 characters.')
@@ -187,19 +214,78 @@ export function StorageBackupDialog({
                           'Choose a password of at least 12 characters and keep it somewhere safe.',
                         )}
                   </p>
-                  <label htmlFor={`${id}-confirm`}>
-                    {t('Confirm backup password')}
+                  {strength && (
+                    <div className="connector-password-strength" id={`${id}-strength`}>
+                      <span role="status">
+                        {t('Password strength: {{strength}} (estimate)', {
+                          strength: strengthLabel,
+                        })}
+                      </span>
+                      <span className="connector-strength-track" aria-hidden="true">
+                        <span data-strength={strength} />
+                      </span>
+                    </div>
+                  )}
+                  <div className="connector-password-generator">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setPassword(generateBackupPassword());
+                        setConfirmation('');
+                        setConfirmationTouched(false);
+                        setGenerated(true);
+                        setVisiblePassword(true);
+                      }}
+                    >
+                      <RefreshCw aria-hidden="true" />
+                      {t('Generate password')}
+                    </Button>
+                    {generated && (
+                      <p role="status">
+                        {t(
+                          'Password generated. Save it before creating the backup, then confirm it below.',
+                        )}
+                      </p>
+                    )}
+                  </div>
+                  <label htmlFor={`${id}-confirm`}>{t('Confirm backup password')}</label>
+                  <span className="connector-password-input">
                     <Input
                       id={`${id}-confirm`}
-                      type="password"
+                      type={visibleConfirmation ? 'text' : 'password'}
                       autoComplete="new-password"
                       value={confirmation}
                       aria-invalid={mismatch}
                       aria-describedby={mismatch ? `${id}-password-match` : undefined}
                       onBlur={() => setConfirmationTouched(true)}
-                      onChange={(event) => setConfirmation(event.target.value)}
+                      onChange={(event) => {
+                        setConfirmation(event.target.value);
+                        setConfirmationTouched(true);
+                      }}
                     />
-                  </label>
+                    <Button
+                      variant="ghost"
+                      className="connector-password-toggle"
+                      aria-label={t(
+                        visibleConfirmation
+                          ? 'Hide confirmation password'
+                          : 'Show confirmation password',
+                      )}
+                      aria-pressed={visibleConfirmation}
+                      onClick={() => setVisibleConfirmation(!visibleConfirmation)}
+                    >
+                      {visibleConfirmation ? (
+                        <EyeOff aria-hidden="true" />
+                      ) : (
+                        <Eye aria-hidden="true" />
+                      )}
+                    </Button>
+                  </span>
+                  {confirmation && !mismatch && password === confirmation && (
+                    <p className="connector-password-match" role="status">
+                      {t('Passwords match.')}
+                    </p>
+                  )}
                   {mismatch && (
                     <p id={`${id}-password-match`} className="connector-field-hint">
                       {t('Passwords do not match.')}
@@ -247,11 +333,11 @@ export function StorageBackupDialog({
                         }}
                       />
                     </div>
-                    <label htmlFor={`${id}-restore-password`}>
-                      {t('Restore password')}
+                    <label htmlFor={`${id}-restore-password`}>{t('Restore password')}</label>
+                    <span className="connector-password-input">
                       <Input
                         id={`${id}-restore-password`}
-                        type="password"
+                        type={visibleRestore ? 'text' : 'password'}
                         autoComplete="off"
                         value={restorePassword}
                         onChange={(event) => {
@@ -259,7 +345,22 @@ export function StorageBackupDialog({
                           storage.dismissPreview();
                         }}
                       />
-                    </label>
+                      <Button
+                        variant="ghost"
+                        className="connector-password-toggle"
+                        aria-label={t(
+                          visibleRestore ? 'Hide restore password' : 'Show restore password',
+                        )}
+                        aria-pressed={visibleRestore}
+                        onClick={() => setVisibleRestore(!visibleRestore)}
+                      >
+                        {visibleRestore ? (
+                          <EyeOff aria-hidden="true" />
+                        ) : (
+                          <Eye aria-hidden="true" />
+                        )}
+                      </Button>
+                    </span>
                     <p className="connector-note">
                       {t('Enter the password used when this backup was created.')}
                     </p>

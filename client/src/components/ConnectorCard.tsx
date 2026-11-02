@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef } from 'react';
 import { Button } from './ui/button';
-import { LoaderCircle, RefreshCw } from 'lucide-react';
+import { LoaderCircle, RefreshCw, Unplug } from 'lucide-react';
 export type ConnectorStatus =
   'checking' | 'attention' | 'unavailable' | 'connected' | 'disconnected';
 const labels: Record<ConnectorStatus, string> = {
@@ -67,6 +67,18 @@ export function ConnectorCard({
             {t(labels[status])}
           </span>
         </div>
+        {connected && (
+          <Button
+            variant="ghost"
+            className="connector-disconnect-action"
+            disabled={busy}
+            aria-label={t('Disconnect {{name}}', { name })}
+            title={t('Disconnect {{name}}', { name })}
+            onClick={onDisconnect}
+          >
+            <Unplug className="size-5" aria-hidden="true" />
+          </Button>
+        )}
       </div>
       <p>{t(description)}</p>
       {account && <p className="connector-repository">{account}</p>}
@@ -94,11 +106,6 @@ export function ConnectorCard({
         <Button variant="outline" aria-haspopup="dialog" onClick={onManage}>
           {connected ? t('Manage connection') : t('Set up connection')}
         </Button>
-        {connected && (
-          <Button variant="ghost" disabled={busy} onClick={onDisconnect}>
-            {t('Disconnect')}
-          </Button>
-        )}
       </div>
     </article>
   );
