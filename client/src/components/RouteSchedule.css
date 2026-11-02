@@ -6,12 +6,31 @@
   border-top: 1px solid var(--border);
 }
 .route-schedule-departure,
-.route-schedule-pause { display: grid; gap: 6px; min-width: 0; }
+.route-schedule-pause { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
 .route-schedule .personal-time-field {
   grid-row: auto;
   grid-template-rows: none;
 }
 .route-schedule input { min-width: 0; max-width: 100%; }
+.route-schedule-departure input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  appearance: none;
+  text-align: left;
+}
+/* Safari's native date editor has its own intrinsic sizing and alignment. */
+.route-schedule-departure input::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
+.route-schedule-departure input::-webkit-datetime-edit {
+  min-width: 0;
+  padding: 0;
+}
+@media (pointer: coarse) {
+  .route-schedule-departure.personal-time-field > input { font-size: 16px; }
+}
 .route-schedule [role="alert"] {
   margin: 0;
   color: var(--destructive);
