@@ -34,6 +34,7 @@ import { Library } from './components/Library';
 import { ComparisonScreen } from './components/ComparisonScreen';
 import { ClimbAnalysis } from './components/ClimbAnalysis';
 import { RouteSchedule } from './components/RouteSchedule';
+import { RouteWeather } from './components/RouteWeather';
 import { Statistics, formatTimeRange } from './components/Statistics';
 import { formatDistance, formatDuration } from './domain/format';
 import {
@@ -1859,6 +1860,13 @@ export default function App() {
                       setDirty(true);
                     }}
                   />
+                  </PlannerDetails>
+                  <PlannerDetails key={`weather:${editor.identity.id}`} title={t('Weather at start')}>
+                    <RouteWeather
+                      coordinate={result.segments.find((segment) => segment.length > 0)?.[0]}
+                      departureLocal={editor.departureLocal}
+                      contextKey={editor.identity.id}
+                    />
                   </PlannerDetails>
                 </>
               ) : (

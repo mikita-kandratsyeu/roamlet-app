@@ -44,6 +44,10 @@ The connector identifies Google Drive using the unmodified [official 2026 Google
 - Yarn 4.18.1: BSD-2-Clause, bundled project launcher; see [Yarn license](https://github.com/yarnpkg/berry/blob/master/LICENSE.md).
 - React type definitions: [DefinitelyTyped MIT](https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/LICENSE).
 
+## Weather data
+
+The optional weather panel requests forecasts from [Open-Meteo](https://open-meteo.com/). Weather data is provided under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), with visible source/license links in the panel. Roamlet selects departure-hour observations and formats numbers/units for display, without modifying the reported measurements. The free hosted endpoint is limited to non-commercial use and subject to [service limits and commercial licensing](https://open-meteo.com/en/pricing). Data licensing does not replace hosted-service terms. No Open-Meteo server code is bundled. See [weather behavior and privacy](./README.md#route-schedules-comparison-and-climb-analysis).
+
 ## Map data and tiles
 
 Map data © OpenStreetMap contributors, licensed under the [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/). See [OSM copyright and attribution](https://www.openstreetmap.org/copyright) and [attribution guidelines](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines). The interactive map shows a visible attribution link on desktop and mobile. Derived database redistribution may trigger ODbL share-alike requirements; a software library's license does not replace the geographic data license.

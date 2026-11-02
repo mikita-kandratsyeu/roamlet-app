@@ -1,0 +1,54 @@
+.route-weather {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.route-weather p,
+.route-weather h3 {
+  margin: 0;
+}
+.route-weather h3 {
+  font-size: var(--font-size-control, 14px);
+}
+.route-weather > button {
+  min-height: 44px;
+  width: 100%;
+  white-space: normal;
+}
+.route-weather-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.route-weather-metrics dt {
+  font-size: var(--font-size-label, 13px);
+  color: var(--muted-foreground);
+}
+.route-weather-metrics dd {
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.route-weather-hours {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.route-weather-hours li {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: var(--font-size-label, 13px);
+  font-variant-numeric: tabular-nums;
+}
+.route-weather-hours time {
+  font-weight: 600;
+}

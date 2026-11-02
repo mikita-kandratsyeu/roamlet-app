@@ -563,3 +563,114 @@ test('stop actions keep one layout for empty, single, loop, manual and localized
     await checkStopActions(page);
   }
 });
+
+test('weather is opt-in, local-time based, responsive and available from cache offline', async ({
+  page,
+  context,
+}, testInfo) => {
+  let weatherRequests = 0;
+  let routingRequests = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/route') routingRequests++;
+  });
+  await page.route('https://api.open-meteo.com/v1/forecast?**', async (route) => {
+    weatherRequests++;
+    const url = new URL(route.request().url());
+    expect(url.searchParams.get('longitude')).toBe('11.4');
+    expect(url.searchParams.get('latitude')).toBe('47.26');
+    expect(url.searchParams.get('timezone')).toBe('auto');
+    await route.fulfill({
+      json: {
+        timezone: 'Europe/Vienna',
+        hourly_units: {
+          temperature_2m: '°C',
+          apparent_temperature: '°C',
+          precipitation: 'mm',
+          precipitation_probability: '%',
+          wind_speed_10m: 'km/h',
+          wind_direction_10m: '°',
+          wind_gusts_10m: 'km/h',
+        },
+        hourly: {
+          time: Array.from(
+            { length: 6 },
+            (_, index) => `2026-11-02T${String(index + 8).padStart(2, '0')}:00`,
+          ),
+          temperature_2m: [12, 13, 14, 15, 16, 17],
+          apparent_temperature: [10, 11, 12, 13, 14, 15],
+          precipitation: [0.5, 0, 0, 0, 0, 0],
+          precipitation_probability: [30, 20, 10, 0, 0, 0],
+          wind_speed_10m: [15, 15, 15, 15, 15, 15],
+          wind_direction_10m: [270, 270, 270, 270, 270, 270],
+          wind_gusts_10m: [24, 24, 24, 24, 24, 24],
+        },
+      },
+    });
+  });
+  const summary = page
+    .locator('.planner-details > summary')
+    .filter({ hasText: 'Weather at start' });
+  await summary.click();
+  const weather = page.getByRole('region', { name: 'Weather at start', exact: true });
+  await expect(weather.getByRole('button', { name: 'Load forecast' })).toBeDisabled();
+  await page.locator('.planner-details > summary').filter({ hasText: 'Route schedule' }).click();
+  const departure = page.getByLabel('Local departure date and time', { exact: true });
+  await departure.fill('2026-11-02T08:30');
+  await departure.press('Enter');
+  expect(weatherRequests).toBe(0);
+  await weather.getByRole('button', { name: 'Load forecast' }).click();
+  await expect(weather.getByText('Timezone at start: Europe/Vienna')).toBeVisible();
+  await expect(weather.getByRole('listitem')).toHaveCount(6);
+  await expect(weather.locator('dl')).toContainText('0.5 mm');
+  expect(weatherRequests).toBe(1);
+  expect(routingRequests).toBe(0);
+  await summary.click();
+  await summary.click();
+  expect(weatherRequests).toBe(1);
+  await expect(weather.getByRole('listitem')).toHaveCount(6);
+
+  for (const language of ['en', 'ru']) {
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(
+        ({ language, theme }) => {
+          localStorage.setItem('roamlet-language', language);
+          localStorage.setItem('roamlet-theme', theme);
+          window.dispatchEvent(new Event('roamlet-preferences-change'));
+        },
+        { language, theme },
+      );
+      const region = page.locator('.route-weather');
+      await expect(page.locator('html')).toHaveAttribute('lang', language);
+      for (const width of [320, 1280]) {
+        await page.setViewportSize({ width, height: 900 });
+        await expect(region).toBeVisible();
+        const dimensions = await region.evaluate((element) => ({
+          width: element.clientWidth,
+          scroll: element.scrollWidth,
+          buttonHeight: element.querySelector('button')!.getBoundingClientRect().height,
+        }));
+        expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width + 1);
+        expect(dimensions.buttonHeight).toBeGreaterThanOrEqual(44);
+      }
+      await region.screenshot({ path: testInfo.outputPath(`weather-${language}-${theme}.png`) });
+    }
+  }
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Обновить прогноз', exact: true }).click();
+  await expect(
+    page.getByText('Нет сети. Можно показать только ранее загруженный прогноз.'),
+  ).toBeVisible();
+  expect(weatherRequests).toBe(1);
+  await expect(page.locator('.route-weather li')).toHaveCount(6);
+  await context.setOffline(false);
+  await page.getByLabel('Местные дата и время отправления', { exact: true }).click();
+  await page
+    .getByLabel('Местные дата и время отправления', { exact: true })
+    .fill('2026-12-02T08:30');
+  await page.getByRole('heading', { name: 'Прогноз около времени старта', exact: true }).click();
+  await expect(page.locator('.route-weather li')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Загрузить прогноз', exact: true }).click();
+  await expect(page.getByText(/Для этого времени старта прогноза нет/)).toBeVisible();
+  expect(weatherRequests).toBe(1);
+  expect(routingRequests).toBe(0);
+});
