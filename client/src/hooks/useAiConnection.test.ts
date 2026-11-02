@@ -22,7 +22,19 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+it('does not make AI requests offline and rechecks after reconnecting', async () => {
+  const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+  const { result } = renderHook(() => useAiConnection(true));
+  await act(async () => {});
+  expect(getAiSession).not.toHaveBeenCalled();
+  expect(result.current.online).toBe(false);
+  online.mockReturnValue(true);
+  await act(async () => window.dispatchEvent(new Event('online')));
+  expect(getAiSession).toHaveBeenCalledTimes(1);
+  expect(result.current.online).toBe(true);
 });
 it('does not fetch until opened and never persists keys in localStorage', async () => {
   const save = vi.spyOn(Storage.prototype, 'setItem');

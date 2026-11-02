@@ -40,7 +40,7 @@ test.beforeEach(async ({ page }) => {
       url.pathname.startsWith('/api/') &&
       url.pathname !== '/api/routing-config' &&
       !(
-        ['/api/github', '/api/google-drive'].includes(url.pathname) &&
+        ['/api/github', '/api/google-drive', '/api/ai'].includes(url.pathname) &&
         url.searchParams.get('action') === 'session'
       ) &&
       !(
@@ -204,6 +204,27 @@ test('connector list and official provider icons are available on the first offl
   }
   await connections.getByRole('button', { name: 'Back to map' }).click();
   await expect(connections).toHaveCount(0);
+});
+
+test('AI connector icon and setup work offline without sending AI requests', async ({ page, context }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  const requests: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/ai') requests.push(request.url());
+  });
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Connections', exact: true }).click();
+  const card = page.locator('.connector-card').filter({ has: page.getByRole('heading', { name: 'AI route assistant', exact: true }) });
+  await expect.poll(() => card.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(48);
+  await card.getByRole('button', { name: 'Set up connection' }).click();
+  const dialog = page.getByRole('dialog', { name: 'AI connection settings' });
+  await expect(dialog.getByText('AI needs an internet connection. Manual planning and saved routes remain available.')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Verify and connect (uses API quota)' })).toBeDisabled();
+  expect(requests).toEqual([]);
 });
 
 test('production service worker lets OAuth API navigations and callbacks reach the network', async ({
