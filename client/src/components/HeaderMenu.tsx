@@ -299,17 +299,17 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp, onConnections, onPwa
           <DropdownMenuSeparator className="header-menu-separator" />
           <DropdownMenuItem
             className="header-menu-item"
-            onSelect={() => activate(() => setResetOpen(true))}
-          >
-            <RotateCcw size={18} aria-hidden="true" />
-            <span>{t('Reset settings')}</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="header-menu-item"
             onSelect={() => activate(onHelp)}
           >
             <CircleHelp size={18} aria-hidden="true" />
             <span>{t('Help and data sources')}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="header-menu-item"
+            onSelect={() => activate(() => setResetOpen(true))}
+          >
+            <RotateCcw size={18} aria-hidden="true" />
+            <span>{t('Reset settings')}</span>
           </DropdownMenuItem>
           <p className="header-menu-note">
             {t('Theme and language do not change the route, calculation or map position.')}

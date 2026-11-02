@@ -1662,6 +1662,17 @@ test('device app dialog keeps actions reachable and focus stable in both languag
       await page.screenshot({ path: testInfo.outputPath(`pwa-overview-${language}-${theme}.png`) });
       const backup = dialog.getByRole('button', { name: language === 'ru' ? 'Открыть мои маршруты' : 'Open My routes', exact: true });
       await expect(backup).toBeInViewport();
+      const footerEdges = await dialog.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const footer = element.querySelector('.dialog-footer')!.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+          left: footer.left - bounds.left - parseFloat(style.borderLeftWidth),
+          right: bounds.right - footer.right - parseFloat(style.borderRightWidth),
+        };
+      });
+      expect(Math.abs(footerEdges.left)).toBeLessThanOrEqual(1);
+      expect(Math.abs(footerEdges.right)).toBeLessThanOrEqual(1);
       for (const summary of await dialog.locator('summary').all()) await summary.click();
       await expect(backup).toBeInViewport();
       const box = await backup.boundingBox();
