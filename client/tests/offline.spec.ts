@@ -309,6 +309,13 @@ for (const viewport of [
         const workspaceBox = (await workspace.boundingBox())!;
         expect(panelBox.height).toBeLessThanOrEqual(headerBox.height + 2);
         expect(panelBox.y + panelBox.height).toBeCloseTo(workspaceBox.y + workspaceBox.height, 0);
+        const mapBox = (await page.locator('.workspace-offline .map-offline').boundingBox())!;
+        const contentBox = (await page.locator('.workspace-offline .offline-map-content').boundingBox())!;
+        if (viewport.height > 550 && mapBox.height > contentBox.height + 40) {
+          const mapCenter = mapBox.y + mapBox.height / 2;
+          const contentCenter = contentBox.y + contentBox.height / 2;
+          expect(Math.abs(contentCenter - mapCenter)).toBeLessThanOrEqual(4);
+        }
       }
       await compactFits();
       await page.screenshot({ path: testInfo.outputPath('offline-planner-compact.png'), animations: 'disabled' });
