@@ -241,6 +241,59 @@ test('connector errors use one Sonner toast while a dialog is open', async ({ pa
   await expect(toast).toHaveCount(1);
 });
 
+test('provider card rechecks connection with an accessible pending state', async ({
+  page,
+}, testInfo) => {
+  let attempts = 0;
+  let complete!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    complete = resolve;
+  });
+  await page.route('**/api/github?**', async (route) => {
+    if (new URL(route.request().url()).searchParams.get('action') !== 'session')
+      return route.fulfill({ json: {} });
+    attempts++;
+    if (attempts === 1)
+      return route.fulfill({
+        status: 502,
+        json: { error: { code: 'network', message: 'synthetic failure' } },
+      });
+    await pending;
+    return route.fulfill({ json: { available: true, connected: false } });
+  });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Русский', exact: true }).click();
+  await page.getByRole('button', { name: 'Меню', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Подключения', exact: true }).click();
+  const card = page
+    .locator('.connector-card')
+    .filter({ has: page.getByRole('heading', { name: 'GitHub', exact: true }) });
+  await expect(card.getByText('Проверьте подключение', { exact: true })).toBeVisible();
+  const retry = card.getByRole('button', { name: 'Проверить подключение', exact: true });
+  await expect(retry).toBeVisible();
+  await retry.focus();
+  await page.keyboard.press('Enter');
+  const checking = card.getByRole('button', { name: 'Проверяем подключение', exact: true });
+  await expect(checking).toBeDisabled();
+  await expect(checking).toHaveAttribute('aria-busy', 'true');
+  await expect(checking.locator('svg')).toHaveClass(/connector-spinner/);
+  const size = await checking.boundingBox();
+  expect(size!.height).toBeGreaterThanOrEqual(44);
+  expect(await card.evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(
+    (await card.boundingBox())!.width,
+  );
+  await page.screenshot({
+    path: testInfo.outputPath('connector-check-pending.png'),
+    animations: 'disabled',
+  });
+  complete();
+  await expect(retry).toBeEnabled();
+  await expect(retry).toBeFocused();
+  await expect(card.getByText('Не подключён', { exact: true })).toBeVisible();
+  expect(attempts).toBe(2);
+});
+
 for (const theme of ['light', 'dark'] as const) {
   test(`connector toolbar matches library controls (${theme})`, async ({ page }, testInfo) => {
     if (testInfo.project.name === 'desktop')

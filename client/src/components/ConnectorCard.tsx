@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
+import { useEffect, useRef } from 'react';
 import { Button } from './ui/button';
+import { LoaderCircle, RefreshCw } from 'lucide-react';
 export type ConnectorStatus =
   'checking' | 'attention' | 'unavailable' | 'connected' | 'disconnected';
 const labels: Record<ConnectorStatus, string> = {
@@ -19,6 +21,8 @@ export function ConnectorCard({
   busy,
   onManage,
   onDisconnect,
+  onRetry,
+  retrying = false,
 }: {
   name: string;
   icon: string;
@@ -29,8 +33,19 @@ export function ConnectorCard({
   busy: boolean;
   onManage: () => void;
   onDisconnect: () => void;
+  onRetry?: () => void;
+  retrying?: boolean;
 }) {
   const { t } = useTranslation();
+  const retryButton = useRef<HTMLButtonElement>(null);
+  const restoreRetryFocus = useRef(false);
+  useEffect(() => {
+    if (retrying || busy) return;
+    // Native disabled buttons lose focus; restore it only if the user has not focused elsewhere.
+    if (restoreRetryFocus.current && document.activeElement === document.body)
+      retryButton.current?.focus({ preventScroll: true });
+    restoreRetryFocus.current = false;
+  }, [retrying, busy]);
   return (
     <article className="connector-card" role="listitem">
       <div className="connector-card-heading">
@@ -50,6 +65,26 @@ export function ConnectorCard({
       <p>{t(description)}</p>
       {account && <p className="connector-repository">{account}</p>}
       <div className="connector-card-actions">
+        {onRetry && (
+          <Button
+            variant="outline"
+            className="connector-check-action"
+            disabled={busy || retrying}
+            aria-busy={retrying}
+            ref={retryButton}
+            onClick={(event) => {
+              restoreRetryFocus.current = document.activeElement === event.currentTarget;
+              onRetry();
+            }}
+          >
+            {retrying ? (
+              <LoaderCircle size={18} className="connector-spinner" aria-hidden="true" />
+            ) : (
+              <RefreshCw size={18} aria-hidden="true" />
+            )}
+            <span>{retrying ? t('Checking connection') : t('Check connection')}</span>
+          </Button>
+        )}
         <Button variant="outline" aria-haspopup="dialog" onClick={onManage}>
           {connected ? t('Manage connection') : t('Set up connection')}
         </Button>

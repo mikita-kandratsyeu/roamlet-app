@@ -93,6 +93,8 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
       account?: string;
       busy: boolean;
       onDisconnect: () => void;
+      onRetry: () => void;
+      retrying: boolean;
     }
   > = {
     github: {
@@ -111,6 +113,8 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
         : undefined,
       busy: github.loading || storage.operation === 'restoring',
       onDisconnect: () => setDisconnecting(true),
+      onRetry: () => void github.refresh(),
+      retrying: github.loading,
     },
   };
   const providers = STORAGE_PROVIDERS.filter(
@@ -197,15 +201,6 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
           </div>
           {!providers.length && (
             <p className="connector-empty">{t('No connectors match this filter.')}</p>
-          )}
-          {github.error && (
-            <Button
-              variant="outline"
-              disabled={github.loading}
-              onClick={() => void github.refresh()}
-            >
-              {t('Retry')}
-            </Button>
           )}
           {available === false && !problem && (
             <p className="connector-note">
