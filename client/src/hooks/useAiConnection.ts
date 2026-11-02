@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AiError, connectAi, disconnectAi, getAiSession, type AiConnection, type AiSession } from '../services/ai';
+import {
+  AiError,
+  connectAi,
+  disconnectAi,
+  getAiSession,
+  type AiConnection,
+  type AiSession,
+} from '../services/ai';
 const EVENT = 'roamlet-ai-connection-change';
 const CHANNEL = 'roamlet-ai-connection';
 export function useAiConnection(active: boolean) {
   const [session, setSession] = useState<AiSession | null>(null);
   const [loading, setLoading] = useState(false);
+  const [online, setOnline] = useState(navigator.onLine !== false);
   const [error, setError] = useState<string | null>(null);
   const controller = useRef<AbortController | null>(null);
   const revision = useRef(0);
@@ -13,8 +21,11 @@ export function useAiConnection(active: boolean) {
     const abort = new AbortController();
     controller.current = abort;
     const current = ++revision.current;
-    setLoading(true);
+    const connectedToNetwork = navigator.onLine !== false;
+    setOnline(connectedToNetwork);
     setError(null);
+    if (!connectedToNetwork) { setLoading(false); return false; }
+    setLoading(true);
     try {
       if (operation) await operation(abort.signal);
       const next = await getAiSession(abort.signal);
@@ -23,9 +34,15 @@ export function useAiConnection(active: boolean) {
       return true;
     } catch (failure) {
       if (!abort.signal.aborted && current === revision.current)
-        setError(failure instanceof AiError ? failure.message : 'Could not reach the AI provider. Check your connection and retry.');
+        setError(
+          failure instanceof AiError
+            ? failure.message
+            : 'Could not reach the AI provider. Check your connection and retry.',
+        );
       return false;
-    } finally { if (!abort.signal.aborted && current === revision.current) setLoading(false); }
+    } finally {
+      if (!abort.signal.aborted && current === revision.current) setLoading(false);
+    }
   }, []);
   const refresh = useCallback(() => run(), [run]);
   const announce = useCallback(() => {
@@ -36,11 +53,14 @@ export function useAiConnection(active: boolean) {
       channel.close();
     }
   }, []);
-  const connect = useCallback(async (value: AiConnection & { apiKey: string }) => {
-    const done = await run((signal) => connectAi(value, signal));
-    if (done) announce();
-    return done;
-  }, [run, announce]);
+  const connect = useCallback(
+    async (value: AiConnection & { apiKey: string }) => {
+      const done = await run((signal) => connectAi(value, signal));
+      if (done) announce();
+      return done;
+    },
+    [run, announce],
+  );
   const disconnect = useCallback(async () => {
     const done = await run(disconnectAi);
     if (done) announce();
@@ -49,13 +69,18 @@ export function useAiConnection(active: boolean) {
   useEffect(() => {
     if (!active) return;
     void refresh();
-    const changed = () => { void refresh(); };
-    const focus = () => { if (document.visibilityState !== 'hidden') void refresh(); };
+    const changed = () => {
+      void refresh();
+    };
+    const focus = () => {
+      if (document.visibilityState !== 'hidden') void refresh();
+    };
     const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel(CHANNEL);
     channel?.addEventListener('message', changed);
     window.addEventListener(EVENT, changed);
     window.addEventListener('focus', focus);
     window.addEventListener('online', changed);
+    window.addEventListener('offline', changed);
     document.addEventListener('visibilitychange', focus);
     return () => {
       controller.current?.abort();
@@ -64,9 +89,24 @@ export function useAiConnection(active: boolean) {
       window.removeEventListener(EVENT, changed);
       window.removeEventListener('focus', focus);
       window.removeEventListener('online', changed);
+      window.removeEventListener('offline', changed);
       document.removeEventListener('visibilitychange', focus);
     };
   }, [active, refresh]);
-  const cancel = () => { revision.current++; controller.current?.abort(); setLoading(false); };
-  return { session, loading, error, refresh, connect, disconnect, cancel, dismissError: () => setError(null) };
+  const cancel = () => {
+    revision.current++;
+    controller.current?.abort();
+    setLoading(false);
+  };
+  return {
+    session,
+    loading,
+    online,
+    error,
+    refresh,
+    connect,
+    disconnect,
+    cancel,
+    dismissError: () => setError(null),
+  };
 }

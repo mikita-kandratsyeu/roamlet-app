@@ -5,6 +5,7 @@ export default defineConfig({
     'disclaimer.spec.ts',
     'planner.spec.ts',
     'connectors.spec.ts',
+    'ai-connector.spec.ts',
     'google-drive.spec.ts',
     'map-view.spec.ts',
     'lifecycle.spec.ts',

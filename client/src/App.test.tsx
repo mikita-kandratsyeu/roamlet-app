@@ -253,6 +253,10 @@ it('applies AI settings transactionally, keeps the original on failure and route
   expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
   expect(provider.calculateRoute).toHaveBeenCalledTimes(3);
   expect(provider.calculateRoute.mock.calls[2][3]).toMatchObject({ avoidSteps: true });
+  fireEvent.click(within(screen.getByTestId('map')).getByRole('button', { name: 'Undo' }));
+  expect(screen.getByRole('checkbox', { name: 'Avoid steps' })).not.toBeChecked();
+  expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', original);
+  expect(provider.calculateRoute).toHaveBeenCalledTimes(3);
 });
 
 function openMenu() {
