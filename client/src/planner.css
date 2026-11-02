@@ -748,10 +748,10 @@
   border-color: var(--destructive);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--destructive) 20%, transparent);
 }
-.personal-time-field input[aria-invalid='true']:focus-visible {
+.personal-time-field input[aria-invalid='true']:focus {
   border-color: var(--destructive);
-  outline: 2px solid var(--destructive);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--destructive) 20%, transparent);
 }
 .personal-time-choice {
   display: flex;

@@ -159,12 +159,19 @@
   color: var(--muted-foreground);
 }
 
-.roamlet-dialog .dialog-body input:focus-visible,
-.roamlet-dialog .dialog-body textarea:focus-visible {
-  border-color: var(--primary);
-  outline: 2px solid var(--primary);
-  outline-offset: -2px;
-  box-shadow: none;
+.roamlet-dialog
+  .dialog-body
+  input:not(:where([type='checkbox'], [type='radio'], [type='range'])):focus,
+.roamlet-dialog .dialog-body textarea:focus {
+  border-color: var(--ring);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 20%, transparent);
+}
+
+.roamlet-dialog .dialog-body input[aria-invalid='true']:focus,
+.roamlet-dialog .dialog-body textarea[aria-invalid='true']:focus {
+  border-color: var(--destructive);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--destructive) 20%, transparent);
 }
 
 .roamlet-dialog .button-row {

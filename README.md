@@ -132,6 +132,8 @@ Route stop actions adapt to the number of available buttons: one fills the row, 
 
 “Report a map issue” is available in the map’s “More map tools” (⋯) menu on desktop and mobile, rather than as an overlay on the map.
 
+Keyboard focus on buttons, links, dropdown triggers, checkboxes and sliders uses a clear 2 px theme-aware outline. Text, number, date/time and multiline fields retain an accented border and a soft 3 px halo while editing, including after touch input; invalid fields keep their error color. Search highlights its whole container without a second ring on the inner field. Pointer taps do not force keyboard-only outlines on buttons. Forced-color mode uses system outlines instead of relying on shadows.
+
 Scrollbars share the planner's thin thumb and transparent track throughout the app, including dialogs, menus, library and comparison screens. They follow the active color theme and use system colors in forced-color accessibility mode. Dialog headers and their close buttons stay visible while only the content scrolls on desktop and mobile. Standard desktop dialogs leave an 8 px gap between the header and content. Close buttons share the header’s top-right alignment and a 44 × 44 px touch target, including compact confirmations with multiline titles or descriptions. On mobile, full-screen dialog headers use the same 20 px horizontal inset as the content, with titles vertically centered beside the close button; compact dialogs remain centered cards.
 
 ## Development

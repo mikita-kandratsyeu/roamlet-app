@@ -719,7 +719,8 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
 }) => {
   const search = page.getByRole('textbox', { name: 'Latitude' });
   await search.fill('Innsbruck');
-  await expect(search).toHaveCSS('outline-width', '2px');
+  await expect(search).toHaveCSS('outline-style', 'none');
+  await expect(search).toHaveCSS('box-shadow', /0px 0px 0px 3px/);
   await expect(page.locator('.coordinate-entry')).toHaveCSS('outline-style', 'none');
   await page.keyboard.press('Tab');
   await expect(page.getByRole('textbox', { name: 'Longitude' })).toBeFocused();
@@ -733,13 +734,17 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
   await menu.press('ArrowDown');
   const menuLibrary = page.getByRole('menuitem', { name: 'My routes' });
-  await menuLibrary.focus();
+  await menuLibrary.press('ArrowDown');
+  await page.keyboard.press('ArrowUp');
+  await expect(menuLibrary).toBeFocused();
   await expect(menuLibrary).toHaveCSS('outline-offset', '-2px');
   await page.getByRole('menuitem', { name: 'My routes' }).press('Enter');
   const librarySearch = page.getByRole('textbox', { name: 'Search saved routes' });
   await expect(librarySearch).toBeFocused();
-  await expect(page.locator('.library-search')).toHaveCSS('outline-width', '2px');
+  await expect(page.locator('.library-search')).toHaveCSS('outline-style', 'none');
+  await expect(page.locator('.library-search')).toHaveCSS('box-shadow', /0px 0px 0px 3px/);
   await expect(librarySearch).toHaveCSS('outline-style', 'none');
+  await expect(librarySearch).toHaveCSS('box-shadow', 'none');
   await page.keyboard.press('Shift+Tab');
   await expect(page.getByRole('button', { name: 'Back to map', exact: true })).toBeFocused();
   await page.keyboard.press('Enter');
@@ -754,13 +759,13 @@ test('focus indicators are single and keyboard focus follows fields, dialogs, li
   await save.press('Enter');
   const name = page.getByRole('textbox', { name: 'Route name' });
   await expect(name).toBeFocused();
-  await expect(name).toHaveCSS('outline-width', '2px');
+  await expect(name).toHaveCSS('outline-style', 'none');
+  await expect(name).toHaveCSS('box-shadow', /0px 0px 0px 3px/);
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('textbox', { name: /Description/ })).toBeFocused();
-  await expect(page.getByRole('textbox', { name: /Description/ })).toHaveCSS(
-    'outline-width',
-    '2px',
-  );
+  const description = page.getByRole('textbox', { name: /Description/ });
+  await expect(description).toBeFocused();
+  await expect(description).toHaveCSS('outline-style', 'none');
+  await expect(description).toHaveCSS('box-shadow', /0px 0px 0px 3px/);
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(save).toBeFocused();
   await save.press('Enter');

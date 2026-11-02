@@ -185,17 +185,41 @@ textarea {
 button:focus-visible,
 a:focus-visible,
 summary:focus-visible,
-input:focus,
-textarea:focus {
+select:focus-visible,
+input:where(
+    [type='checkbox'],
+    [type='radio'],
+    [type='range'],
+    [type='button'],
+    [type='submit'],
+    [type='reset']
+  ):focus-visible,
+[role='slider']:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   box-shadow: none;
 }
+input:not(
+    :where(
+      [type='checkbox'],
+      [type='radio'],
+      [type='range'],
+      [type='button'],
+      [type='submit'],
+      [type='reset']
+    )
+  ):focus,
+textarea:focus,
 .library-search:has(input:focus) {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  border-color: var(--focus-ring);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 20%, transparent);
 }
-
+input[aria-invalid='true']:focus,
+textarea[aria-invalid='true']:focus {
+  border-color: var(--destructive);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--destructive) 20%, transparent);
+}
 .library-search input:focus {
   outline: none;
   box-shadow: none;
@@ -1486,8 +1510,20 @@ textarea::placeholder {
   a:focus-visible,
   input:focus,
   textarea:focus,
-  summary:focus-visible {
-    outline-color: Highlight;
+  select:focus-visible,
+  [role='slider']:focus-visible,
+  summary:focus-visible,
+  :root .route-library .library-search:has(input:focus),
+  :root .library-search:has(input:focus),
+  :root .roamlet-dialog .dialog-body input:focus,
+  :root .roamlet-dialog .dialog-body textarea:focus,
+  :root .personal-time-field input[aria-invalid='true']:focus {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+  .library-search input:focus {
+    outline: none;
   }
   .waypoint-marker,
   .stop-badge {

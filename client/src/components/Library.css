@@ -59,10 +59,10 @@
   opacity: 1;
 }
 
-.route-library .library-search:focus-within {
-  border-color: var(--primary);
-  outline: 2px solid var(--ring, var(--primary));
-  outline-offset: -2px;
+.route-library .library-search:has(input:focus) {
+  border-color: var(--ring);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 20%, transparent);
 }
 
 .route-library .library-sort,
