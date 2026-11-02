@@ -22,6 +22,8 @@ Google authorization uses `openid`, `email` and `https://www.googleapis.com/auth
 
 Encrypted transport is limited to **3 MiB** per backup, below Vercel Function request/response limits. Metadata discovery is paginated and bounded at 1000 snapshots, with validation of IDs, sizes, snapshot names and app-data ownership; repeated/duplicate or potentially incomplete results are rejected. Requests use fixed Google endpoints and a 20-second server operation deadline. There are no automatic retries, synchronization, cloud deletion or retention jobs. Concurrent writes can race storage preflight checks. Cancellation cannot guarantee that a submitted upload did not finish remotely. Local routes, manual planning and GPX remain available with no Google configuration or network.
 
+Temporary OAuth diagnostics: after a failed sign-in, filter Vercel Function logs for `[google-drive-oauth] callback failed`. The `stage`, `reason` and `code` fields contain only fixed labels; do not share raw Vercel request URLs, cookies, tokens or full provider responses. Remove this diagnostic logging after resolving the production issue.
+
 ##### Google Cloud setup
 
 1. Create/select a project in [Google Cloud Console](https://console.cloud.google.com/), then enable **Google Drive API** under **APIs & Services → Library**.

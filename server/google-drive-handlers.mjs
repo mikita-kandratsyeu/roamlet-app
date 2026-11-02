@@ -18,6 +18,7 @@ import {
 } from './google-drive-client.mjs';
 import {
   cookie,
+  cookieName,
   equalState,
   googleDriveConfig,
   openCookie,
@@ -26,6 +27,17 @@ import {
   STATE_SECONDS,
 } from './google-drive-session.mjs';
 
+const CALLBACK_LOG_CODES = new Set([
+  'auth',
+  'configuration',
+  'invalid-data',
+  'network',
+  'permission',
+  'quota',
+  'timeout',
+  'too-large',
+  'unavailable',
+]);
 const ACTIONS = {
   session: ['GET', []],
   start: ['GET', []],
@@ -84,6 +96,8 @@ export function createGoogleDriveHandler({
     const lifetime = requestLifetime(req, res, timeoutMs);
     let config;
     let callback = false;
+    let callbackStage = 'request';
+    let callbackReason = 'failed';
     try {
       callback =
         typeof req.url === 'string' &&
@@ -146,6 +160,7 @@ export function createGoogleDriveHandler({
         return redirect(res, url.href);
       }
       if (action === 'callback') {
+        callbackStage = 'state';
         res.setHeader('Set-Cookie', cookie(config, 'state', '', 0));
         const state = openCookie(req, config, 'state', now());
         const code = params.get('code');
@@ -156,11 +171,30 @@ export function createGoogleDriveHandler({
           (params.has('iss') && params.get('iss') !== 'https://accounts.google.com') ||
           typeof code !== 'string' ||
           !/^[\x21-\x7e]{1,1024}$/.test(code)
-        )
+        ) {
+          const cookieSent =
+            typeof req.headers?.cookie === 'string' &&
+            req.headers.cookie
+              .split(';')
+              .some((part) => part.trim().startsWith(`${cookieName(config, 'state')}=`));
+          callbackReason = params.has('error')
+            ? 'provider-denied'
+            : !state
+              ? cookieSent
+                ? 'invalid-state-cookie'
+                : 'missing-state-cookie'
+              : !equalState(state.state, params.get('state'))
+                ? 'state-mismatch'
+                : params.has('iss') && params.get('iss') !== 'https://accounts.google.com'
+                  ? 'invalid-issuer'
+                  : 'invalid-code';
           throw new ConnectorError('auth', 401);
+        }
         // Start the expiry clock before the exchange; never extend the provider's actual lifetime.
         const issuedAt = now();
+        callbackStage = 'token-exchange';
         const access = object(await client.exchange(config, code, state.verifier, lifetime.signal));
+        callbackStage = 'token-validation';
         if (
           typeof access.access_token !== 'string' ||
           !/^[\x21-\x7e]{1,1024}$/.test(access.access_token) ||
@@ -174,8 +208,11 @@ export function createGoogleDriveHandler({
               !access.scope.split(/\s+/).includes(DRIVE_SCOPE)))
         )
           throw new ConnectorError('auth', 401);
+        callbackStage = 'identity';
         const identity = await client.identity(access.access_token, lifetime.signal);
+        callbackStage = 'drive-access';
         await client.probe(access.access_token, lifetime.signal);
+        callbackStage = 'session';
         const expiresAt = issuedAt + Math.min(SESSION_SECONDS, access.expires_in) * 1000;
         if (expiresAt <= now() || lifetime.signal.aborted) throw new ConnectorError('auth', 401);
         const payload = { token: access.access_token, ...identity, issuedAt, expiresAt };
@@ -236,6 +273,15 @@ export function createGoogleDriveHandler({
       return res.end(raw);
     } catch (error) {
       if (callback) {
+        // Temporary diagnostics: fixed labels only; never log URLs, cookies or upstream errors.
+        console.warn('[google-drive-oauth] callback failed', {
+          stage: callbackStage,
+          reason: callbackReason,
+          code:
+            error instanceof ConnectorError && CALLBACK_LOG_CODES.has(error.code)
+              ? error.code
+              : 'unexpected',
+        });
         if (config) res.setHeader('Set-Cookie', cookie(config, 'state', '', 0));
         return redirect(res, '/?connectors=google-drive&google=error');
       }
