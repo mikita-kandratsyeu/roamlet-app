@@ -1606,3 +1606,43 @@ test('success notifications stay below dialogs without hiding actionable errors'
   await downloadButton.click();
   expect((await download).suggestedFilename()).toMatch(/\.gpx$/);
 });
+
+test('device app dialog keeps actions reachable and focus stable in both languages and themes', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: testInfo.project.name === 'mobile' ? 320 : 1280, height: 740 });
+  for (const language of ['en', 'ru']) {
+    await page.evaluate((language) => {
+      localStorage.setItem('roamlet-language', language);
+      window.dispatchEvent(new Event('roamlet-preferences-change'));
+    }, language);
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((theme) => {
+        localStorage.setItem('roamlet-theme', theme);
+        window.dispatchEvent(new Event('roamlet-preferences-change'));
+      }, theme);
+      const menu = page.getByRole('button', { name: language === 'ru' ? 'Меню' : 'Menu', exact: true });
+      await menu.click();
+      await page.getByRole('menuitem', { name: language === 'ru' ? 'Приложение на устройстве' : 'App on this device', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: language === 'ru' ? 'Приложение на устройстве' : 'App on this device', exact: true });
+      await expectDialogClosePosition(dialog);
+      await expect(dialog).toContainText(language === 'ru' ? 'опубликованном приложении' : 'production app');
+      await page.screenshot({ path: testInfo.outputPath(`pwa-overview-${language}-${theme}.png`) });
+      await dialog.locator('summary').click();
+      const backup = dialog.getByRole('button', { name: language === 'ru' ? 'Открыть мои маршруты' : 'Open My routes', exact: true });
+      await backup.scrollIntoViewIfNeeded();
+      await expect(backup).toBeInViewport();
+      const box = await backup.boundingBox();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      expect(box!.width).toBeGreaterThanOrEqual(44);
+      expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`pwa-${language}-${theme}.png`) });
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(menu).toBeFocused();
+    }
+  }
+  await page.getByRole('button', { name: 'Меню', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Приложение на устройстве', exact: true }).click();
+  await page.getByRole('button', { name: 'Открыть мои маршруты', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Сохранённые маршруты', exact: true })).toBeVisible();
+});

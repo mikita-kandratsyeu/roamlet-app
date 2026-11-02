@@ -163,7 +163,21 @@ On the HTTPS production site, use the browser's **Install app** / **Install Roam
 
 The installed app is named **Roamlet**. The [web manifest](client/public/manifest.webmanifest) defines a stable root identity, start URL and scope, with branded 192/512 px PNG icons and a separate opaque maskable icon whose artwork stays inside the central 80%-diameter safe circle. [HTML metadata](client/index.html) also supplies the Roamlet title, PNG/SVG favicons and an opaque 180 px Apple touch icon. PNGs are rasterized from the existing [brand SVG](client/public/icon.svg); the maskable version adds safe padding. The service worker precaches the manifest and all icons along with the offline shell. Local routes and GPX remain available offline; basemaps and automatic routing still need a connection.
 
-After deploying a branding update, open the app online and accept its available update. Some platforms retain the old installed name/icon; reinstalling the shortcut/app may be necessary. Export a library backup first, do not clear site data, and keep the same production origin: installation does not provide cloud backup, and browser storage can be removed by the browser or OS.
+Open **Menu → App on this device** (Russian: **Меню → Приложение на устройстве**) for installation, offline readiness and local-data protection. The dialog reuses existing responsive light/dark dialogs and does not add persistent map overlays or periodic notifications. **Install app** appears only when the browser supplies an installation prompt, with a collapsed manual guide for iOS/iPadOS, Android/Chrome/Edge and macOS Safari otherwise. Standalone windows show an installed-app status. Dismissing installation does not interrupt planning.
+
+**Ready to work offline** is shown only after the active production service worker confirms a complete cached shell. Preparing, unverified/error, unsupported-browser and development states remain distinct. Failed preparation offers an online retry without activating a waiting update during editing. An incomplete installation or a worker that cannot confirm readiness is not reported as ready. The dialog separates offline local workflows from online map/routing/cloud functions. Readiness confirms the cached shell now, not permanent storage, map downloads or navigation.
+
+Storage protection is requested only by pressing **Request storage protection**, using `navigator.storage.persist()` when supported. The dialog distinguishes granted, browser-managed, declined, unsupported and error states. A grant reduces automatic eviction risk but cannot prevent clearing site data or guarantee a permanent backup. The reminder stays in the dialog, with **Open My routes** leading to the existing library and JSON backup controls. No automatic cloud backup, extra permissions on startup or new data transmission is added.
+
+A waiting update is explained only inside this dialog and applies on the next startup/reload, never by forcing an editing window to reload. After deploying a branding update, open the app online and launch/reload it again once the update is ready. Some platforms retain the old installed name/icon; reinstalling the shortcut/app may be necessary. Export a library backup first, do not clear site data, and keep the same production origin: installation does not provide cloud backup, and browser storage can be removed by the browser or OS.
+
+Physical-device release checks (browser emulation is not a substitute):
+- Install from HTTPS on an iPhone/iPad and Android, then launch from the home screen. Confirm standalone status and the correct icon/name.
+- Confirm offline readiness online, close/reopen offline, and open/export a saved route. Verify that missing maps/automatic routing are explained without preventing local work.
+- Test portrait/landscape, notches/home indicators, the on-screen keyboard, dialog scrolling and reachable 44 px actions in both languages/themes.
+- Background/foreground and relaunch with an unsaved draft. Verify restoration and a waiting update without interrupting editing.
+- Download/share GPX and JSON backups and restore a backup. Complete optional OAuth from the installed app, return to it, and verify that the existing local library is still accessible. Check the actual browser/OS storage context rather than assuming it is shared.
+- Exercise supported storage protection and declined/unsupported paths. Never clear production site data just to test without exporting important work first.
 
 #### Server key and public API protection
 

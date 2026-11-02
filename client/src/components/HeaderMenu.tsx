@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Menu, Check, CircleHelp, Library, Monitor, Moon, Plus, RotateCcw, Sun, Plug } from 'lucide-react';
+import {
+  Menu,
+  Check,
+  CircleHelp,
+  Library,
+  Monitor,
+  Moon,
+  Plus,
+  RotateCcw,
+  Sun,
+  Plug,
+  Download,
+} from 'lucide-react';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -22,9 +34,10 @@ interface Props {
   onLibrary: () => void;
   onHelp: () => void;
   onConnections: () => void;
+  onPwa: () => void;
 }
 
-export function HeaderMenu({ onNewRoute, onLibrary, onHelp, onConnections }: Props) {
+export function HeaderMenu({ onNewRoute, onLibrary, onHelp, onConnections, onPwa }: Props) {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
@@ -209,6 +222,10 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp, onConnections }: Pro
           >
             <Plug size={18} aria-hidden="true" />
             <span>{t('Connections')}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem className="header-menu-item" onSelect={() => activate(onPwa)}>
+            <Download size={18} aria-hidden="true" />
+            <span>{t('App on this device')}</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator className="header-menu-separator" />
           <DropdownMenuLabel className="header-menu-label">

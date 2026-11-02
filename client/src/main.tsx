@@ -2,12 +2,14 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { applyWaitingUpdateOnStartup } from './domain/appUpdate';
+import { capturePwaInstallPrompt } from './hooks/usePwa';
 import { ThemeProvider } from './theme';
 import './i18n';
 import '@fontsource-variable/manrope';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
 import './planner.css';
+capturePwaInstallPrompt();
 async function start() {
   const offlineShell = import.meta.env.PROD && 'serviceWorker' in navigator;
   if (
@@ -23,14 +25,5 @@ async function start() {
       </ThemeProvider>
     </React.StrictMode>,
   );
-  if (offlineShell) {
-    const register = () => {
-      void navigator.serviceWorker
-        .register('/sw.js')
-        .catch((error) => console.warn('Offline shell registration failed:', error));
-    };
-    if (document.readyState === 'complete') register();
-    else window.addEventListener('load', register, { once: true });
-  }
 }
 void start();

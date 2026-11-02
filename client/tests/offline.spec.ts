@@ -1046,3 +1046,20 @@ test('waypoint-only GPX remains usable and cannot crash route conversion', async
   await expect(page.getByRole('alert')).toContainText('isolated points');
   await expect(page.getByRole('button', { name: 'Export' })).toBeEnabled();
 });
+
+test('device dialog verifies the production offline shell and remains available after offline reload', async ({ page, context }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'App on this device', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'App on this device', exact: true });
+  await expect(dialog.getByText('Ready to work offline', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Available offline', exact: true })).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Internet required', exact: true })).toBeVisible();
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  await context.setOffline(true);
+  await page.reload();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'App on this device', exact: true }).click();
+  await expect(dialog.getByText('Ready to work offline', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Open My routes', exact: true })).toBeEnabled();
+});

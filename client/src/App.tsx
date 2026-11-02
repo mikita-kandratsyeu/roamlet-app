@@ -82,6 +82,8 @@ import { RouteMap } from './components/RouteMap';
 import './route-editing.css';
 import { Dialog } from './components/Dialog';
 import { HeaderMenu } from './components/HeaderMenu';
+import { PwaDialog } from './components/PwaDialog';
+import { usePwa } from './hooks/usePwa';
 import { StorageConnections } from './components/StorageConnections';
 import i18n, { formatNumber, translateMessage } from './i18n';
 
@@ -247,6 +249,8 @@ export default function App() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [exportRoute, setExportRoute] = useState<PlannedRoute | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [pwaOpen, setPwaOpen] = useState(false);
+  const pwa = usePwa();
   const [collapsed, setCollapsed] = useState(preferences.collapsed);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   useEffect(() => {
@@ -1088,6 +1092,7 @@ export default function App() {
               onLibrary={openLibrary}
               onConnections={openConnections}
               onHelp={() => setHelpOpen(true)}
+              onPwa={() => setPwaOpen(true)}
             />
           </nav>
         </header>
@@ -2186,6 +2191,17 @@ export default function App() {
             </Button>
           </div>
         </Dialog>
+      )}
+      {pwaOpen && !secondaryScreenOpen && (
+        <PwaDialog
+          pwa={pwa}
+          online={online}
+          onClose={() => setPwaOpen(false)}
+          onLibrary={() => {
+            setPwaOpen(false);
+            openLibrary();
+          }}
+        />
       )}
       {helpOpen && !secondaryScreenOpen && (
         <Dialog title={t('A few helpful things')} onClose={() => setHelpOpen(false)}>
