@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import i18n from '../i18n';
 import type { Coordinate } from '../domain/types';
 import { validDepartureLocal } from '../domain/schedule';
 import {
@@ -59,6 +61,10 @@ export function useWeather(
         error: 'offline',
         cached: Boolean(forecast),
       });
+      toast.error(i18n.t('You are offline. Only a previously loaded forecast can be shown.'), {
+        dismissible: true,
+        closeButton: true,
+      });
       return;
     }
     if (!refresh && cached && Date.now() - cached.fetchedAt < WEATHER_FRESH_MS) {
@@ -81,6 +87,10 @@ export function useWeather(
     } catch {
       if (current !== revision.current || abort.signal.aborted) return;
       setState({ key, status: 'error', forecast, error: 'request', cached: Boolean(forecast) });
+      toast.error(
+        i18n.t('Weather could not be loaded. Try again. Any displayed forecast is a cached copy.'),
+        { dismissible: true, closeButton: true },
+      );
     }
   }
   const sameRequest = state.key === key;

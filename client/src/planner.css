@@ -317,7 +317,7 @@
   font: inherit;
   overflow-wrap: anywhere;
 }
-.planner-details-body > :is(.climb-analysis, .route-schedule) {
+.planner-details-body > :is(.climb-analysis, .route-schedule, .route-weather) {
   padding: 12px 0 0;
   border-top: 0;
 }

@@ -69,13 +69,6 @@ export function RouteWeather({
             ? t('Refresh forecast')
             : t('Load forecast')}
       </Button>
-      {weather.error && (
-        <p role="status">
-          {weather.error === 'offline'
-            ? t('You are offline. Only a previously loaded forecast can be shown.')
-            : t('Weather could not be loaded. Try again. Any displayed forecast is a cached copy.')}
-        </p>
-      )}
       {forecast && (
         <>
           <p className="fine-print">

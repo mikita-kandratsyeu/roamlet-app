@@ -5,9 +5,13 @@ import { chromium } from '@playwright/test';
 
 const css = (
   await Promise.all(
-    ['../styles.css', '../planner.css', './Library.css', './ComparisonScreen.css'].map((path) =>
-      readFile(new URL(path, import.meta.url), 'utf8'),
-    ),
+    [
+      '../styles.css',
+      '../planner.css',
+      './Library.css',
+      './ComparisonScreen.css',
+      './RouteWeather.css',
+    ].map((path) => readFile(new URL(path, import.meta.url), 'utf8')),
   )
 )
   .join('\n')
@@ -50,6 +54,39 @@ test('unsaved badge stays compact in both languages and themes on narrow and des
           assert.equal(metrics.background, theme ? 'rgb(55, 43, 24)' : 'rgb(255, 245, 220)');
           assert.equal(metrics.color, theme ? 'rgb(242, 206, 131)' : 'rgb(121, 82, 13)');
           assert.equal(metrics.scrollWidth, width);
+        }
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('expanded weather keeps only the disclosure separator in both themes and layouts', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const width of [320, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const theme of ['', 'dark']) {
+        for (const title of ['Weather at start', 'Погода на старте']) {
+          await page.setContent(`<style>${css}</style>
+            <div class="${theme}">
+              <details class="planner-details" style="--border: #888" open>
+                <summary class="section-heading"><h2>${title}</h2></summary>
+                <div class="planner-details-body">
+                  <section class="route-weather"><p>Open-Meteo</p></section>
+                </div>
+              </details>
+            </div>`);
+          const metrics = await page.locator('.route-weather').evaluate((weather) => ({
+            border: getComputedStyle(weather).borderTopWidth,
+            padding: getComputedStyle(weather).paddingTop,
+            disclosureBorder: getComputedStyle(weather.closest('details')).borderTopWidth,
+          }));
+          assert.equal(metrics.border, '0px', `${title}, ${theme}, ${width}px`);
+          assert.equal(metrics.padding, '12px');
+          assert.equal(metrics.disclosureBorder, '1px');
         }
       }
     }

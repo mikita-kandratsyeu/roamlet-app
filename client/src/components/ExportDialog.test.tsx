@@ -35,6 +35,18 @@ beforeEach(() => render(<Toaster />));
 afterEach(() => cleanup());
 
 describe('ExportDialog', () => {
+  it('opens AI export locally and returns to unchanged GPX export', async () => {
+    const user = userEvent.setup();
+    const onDownload = vi.fn();
+    render(<ExportDialog route={route} onDownload={onDownload} onClose={vi.fn()} />);
+    await user.click(screen.getByRole('radio', { name: 'For AI' }));
+    expect(screen.getByRole('textbox', { name: 'Request preview' })).toBeVisible();
+    expect(screen.queryByRole('figure', { name: 'Route map preview' })).not.toBeInTheDocument();
+    expect(onDownload).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('radio', { name: 'GPX' }));
+    expect(screen.getByRole('textbox', { name: 'File name' })).toHaveValue('Forest walk.gpx');
+    expect(screen.getByRole('button', { name: 'Download GPX' })).toBeVisible();
+  });
   it('switches to on-demand image export and back without generating or downloading', async () => {
     const user = userEvent.setup();
     const onDownload = vi.fn();

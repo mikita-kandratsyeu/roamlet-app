@@ -1,4 +1,5 @@
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { toast } from 'sonner';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RouteWeather } from './RouteWeather';
@@ -14,6 +15,13 @@ import {
   type WeatherForecast,
 } from '../domain/weather';
 import i18n from '../i18n';
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
+
+const toastOptions = { dismissible: true, closeButton: true };
+const offlineMessage = 'You are offline. Only a previously loaded forecast can be shown.';
+const errorMessage =
+  'Weather could not be loaded. Try again. Any displayed forecast is a cached copy.';
 
 const coordinate: [number, number] = [11.4, 47.26];
 const departureLocal = '2026-11-02T08:30';
@@ -72,6 +80,7 @@ function mockFetch(data: unknown = response()) {
   return fetch;
 }
 beforeEach(async () => {
+  vi.clearAllMocks();
   localStorage.removeItem(WEATHER_CACHE_KEY);
   await i18n.changeLanguage('en');
 });
@@ -251,7 +260,8 @@ describe('weather interaction', () => {
     const fetch = mockFetch();
     const { unmount } = render(<RouteWeather {...props} />);
     await userEvent.click(screen.getByRole('button', { name: 'Load forecast' }));
-    expect(screen.getByText(/You are offline/)).toBeVisible();
+    expect(toast.error).toHaveBeenCalledExactlyOnceWith(offlineMessage, toastOptions);
+    expect(screen.queryByText(offlineMessage)).not.toBeInTheDocument();
     expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
     unmount();
     writeWeatherCache(weatherLocationKey(coordinate), {
@@ -262,6 +272,9 @@ describe('weather interaction', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Load forecast' }));
     expect(screen.getAllByRole('listitem')).toHaveLength(6);
     expect(screen.getByText(/over 30 minutes old/)).toBeVisible();
+    expect(toast.error).toHaveBeenCalledTimes(2);
+    expect(toast.error).toHaveBeenLastCalledWith(offlineMessage, toastOptions);
+    expect(screen.queryByText(offlineMessage)).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
   it('allows retry after a network failure and preserves cached data on a failed refresh', async () => {
@@ -269,12 +282,17 @@ describe('weather interaction', () => {
     fetch.mockRejectedValueOnce(new Error('network'));
     render(<RouteWeather {...props} />);
     await userEvent.click(screen.getByRole('button', { name: 'Load forecast' }));
-    expect(await screen.findByText(/Weather could not be loaded/)).toBeVisible();
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(errorMessage, toastOptions),
+    );
+    expect(screen.queryByText(errorMessage)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Load forecast' }));
     await screen.findByText('Forecast near departure');
     fetch.mockRejectedValueOnce(new Error('network'));
     await userEvent.click(screen.getByRole('button', { name: 'Refresh forecast' }));
-    expect(await screen.findByText(/Weather could not be loaded/)).toBeVisible();
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2));
+    expect(toast.error).toHaveBeenLastCalledWith(errorMessage, toastOptions);
+    expect(screen.queryByText(errorMessage)).not.toBeInTheDocument();
     expect(screen.getAllByRole('listitem')).toHaveLength(6);
     expect(screen.getByText('Showing a cached forecast.')).toBeVisible();
   });
@@ -343,6 +361,39 @@ describe('weather interaction', () => {
       resolve?.({ ok: true, json: async () => response() });
     });
     expect(readWeatherCache(weatherLocationKey(coordinate))).toBeNull();
+  });
+  it.each(['context change', 'unmount'])(
+    'does not notify about a late failure after %s',
+    async (change) => {
+      let reject: ((reason: Error) => void) | undefined;
+      const fetch = mockFetch();
+      fetch.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, fail) => {
+            reject = fail;
+          }),
+      );
+      const { rerender, unmount } = render(<RouteWeather {...props} />);
+      await userEvent.click(screen.getByRole('button', { name: 'Load forecast' }));
+      if (change === 'unmount') unmount();
+      else rerender(<RouteWeather {...props} contextKey="route-b" />);
+      await act(async () => {
+        reject?.(new Error('late network failure'));
+      });
+      expect(toast.error).not.toHaveBeenCalled();
+    },
+  );
+  it('localizes failure notifications in Russian without inline duplicates', async () => {
+    await i18n.changeLanguage('ru');
+    const fetch = mockFetch();
+    fetch.mockRejectedValueOnce(new Error('network'));
+    render(<RouteWeather {...props} />);
+    expect(toast.error).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: i18n.t('Load forecast') }));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(i18n.t(errorMessage), toastOptions),
+    );
+    expect(screen.queryByText(i18n.t(errorMessage))).not.toBeInTheDocument();
   });
   it('localizes controls and numbers in Russian without losing loaded data', async () => {
     mockFetch();

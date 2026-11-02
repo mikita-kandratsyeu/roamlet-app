@@ -24,6 +24,41 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
 });
 
+test('AI export preview stays private and usable in both languages and themes', async ({ page, context }, testInfo) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  for (const language of ['en', 'ru']) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page.getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English' }).click();
+    for (const theme of ['light', 'dark']) {
+      await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+      await page.locator('.header-menu-theme-option').nth(theme === 'dark' ? 1 : 0).click();
+      await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: /^(Export route|Экспорт маршрута)$/ });
+      await dialog.getByRole('radio', { name: /^(For AI|Для ИИ)$/ }).click();
+      const preview = dialog.getByRole('textbox', { name: /^(Request preview|Предпросмотр запроса)$/ });
+      await expect(preview).toBeVisible();
+      expect(await preview.inputValue()).not.toContain('Forest escape');
+      expect(await preview.inputValue()).not.toContain('"locationData"');
+      const copy = dialog.getByRole('button', { name: /^(Copy for AI|Скопировать для ИИ)$/ });
+      await copy.scrollIntoViewIfNeeded();
+      await expect(copy).toBeInViewport();
+      await copy.focus();
+      await expect(copy).toBeFocused();
+      await copy.press('Enter');
+      await expect(dialog.getByRole('status')).toBeVisible();
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await preview.inputValue());
+      expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      expect(await dialog.locator('.dialog-body').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`ai-export-${language}-${theme}.png`) });
+      await dialog.getByRole('checkbox').check();
+      expect(await preview.inputValue()).toContain('Forest escape');
+      await dialog.getByRole('radio', { name: 'GPX', exact: true }).click();
+      await expect(dialog.getByRole('button', { name: /^(Download GPX|Скачать GPX)$/ })).toBeVisible();
+      await dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }).click();
+    }
+  }
+});
+
 test('planned-route badge text is vertically centered in both languages and themes', async ({
   page,
 }) => {

@@ -2099,6 +2099,7 @@ export default function App() {
       {exportRoute && !secondaryScreenOpen && (
         <ExportDialog
           route={exportRoute}
+          personalTime={{ speedKmh: speeds[exportRoute.activity], stopsMinutes, fitness, surface }}
           onDownload={download}
           onClose={() => setExportRoute(null)}
         />

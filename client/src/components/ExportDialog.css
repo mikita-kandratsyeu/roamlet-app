@@ -1,3 +1,32 @@
+.ai-route-export {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.dialog .ai-export-privacy {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+.dialog .ai-export-privacy input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.ai-export-text {
+  width: 100%;
+  min-height: 260px;
+  max-height: 50dvh;
+  resize: vertical;
+  font-family: inherit;
+  overflow-wrap: anywhere;
+}
+.export-mode {
+  flex-wrap: wrap;
+}
+
 .export-route-overview {
   display: grid;
   gap: 16px;
