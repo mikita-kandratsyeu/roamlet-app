@@ -30,7 +30,7 @@ test('local API loads server env without inventing a missing key or overriding p
   }
 });
 
-test('local API loads GitHub and Google Drive server variables only and preserves process precedence', () => {
+test('local API loads GitHub, Google Drive and AI server variables only and preserves process precedence', () => {
   const directory = join(process.cwd(), `.roamlet-github-env-${randomUUID()}`);
   mkdirSync(directory);
   const names = [
@@ -43,11 +43,15 @@ test('local API loads GitHub and Google Drive server variables only and preserve
     'GOOGLE_DRIVE_CLIENT_SECRET',
     'GOOGLE_DRIVE_CALLBACK_URL',
     'GOOGLE_DRIVE_SESSION_SECRET',
+    'AI_SESSION_SECRET',
+    'AI_ORIGIN',
+    'AI_PROVIDER_URLS',
   ];
   const previous = new Map(names.map((name) => [name, process.env[name]]));
   const excluded = [
     'VITE_GITHUB_TEST_SECRET',
     'VITE_GOOGLE_DRIVE_TEST_SECRET',
+    'VITE_AI_TEST_SECRET',
     'GOOGLE_OTHER_SECRET',
   ];
   const previousExcluded = new Map(excluded.map((name) => [name, process.env[name]]));
@@ -63,11 +67,14 @@ test('local API loads GitHub and Google Drive server variables only and preserve
     );
     process.env.GITHUB_APP_CLIENT_SECRET = 'synthetic-process-secret';
     process.env.GOOGLE_DRIVE_CLIENT_SECRET = 'synthetic-process-secret';
+    process.env.AI_SESSION_SECRET = 'synthetic-process-secret';
     localRoutingApi(directory).config({}, { mode: 'development' });
     for (const name of names)
       assert.equal(
         process.env[name],
-        name.endsWith('CLIENT_SECRET') ? 'synthetic-process-secret' : `synthetic-${name}`,
+        name.endsWith('CLIENT_SECRET') || name === 'AI_SESSION_SECRET'
+          ? 'synthetic-process-secret'
+          : `synthetic-${name}`,
       );
     for (const name of excluded) assert.equal(process.env[name], undefined);
   } finally {
@@ -88,9 +95,11 @@ for (const hook of ['configureServer', 'configurePreviewServer']) {
     const previous = process.env.ORS_API_KEY;
     const previousGithub = process.env.GITHUB_APP_CLIENT_ID;
     const previousGoogle = process.env.GOOGLE_DRIVE_CLIENT_ID;
+    const previousAi = process.env.AI_SESSION_SECRET;
     process.env.ORS_API_KEY = '';
     process.env.GITHUB_APP_CLIENT_ID = '';
     process.env.GOOGLE_DRIVE_CLIENT_ID = '';
+    process.env.AI_SESSION_SECRET = '';
     t.after(() => {
       if (previous === undefined) delete process.env.ORS_API_KEY;
       else process.env.ORS_API_KEY = previous;
@@ -98,6 +107,8 @@ for (const hook of ['configureServer', 'configurePreviewServer']) {
       else process.env.GITHUB_APP_CLIENT_ID = previousGithub;
       if (previousGoogle === undefined) delete process.env.GOOGLE_DRIVE_CLIENT_ID;
       else process.env.GOOGLE_DRIVE_CLIENT_ID = previousGoogle;
+      if (previousAi === undefined) delete process.env.AI_SESSION_SECRET;
+      else process.env.AI_SESSION_SECRET = previousAi;
     });
     t.mock.method(console, 'info', () => {});
     const fetcher = t.mock.method(globalThis, 'fetch', () => {
@@ -115,6 +126,7 @@ for (const hook of ['configureServer', 'configurePreviewServer']) {
       ['/api/routing-config?check=1', 'GET', 200, { available: false }],
       ['/api/github?action=session', 'GET', 200, { available: false, connected: false }],
       ['/api/google-drive?action=session', 'GET', 200, { available: false, connected: false }],
+      ['/api/ai?action=session', 'GET', 200, { available: false, connected: false, providers: [] }],
       [
         '/api/route',
         'POST',

@@ -85,6 +85,9 @@ import { HeaderMenu } from './components/HeaderMenu';
 import { PwaDialog } from './components/PwaDialog';
 import { usePwa } from './hooks/usePwa';
 import { StorageConnections } from './components/StorageConnections';
+import { AiAssistantDialog } from './components/AiAssistantDialog';
+import { useAiRouteApply } from './hooks/useAiRouteApply';
+import { automaticPointCount } from './domain/waypointLegs';
 import i18n, { formatNumber, translateMessage } from './i18n';
 
 const emptySegments: Coordinate[][] = [];
@@ -286,6 +289,23 @@ export default function App() {
   const detour = useManualDetour(waypoints,
     mode === 'manual' && planningMode === 'point' && !offlineAutomatic && !busy && !routeStale && !libraryOpen);
   const drawingDetour = !!detour.active;
+  const [aiOpen, setAiOpen] = useState(false);
+  const aiRoute = useAiRouteApply(editor.snapshot, (route, options) => {
+    request.current?.abort();
+    editor.checkpoint();
+    editor.routingAllowed.current = false;
+    setRoutingOptions(options);
+    setResult(route);
+    setRouteStale(false);
+    setAlternatives([]);
+    setSelectedAlternative(-1);
+    setElevationCoordinate(null);
+    setNotice(null);
+    setDirty(true);
+  });
+  const canApplyAi = online && routingConfigured === true && !busy && !drawingDetour &&
+    mode === 'manual' && planningMode === 'point' && waypoints.length >= 2 &&
+    automaticPointCount(waypoints) > 0;
   const detourSectionIndex = detour.active?.index;
   const detourFitSegments = useMemo(() => {
     if (detourSectionIndex === undefined) return undefined;
@@ -1816,6 +1836,9 @@ export default function App() {
                     : undefined}
                 />
               )}
+              <Button variant="outline" aria-haspopup="dialog" disabled={busy || drawingDetour || !online} onClick={() => setAiOpen(true)}>
+                <Sparkles size={18} aria-hidden="true" />{t('AI route assistant')}
+              </Button>
               <PlannerTools
                 key={`personal-time:${editor.identity.id}`}
                 initiallyOpen={false}
@@ -2043,6 +2066,9 @@ export default function App() {
         />
       </div>
       <StorageConnections open={connectionsOpen} onClose={() => setConnectionsOpen(false)} />
+      {aiOpen && <AiAssistantDialog snapshot={editor.snapshot} canApply={canApplyAi}
+        applying={aiRoute.applying} onApply={aiRoute.apply} onCancelApply={aiRoute.cancel}
+        onClose={() => setAiOpen(false)} />}
       {libraryOpen && (
         <Library
           onClose={closeLibrary}

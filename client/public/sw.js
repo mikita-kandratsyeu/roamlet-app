@@ -5,6 +5,7 @@ const INSTALL_ASSETS = [
   '/icon.svg',
   '/github-mark.png',
   '/google-drive-2026.png',
+  '/ai-connector.svg',
   '/favicon-32.png',
   '/apple-touch-icon.png',
   '/icon-192.png',

@@ -20,6 +20,8 @@ import {
 import { GitHubConnectionDialog, connectorErrors } from './GitHubConnectionDialog';
 import { ConnectorCard, type ConnectorStatus } from './ConnectorCard';
 import './StorageConnections.css';
+import { useAiConnection } from '../hooks/useAiConnection';
+import { AiConnectionDialog } from './AiConnectionDialog';
 
 export function StorageConnections({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
@@ -28,7 +30,9 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
   const google = useGoogleDriveSession(open);
   const github = useGitHubSession(open);
   const { connect, disconnect, cancel, connection } = storage;
-  const [selected, setSelected] = useState<StorageProviderId | null>(null);
+  const ai = useAiConnection(open);
+  const [aiDisconnecting, setAiDisconnecting] = useState(false);
+  const [selected, setSelected] = useState<StorageProviderId | 'ai' | null>(null);
   const [disconnecting, setDisconnecting] = useState<StorageProviderId | null>(null);
   const [authorizationFailed, setAuthorizationFailed] = useState<StorageProviderId | null>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -182,6 +186,8 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
       provider.name.toLowerCase().includes(query.trim().toLowerCase()) &&
       (filter === 'all' || states[provider.id].connected),
   );
+  const showAi = `${t('AI route assistant')} AI OpenAI`.toLowerCase().includes(query.trim().toLowerCase()) &&
+    (filter === 'all' || ai.session?.connected);
   return (
     <section
       className="library-screen connections-screen"
@@ -258,8 +264,15 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
                 onManage={() => setSelected(provider.id)}
               />
             ))}
+            {showAi && <ConnectorCard name={t('AI route assistant')} icon="/ai-connector.svg"
+              description="Describe route preferences in your own words. AI suggests settings. You approve every change. Uses your own API key."
+              connected={!!ai.session?.connected}
+              status={ai.loading ? 'checking' : ai.error ? 'attention' : ai.session?.available === false ? 'unavailable' : ai.session?.connected ? 'connected' : 'disconnected'}
+              account={ai.session?.connection?.model} busy={ai.loading} retrying={ai.loading}
+              onRetry={() => void ai.refresh()} onManage={() => { setAiDisconnecting(false); setSelected('ai'); }}
+              onDisconnect={() => { setAiDisconnecting(true); setSelected('ai'); }} />}
           </div>
-          {!providers.length && (
+          {!providers.length && !showAi && (
             <p className="connector-empty">{t('No connectors match this filter.')}</p>
           )}
           {available === false && !problem && (
@@ -299,6 +312,7 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
           }
         />
       )}
+      {selected === 'ai' && <AiConnectionDialog ai={ai} disconnectInitially={aiDisconnecting} onClose={() => setSelected(null)} />}
       {selected === 'google-drive' && (
         <GoogleDriveConnectionDialog
           storage={googleStorage}

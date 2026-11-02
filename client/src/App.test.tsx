@@ -12,6 +12,12 @@ import { exportGpx, importGpx } from './domain/gpx';
 import { checkRoutingConfiguration } from './services/routing';
 import { importGpxFile } from './services/gpxImport';
 import i18n, { detectLanguage, LANGUAGE_KEY } from './i18n';
+import { getAiSession, proposeAi } from './services/ai';
+vi.mock('./services/ai', async (original) => ({
+  ...(await original<typeof import('./services/ai')>()),
+  getAiSession: vi.fn().mockResolvedValue({ available: false, connected: false, providers: [] }),
+  proposeAi: vi.fn(),
+}));
 vi.mock('./services/connectors/googleDriveSession', () => ({
   getGoogleDriveSession: vi.fn().mockResolvedValue({ available: false, connected: false }),
   logoutGoogleDrive: vi.fn(),
@@ -133,6 +139,7 @@ beforeEach(async () => {
     clear: () => values.clear(),
   });
   vi.clearAllMocks();
+  vi.mocked(getAiSession).mockResolvedValue({ available: false, connected: false, providers: [] });
   vi.mocked(checkRoutingConfiguration).mockResolvedValue(true);
   vi.mocked(importGpxFile).mockReset().mockImplementation(async (file) => importGpx(await file.text()));
   HTMLDialogElement.prototype.showModal = function () {
@@ -219,6 +226,33 @@ describe('first-visit disclaimer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Понятно' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+});
+
+it('applies AI settings transactionally, keeps the original on failure and routes only once on retry', async () => {
+  vi.mocked(getAiSession).mockResolvedValue({ available: true, connected: true,
+    providers: ['https://ai.example/v1'], connection: { baseUrl: 'https://ai.example/v1', model: 'example' } });
+  vi.mocked(proposeAi).mockResolvedValue({ routingOptions: { avoidSteps: true }, explanation: 'Avoid steps.' });
+  render(<App />);
+  await plan();
+  const original = screen.getByTestId('map').getAttribute('data-geometry');
+  fireEvent.click(screen.getByRole('button', { name: 'AI route assistant' }));
+  const dialog = within(screen.getByRole('dialog', { name: 'AI route assistant' }));
+  fireEvent.change(dialog.getByRole('textbox'), { target: { value: 'Avoid steps' } });
+  await waitFor(() => expect(dialog.getByRole('button', { name: 'Get suggestion (uses API quota)' })).toBeEnabled());
+  fireEvent.click(dialog.getByRole('button', { name: 'Get suggestion (uses API quota)' }));
+  await dialog.findByRole('heading', { name: 'Suggested changes' });
+  expect(provider.calculateRoute).toHaveBeenCalledTimes(1);
+  provider.calculateRoute.mockRejectedValueOnce(new Error('Routing failure'));
+  fireEvent.click(dialog.getByRole('button', { name: 'Apply and recalculate' }));
+  await screen.findByText('Recalculation failed. The original route and settings were kept.');
+  expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', original);
+  expect(screen.getByRole('checkbox', { name: 'Avoid steps', hidden: true })).not.toBeChecked();
+  fireEvent.click(dialog.getByRole('button', { name: 'Apply and recalculate' }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'AI route assistant' })).not.toBeInTheDocument());
+  expect(screen.getByRole('checkbox', { name: 'Avoid steps' })).toBeChecked();
+  expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
+  expect(provider.calculateRoute).toHaveBeenCalledTimes(3);
+  expect(provider.calculateRoute.mock.calls[2][3]).toMatchObject({ avoidSteps: true });
 });
 
 function openMenu() {

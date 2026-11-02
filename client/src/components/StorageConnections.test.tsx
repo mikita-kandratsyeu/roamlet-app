@@ -17,6 +17,10 @@ import { ConnectorError, type StorageConnector } from '../services/connectors/ty
 import { routeDb } from '../domain/storage';
 import { GITHUB_REPOSITORY_KEY } from '../domain/connectorPreferences';
 import i18n from '../i18n';
+vi.mock('../services/ai', async (original) => ({
+  ...(await original<typeof import('../services/ai')>()),
+  getAiSession: vi.fn().mockResolvedValue({ available: false, connected: false, providers: [] }),
+}));
 vi.mock('../services/connectors/googleDriveSession', () => ({
   getGoogleDriveSession: vi.fn(),
   logoutGoogleDrive: vi.fn(),
@@ -91,7 +95,7 @@ async function setupRepository() {
 }
 it('renders a searchable card grid and opens setup as an accessible modal with restored focus', async () => {
   render(<StorageConnections open onClose={vi.fn()} />);
-  await screen.findByText('Not connected');
+  await githubCard().findByText('Not connected');
   const card = screen.getByRole('heading', { name: 'GitHub' }).closest('article')!;
   expect(card.querySelector('img')).toHaveAttribute('src', '/github-mark.png');
   expect(within(card).queryByRole('button', { name: 'Disconnect GitHub' })).not.toBeInTheDocument();
@@ -196,7 +200,7 @@ it('confirms disconnect for all tabs without removing routes or cloud files', as
   expect(logoutGitHub).not.toHaveBeenCalled();
   vi.mocked(getGitHubSession).mockResolvedValue({ ...authorized, connected: false });
   await user.click(within(dialog).getByRole('button', { name: 'Disconnect' }));
-  await screen.findByText('Not connected');
+  await githubCard().findByText('Not connected');
   expect(logoutGitHub).toHaveBeenCalledOnce();
   expect(localStorage.getItem(GITHUB_REPOSITORY_KEY)).toBeNull();
 });
@@ -271,7 +275,7 @@ it('shows session failures once in Sonner, keeps card status and permits a fresh
   await user.type(screen.getByRole('textbox', { name: 'Search connectors' }), 'Git');
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Check connection' }));
-  await screen.findByText('Not connected');
+  await githubCard().findByText('Not connected');
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   vi.mocked(getGitHubSession).mockRejectedValueOnce(new ConnectorError('network'));
   fireEvent(window, new Event('focus'));
@@ -322,7 +326,7 @@ it('keeps retry inside the provider card with progress, no duplicate requests an
 
 it('does not steal focus if the user moves away while a connection check is pending', async () => {
   render(<StorageConnections open onClose={vi.fn()} />);
-  await screen.findByText('Not connected');
+  await githubCard().findByText('Not connected');
   let complete!: (value: typeof authorized) => void;
   vi.mocked(getGitHubSession).mockReturnValueOnce(
     new Promise((resolve) => {
@@ -479,7 +483,7 @@ it('explains an empty accessible repository list after loading it', async () => 
 it('supports Russian setup copy without internal release names', async () => {
   await i18n.changeLanguage('ru');
   render(<StorageConnections open onClose={vi.fn()} />);
-  await screen.findByText('Не подключён');
+  await githubCard().findByText('Не подключён');
   await userEvent
     .setup()
     .click(githubCard().getByRole('button', { name: 'Настроить подключение' }));
