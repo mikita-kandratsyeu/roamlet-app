@@ -1607,6 +1607,40 @@ test('success notifications stay below dialogs without hiding actionable errors'
   expect((await download).suggestedFilename()).toMatch(/\.gpx$/);
 });
 
+for (const outcome of ['granted', 'declined', 'error'] as const) {
+  test(`device storage ${outcome} uses compact feedback without closing the dialog`, async ({ page }) => {
+    await page.addInitScript((outcome) => {
+      Object.defineProperty(navigator.storage, 'persisted', { value: async () => false });
+      Object.defineProperty(navigator.storage, 'persist', { value: async () => {
+        if (outcome === 'error') throw new Error('Test storage failure');
+        return outcome === 'granted';
+      } });
+    }, outcome);
+    await page.reload();
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'App on this device', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'App on this device', exact: true });
+    const request = dialog.getByRole('button', { name: 'Request storage protection', exact: true });
+    await request.click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    if (outcome === 'error') {
+      await expect(request).toBeEnabled();
+      await expect(page.locator('[data-sonner-toast]')).toContainText('Storage protection could not be checked or enabled');
+    } else {
+      await expect(request).toHaveCount(0);
+      await expect(dialog.getByText(/Ask the browser to reduce/)).toHaveCount(0);
+      await expect(dialog.getByText(outcome === 'granted' ? 'Persistent storage granted' : 'Storage protection not granted', { exact: true })).toBeVisible();
+      if (outcome === 'declined') {
+        await expect(page.locator('[data-sonner-toast]')).toContainText('The browser did not grant protection');
+      } else {
+        await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
+      }
+    }
+    await expect(dialog.getByRole('button', { name: 'Open My routes', exact: true })).toBeInViewport();
+  });
+}
+
 test('device app dialog keeps actions reachable and focus stable in both languages and themes', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: testInfo.project.name === 'mobile' ? 320 : 1280, height: 740 });
   for (const language of ['en', 'ru']) {
@@ -1626,9 +1660,9 @@ test('device app dialog keeps actions reachable and focus stable in both languag
       await expectDialogClosePosition(dialog);
       await expect(dialog).toContainText(language === 'ru' ? 'опубликованном приложении' : 'production app');
       await page.screenshot({ path: testInfo.outputPath(`pwa-overview-${language}-${theme}.png`) });
-      await dialog.locator('summary').click();
       const backup = dialog.getByRole('button', { name: language === 'ru' ? 'Открыть мои маршруты' : 'Open My routes', exact: true });
-      await backup.scrollIntoViewIfNeeded();
+      await expect(backup).toBeInViewport();
+      for (const summary of await dialog.locator('summary').all()) await summary.click();
       await expect(backup).toBeInViewport();
       const box = await backup.boundingBox();
       expect(box!.height).toBeGreaterThanOrEqual(44);

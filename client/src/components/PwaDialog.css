@@ -1,7 +1,8 @@
 .pwa-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
+  padding: 12px 0;
 }
 .pwa-section {
   display: flex;
@@ -9,10 +10,10 @@
   align-items: flex-start;
   gap: 12px;
   min-width: 0;
-}
-.pwa-section + .pwa-section {
-  border-top: 1px solid var(--border);
-  padding-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
 }
 .pwa-section h3,
 .pwa-section h4,
@@ -39,12 +40,22 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--muted);
+  font-size: var(--font-size-label);
+}
+.pwa-status[data-state='persistent'] {
+  background: var(--accent);
+  color: var(--primary);
 }
 .pwa-section svg {
   flex-shrink: 0;
 }
 .pwa-section button,
-.pwa-install-guide summary {
+.pwa-section summary,
+.pwa-library-action {
   min-height: 44px;
 }
 .pwa-section button {
@@ -54,7 +65,7 @@
 }
 .pwa-capabilities {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   width: 100%;
 }
@@ -72,19 +83,37 @@
   background: var(--muted);
 }
 .pwa-backup-note {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  padding: 0 12px;
+}
+.pwa-backup-description {
+  display: grid;
   gap: 8px;
+  padding-bottom: 12px;
+}
+.pwa-library-action {
+  width: 100%;
+  height: auto;
+  padding-block: 10px;
+  white-space: normal;
+}
+.roamlet-dialog:has(.pwa-content) .dialog-footer {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 .pwa-install-guide {
   width: 100%;
 }
-.pwa-install-guide summary {
+.pwa-install-guide summary,
+.pwa-backup-note summary {
   display: list-item;
   align-content: center;
   cursor: pointer;
   font-weight: 600;
+}
+.pwa-section summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 .pwa-install-guide ul {
   padding-left: 20px;

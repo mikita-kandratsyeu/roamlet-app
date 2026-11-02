@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import i18n from '../i18n';
 
 type OfflineStatus = 'checking' | 'ready' | 'error' | 'unsupported' | 'development';
 type StorageStatus = 'checking' | 'persistent' | 'best-effort' | 'unsupported' | 'error';
@@ -140,7 +142,12 @@ export function usePwa() {
           settled = true;
           clearTimeout(timer);
           cancelMessage();
-          if (status && mounted && current === version) setOfflineStatus(status);
+          if (status && mounted && current === version) {
+            setOfflineStatus(status);
+            if (forceUpdate && status === 'error') {
+              toast.error(i18n.t('Offline preparation could not be verified'));
+            }
+          }
           resolve();
         };
         const timer = setTimeout(() => finish('error'), OFFLINE_TIMEOUT);
@@ -244,7 +251,14 @@ export function usePwa() {
       await prompt.userChoice;
       // Acceptance is not proof of installation; appinstalled or standalone is.
     } catch {
-      if (alive.current && !installedRef.current) setInstallError(true);
+      if (alive.current && !installedRef.current) {
+        setInstallError(true);
+        toast.error(
+          i18n.t(
+            'Installation could not be opened. Use your browser’s installation menu or try again when it offers installation.',
+          ),
+        );
+      }
     } finally {
       installBusy.current = false;
       if (alive.current) setInstallPending(false);
@@ -257,6 +271,7 @@ export function usePwa() {
     setStorageDeclined(false);
     if (!navigator.storage?.persist) {
       setStorageStatus('unsupported');
+      toast.error(i18n.t('Storage protection is unavailable in this browser'));
       return;
     }
     storageBusy.current = true;
@@ -266,9 +281,19 @@ export function usePwa() {
       if (alive.current) {
         setStorageStatus(granted ? 'persistent' : 'best-effort');
         setStorageDeclined(!granted);
+        if (!granted) {
+          toast.warning(
+            i18n.t(
+              'The browser did not grant protection. Routes can still be saved, but keep a separate backup.',
+            ),
+          );
+        }
       }
     } catch {
-      if (alive.current) setStorageStatus('error');
+      if (alive.current) {
+        setStorageStatus('error');
+        toast.error(i18n.t('Storage protection could not be checked or enabled'));
+      }
     } finally {
       storageBusy.current = false;
       if (alive.current) setStoragePending(false);

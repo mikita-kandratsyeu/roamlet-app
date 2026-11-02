@@ -64,18 +64,33 @@ it('does not repeat installation or storage requests while pending', () => {
   expect(screen.getByRole('button', { name: 'Install app' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Request storage protection' })).toBeDisabled();
 });
-it('shows installed and persistent states without promising protection from clearing data', () => {
+it('shows installed and persistent states without promising protection from clearing data', async () => {
   setup({ installed: true, storageStatus: 'persistent' });
   expect(screen.getByText('Roamlet is open as an installed app.')).toBeVisible();
   expect(screen.getByText('Persistent storage granted')).toBeVisible();
   expect(screen.queryByText('Installation instructions')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Request storage protection' })).toBeNull();
-  expect(screen.getByText(/clearing site data still deletes routes/)).toBeVisible();
+  expect(screen.queryByText(/Ask the browser to reduce/)).toBeNull();
+  await userEvent.click(screen.getByText('Keep a separate backup'));
+  expect(screen.getByText(/Clearing site data deletes local routes/)).toBeVisible();
 });
-it('explains storage denial and install failures inline', () => {
-  setup({ storageDeclined: true, installError: true });
-  expect(screen.getByText(/The browser did not grant protection/)).toBeVisible();
-  expect(screen.getByRole('alert')).toHaveTextContent('Installation could not be opened');
+it('keeps storage denial compact and leaves install recovery available without duplicate inline errors', async () => {
+  const { user } = setup({ storageDeclined: true, installError: true });
+  expect(screen.getByText('Storage protection not granted')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Request storage protection' })).toBeNull();
+  expect(screen.queryByText(/Ask the browser to reduce/)).toBeNull();
+  expect(screen.queryByText(/The browser did not grant protection/)).toBeNull();
+  expect(screen.queryByRole('alert')).toBeNull();
+  await user.click(screen.getByText('Installation instructions'));
+  expect(screen.getByText(/iPhone \/ iPad:/)).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Open My routes' })).toBeEnabled();
+});
+it('keeps storage error recovery available with a neutral status and no inline alert', async () => {
+  const { pwa, user } = setup({ storageStatus: 'error' });
+  expect(screen.getByText('Storage protection status unavailable')).toBeVisible();
+  expect(screen.queryByRole('alert')).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Request storage protection' }));
+  expect(pwa.requestStorage).toHaveBeenCalledOnce();
 });
 it('offers offline retry online but disables it without network', async () => {
   const { pwa, view, user } = setup({ offlineStatus: 'error' });

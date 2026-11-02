@@ -29,13 +29,21 @@ export function PwaDialog({
     persistent: t('Persistent storage granted'),
     'best-effort': t('Storage managed by the browser'),
     unsupported: t('Storage protection is unavailable in this browser'),
-    error: t('Storage protection could not be checked or enabled'),
+    error: t('Storage protection status unavailable'),
   }[pwa.storageStatus];
+  const canRequestStorage =
+    !pwa.storageDeclined && (pwa.storageStatus === 'best-effort' || pwa.storageStatus === 'error');
   return (
     <Dialog
       title={t('App on this device')}
       description={t('Installation, offline availability and local data.')}
       onClose={onClose}
+      footer={
+        <Button variant="outline" className="pwa-library-action" onClick={onLibrary}>
+          <HardDrive size={16} aria-hidden="true" />
+          {t('Open My routes')}
+        </Button>
+      }
     >
       <div className="pwa-content">
         <section className="pwa-section" aria-label={t('Offline availability')}>
@@ -115,13 +123,6 @@ export function PwaDialog({
                   {t('Install app')}
                 </Button>
               )}
-              {pwa.installError && (
-                <p role="alert">
-                  {t(
-                    'Installation could not be opened. Use your browser’s installation menu or try again when it offers installation.',
-                  )}
-                </p>
-              )}
               <details className="pwa-install-guide">
                 <summary>{t('Installation instructions')}</summary>
                 <ul>
@@ -151,15 +152,22 @@ export function PwaDialog({
             <HardDrive size={18} aria-hidden="true" />
             {t('Local data protection')}
           </h3>
-          <p role="status">
-            <strong>{storageText}</strong>
+          <p className="pwa-status" data-state={pwa.storageStatus} role="status">
+            {pwa.storageStatus === 'checking' ? (
+              <LoaderCircle size={18} className="pwa-spinner" aria-hidden="true" />
+            ) : pwa.storageStatus === 'persistent' ? (
+              <CheckCircle2 size={18} aria-hidden="true" />
+            ) : null}
+            <strong>
+              {pwa.storageDeclined ? t('Storage protection not granted') : storageText}
+            </strong>
           </p>
-          <p>
-            {t(
-              'Ask the browser to reduce automatic removal of local routes. It may decline, and clearing site data still deletes routes even when protection is granted.',
-            )}
-          </p>
-          {(pwa.storageStatus === 'best-effort' || pwa.storageStatus === 'error') && (
+          {canRequestStorage && (
+            <p>
+              {t('Ask the browser to reduce automatic removal of local routes. It may decline.')}
+            </p>
+          )}
+          {canRequestStorage && (
             <Button
               variant="outline"
               disabled={pwa.storagePending}
@@ -171,24 +179,21 @@ export function PwaDialog({
               {t('Request storage protection')}
             </Button>
           )}
-          {pwa.storageDeclined && (
-            <p role="status">
-              {t(
-                'The browser did not grant protection. Routes can still be saved, but keep a separate backup.',
-              )}
-            </p>
-          )}
-          <div className="pwa-backup-note">
-            <h4>{t('Keep a separate backup')}</h4>
-            <p>
-              {t(
-                'Export a JSON library backup from My routes regularly and before reinstalling or clearing browser data. GPX saves individual routes, not the whole library. Cloud backups are optional and must be created explicitly.',
-              )}
-            </p>
-            <Button variant="outline" onClick={onLibrary}>
-              {t('Open My routes')}
-            </Button>
-          </div>
+          <details className="pwa-backup-note">
+            <summary>{t('Keep a separate backup')}</summary>
+            <div className="pwa-backup-description">
+              <p>
+                {t(
+                  'Clearing site data deletes local routes, even when storage protection is granted.',
+                )}
+              </p>
+              <p>
+                {t(
+                  'Export a JSON library backup from My routes regularly and before reinstalling or clearing browser data. GPX saves individual routes, not the whole library. Cloud backups are optional and must be created explicitly.',
+                )}
+              </p>
+            </div>
+          </details>
         </section>
       </div>
     </Dialog>

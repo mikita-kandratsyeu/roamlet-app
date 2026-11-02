@@ -1,6 +1,10 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { toast } from 'sonner';
+import i18n from '../i18n';
 import workerSource from '../../public/sw.js?raw';
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), warning: vi.fn() } }));
 import { capturePwaInstallPrompt, usePwa } from './usePwa';
 
 const channels: FakeChannel[] = [];
@@ -51,6 +55,7 @@ let env: ReturnType<typeof setup>;
 let media: EventTarget & { matches: boolean };
 let storage: { persisted: ReturnType<typeof vi.fn>; persist: ReturnType<typeof vi.fn> };
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.stubEnv('PROD', true);
   vi.stubGlobal('MessageChannel', FakeChannel);
   channels.length = 0;
@@ -307,6 +312,73 @@ it('reports passive and explicit storage errors then recovers', async () => {
   expect(result.current.storagePending).toBe(false);
   await act(async () => result.current.requestStorage());
   expect(result.current.storageStatus).toBe('persistent');
+});
+it('notifies explicit failures once without toasting passive checks or successful recovery', async () => {
+  storage.persisted.mockRejectedValueOnce(new Error('read'));
+  storage.persist.mockRejectedValueOnce(new Error('permission'));
+  const { result } = await ready();
+  expect(toast.error).not.toHaveBeenCalled();
+  await act(async () => result.current.requestStorage());
+  expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+    i18n.t('Storage protection could not be checked or enabled'),
+  );
+  await act(async () => result.current.requestStorage());
+  expect(toast.error).toHaveBeenCalledTimes(1);
+  expect(toast.warning).not.toHaveBeenCalled();
+  const event = installEvent();
+  event.prompt.mockRejectedValueOnce(new Error('install'));
+  await act(async () => result.current.install());
+  expect(toast.error).toHaveBeenLastCalledWith(
+    i18n.t(
+      'Installation could not be opened. Use your browser’s installation menu or try again when it offers installation.',
+    ),
+  );
+});
+it('toasts a failed explicit offline retry once but not passive readiness failures', async () => {
+  env.active.postMessage.mockImplementation((data, ports) => {
+    ports[0].postMessage({ type: data.type, ready: false });
+  });
+  const { result } = renderHook(usePwa);
+  await waitFor(() => expect(result.current.offlineStatus).toBe('error'));
+  expect(toast.error).not.toHaveBeenCalled();
+  await act(async () => result.current.retryOffline());
+  expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+    i18n.t('Offline preparation could not be verified'),
+  );
+});
+it('notifies storage denial once and leaves local saving available', async () => {
+  storage.persist.mockResolvedValueOnce(false);
+  const { result } = await ready();
+  await act(async () => result.current.requestStorage());
+  expect(toast.warning).toHaveBeenCalledExactlyOnceWith(
+    i18n.t(
+      'The browser did not grant protection. Routes can still be saved, but keep a separate backup.',
+    ),
+  );
+  expect(toast.error).not.toHaveBeenCalled();
+  expect(result.current.storageStatus).toBe('best-effort');
+});
+it('does not toast failed storage or installation completions after unmount', async () => {
+  const explicit = pending<boolean>();
+  storage.persist.mockReturnValueOnce(explicit.promise);
+  const event = installEvent();
+  const prompt = pending<void>();
+  event.prompt.mockReturnValueOnce(prompt.promise);
+  const { result, unmount } = await ready();
+  let requesting!: Promise<void>;
+  let installing!: Promise<void>;
+  act(() => {
+    requesting = result.current.requestStorage();
+    installing = result.current.install();
+  });
+  unmount();
+  await act(async () => {
+    explicit.reject(new Error('permission'));
+    prompt.reject(new Error('install'));
+    await Promise.all([requesting, installing]);
+  });
+  expect(toast.error).not.toHaveBeenCalled();
+  expect(toast.warning).not.toHaveBeenCalled();
 });
 it('reports unsupported storage APIs', async () => {
   Object.defineProperty(navigator, 'storage', { configurable: true, value: {} });
