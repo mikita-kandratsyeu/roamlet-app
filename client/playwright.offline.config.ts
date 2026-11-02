@@ -7,6 +7,15 @@ export default defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     baseURL: 'http://127.0.0.1:4175',
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://127.0.0.1:4175',
+          localStorage: [{ name: 'roamlet:disclaimer:v1', value: 'acknowledged' }],
+        },
+      ],
+    },
     trace: 'retain-on-failure',
     launchOptions: {
       args: [

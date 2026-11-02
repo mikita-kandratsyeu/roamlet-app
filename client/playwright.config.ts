@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   testMatch: [
+    'disclaimer.spec.ts',
     'planner.spec.ts',
     'connectors.spec.ts',
     'google-drive.spec.ts',
@@ -19,6 +20,15 @@ export default defineConfig({
   timeout: 30_000,
   use: {
     baseURL: 'http://127.0.0.1:4174',
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://127.0.0.1:4174',
+          localStorage: [{ name: 'roamlet:disclaimer:v1', value: 'acknowledged' }],
+        },
+      ],
+    },
     trace: 'retain-on-failure',
     launchOptions: {
       args: [

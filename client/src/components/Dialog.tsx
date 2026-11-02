@@ -24,6 +24,7 @@ export function Dialog({
   wide = false,
   compact = false,
   initialFocusRef,
+  dismissible = true,
 }: {
   title: string;
   mobileTitle?: string;
@@ -35,6 +36,7 @@ export function Dialog({
   wide?: boolean;
   compact?: boolean;
   initialFocusRef?: RefObject<HTMLElement | null>;
+  dismissible?: boolean;
 }) {
   const { t } = useTranslation();
   const previous = useRef<HTMLElement | null>(null);
@@ -43,16 +45,19 @@ export function Dialog({
     <DialogRoot
       open
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open && dismissible) onClose();
       }}
     >
       <DialogContent
         className={cn('dialog roamlet-dialog block', wide && 'wide', compact && 'compact')}
         showCloseButton={false}
         {...(!description && { 'aria-describedby': undefined })}
+        onEscapeKeyDown={(event) => {
+          if (!dismissible) event.preventDefault();
+        }}
         onInteractOutside={(event) => {
           const target = event.target;
-          if (target instanceof Element && target.closest('[data-sonner-toast]'))
+          if (!dismissible || (target instanceof Element && target.closest('[data-sonner-toast]')))
             event.preventDefault();
         }}
         onOpenAutoFocus={(event) => {
@@ -95,11 +100,13 @@ export function Dialog({
               <DialogDescription className="dialog-description">{description}</DialogDescription>
             )}
           </div>
-          <DialogClose asChild>
-            <Button variant="ghost" className="icon-button" aria-label={t('Close dialog')}>
-              <X size={20} aria-hidden="true" />
-            </Button>
-          </DialogClose>
+          {dismissible && (
+            <DialogClose asChild>
+              <Button variant="ghost" className="icon-button" aria-label={t('Close dialog')}>
+                <X size={20} aria-hidden="true" />
+              </Button>
+            </DialogClose>
+          )}
         </div>
         {navigation && <div className="dialog-navigation">{navigation}</div>}
         <div className="dialog-body">{children}</div>

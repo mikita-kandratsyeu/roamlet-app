@@ -5,6 +5,9 @@ import { act, fireEvent, render, screen, waitFor, cleanup, within } from '@testi
 import App from './App';
 import { routeDb } from './domain/storage';
 import * as storage from './domain/storage';
+import { DISCLAIMER_KEY } from './domain/disclaimer';
+import { initialEditor } from './domain/editorSnapshot';
+import * as drafts from './domain/drafts';
 import { exportGpx, importGpx } from './domain/gpx';
 import { checkRoutingConfiguration } from './services/routing';
 import { importGpxFile } from './services/gpxImport';
@@ -49,6 +52,7 @@ vi.mock('./components/RouteMap', () => ({
     onAdd,
     fitToken,
     fitMaxZoom,
+    loadingOverlayEnabled,
   }: {
     segments: unknown[];
     manualDrawing?: boolean;
@@ -71,9 +75,11 @@ vi.mock('./components/RouteMap', () => ({
     onAdd?: (coordinate: [number, number]) => void;
     fitToken: number;
     fitMaxZoom?: number;
+    loadingOverlayEnabled?: boolean;
   }) => (
     <div
       data-testid="map"
+      data-loading-overlay={loadingOverlayEnabled}
       data-segments={segments.length}
       data-manual={manualDrawing}
       data-geometry={JSON.stringify(segments)}
@@ -119,7 +125,7 @@ beforeEach(async () => {
   cleanup();
   await routeDb.routes.clear();
   await routeDb.table('drafts').clear();
-  const values = new Map<string, string>();
+  const values = new Map<string, string>([[DISCLAIMER_KEY, 'acknowledged']]);
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),
@@ -145,6 +151,76 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
+describe('first-visit disclaimer', () => {
+  it('blocks the first visit until confirmation, persists it and skips subsequent openings', async () => {
+    localStorage.removeItem(DISCLAIMER_KEY);
+    const view = render(<App />);
+    const dialog = screen.getByRole('dialog', { name: 'Before you plan' });
+    const confirm = within(dialog).getByRole('button', { name: 'Understood' });
+    expect(confirm).toHaveFocus();
+    expect(within(dialog).getAllByRole('button')).toHaveLength(1);
+    expect(localStorage.getItem(DISCLAIMER_KEY)).toBeNull();
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    fireEvent.pointerDown(document.body);
+    expect(dialog).toBeInTheDocument();
+    fireEvent.click(confirm);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(localStorage.getItem(DISCLAIMER_KEY)).toBe('acknowledged');
+    view.unmount();
+    const reopened = render(<App />);
+    expect(screen.queryByRole('dialog', { name: 'Before you plan' })).not.toBeInTheDocument();
+    await plan();
+    reopened.unmount();
+    localStorage.clear();
+    render(<App />);
+    expect(screen.getByRole('dialog', { name: 'Before you plan' })).toBeInTheDocument();
+  });
+
+  it.each(['read', 'write'])('allows this opening and warns when storage %s fails', async (failure) => {
+    localStorage.removeItem(DISCLAIMER_KEY);
+    if (failure === 'read') vi.spyOn(localStorage, 'getItem').mockImplementation(() => { throw new Error('Unavailable'); });
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new Error('Unavailable'); });
+    const view = render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Understood' }));
+    expect(await screen.findByText('Your acknowledgement could not be saved. You can keep planning now, but this notice will appear again next time.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Before you plan' })).not.toBeInTheDocument();
+    await plan();
+    view.unmount();
+    render(<App />);
+    expect(screen.getByRole('dialog', { name: 'Before you plan' })).toBeInTheDocument();
+  });
+
+  it('queues the draft after confirmation and restores it normally', async () => {
+    localStorage.removeItem(DISCLAIMER_KEY);
+    await routeDb.table('drafts').put({
+      id: 'current', version: 1, updatedAt: new Date().toISOString(), snapshot: initialEditor(),
+    });
+    const getDraft = vi.spyOn(drafts, 'loadDraft');
+    render(<App />);
+    await waitFor(() => expect(getDraft).toHaveResolved());
+    expect(screen.getByTestId('map')).toHaveAttribute('data-loading-overlay', 'false');
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryByRole('dialog', { name: 'Restore your draft?' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Understood' }));
+    const restore = await screen.findByRole('button', { name: 'Restore draft' });
+    await waitFor(() => expect(restore).toHaveFocus());
+    expect(screen.getByTestId('map')).toHaveAttribute('data-loading-overlay', 'false');
+    fireEvent.click(restore);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('map')).toHaveAttribute('data-loading-overlay', 'true');
+  });
+
+  it('updates an open disclaimer when the language changes without losing confirmation focus', async () => {
+    localStorage.removeItem(DISCLAIMER_KEY);
+    render(<App />);
+    await act(() => i18n.changeLanguage('ru'));
+    expect(screen.getByRole('dialog', { name: 'Перед планированием' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Понятно' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'Понятно' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
 function openMenu() {
   fireEvent.keyDown(screen.getByRole('button', { name: /^(Menu|Меню)$/ }), { key: 'ArrowDown' });
 }
@@ -1061,7 +1137,7 @@ describe('route planner interactions', () => {
     );
   });
   it('switches to Russian persistently without recalculating routes or changing user names', async () => {
-    const values = new Map<string, string>();
+    const values = new Map<string, string>([[DISCLAIMER_KEY, 'acknowledged']]);
     vi.stubGlobal('localStorage', {
       getItem: (key: string) => values.get(key) ?? null,
       setItem: (key: string, value: string) => {

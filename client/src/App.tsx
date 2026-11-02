@@ -24,6 +24,8 @@ import { PlannerDetails } from './components/PlannerDetails';
 import { PlannerChoice } from './components/PlannerChoice';
 import { CoordinateInput, type CoordinateInputHandle } from './components/CoordinateInput';
 import { DraftPrompt } from './components/DraftPrompt';
+import { DisclaimerDialog } from './components/DisclaimerDialog';
+import { useDisclaimer } from './hooks/useDisclaimer';
 import { initialEditor, newIdentity, withEditorSchedule } from './domain/editorSnapshot';
 import { estimatePersonalTime } from './domain/time';
 import { draftWriter, loadDraft, type DraftRecord } from './domain/drafts';
@@ -103,6 +105,7 @@ interface Confirmation {
 
 export default function App() {
   const { t } = useTranslation();
+  const disclaimer = useDisclaimer();
   const [preferences] = useState(loadPreferences);
   const [timeSyncRevision, setTimeSyncRevision] = useState(0);
   const [editorInitial] = useState(() => ({
@@ -1926,6 +1929,7 @@ export default function App() {
             </footer>
           </PlannerPanel>
           <RouteMap
+            loadingOverlayEnabled={disclaimer.acknowledged && draftChecked && !draft}
             key={mapRetryToken}
             online={online}
             onLibrary={drawingDetour ? undefined : openLibrary}
@@ -2049,7 +2053,16 @@ export default function App() {
           }}
         />
       )}
-      {draft && !secondaryScreenOpen && (
+      {!disclaimer.acknowledged && <DisclaimerDialog onAcknowledge={disclaimer.acknowledge} />}
+      {disclaimer.storageError && (
+        <Notification
+          title={t('Notification')}
+          message={t('Your acknowledgement could not be saved. You can keep planning now, but this notice will appear again next time.')}
+          variant="warning"
+          onDismiss={disclaimer.dismissStorageError}
+        />
+      )}
+      {disclaimer.acknowledged && draft && !secondaryScreenOpen && (
         <DraftPrompt
           onDismiss={() => setDraft(null)}
           onDelete={() => {

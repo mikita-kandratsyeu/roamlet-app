@@ -1,4 +1,8 @@
 {
+  "Before you plan": "Перед планированием",
+  "Understood": "Понятно",
+  "Routes do not guarantee safety or access. Check restrictions, weather and trail conditions yourself. Travel times and elevations are approximate. Full details are available in Help.": "Маршруты не гарантируют безопасность и доступность. Самостоятельно проверяйте ограничения, погоду и состояние дорог и троп. Время в пути и высоты приблизительны. Полный текст предупреждений доступен в справке.",
+  "Your acknowledgement could not be saved. You can keep planning now, but this notice will appear again next time.": "Подтверждение не удалось сохранить. Можно продолжить планирование, но при следующем открытии предупреждение появится снова.",
   "Google Drive connection settings": "Настройки подключения Google Drive",
   "Keep a protected copy of your saved routes in your Google Drive.": "Храните защищённую копию сохранённых маршрутов в своём Google Drive.",
   "Encrypted backup saved to Google Drive.": "Зашифрованная копия сохранена в Google Drive.",

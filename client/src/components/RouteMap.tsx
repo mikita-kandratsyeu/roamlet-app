@@ -70,6 +70,7 @@ function mapFitPadding(container: HTMLElement | null) {
 
 interface Props {
   online?: boolean;
+  loadingOverlayEnabled?: boolean;
   onLibrary?: () => void;
   onCheckConnection?: () => void;
   segments: Coordinate[][];
@@ -1242,6 +1243,7 @@ export function RouteMap(props: Props) {
         />
       )}
       {loading &&
+        props.loadingOverlayEnabled !== false &&
         !mapError &&
         (props.comparisonMode ? (
           <div

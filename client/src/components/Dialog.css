@@ -239,6 +239,10 @@
   color: var(--muted-foreground);
 }
 
+.roamlet-dialog.compact .dialog-footer {
+  padding: 0;
+}
+
 .roamlet-dialog.compact .dialog-body > p {
   color: var(--muted-foreground);
   line-height: 1.55;

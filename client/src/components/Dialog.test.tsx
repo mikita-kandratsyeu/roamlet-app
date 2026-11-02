@@ -117,6 +117,26 @@ it('opts into compact styling without changing other dialogs', () => {
   expect(screen.getByRole('dialog')).not.toHaveClass('compact');
 });
 
+it('requires explicit confirmation when dismissal is disabled', () => {
+  const onClose = vi.fn();
+  const view = render(
+    <Dialog title="Mandatory" dismissible={false} onClose={onClose}>
+      <button>Understood</button>
+    </Dialog>,
+  );
+  expect(screen.queryByRole('button', { name: 'Close dialog' })).not.toBeInTheDocument();
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+  fireEvent.pointerDown(document.body);
+  expect(onClose).not.toHaveBeenCalled();
+  view.rerender(
+    <Dialog title="Mandatory" onClose={onClose}>
+      <button>Understood</button>
+    </Dialog>,
+  );
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
 it('closes through the accessible close button', () => {
   const onClose = vi.fn();
   render(<FormDialog onClose={onClose} />);

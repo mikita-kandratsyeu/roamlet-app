@@ -266,6 +266,18 @@ it('shows a global loader until the map loads, not just until its style loads', 
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
   expect(container.inert).toBeFalsy();
 });
+it('defers the blocking loader for startup dialogs without recreating the map', () => {
+  const { container, rerender } = render(<RouteMap {...props} loadingOverlayEnabled={false} />);
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+  expect(container.inert).toBeFalsy();
+  expect(mocks.options).toHaveBeenCalledOnce();
+  rerender(<RouteMap {...props} loadingOverlayEnabled />);
+  expect(screen.getByTestId('global-map-loader')).toBeInTheDocument();
+  expect(mocks.options).toHaveBeenCalledOnce();
+  act(() => mocks.handlers.get('load')?.());
+  expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
+});
+
 it('shows the route loader inside the comparison map without locking the background', () => {
   const { container } = render(<RouteMap {...props} comparisonMode />);
   const status = screen.getByRole('status');
