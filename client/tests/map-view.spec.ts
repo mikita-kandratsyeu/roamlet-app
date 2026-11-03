@@ -241,6 +241,12 @@ for (const language of ['en', 'ru'] as const) {
       const legend = panel.getByRole('group', { name: labels.legend });
       await legend.scrollIntoViewIfNeeded();
       await expect(legend).toBeVisible();
+      for (const selector of ['.map-slope-tools', ':scope > a']) {
+        const separatorWidth = await panel.locator(selector).evaluate(
+          (element) => getComputedStyle(element).borderTopWidth,
+        );
+        expect(separatorWidth).toBe('0px');
+      }
       await expect(panel).toBeInViewport();
       const bounds = await toggle.boundingBox();
       expect(bounds!.height).toBeGreaterThanOrEqual(44);
