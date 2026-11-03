@@ -5,7 +5,11 @@ import { initialMapView, MAP_VIEW_KEY, saveMapView, validMapView, type MapView }
 
 import type { RoutingOptions } from './types';
 import { DEFAULT_ROUTING_OPTIONS, validRoutingOptions } from './routingOptions';
-import { DEFAULT_SOCIAL_EXPORT, validSocialExport, type SocialExportPreferences } from './socialExport';
+import {
+  DEFAULT_SOCIAL_EXPORT,
+  validSocialExport,
+  type SocialExportPreferences,
+} from './socialExport';
 
 export type MapStyle = 'standard' | 'bright' | 'custom';
 export interface Preferences {

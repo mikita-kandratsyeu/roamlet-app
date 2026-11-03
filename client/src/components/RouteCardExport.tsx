@@ -7,7 +7,14 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { useRouteCard } from '../hooks/useRouteCard';
-import { getRouteCardDimensions, type RouteCardAccent, type RouteCardFormat, type RouteCardRequest, type RouteCardTemplate, type RouteCardTheme } from '../domain/routeCard';
+import type {
+  RouteCardAccent,
+  RouteCardFormat,
+  RouteCardRequest,
+  RouteCardTemplate,
+  RouteCardTheme,
+} from '../domain/routeCard';
+import { getRouteCardDimensions } from '../domain/routeCardLayout';
 import { buildSocialCaption, type SocialExportPreferences } from '../domain/socialExport';
 import { loadPreferences, savePreferences } from '../domain/preferences';
 import { Textarea } from './ui/textarea';
@@ -39,7 +46,9 @@ export function RouteCardExport({
   const [showSafeZones, setShowSafeZones] = useState(false);
   const [storageFailed, setStorageFailed] = useState(false);
   const lastSaved = useRef(initial);
-  const hasProfile = elevationGain !== undefined && Number.isFinite(elevationGain) &&
+  const hasProfile =
+    elevationGain !== undefined &&
+    Number.isFinite(elevationGain) &&
     route.segments.some((segment) => segment.length > 1) &&
     route.segments.every((segment) => segment.every((point) => Number.isFinite(point[2])));
   const template = selectedTemplate === 'elevation' && !hasProfile ? 'adventure' : selectedTemplate;
@@ -50,9 +59,19 @@ export function RouteCardExport({
     Number.isInteger(privacyRadius) &&
     privacyRadius >= 0 &&
     privacyRadius <= 10000;
-  const preferences = useMemo<SocialExportPreferences>(() => ({
-    format, theme, template: selectedTemplate, accent, privacyRadius, distance, duration, elevation,
-  }), [format, theme, selectedTemplate, accent, privacyRadius, distance, duration, elevation]);
+  const preferences = useMemo<SocialExportPreferences>(
+    () => ({
+      format,
+      theme,
+      template: selectedTemplate,
+      accent,
+      privacyRadius,
+      distance,
+      duration,
+      elevation,
+    }),
+    [format, theme, selectedTemplate, accent, privacyRadius, distance, duration, elevation],
+  );
   useEffect(() => {
     if (!validRadius || JSON.stringify(preferences) === JSON.stringify(lastSaved.current)) return;
     const saved = savePreferences({ socialExport: preferences });
@@ -109,21 +128,29 @@ export function RouteCardExport({
   );
   const { preview, generate, cancel } = useRouteCard(request, validRadius);
   const caption = useMemo(() => buildSocialCaption(request), [request]);
-  const [copyStatus, setCopyStatus] = useState<{ text: string; state: 'copying' | 'copied' | 'error' } | null>(null);
-  const copyGeneration = useRef(0);
+  const [copyStatus, setCopyStatus] = useState<{
+    text: string;
+    state: 'copying' | 'copied' | 'error';
+  } | null>(null);
+  const copyGeneration = useRef({ generation: 0 });
   useEffect(() => {
-    copyGeneration.current++;
-    return () => { copyGeneration.current++; };
+    const current = copyGeneration.current;
+    current.generation++;
+    return () => {
+      current.generation++;
+    };
   }, [caption]);
   const copyState = copyStatus?.text === caption ? copyStatus.state : null;
   const copyCaption = async () => {
-    const token = ++copyGeneration.current;
+    const token = ++copyGeneration.current.generation;
     setCopyStatus({ text: caption, state: 'copying' });
     try {
       await navigator.clipboard.writeText(caption);
-      if (token === copyGeneration.current) setCopyStatus({ text: caption, state: 'copied' });
+      if (token === copyGeneration.current.generation)
+        setCopyStatus({ text: caption, state: 'copied' });
     } catch {
-      if (token === copyGeneration.current) setCopyStatus({ text: caption, state: 'error' });
+      if (token === copyGeneration.current.generation)
+        setCopyStatus({ text: caption, state: 'error' });
     }
   };
   const [sharing, setSharing] = useState<RouteCardRequest | null>(null);
@@ -211,8 +238,16 @@ export function RouteCardExport({
       <div className="route-card-settings">
         <div className="route-card-section-heading">
           <h3>{t('Design your image')}</h3>
-          <p className="muted export-copy">{t('Create a preview once. Design changes then refresh it automatically; format and privacy changes need a new preview.')}</p>
-          {storageFailed && <p role="alert">{t('Export settings could not be saved. You can still export this image.')}</p>}
+          <p className="muted export-copy">
+            {t(
+              'Create a preview once. Design changes then refresh it automatically; format and privacy changes need a new preview.',
+            )}
+          </p>
+          {storageFailed && (
+            <p role="alert">
+              {t('Export settings could not be saved. You can still export this image.')}
+            </p>
+          )}
         </div>
         <div className="route-card-field">
           <Label htmlFor="route-card-title">{t('Image title')}</Label>
@@ -226,32 +261,82 @@ export function RouteCardExport({
         <div className="route-card-options">
           <fieldset>
             <legend>{t('Image template')}</legend>
-            <ToggleGroup type="single" value={template} variant="outline" aria-label={t('Image template')}
+            <ToggleGroup
+              type="single"
+              spacing={1}
+              value={template}
+              variant="outline"
+              aria-label={t('Image template')}
               onValueChange={(value) => {
-                if (value === 'minimal' || value === 'adventure' || (value === 'elevation' && hasProfile)) setTemplate(value);
-              }}>
+                if (
+                  value === 'minimal' ||
+                  value === 'adventure' ||
+                  (value === 'elevation' && hasProfile)
+                )
+                  setTemplate(value);
+              }}
+            >
               {(['minimal', 'adventure', 'elevation'] as const).map((item) => (
-                <ToggleGroupItem key={item} value={item} disabled={item === 'elevation' && !hasProfile}>
-                  <svg className={`route-card-template-thumb route-card-template-${item}`} viewBox="0 0 80 96" aria-hidden="true">
+                <ToggleGroupItem
+                  key={item}
+                  value={item}
+                  disabled={item === 'elevation' && !hasProfile}
+                >
+                  <svg
+                    className={`route-card-template-thumb route-card-template-${item}`}
+                    viewBox="0 0 80 96"
+                    aria-hidden="true"
+                  >
                     <rect x="1" y="1" width="78" height="94" rx="8" />
                     <path className="thumb-title" d="M12 15H58 M12 21H42" />
                     <path className="thumb-route" d="M20 67L16 46L35 36L58 46L48 66L32 58L20 67" />
-                    {item === 'elevation' ? <path className="thumb-detail" d="M12 83L23 77L32 80L43 70L52 77L68 73" /> : <path className="thumb-detail" d="M12 82H30 M42 82H65" />}
+                    {item === 'elevation' ? (
+                      <path className="thumb-detail" d="M12 83L23 77L32 80L43 70L52 77L68 73" />
+                    ) : (
+                      <path className="thumb-detail" d="M12 82H30 M42 82H65" />
+                    )}
                   </svg>
-                  {t(item === 'minimal' ? 'Minimalism' : item === 'adventure' ? 'Adventure' : 'Relief')}
+                  {t(
+                    item === 'minimal'
+                      ? 'Minimalism'
+                      : item === 'adventure'
+                        ? 'Adventure'
+                        : 'Relief',
+                  )}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
-            {!hasProfile && <p className="muted export-copy">{t('Relief needs complete, reliable elevations.')}</p>}
+            {!hasProfile && (
+              <p className="muted export-copy">
+                {t('Relief needs complete, reliable elevations.')}
+              </p>
+            )}
           </fieldset>
           <fieldset>
             <legend>{t('Accent color')}</legend>
-            <ToggleGroup type="single" value={accent} variant="outline" aria-label={t('Accent color')}
-              onValueChange={(value) => { if (value === 'green' || value === 'blue' || value === 'orange') setAccent(value); }}>
+            <ToggleGroup
+              type="single"
+              spacing={1}
+              value={accent}
+              variant="outline"
+              aria-label={t('Accent color')}
+              onValueChange={(value) => {
+                if (value === 'green' || value === 'blue' || value === 'orange') setAccent(value);
+              }}
+            >
               {(['green', 'blue', 'orange'] as const).map((color) => (
                 <ToggleGroupItem key={color} value={color}>
-                  <span className={`route-card-swatch route-card-swatch-${color}`} aria-hidden="true" />
-                  {t(color === 'green' ? 'Forest green' : color === 'blue' ? 'Lake blue' : 'Sunset orange')}
+                  <span
+                    className={`route-card-swatch route-card-swatch-${color}`}
+                    aria-hidden="true"
+                  />
+                  {t(
+                    color === 'green'
+                      ? 'Forest green'
+                      : color === 'blue'
+                        ? 'Lake blue'
+                        : 'Sunset orange',
+                  )}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
@@ -261,6 +346,7 @@ export function RouteCardExport({
             <ToggleGroup
               type="single"
               value={format}
+              spacing={1}
               variant="outline"
               aria-label={t('Image format')}
               onValueChange={(value) => {
@@ -286,6 +372,7 @@ export function RouteCardExport({
             <ToggleGroup
               type="single"
               value={theme}
+              spacing={1}
               variant="outline"
               aria-label={t('Image theme')}
               onValueChange={(value) => {
@@ -328,11 +415,23 @@ export function RouteCardExport({
         </fieldset>
         <div className="route-card-field">
           <Label htmlFor="route-card-privacy">{t('Hide around start and finish (metres)')}</Label>
-          <ToggleGroup type="single" value={['0', '200', '500', '1000'].includes(radius) ? radius : ''}
-            variant="outline" className="route-card-privacy-presets" aria-label={t('Privacy presets')}
-            onValueChange={(value) => { if (value) setRadius(value); }}>
+          <ToggleGroup
+            type="single"
+            spacing={1}
+            value={['0', '200', '500', '1000'].includes(radius) ? radius : ''}
+            variant="outline"
+            className="route-card-privacy-presets"
+            aria-label={t('Privacy presets')}
+            onValueChange={(value) => {
+              if (value) setRadius(value);
+            }}
+          >
             <ToggleGroupItem value="0">{t('Full track')}</ToggleGroupItem>
-            {[200, 500, 1000].map((metres) => <ToggleGroupItem key={metres} value={String(metres)}>{formatNumber(metres)} {t('m')}</ToggleGroupItem>)}
+            {[200, 500, 1000].map((metres) => (
+              <ToggleGroupItem key={metres} value={String(metres)}>
+                {formatNumber(metres)} {t('m')}
+              </ToggleGroupItem>
+            ))}
           </ToggleGroup>
           <Input
             id="route-card-privacy"
@@ -363,29 +462,61 @@ export function RouteCardExport({
       <div className="route-card-stage">
         <div className="route-card-stage-heading">
           <h3>{t('Image preview')}</h3>
-          <span className="route-card-output-size">{dimensions.width} × {dimensions.height}</span>
+          <span className="route-card-output-size">
+            {dimensions.width} × {dimensions.height}
+          </span>
         </div>
         <aside className="route-card-sharing-note" aria-label={t('Before publishing')}>
-          <strong>{t(validRadius && privacyRadius > 0 ? 'Start and finish zones are hidden.' : 'The full track is visible.')}</strong>
-          <p className="export-copy">{t('Check the title too: it can reveal a location. Statistics describe the full route. Hiding endpoints does not guarantee anonymity.')}</p>
+          <strong>
+            {t(
+              validRadius && privacyRadius > 0
+                ? 'Start and finish zones are hidden.'
+                : 'The full track is visible.',
+            )}
+          </strong>
+          <p className="export-copy">
+            {t(
+              'Check the title too: it can reveal a location. Statistics describe the full route. Hiding endpoints does not guarantee anonymity.',
+            )}
+          </p>
         </aside>
-        {format === 'story' && <label className="route-card-safe-toggle">
-          <input type="checkbox" checked={showSafeZones} onChange={(event) => setShowSafeZones(event.target.checked)} />
-          {t('Show story safe zones')}
-        </label>}
+        {format === 'story' && (
+          <label className="route-card-safe-toggle">
+            <input
+              type="checkbox"
+              checked={showSafeZones}
+              onChange={(event) => setShowSafeZones(event.target.checked)}
+            />
+            {t('Show story safe zones')}
+          </label>
+        )}
         <div
           className={`route-card-preview route-card-preview-${format}`}
           aria-busy={preview.status === 'generating'}
         >
           <div className="route-card-preview-sheet">
             {preview.status === 'ready' ? (
-              <img src={preview.url} alt={t('Generated route image')} width={dimensions.width} height={dimensions.height} />
+              <img
+                src={preview.url}
+                alt={t('Generated route image')}
+                width={dimensions.width}
+                height={dimensions.height}
+              />
             ) : (
               <div className="route-card-placeholder" aria-hidden="true">
-                {preview.status === 'generating' ? <LoaderCircle size={32} className="spin" /> : <Image size={32} />}
+                {preview.status === 'generating' ? (
+                  <LoaderCircle size={32} className="spin" />
+                ) : (
+                  <Image size={32} />
+                )}
               </div>
             )}
-            {format === 'story' && showSafeZones && <div className="route-card-safe-zones" aria-hidden="true"><span /><span /></div>}
+            {format === 'story' && showSafeZones && (
+              <div className="route-card-safe-zones" aria-hidden="true">
+                <span />
+                <span />
+              </div>
+            )}
           </div>
         </div>
         {preview.status === 'error' && (
@@ -402,20 +533,52 @@ export function RouteCardExport({
                 ? t('The preview is generated only when you press the button.')
                 : ''}
         </p>
-        {format === 'story' && <p className="muted export-copy">{t('Keep important content in the middle. Shaded zones are preview guides only; social app overlays vary.')}</p>}
+        {format === 'story' && (
+          <p className="muted export-copy">
+            {t(
+              'Keep important content in the middle. Shaded zones are preview guides only; social app overlays vary.',
+            )}
+          </p>
+        )}
         <p className="route-card-background-note muted export-copy">
-          {t(template === 'elevation' ? 'Elevation profile uses available heights of the visible track; gaps stay gaps.' : 'Decorative contours, not a terrain map.')}
+          {t(
+            template === 'elevation'
+              ? 'Elevation profile uses available heights of the visible track; gaps stay gaps.'
+              : 'Decorative contours, not a terrain map.',
+          )}
         </p>
         <div className="route-card-field route-card-caption">
           <Label htmlFor="route-card-caption">{t('Publication caption')}</Label>
-          <Textarea id="route-card-caption" readOnly value={caption} spellCheck={false} aria-describedby="route-card-caption-hint" />
-          <p id="route-card-caption-hint" className="muted export-copy">{t('Uses the title and selected statistics, not coordinates. You can select and copy it manually.')}</p>
-          <Button variant="outline" onClick={() => void copyCaption()} disabled={copyState === 'copying'}>
-            {copyState === 'copying' ? <LoaderCircle className="spin" size={17} aria-hidden="true" /> : <Copy size={17} aria-hidden="true" />}
+          <Textarea
+            id="route-card-caption"
+            readOnly
+            value={caption}
+            spellCheck={false}
+            aria-describedby="route-card-caption-hint"
+          />
+          <p id="route-card-caption-hint" className="muted export-copy">
+            {t(
+              'Uses the title and selected statistics, not coordinates. You can select and copy it manually.',
+            )}
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => void copyCaption()}
+            disabled={copyState === 'copying'}
+          >
+            {copyState === 'copying' ? (
+              <LoaderCircle className="spin" size={17} aria-hidden="true" />
+            ) : (
+              <Copy size={17} aria-hidden="true" />
+            )}
             {t(copyState === 'copying' ? 'Copying…' : 'Copy caption')}
           </Button>
           {copyState === 'copied' && <p role="status">{t('Caption copied.')}</p>}
-          {copyState === 'error' && <p role="alert">{t('Copying failed. Select the preview and copy it manually, or try again.')}</p>}
+          {copyState === 'error' && (
+            <p role="alert">
+              {t('Copying failed. Select the preview and copy it manually, or try again.')}
+            </p>
+          )}
         </div>
         {notice?.request === request && (
           <p role={notice.error ? 'alert' : 'status'}>{translateMessage(notice.message)}</p>

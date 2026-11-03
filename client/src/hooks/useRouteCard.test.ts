@@ -153,25 +153,42 @@ it('aborts on unmount without creating an obsolete URL', async () => {
 it('debounces design changes only after generation, keeps privacy and format changes manual', async () => {
   vi.useFakeTimers();
   vi.mocked(generateRouteCard).mockResolvedValue(blob);
-  const { result, rerender, unmount } = renderHook(({ value }) => useRouteCard(value, true), { initialProps: { value: request } });
+  const { result, rerender, unmount } = renderHook(({ value }) => useRouteCard(value, true), {
+    initialProps: { value: request },
+  });
   const dark = { ...request, theme: 'dark' as const };
   rerender({ value: dark });
-  await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(400);
+  });
   expect(generateRouteCard).not.toHaveBeenCalled();
-  await act(async () => { await result.current.generate(); });
+  await act(async () => {
+    await result.current.generate();
+  });
   rerender({ value: { ...dark, title: 'A' } });
   rerender({ value: { ...dark, title: 'Final title', accent: 'blue' } });
-  await act(async () => { await vi.advanceTimersByTimeAsync(349); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(349);
+  });
   expect(generateRouteCard).toHaveBeenCalledOnce();
-  await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1);
+  });
   expect(generateRouteCard).toHaveBeenCalledTimes(2);
-  expect(generateRouteCard).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Final title', accent: 'blue' }), expect.any(AbortSignal));
+  expect(generateRouteCard).toHaveBeenLastCalledWith(
+    expect.objectContaining({ title: 'Final title', accent: 'blue' }),
+    expect.any(AbortSignal),
+  );
   rerender({ value: { ...dark, privacyRadius: 500 } });
-  await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(400);
+  });
   expect(result.current.preview.status).toBe('idle');
   expect(generateRouteCard).toHaveBeenCalledTimes(2);
   rerender({ value: { ...dark, privacyRadius: 500, format: 'story' } });
-  await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(400);
+  });
   expect(generateRouteCard).toHaveBeenCalledTimes(2);
   unmount();
 });
@@ -179,18 +196,30 @@ it('debounces design changes only after generation, keeps privacy and format cha
 it('cancels scheduled refreshes and cleans timers on unmount', async () => {
   vi.useFakeTimers();
   vi.mocked(generateRouteCard).mockResolvedValue(blob);
-  const { result, rerender, unmount } = renderHook(({ value }) => useRouteCard(value, true), { initialProps: { value: request } });
-  await act(async () => { await result.current.generate(); });
+  const { result, rerender, unmount } = renderHook(({ value }) => useRouteCard(value, true), {
+    initialProps: { value: request },
+  });
+  await act(async () => {
+    await result.current.generate();
+  });
   rerender({ value: { ...request, title: 'Changed' } });
   act(() => result.current.cancel());
-  await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(400);
+  });
   expect(generateRouteCard).toHaveBeenCalledOnce();
   rerender({ value: { ...request, title: 'Another' } });
-  await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(400);
+  });
   expect(generateRouteCard).toHaveBeenCalledOnce();
-  await act(async () => { await result.current.generate(); });
+  await act(async () => {
+    await result.current.generate();
+  });
   rerender({ value: { ...request, title: 'Unmounted' } });
   unmount();
-  await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(400);
+  });
   expect(generateRouteCard).toHaveBeenCalledTimes(2);
 });

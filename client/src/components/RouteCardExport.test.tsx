@@ -192,9 +192,30 @@ it('offers templates, square output and privacy presets, and restores settings w
   expect(screen.getByText('Start and finish zones are hidden.')).toBeVisible();
   await user.click(screen.getByRole('button', { name: 'Create preview' }));
   expect(await screen.findByRole('img')).toHaveAttribute('height', '1080');
-  expect(generateRouteCard).toHaveBeenLastCalledWith(expect.objectContaining({ template: 'elevation', accent: 'blue', format: 'square', privacyRadius: 500 }), expect.any(AbortSignal));
+  expect(generateRouteCard).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      template: 'elevation',
+      accent: 'blue',
+      format: 'square',
+      privacyRadius: 500,
+    }),
+    expect.any(AbortSignal),
+  );
   unmount();
-  render(<RouteCardExport route={{ ...route, name: 'New route', segments: [[[11, 47], [11.1, 47]]] }} />);
+  render(
+    <RouteCardExport
+      route={{
+        ...route,
+        name: 'New route',
+        segments: [
+          [
+            [11, 47],
+            [11.1, 47],
+          ],
+        ],
+      }}
+    />,
+  );
   expect(screen.getByRole('radio', { name: 'Relief' })).toBeDisabled();
   expect(screen.getByRole('radio', { name: 'Adventure' })).toHaveAttribute('data-state', 'on');
   expect(screen.getByRole('radio', { name: 'Lake blue' })).toHaveAttribute('data-state', 'on');
@@ -207,10 +228,14 @@ it('copies only the selected caption metrics and allows manual copying after fai
   const user = userEvent.setup();
   const { unmount } = render(<RouteCardExport route={route} elevationGain={30} />);
   const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
-  expect(screen.getByRole('textbox', { name: 'Publication caption' })).toHaveValue('Forest walk\nPlanned route · Hiking\nDistance: 12.4 km\nElevation gain: 30 m');
+  expect(screen.getByRole('textbox', { name: 'Publication caption' })).toHaveValue(
+    'Forest walk\nPlanned route · Hiking\nDistance: 12.4 km\nElevation gain: 30 m',
+  );
   await user.click(screen.getByRole('checkbox', { name: 'Distance' }));
   await user.click(screen.getByRole('button', { name: 'Copy caption' }));
-  expect(writeText).toHaveBeenCalledWith('Forest walk\nPlanned route · Hiking\nElevation gain: 30 m');
+  expect(writeText).toHaveBeenCalledWith(
+    'Forest walk\nPlanned route · Hiking\nElevation gain: 30 m',
+  );
   expect(screen.getByText('Caption copied.')).toBeVisible();
   writeText.mockRejectedValueOnce(new Error('Permission denied'));
   await user.click(screen.getByRole('button', { name: 'Copy caption' }));
@@ -224,11 +249,57 @@ it('does not present missing statistics in the caption and keeps safe-zone guide
   const user = userEvent.setup();
   render(<RouteCardExport route={{ ...route, stats: { distance: NaN, duration: NaN } }} />);
   await user.click(screen.getByRole('checkbox', { name: 'Time estimate' }));
-  expect(screen.getByRole('textbox', { name: 'Publication caption' })).toHaveValue('Forest walk\nPlanned route · Hiking');
+  expect(screen.getByRole('textbox', { name: 'Publication caption' })).toHaveValue(
+    'Forest walk\nPlanned route · Hiking',
+  );
   await user.click(screen.getByRole('radio', { name: /^Story/ }));
   await user.click(screen.getByRole('checkbox', { name: 'Show story safe zones' }));
   expect(document.querySelector('.route-card-safe-zones')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Create preview' }));
   await screen.findByRole('img');
-  expect(generateRouteCard).toHaveBeenLastCalledWith(expect.not.objectContaining({ showSafeZones: true }), expect.any(AbortSignal));
+  expect(generateRouteCard).toHaveBeenLastCalledWith(
+    expect.not.objectContaining({ showSafeZones: true }),
+    expect.any(AbortSignal),
+  );
+});
+
+it('ignores stale clipboard completion after title changes and unmount', async () => {
+  const user = userEvent.setup();
+  let resolve!: () => void;
+  const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockImplementationOnce(
+    () =>
+      new Promise<void>((done) => {
+        resolve = done;
+      }),
+  );
+  const { unmount } = render(<RouteCardExport route={route} />);
+  await user.click(screen.getByRole('button', { name: 'Copy caption' }));
+  expect(screen.getByRole('button', { name: 'Copying…' })).toBeDisabled();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Image title' }), {
+    target: { value: 'New title' },
+  });
+  await act(async () => resolve());
+  expect(screen.queryByText('Caption copied.')).not.toBeInTheDocument();
+  writeText.mockImplementationOnce(
+    () =>
+      new Promise<void>((done) => {
+        resolve = done;
+      }),
+  );
+  await user.click(screen.getByRole('button', { name: 'Copy caption' }));
+  unmount();
+  await act(async () => resolve());
+});
+
+it('keeps exporting available when settings storage fails', async () => {
+  const user = userEvent.setup();
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    throw new Error('Storage blocked');
+  });
+  render(<RouteCardExport route={route} />);
+  await user.click(screen.getByRole('radio', { name: 'Lake blue' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Export settings could not be saved');
+  await user.click(screen.getByRole('button', { name: 'Create preview' }));
+  await screen.findByRole('img');
+  expect(screen.getByRole('button', { name: 'Download PNG' })).toBeEnabled();
 });

@@ -68,8 +68,11 @@ export function useRouteCard(request: RouteCardRequest, autoRefresh = false) {
     previous.current = request;
     release();
     setPreview(idle);
-    const lightweight = old !== request && old.segments === request.segments &&
-      old.format === request.format && old.privacyRadius === request.privacyRadius;
+    const lightweight =
+      old !== request &&
+      old.segments === request.segments &&
+      old.format === request.format &&
+      old.privacyRadius === request.privacyRadius;
     if (autoRefresh && refreshEnabled.current && lightweight) {
       refreshTimer.current = setTimeout(() => void generate(), 350);
     }

@@ -61,7 +61,13 @@ it('saves validated patches in a versioned envelope without redundant legacy sto
 it('restores social export settings, migrates old preferences and resets without storing route data', () => {
   storage.set(PREFERENCES_KEY, JSON.stringify({ version: 1, preferences: { targetKm: 42 } }));
   expect(loadPreferences().socialExport).toEqual(DEFAULT_PREFERENCES.socialExport);
-  const socialExport = { ...DEFAULT_PREFERENCES.socialExport, privacyRadius: 500, format: 'square' as const, template: 'elevation' as const, accent: 'blue' as const };
+  const socialExport = {
+    ...DEFAULT_PREFERENCES.socialExport,
+    privacyRadius: 500,
+    format: 'square' as const,
+    template: 'elevation' as const,
+    accent: 'blue' as const,
+  };
   expect(savePreferences({ socialExport })).toBe(true);
   expect(loadPreferences().socialExport).toEqual(socialExport);
   expect(loadPreferences().targetKm).toBe(42);

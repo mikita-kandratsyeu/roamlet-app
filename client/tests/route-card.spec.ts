@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 
 const gpx =
   '<gpx version="1.1" creator="Roamlet test"><trk><name>Forest escape</name><trkseg><trkpt lat="47" lon="11"><ele>100</ele></trkpt><trkpt lat="47.02" lon="11.02"><ele>130</ele></trkpt><trkpt lat="47.03" lon="11"><ele>110</ele></trkpt></trkseg><trkseg><trkpt lat="47.04" lon="11"><ele>110</ele></trkpt><trkpt lat="47.05" lon="11.01"><ele>120</ele></trkpt></trkseg></trk></gpx>';
@@ -382,6 +382,26 @@ test('social export layout and shared scrollbars work in both languages and them
       );
       await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0);
       await expect(dialog.getByRole('img')).toHaveCount(0);
+      const groups = dialog.locator('.route-card-settings [data-slot="toggle-group"]');
+      await expect(groups).toHaveCount(5);
+      const styles = await groups.evaluateAll((elements) =>
+        elements.map((group) => {
+          const root = getComputedStyle(group);
+          const selected = getComputedStyle(group.querySelector('[data-state="on"]')!);
+          return {
+            radius: root.borderRadius,
+            padding: root.padding,
+            selectedRadius: selected.borderRadius,
+            selectedBorder: selected.borderColor,
+            selectedBackground: selected.backgroundColor,
+          };
+        }),
+      );
+      for (const style of styles) expect(style).toEqual(styles[0]);
+      const swatchTops = await dialog
+        .locator('.route-card-swatch')
+        .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
+      expect(Math.max(...swatchTops) - Math.min(...swatchTops)).toBeLessThanOrEqual(1);
       const { settings, stage, footerInset, scrollGap, captionGap, captionInset } =
         await dialog.evaluate((element) => {
           const settingsBox = element
@@ -466,7 +486,10 @@ test('social export layout and shared scrollbars work in both languages and them
 });
 
 for (const language of ['en', 'ru']) {
-  test(`social templates, automatic refresh, captions and saved settings work in ${language}`, async ({ page, context }, testInfo) => {
+  test(`social templates, automatic refresh, captions and saved settings work in ${language}`, async ({
+    page,
+    context,
+  }, testInfo) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     if (language === 'ru') {
       await page.getByRole('button', { name: 'Menu', exact: true }).click();
@@ -475,44 +498,76 @@ for (const language of ['en', 'ru']) {
     await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('radio', { name: /^(For social media|Для соцсетей)$/ }).click();
-    await dialog.getByRole('radio', { name: language === 'en' ? 'Light' : 'Тёмная', exact: true }).click();
+    await dialog
+      .getByRole('radio', { name: language === 'en' ? 'Light' : 'Тёмная', exact: true })
+      .click();
     await dialog.getByRole('radio', { name: /^(Square|Квадрат)/ }).click();
-    const image = dialog.getByRole('img', { name: /^(Generated route image|Изображение маршрута)$/ });
-    for (const template of language === 'en' ? ['Minimalism', 'Adventure', 'Relief'] : ['Минимализм', 'Приключение', 'Рельеф']) {
+    const image = dialog.getByRole('img', {
+      name: /^(Generated route image|Сгенерированное изображение маршрута)$/,
+    });
+    for (const template of language === 'en'
+      ? ['Minimalism', 'Adventure', 'Relief']
+      : ['Минимализм', 'Приключение', 'Рельеф']) {
       await dialog.getByRole('radio', { name: template, exact: true }).click();
-      if (await image.count() === 0) {
-        await dialog.getByRole('button', { name: /^(Create preview|Создать предпросмотр)$/ }).click();
+      if ((await image.count()) === 0) {
+        await dialog
+          .getByRole('button', { name: /^(Create preview|Создать предпросмотр)$/ })
+          .click();
       }
       await expect(image).toBeVisible();
-      await expect.poll(() => image.evaluate((element: HTMLImageElement) => [element.naturalWidth, element.naturalHeight])).toEqual([1080, 1080]);
-      await image.screenshot({ path: testInfo.outputPath(`social-${language}-${template}.png`) });
+      await expect
+        .poll(() =>
+          image.evaluate((element: HTMLImageElement) => [
+            element.naturalWidth,
+            element.naturalHeight,
+          ]),
+        )
+        .toEqual([1080, 1080]);
+      const png = await image.evaluate(async (element: HTMLImageElement) =>
+        Array.from(new Uint8Array(await (await fetch(element.src)).arrayBuffer())),
+      );
+      await writeFile(testInfo.outputPath(`social-${language}-${template}.png`), Buffer.from(png));
     }
     const oldUrl = await image.getAttribute('src');
     await dialog.getByRole('radio', { name: /^(Lake blue|Озёрный синий)$/ }).click();
     await expect(image).toBeVisible();
     await expect(image).not.toHaveAttribute('src', oldUrl!);
-    const caption = dialog.getByRole('textbox', { name: /^(Publication caption|Подпись к публикации)$/ });
-    await dialog.getByRole('button', { name: /^(Copy caption|Скопировать подпись)$/ }).click();
+    const caption = dialog.getByRole('textbox', {
+      name: /^(Publication caption|Подпись к публикации)$/,
+    });
+    const copyCaption = dialog.getByRole('button', { name: /^(Copy caption|Скопировать подпись)$/ });
+    expect(await copyCaption.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+    await copyCaption.click();
     await expect(dialog.getByText(/^(Caption copied\.|Подпись скопирована\.)$/)).toBeVisible();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await caption.inputValue());
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      await caption.inputValue(),
+    );
     expect(await caption.inputValue()).not.toContain('47.02');
-    await dialog.getByRole('radio', { name: /^(Story|Сторис)/ }).click();
+    await dialog.getByRole('radio', { name: /^(Story|История)/ }).click();
     await dialog.getByRole('radio', { name: /^200 / }).click();
     await dialog.getByRole('button', { name: /^(Create preview|Создать предпросмотр)$/ }).click();
     await expect(image).toBeVisible();
-    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalHeight)).toBe(1920);
+    await expect
+      .poll(() => image.evaluate((element: HTMLImageElement) => element.naturalHeight))
+      .toBe(1920);
     const storyUrl = await image.getAttribute('src');
-    await dialog.getByRole('checkbox', { name: /^(Show story safe zones|Показать безопасные зоны сторис)$/ }).check();
+    await dialog
+      .getByRole('checkbox', { name: /^(Show story safe zones|Показать безопасные зоны сторис)$/ })
+      .check();
     await expect(dialog.locator('.route-card-safe-zones')).toBeVisible();
     await expect(image).toHaveAttribute('src', storyUrl!);
-    expect(await dialog.locator('.dialog-body').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(
+      await dialog
+        .locator('.dialog-body')
+        .evaluate((element) => element.scrollWidth <= element.clientWidth),
+    ).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`social-story-safe-${language}.png`) });
     await dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }).click();
     await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
     await dialog.getByRole('radio', { name: /^(For social media|Для соцсетей)$/ }).click();
     await expect(dialog.getByRole('radio', { name: /^(Lake blue|Озёрный синий)$/ })).toBeChecked();
     await expect(dialog.getByRole('spinbutton')).toHaveValue('200');
-    await expect(dialog.getByRole('radio', { name: /^(Story|Сторис)/ })).toBeChecked();
+    await expect(dialog.getByRole('radio', { name: /^(Story|История)/ })).toBeChecked();
     await expect(image).toHaveCount(0);
   });
 }
