@@ -58,6 +58,17 @@ it('saves validated patches in a versioned envelope without redundant legacy sto
   expect(storage.size).toBe(1);
   expect(changed).toHaveBeenCalledTimes(2);
 });
+it('restores social export settings, migrates old preferences and resets without storing route data', () => {
+  storage.set(PREFERENCES_KEY, JSON.stringify({ version: 1, preferences: { targetKm: 42 } }));
+  expect(loadPreferences().socialExport).toEqual(DEFAULT_PREFERENCES.socialExport);
+  const socialExport = { ...DEFAULT_PREFERENCES.socialExport, privacyRadius: 500, format: 'square' as const, template: 'elevation' as const, accent: 'blue' as const };
+  expect(savePreferences({ socialExport })).toBe(true);
+  expect(loadPreferences().socialExport).toEqual(socialExport);
+  expect(loadPreferences().targetKm).toBe(42);
+  expect(storage.get(PREFERENCES_KEY)).not.toMatch(/segments|coordinates|title/);
+  expect(resetPreferences()).toBe(true);
+  expect(loadPreferences().socialExport).toEqual(DEFAULT_PREFERENCES.socialExport);
+});
 it('delegates theme/language/camera saves to their existing keys and syncs current language', () => {
   const camera = { center: [12, 48] as [number, number], zoom: 8, bearing: 10, pitch: 0 };
   expect(savePreferences({ theme: 'dark', language: 'ru', camera })).toBe(true);

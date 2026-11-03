@@ -160,9 +160,17 @@
 .route-card-preview-story {
   --preview-ratio: 1080 / 1920;
 }
+.route-card-preview-square {
+  --preview-ratio: 1;
+}
+.route-card-preview-sheet {
+  position: relative;
+  width: min(100%, calc(var(--preview-height) * var(--preview-ratio)));
+  aspect-ratio: var(--preview-ratio);
+}
 .route-card-preview img,
 .route-card-placeholder {
-  width: min(100%, calc(var(--preview-height) * var(--preview-ratio)));
+  width: 100%;
   aspect-ratio: var(--preview-ratio);
 }
 .route-card-preview img {
@@ -212,6 +220,96 @@
 }
 .route-card-error {
   color: var(--destructive);
+}
+.route-card-options [data-slot='toggle-group-item'] .route-card-template-thumb {
+  width: 64px;
+  max-width: 100%;
+  height: auto;
+  color: var(--primary);
+}
+.route-card-template-thumb rect {
+  fill: var(--surface);
+  stroke: var(--border);
+}
+.route-card-template-thumb path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.route-card-template-thumb .thumb-title,
+.route-card-template-thumb .thumb-detail {
+  stroke-width: 2;
+  opacity: 0.5;
+}
+.route-card-template-minimal .thumb-route {
+  transform: translate(-4px, -4px) scale(1.15);
+}
+.route-card-template-adventure rect {
+  fill: var(--accent);
+}
+.route-card-swatch {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+.route-card-swatch-green { background: #268052; }
+.route-card-swatch-blue { background: #286bb0; }
+.route-card-swatch-orange { background: #b65821; }
+.route-card-privacy-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.route-card-privacy-presets [data-slot='toggle-group-item'] {
+  flex: 1 1 auto;
+  min-height: 44px;
+  height: auto;
+  padding: 8px;
+  white-space: normal;
+}
+.route-card-sharing-note {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.roamlet-dialog .route-card-safe-toggle {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.roamlet-dialog .route-card-safe-toggle input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  accent-color: var(--primary);
+}
+.route-card-safe-zones {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  border-radius: 8px;
+  pointer-events: none;
+}
+.route-card-safe-zones span {
+  height: 13.020833%;
+  background: repeating-linear-gradient(135deg, #0006, #0006 4px, #fff6 4px, #fff6 8px);
+}
+.route-card-stage textarea {
+  min-height: 130px;
+  resize: vertical;
 }
 .export-mode {
   display: flex;

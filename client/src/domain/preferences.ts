@@ -5,6 +5,7 @@ import { initialMapView, MAP_VIEW_KEY, saveMapView, validMapView, type MapView }
 
 import type { RoutingOptions } from './types';
 import { DEFAULT_ROUTING_OPTIONS, validRoutingOptions } from './routingOptions';
+import { DEFAULT_SOCIAL_EXPORT, validSocialExport, type SocialExportPreferences } from './socialExport';
 
 export type MapStyle = 'standard' | 'bright' | 'custom';
 export interface Preferences {
@@ -15,6 +16,7 @@ export interface Preferences {
   stopsMinutes: number;
   fitness: Fitness;
   routingOptions: RoutingOptions;
+  socialExport: SocialExportPreferences;
   panelHidden: boolean;
   collapsed: boolean;
   library: {
@@ -42,6 +44,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   stopsMinutes: 0,
   fitness: 'regular',
   routingOptions: { ...DEFAULT_ROUTING_OPTIONS },
+  socialExport: { ...DEFAULT_SOCIAL_EXPORT },
   panelHidden: false,
   collapsed: false,
   library: {
@@ -67,6 +70,7 @@ const fields = [
   'stopsMinutes',
   'fitness',
   'routingOptions',
+  'socialExport',
   'panelHidden',
   'collapsed',
   'library',
@@ -104,6 +108,7 @@ function valid(value: Preferences): boolean {
     nonnegative(value.stopsMinutes) &&
     isFitness(value.fitness) &&
     validRoutingOptions(value.routingOptions) &&
+    validSocialExport(value.socialExport) &&
     typeof value.panelHidden === 'boolean' &&
     typeof value.collapsed === 'boolean' &&
     !!library &&

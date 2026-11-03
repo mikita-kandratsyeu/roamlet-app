@@ -4,6 +4,8 @@ import {
   projectRouteCardGeometry,
   projectRouteCardDrawing,
   renderRouteCard,
+  getRouteCardDimensions,
+  projectRouteCardElevationProfile,
   type RouteCardRequest,
 } from './routeCard';
 import { calculateStats } from './stats';
@@ -394,6 +396,334 @@ describe('conservative projected privacy areas', () => {
   });
 });
 
+describe('social export compositions', () => {
+  const elevated: Coordinate[][] = [
+    [
+      [0, 0, -1000],
+      [0.01, 0.01, 100],
+      [0.02, 0, 300],
+      [0.03, 0.01, 200],
+      [0.04, 0, 9000],
+    ],
+  ];
+  const variants = (['post', 'story', 'square'] as const).flatMap((format) =>
+    (['minimal', 'adventure', 'elevation'] as const).flatMap((template) =>
+      (['green', 'blue', 'orange'] as const).flatMap((accent) =>
+        (['light', 'dark'] as const).map((theme) => ({ format, template, accent, theme })),
+      ),
+    ),
+  );
+  it.each(variants)(
+    'renders $format $template $accent $theme within safe bounds',
+    async (variant) => {
+      const { canvas, context, strokes, texts } = canvasMock();
+      const blob = await renderRouteCard(
+        {
+          ...request,
+          ...variant,
+          segments: elevated,
+          title: 'Very long route title '.repeat(30),
+          activityLabel: 'Long activity label '.repeat(30),
+          metrics: Array.from({ length: 6 }, () => ({
+            label: 'Long metric label '.repeat(20),
+            value: '12.3 km',
+          })),
+        },
+        canvas,
+      );
+      const dimensions = getRouteCardDimensions(variant.format);
+      expect([canvas.width, canvas.height]).toEqual([
+        1080,
+        variant.format === 'story' ? 1920 : variant.format === 'square' ? 1080 : 1350,
+      ]);
+      expect(dimensions).toEqual({ width: canvas.width, height: canvas.height });
+      expect(blob.type).toBe('image/png');
+      const colors = {
+        green: { light: '#1f6846', dark: '#9de4b5' },
+        blue: { light: '#245f9e', dark: '#9ecfff' },
+        orange: { light: '#a34719', dark: '#ffc18c' },
+      };
+      expect(strokes).toContainEqual({
+        width: variant.template === 'minimal' ? 7 : 11,
+        color: colors[variant.accent][variant.theme],
+      });
+      expect(context.createLinearGradient).toHaveBeenCalledTimes(
+        variant.template === 'adventure' ? 1 : 0,
+      );
+      expect(context.roundRect).toHaveBeenCalledTimes(variant.template === 'minimal' ? 1 : 3);
+      expect(texts.some((text) => text.text === 'Elevation profile')).toBe(
+        variant.template === 'elevation',
+      );
+      expect(strokes.some((stroke) => stroke.width === 4)).toBe(variant.template === 'elevation');
+      const top = variant.format === 'story' ? 250 : 72;
+      const bottom = canvas.height - (variant.format === 'story' ? 250 : 72);
+      for (const text of texts) {
+        const size = Number(text.font.match(/(\d+)px/)![1]);
+        expect(
+          text.baseline === 'alphabetic' ? text.y - text.ascent : text.y,
+        ).toBeGreaterThanOrEqual(top);
+        expect(
+          text.baseline === 'alphabetic' ? text.y + text.descent : text.y + size,
+        ).toBeLessThanOrEqual(bottom);
+        const left = text.align === 'center' ? text.x - text.width / 2 : text.x;
+        expect(left).toBeGreaterThanOrEqual(72);
+        expect(left + text.width).toBeLessThanOrEqual(1008);
+      }
+      const [, routeY, , routeHeight] = context.rect.mock.calls[0];
+      expect(routeY).toBeGreaterThanOrEqual(top);
+      expect(routeHeight).toBeGreaterThan(0);
+      expect(routeY + routeHeight).toBeLessThanOrEqual(bottom);
+    },
+  );
+
+  it.each(
+    (['post', 'story', 'square'] as const).flatMap((format) =>
+      (['minimal', 'adventure', 'elevation'] as const).map((template) => ({ format, template })),
+    ),
+  )('preserves privacy union clipping in $format $template', async ({ format, template }) => {
+    const { canvas, context } = canvasMock();
+    await renderRouteCard(
+      { ...request, segments: elevated, format, template, privacyRadius: 500 },
+      canvas,
+    );
+    expect(context.clip.mock.calls.filter((call) => call[0] === 'evenodd')).toHaveLength(2);
+    expect(context.arc.mock.calls.some((call) => call[2] === 12)).toBe(false);
+    expect(canvas.toBlob).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves privacy revisit gaps in the elevation profile', () => {
+    const segments: Coordinate[][] = [
+      [
+        [0, 0, 9000],
+        [0.01, 0, 100],
+        [0.02, 0, 200],
+        [0, 0, -999],
+        [-0.01, 0, 300],
+        [-0.02, 0, 400],
+        [0, 0, 9000],
+      ],
+    ];
+    const visible = clipRouteCardGeometry(segments, 500);
+    expect(visible).toHaveLength(2);
+    const profile = projectRouteCardElevationProfile(visible, {
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+    expect(profile.map((run) => run.length)).toEqual([2, 2]);
+    expect(profile[0].at(-1)![0]).toBeLessThan(profile[1][0][0]);
+    expect(profile.flat().map((point) => point[1])).toEqual([
+      100,
+      expect.closeTo(200 / 3, 6),
+      expect.closeTo(100 / 3, 6),
+      0,
+    ]);
+  });
+
+  it('keeps legacy requests equivalent to explicit adventure/green defaults', async () => {
+    const legacy = canvasMock(),
+      explicit = canvasMock();
+    await renderRouteCard(request, legacy.canvas);
+    await renderRouteCard({ ...request, template: 'adventure', accent: 'green' }, explicit.canvas);
+    expect(legacy.strokes).toEqual(explicit.strokes);
+    expect(legacy.texts).toEqual(explicit.texts);
+    expect(legacy.gradients).toEqual(explicit.gradients);
+  });
+
+  it('uses only visible original heights after privacy clipping, not hidden endpoint heights', async () => {
+    const bounds = { x: 0, y: 0, width: 100, height: 100 };
+    const visible = clipRouteCardGeometry(elevated, 500);
+    expect(visible[0][0]).toHaveLength(2);
+    expect(visible[0].at(-1)).toHaveLength(2);
+    const profile = projectRouteCardElevationProfile(visible, bounds);
+    expect(profile).toHaveLength(1);
+    expect(profile[0]).toHaveLength(3);
+    expect(profile[0].map((point) => point[1])).toEqual([100, 0, 50]);
+    expect(profile[0][0][0]).toBeGreaterThan(0);
+    expect(profile[0].at(-1)![0]).toBeLessThan(100);
+    const changed = elevated.map((segment) => segment.map((point): Coordinate => [...point]));
+    changed[0][0][2] = 50000;
+    changed[0].at(-1)![2] = -50000;
+    expect(projectRouteCardElevationProfile(clipRouteCardGeometry(changed, 500), bounds)).toEqual(
+      profile,
+    );
+    const { canvas, texts, context } = canvasMock();
+    const snapshot = JSON.stringify(elevated);
+    await renderRouteCard(
+      {
+        ...request,
+        segments: elevated,
+        privacyRadius: 500,
+        template: 'elevation',
+        elevationProfileLabel: 'Профиль высот',
+      },
+      canvas,
+    );
+    expect(texts.some((text) => text.text === 'Профиль высот')).toBe(true);
+    expect(context.arc.mock.calls.some((call) => call[2] === 12)).toBe(false);
+    expect(JSON.stringify(elevated)).toBe(snapshot);
+  });
+
+  it('preserves profile segment gaps and missing-height distances without extrapolation', () => {
+    const bounds = { x: 0, y: 0, width: 100, height: 100 };
+    const segments: Coordinate[][] = [
+      [
+        [0, 0, 100],
+        [0.01, 0, 200],
+        [0.02, 0],
+      ],
+      [
+        [1, 0],
+        [1.01, 0, 300],
+        [1.02, 0, 100],
+      ],
+    ];
+    const profile = projectRouteCardElevationProfile(segments, bounds);
+    expect(profile).toHaveLength(2);
+    expect(profile[0].map((point) => point[0])).toEqual([0, expect.closeTo(25, 6)]);
+    expect(profile[1].map((point) => point[0])).toEqual([expect.closeTo(75, 6), 100]);
+    expect(profile.flat().map((point) => point[1])).toEqual([100, 50, 0, 100]);
+  });
+
+  it('never strokes across real segment boundaries in the profile', async () => {
+    const { canvas, context } = canvasMock();
+    const runs: number[][][] = [];
+    let points: number[][] = [];
+    context.beginPath.mockImplementation(() => {
+      points = [];
+    });
+    context.moveTo.mockImplementation((x: number, y: number) => {
+      points.push([x, y]);
+    });
+    context.lineTo.mockImplementation((x: number, y: number) => {
+      points.push([x, y]);
+    });
+    context.stroke.mockImplementation(() => {
+      if (context.lineWidth === 4) runs.push([...points]);
+    });
+    await renderRouteCard(
+      {
+        ...request,
+        template: 'elevation',
+        segments: [
+          [
+            [0, 0, 100],
+            [0.01, 0, 200],
+          ],
+          [
+            [1, 0, 300],
+            [1.01, 0, 100],
+          ],
+        ],
+      },
+      canvas,
+    );
+    expect(runs).toHaveLength(2);
+    expect(runs.map((run) => run.length)).toEqual([2, 2]);
+    expect(runs[0].at(-1)![1]).not.toBe(runs[1][0][1]);
+  });
+
+  it('renders flat real heights without manufacturing variation', async () => {
+    const segments: Coordinate[][] = [
+      [
+        [0, 0, 0],
+        [0.01, 0, 0],
+      ],
+    ];
+    expect(
+      projectRouteCardElevationProfile(segments, { x: 0, y: 0, width: 100, height: 100 }),
+    ).toEqual([
+      [
+        [0, 50],
+        [100, 50],
+      ],
+    ]);
+    await expect(
+      renderRouteCard({ ...request, segments, template: 'elevation' }, canvasMock().canvas),
+    ).resolves.toBeInstanceOf(Blob);
+  });
+
+  it('rejects incomplete source elevations even when the missing height would be hidden', async () => {
+    const incomplete: Coordinate[][] = [
+      [
+        [0, 0],
+        [0.01, 0, 100],
+        [0.02, 0, 200],
+        [0.03, 0, 300],
+      ],
+    ];
+    for (const privacyRadius of [0, 500]) {
+      const { canvas } = canvasMock();
+      await expect(
+        renderRouteCard(
+          { ...request, segments: incomplete, template: 'elevation', privacyRadius },
+          canvas,
+        ),
+      ).rejects.toThrow(renderError);
+      expect(canvas.toBlob).not.toHaveBeenCalled();
+    }
+    await expect(
+      renderRouteCard({ ...request, template: 'minimal' }, canvasMock().canvas),
+    ).resolves.toBeInstanceOf(Blob);
+  });
+
+  it('rejects overflowing elevation ranges rather than drawing non-finite points', async () => {
+    const { canvas } = canvasMock();
+    await expect(
+      renderRouteCard(
+        {
+          ...request,
+          template: 'elevation',
+          segments: [
+            [
+              [0, 0, -1e308],
+              [0.01, 0, 1e308],
+            ],
+          ],
+        },
+        canvas,
+      ),
+    ).rejects.toThrow(renderError);
+    expect(canvas.toBlob).not.toHaveBeenCalled();
+  });
+
+  it('rejects a privacy profile with no pair of original visible heights', async () => {
+    const { canvas } = canvasMock();
+    await expect(
+      renderRouteCard(
+        {
+          ...request,
+          template: 'elevation',
+          privacyRadius: 500,
+          segments: [
+            [
+              [0, 0, 100],
+              [0.04, 0, 200],
+            ],
+          ],
+        },
+        canvas,
+      ),
+    ).rejects.toThrow(renderError);
+    expect(canvas.toBlob).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { template: 'unknown' },
+    { template: null },
+    { accent: 'red' },
+    { accent: null },
+    { format: 'wide' },
+    { elevationProfileLabel: 123 },
+  ])('validates new request fields at the renderer boundary: %j', async (fields) => {
+    const { canvas } = canvasMock();
+    const invalid = Object.assign({}, request, fields);
+    await expect(renderRouteCard(invalid, canvas)).rejects.toThrow(renderError);
+    expect(canvas.toBlob).not.toHaveBeenCalled();
+  });
+});
+
 describe('offline PNG rendering', () => {
   it.each(['План маршрута', 'Planned route', 'PLANNED ROUTE', 'gyp route'])(
     'centers visible badge glyphs rather than the font box for %s',
@@ -663,7 +993,7 @@ describe('offline PNG rendering', () => {
       expect(activity).toHaveLength(2);
       expect(activity[0].y).toBeGreaterThan(title[2].y + 64);
       const [badgeX, badgeY, badgeWidth, badgeHeight] = context.roundRect.mock.calls[1];
-      expect([badgeY, badgeHeight]).toEqual([86, 36]);
+      expect([badgeY, badgeHeight]).toEqual([format === 'story' ? 260 : 86, 36]);
       expect(badgeWidth).toBeLessThanOrEqual(440);
       expect(badgeX + badgeWidth).toBe(1008);
       expect(texts[0].x + texts[0].width + 24).toBeLessThan(badgeX);
@@ -696,7 +1026,11 @@ describe('offline PNG rendering', () => {
         return;
       }
       const [panelX, panelY, panelWidth, panelHeight] = context.roundRect.mock.calls[2];
-      expect([panelX, panelWidth, panelY + panelHeight]).toEqual([72, 936, canvas.height - 72]);
+      expect([panelX, panelWidth, panelY + panelHeight]).toEqual([
+        72,
+        936,
+        canvas.height - (format === 'story' ? 250 : 72),
+      ]);
       expect(routeY + routeHeight).toBeLessThan(panelY);
       const columns = count === 4 ? 2 : Math.min(count, 3);
       const labels = texts.filter((text) => text.font === '500 22px sans-serif');
@@ -788,8 +1122,9 @@ describe('offline PNG rendering', () => {
       expect(blob.type).toBe('image/png');
       expect(canvas.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
       expect(texts[0]).toMatchObject({ text: 'Roamlet', x: 144, baseline: 'alphabetic' });
-      expect(texts[0].y + (texts[0].descent - texts[0].ascent) / 2).toBe(104);
-      expect(context.roundRect).toHaveBeenCalledWith(72, 76, 56, 56, 14);
+      const topInset = format === 'story' ? 250 : 76;
+      expect(texts[0].y + (texts[0].descent - texts[0].ascent) / 2).toBe(topInset + 28);
+      expect(context.roundRect).toHaveBeenCalledWith(72, topInset, 56, 56, 14);
       const title = texts.filter((call) => call.font === '800 64px sans-serif');
       expect(title).toHaveLength(3);
       expect(title.at(-1)!.text).toContain('…');

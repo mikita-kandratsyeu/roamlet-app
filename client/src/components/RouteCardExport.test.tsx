@@ -5,6 +5,7 @@ import { RouteCardExport } from './RouteCardExport';
 import { generateRouteCard } from '../services/routeCard';
 import type { PlannedRoute } from '../domain/types';
 import i18n from '../i18n';
+import { PREFERENCES_KEY } from '../domain/preferences';
 
 vi.mock('../services/routeCard', () => ({ generateRouteCard: vi.fn() }));
 const route: PlannedRoute = {
@@ -27,6 +28,7 @@ const route: PlannedRoute = {
 const blob = new Blob(['png'], { type: 'image/png' });
 const revoke = vi.fn();
 beforeEach(async () => {
+  localStorage.removeItem(PREFERENCES_KEY);
   await i18n.changeLanguage('en');
   vi.mocked(generateRouteCard).mockReset().mockResolvedValue(blob);
   revoke.mockClear();
@@ -38,6 +40,7 @@ beforeEach(async () => {
 });
 afterEach(() => {
   cleanup();
+  localStorage.removeItem(PREFERENCES_KEY);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -177,4 +180,55 @@ it('shares only when supported, ignores share cancellation, and retains download
   unmount();
   Reflect.deleteProperty(navigator, 'share');
   Reflect.deleteProperty(navigator, 'canShare');
+});
+
+it('offers templates, square output and privacy presets, and restores settings without the title', async () => {
+  const user = userEvent.setup();
+  const { unmount } = render(<RouteCardExport route={route} elevationGain={30} />);
+  await user.click(screen.getByRole('radio', { name: 'Relief' }));
+  await user.click(screen.getByRole('radio', { name: 'Lake blue' }));
+  await user.click(screen.getByRole('radio', { name: /^Square/ }));
+  await user.click(screen.getByRole('radio', { name: '500 m' }));
+  expect(screen.getByText('Start and finish zones are hidden.')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Create preview' }));
+  expect(await screen.findByRole('img')).toHaveAttribute('height', '1080');
+  expect(generateRouteCard).toHaveBeenLastCalledWith(expect.objectContaining({ template: 'elevation', accent: 'blue', format: 'square', privacyRadius: 500 }), expect.any(AbortSignal));
+  unmount();
+  render(<RouteCardExport route={{ ...route, name: 'New route', segments: [[[11, 47], [11.1, 47]]] }} />);
+  expect(screen.getByRole('radio', { name: 'Relief' })).toBeDisabled();
+  expect(screen.getByRole('radio', { name: 'Adventure' })).toHaveAttribute('data-state', 'on');
+  expect(screen.getByRole('radio', { name: 'Lake blue' })).toHaveAttribute('data-state', 'on');
+  expect(screen.getByRole('spinbutton')).toHaveValue(500);
+  expect(screen.getByRole('textbox', { name: 'Image title' })).toHaveValue('New route');
+  expect(screen.queryByRole('img')).not.toBeInTheDocument();
+});
+
+it('copies only the selected caption metrics and allows manual copying after failure', async () => {
+  const user = userEvent.setup();
+  const { unmount } = render(<RouteCardExport route={route} elevationGain={30} />);
+  const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+  expect(screen.getByRole('textbox', { name: 'Publication caption' })).toHaveValue('Forest walk\nPlanned route · Hiking\nDistance: 12.4 km\nElevation gain: 30 m');
+  await user.click(screen.getByRole('checkbox', { name: 'Distance' }));
+  await user.click(screen.getByRole('button', { name: 'Copy caption' }));
+  expect(writeText).toHaveBeenCalledWith('Forest walk\nPlanned route · Hiking\nElevation gain: 30 m');
+  expect(screen.getByText('Caption copied.')).toBeVisible();
+  writeText.mockRejectedValueOnce(new Error('Permission denied'));
+  await user.click(screen.getByRole('button', { name: 'Copy caption' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('copy it manually');
+  expect(screen.getByRole('textbox', { name: 'Publication caption' })).toHaveAttribute('readonly');
+  expect(generateRouteCard).not.toHaveBeenCalled();
+  unmount();
+});
+
+it('does not present missing statistics in the caption and keeps safe-zone guides out of requests', async () => {
+  const user = userEvent.setup();
+  render(<RouteCardExport route={{ ...route, stats: { distance: NaN, duration: NaN } }} />);
+  await user.click(screen.getByRole('checkbox', { name: 'Time estimate' }));
+  expect(screen.getByRole('textbox', { name: 'Publication caption' })).toHaveValue('Forest walk\nPlanned route · Hiking');
+  await user.click(screen.getByRole('radio', { name: /^Story/ }));
+  await user.click(screen.getByRole('checkbox', { name: 'Show story safe zones' }));
+  expect(document.querySelector('.route-card-safe-zones')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Create preview' }));
+  await screen.findByRole('img');
+  expect(generateRouteCard).toHaveBeenLastCalledWith(expect.not.objectContaining({ showSafeZones: true }), expect.any(AbortSignal));
 });

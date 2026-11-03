@@ -26,11 +26,6 @@
   }
 }
 
-body:has(.roamlet-dialog[data-state='open'])
-  [data-sonner-toaster]:not(:has([data-type='error'], [data-type='warning'])) {
-  z-index: 40;
-}
-
 [data-sonner-toast][data-styled='true'].roamlet-toast {
   width: 100%;
   font-family: inherit;

@@ -73,11 +73,22 @@ test('AI export preview stays private and usable in both languages and themes', 
       await copy.press('Enter');
       const notification = page.locator('[data-sonner-toast][data-type="success"]').filter({ hasText: /Request copied|Запрос скопирован/ });
       await expect(notification).toBeVisible();
+      const toastLayer = await page.locator('[data-sonner-toaster]').evaluate((element) =>
+        Number(getComputedStyle(element).zIndex),
+      );
+      for (const layer of [dialog, page.locator('[data-slot="dialog-overlay"]')]) {
+        expect(toastLayer).toBeGreaterThan(await layer.evaluate((element) =>
+          Number(getComputedStyle(element).zIndex),
+        ));
+      }
       await expect(dialog.getByText(/Request copied|Запрос скопирован/)).toHaveCount(0);
       expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await preview.inputValue());
       expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       expect(await dialog.locator('.dialog-body').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath(`ai-export-${language}-${theme}.png`) });
+      await notification.getByRole('button', { name: /^(Dismiss notification|Закрыть уведомление)$/ }).click();
+      await expect(notification).toHaveCount(0);
+      await expect(dialog).toBeVisible();
       await dialog.getByRole('checkbox').check();
       expect(await preview.inputValue()).toContain('Forest escape');
       await dialog.getByRole('radio', { name: 'GPX', exact: true }).click();
@@ -180,7 +191,9 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
       const context = canvas.getContext('2d');
       if (!context) throw new Error('Canvas unavailable');
       context.drawImage(element, 0, 0);
-      const pixels = context.getImageData(72, 76, 56, 56).data;
+      const bottomInset = dark ? 250 : 72;
+      const headerOffset = dark ? 174 : 0;
+      const pixels = context.getImageData(72, 76 + headerOffset, 56, 56).data;
       const roadColor = dark ? [23, 59, 48] : [250, 247, 242];
       const dotColor = dark ? [82, 116, 93] : [189, 211, 165];
       let road = 0,
@@ -199,13 +212,13 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
         )
           dot++;
       }
-      const tile = context.getImageData(84, 84, 1, 1).data;
-      const background = context.getImageData(64, 84, 1, 1).data;
+      const tile = context.getImageData(84, 84 + headerOffset, 1, 1).data;
+      const background = context.getImageData(64, 84 + headerOffset, 1, 1).data;
       const tileContrast =
         Math.abs(tile[0] - background[0]) +
         Math.abs(tile[1] - background[1]) +
         Math.abs(tile[2] - background[2]);
-      const dividerY = canvas.height - 72 - 200 + 36 + 52;
+      const dividerY = canvas.height - bottomInset - 200 + 36 + 52;
       const divider = context.getImageData(540, dividerY, 1, 1).data;
       const beside = context.getImageData(530, dividerY, 1, 1).data;
       const dividerContrast =
@@ -213,7 +226,7 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
         Math.abs(divider[1] - beside[1]) +
         Math.abs(divider[2] - beside[2]);
       const metricCenters: { cell: number; kind: string; center: number; pixels: number }[] = [];
-      const panelY = canvas.height - 72 - 200;
+      const panelY = canvas.height - bottomInset - 200;
       for (const cell of [0, 1]) {
         const cellX = 72 + cell * 468;
         for (const band of [
@@ -385,7 +398,7 @@ test('social export layout and shared scrollbars work in both languages and them
             stage: { x: stageBox.x, y: stageBox.y },
             captionGap:
               stageBox.bottom -
-              element.querySelector('.route-card-background-note')!.getBoundingClientRect().bottom,
+              element.querySelector('.route-card-caption')!.getBoundingClientRect().bottom,
             captionInset:
               parseFloat(
                 getComputedStyle(element.querySelector('.route-card-stage')!).paddingBottom,
@@ -451,3 +464,55 @@ test('social export layout and shared scrollbars work in both languages and them
   await page.emulateMedia({ forcedColors: 'active' });
   expect((await plannerScrollbar()).color).toBe('auto');
 });
+
+for (const language of ['en', 'ru']) {
+  test(`social templates, automatic refresh, captions and saved settings work in ${language}`, async ({ page, context }, testInfo) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    if (language === 'ru') {
+      await page.getByRole('button', { name: 'Menu', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: 'Русский' }).click();
+    }
+    await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('radio', { name: /^(For social media|Для соцсетей)$/ }).click();
+    await dialog.getByRole('radio', { name: language === 'en' ? 'Light' : 'Тёмная', exact: true }).click();
+    await dialog.getByRole('radio', { name: /^(Square|Квадрат)/ }).click();
+    const image = dialog.getByRole('img', { name: /^(Generated route image|Изображение маршрута)$/ });
+    for (const template of language === 'en' ? ['Minimalism', 'Adventure', 'Relief'] : ['Минимализм', 'Приключение', 'Рельеф']) {
+      await dialog.getByRole('radio', { name: template, exact: true }).click();
+      if (await image.count() === 0) {
+        await dialog.getByRole('button', { name: /^(Create preview|Создать предпросмотр)$/ }).click();
+      }
+      await expect(image).toBeVisible();
+      await expect.poll(() => image.evaluate((element: HTMLImageElement) => [element.naturalWidth, element.naturalHeight])).toEqual([1080, 1080]);
+      await image.screenshot({ path: testInfo.outputPath(`social-${language}-${template}.png`) });
+    }
+    const oldUrl = await image.getAttribute('src');
+    await dialog.getByRole('radio', { name: /^(Lake blue|Озёрный синий)$/ }).click();
+    await expect(image).toBeVisible();
+    await expect(image).not.toHaveAttribute('src', oldUrl!);
+    const caption = dialog.getByRole('textbox', { name: /^(Publication caption|Подпись к публикации)$/ });
+    await dialog.getByRole('button', { name: /^(Copy caption|Скопировать подпись)$/ }).click();
+    await expect(dialog.getByText(/^(Caption copied\.|Подпись скопирована\.)$/)).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await caption.inputValue());
+    expect(await caption.inputValue()).not.toContain('47.02');
+    await dialog.getByRole('radio', { name: /^(Story|Сторис)/ }).click();
+    await dialog.getByRole('radio', { name: /^200 / }).click();
+    await dialog.getByRole('button', { name: /^(Create preview|Создать предпросмотр)$/ }).click();
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalHeight)).toBe(1920);
+    const storyUrl = await image.getAttribute('src');
+    await dialog.getByRole('checkbox', { name: /^(Show story safe zones|Показать безопасные зоны сторис)$/ }).check();
+    await expect(dialog.locator('.route-card-safe-zones')).toBeVisible();
+    await expect(image).toHaveAttribute('src', storyUrl!);
+    expect(await dialog.locator('.dialog-body').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`social-story-safe-${language}.png`) });
+    await dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }).click();
+    await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
+    await dialog.getByRole('radio', { name: /^(For social media|Для соцсетей)$/ }).click();
+    await expect(dialog.getByRole('radio', { name: /^(Lake blue|Озёрный синий)$/ })).toBeChecked();
+    await expect(dialog.getByRole('spinbutton')).toHaveValue('200');
+    await expect(dialog.getByRole('radio', { name: /^(Story|Сторис)/ })).toBeChecked();
+    await expect(image).toHaveCount(0);
+  });
+}

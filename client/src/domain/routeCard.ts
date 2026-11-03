@@ -1,11 +1,20 @@
 import type { Activity, Coordinate } from './types';
 
-export type RouteCardFormat = 'post' | 'story';
+export type RouteCardFormat = 'post' | 'story' | 'square';
+export type RouteCardTemplate = 'minimal' | 'adventure' | 'elevation';
+export type RouteCardAccent = 'green' | 'blue' | 'orange';
 export type RouteCardTheme = 'light' | 'dark';
+
+export function getRouteCardDimensions(format: RouteCardFormat): { width: number; height: number } {
+  return { width: 1080, height: format === 'story' ? 1920 : format === 'square' ? 1080 : 1350 };
+}
 export interface RouteCardRequest {
   segments: Coordinate[][];
   format: RouteCardFormat;
   theme: RouteCardTheme;
+  template?: RouteCardTemplate;
+  accent?: RouteCardAccent;
+  elevationProfileLabel?: string;
   privacyRadius: number;
   title: string;
   activity: Activity;
@@ -367,15 +376,27 @@ function drawCenteredText(context: Context, text: string, x: number, centerY: nu
   context.textBaseline = baseline;
 }
 
-function drawBrand(context: Context, ink: string, dark: boolean): void {
+const ACCENTS = {
+  green: { light: '#1f6846', dark: '#9de4b5', deep: '#173b30', soft: '#bdd3a5' },
+  blue: { light: '#245f9e', dark: '#9ecfff', deep: '#193754', soft: '#b5d4ee' },
+  orange: { light: '#a34719', dark: '#ffc18c', deep: '#4a2d20', soft: '#edc5a0' },
+} satisfies Record<RouteCardAccent, { light: string; dark: string; deep: string; soft: string }>;
+type AccentPalette = (typeof ACCENTS)[RouteCardAccent];
+
+function drawBrand(
+  context: Context,
+  ink: string,
+  dark: boolean,
+  palette: AccentPalette,
+  y: number,
+): void {
   const x = 72,
-    y = 76,
     scale = 56 / 192;
   const point = (px: number, py: number): RouteCardPoint => [x + px * scale, y + py * scale];
   context.save();
   context.beginPath();
   context.roundRect(x, y, 56, 56, 14);
-  context.fillStyle = dark ? '#bdd3a5' : '#173b30';
+  context.fillStyle = dark ? palette.soft : palette.deep;
   context.fill();
   context.clip();
   context.beginPath();
@@ -389,11 +410,11 @@ function drawBrand(context: Context, ink: string, dark: boolean): void {
   context.bezierCurveTo(...point(33, 108), ...point(98, 104), ...point(98, 89));
   context.bezierCurveTo(...point(98, 75), ...point(29, 57), ...point(38, 56));
   context.closePath();
-  context.fillStyle = dark ? '#173b30' : '#faf7f2';
+  context.fillStyle = dark ? palette.deep : '#faf7f2';
   context.fill();
   context.beginPath();
   context.arc(...point(125, 49), 17 * scale, 0, TAU);
-  context.fillStyle = dark ? '#52745d' : '#bdd3a5';
+  context.fillStyle = dark ? (palette === ACCENTS.green ? '#52745d' : palette.light) : palette.soft;
   context.fill();
   context.restore();
   context.fillStyle = ink;
@@ -401,20 +422,31 @@ function drawBrand(context: Context, ink: string, dark: boolean): void {
   drawCenteredText(context, 'Roamlet', 144, y + 28);
 }
 
-function drawBackground(context: Context, height: number, dark: boolean): void {
+function drawBackground(
+  context: Context,
+  height: number,
+  dark: boolean,
+  palette: AccentPalette,
+  template: RouteCardTemplate,
+): void {
+  if (template !== 'adventure') {
+    context.fillStyle = dark ? '#10251e' : '#faf7f2';
+    context.fillRect(0, 0, 1080, height);
+    return;
+  }
   const gradient = context.createLinearGradient(0, 0, 1080, height);
-  gradient.addColorStop(0, dark ? '#173b30' : '#faf7f2');
+  gradient.addColorStop(0, dark ? palette.deep : '#faf7f2');
   gradient.addColorStop(0.5, dark ? '#10251e' : '#edf2e7');
-  gradient.addColorStop(1, dark ? '#213b2c' : '#dbe7d0');
+  gradient.addColorStop(1, dark ? '#213b2c' : palette === ACCENTS.green ? '#dbe7d0' : palette.soft);
   context.fillStyle = gradient;
   context.fillRect(0, 0, 1080, height);
   const glow = context.createRadialGradient(880, height * 0.48, 0, 880, height * 0.48, 760);
-  glow.addColorStop(0, dark ? '#bdd3a51a' : '#bdd3a538');
-  glow.addColorStop(1, '#bdd3a500');
+  glow.addColorStop(0, palette.soft + (dark ? '1a' : '38'));
+  glow.addColorStop(1, palette.soft + '00');
   context.fillStyle = glow;
   context.fillRect(0, 0, 1080, height);
   // Decorative waves are fixed-work artwork, unrelated to coordinates or real terrain.
-  context.strokeStyle = dark ? '#bdd3a514' : '#173b3010';
+  context.strokeStyle = dark ? palette.soft + '14' : palette.deep + '10';
   context.lineWidth = 1.5;
   for (let index = 0; index < 18; index++) {
     const y = (height * (index + 0.5)) / 18;
@@ -520,14 +552,65 @@ function drawActivityIcon(
   context.restore();
 }
 
+/** Only original visible heights are plotted; privacy-cut vertices retain their missing height. */
+export function projectRouteCardElevationProfile(
+  visibleSegments: Coordinate[][],
+  bounds: RouteCardBounds,
+): RouteCardPoint[][] {
+  let distance = 0,
+    minimum = Infinity,
+    maximum = -Infinity;
+  const runs: { distance: number; elevation: number }[][] = [];
+  for (const segment of visibleSegments) {
+    let run: { distance: number; elevation: number }[] = [];
+    const flush = () => {
+      if (run.length) runs.push(run);
+      run = [];
+    };
+    for (let index = 0; index < segment.length; index++) {
+      const point = segment[index];
+      if (index) distance += arc(segment[index - 1], point).length * EARTH_RADIUS;
+      if (point.length !== 3 || !Number.isFinite(point[2])) {
+        flush();
+        continue;
+      }
+      minimum = Math.min(minimum, point[2]);
+      maximum = Math.max(maximum, point[2]);
+      run.push({ distance, elevation: point[2] });
+    }
+    flush();
+  }
+  if (!runs.some((run) => run.length > 1 && run.at(-1)!.distance > run[0].distance)) return [];
+  const range = maximum - minimum;
+  if (!Number.isFinite(range) || !Number.isFinite(distance)) return [];
+  return runs.map((run) => {
+    const stride = Math.max(1, Math.ceil(run.length / 400));
+    return run
+      .filter((_, index) => index === 0 || index === run.length - 1 || index % stride === 0)
+      .map((sample): RouteCardPoint => [
+        bounds.x + (sample.distance / distance) * bounds.width,
+        bounds.y + (range ? 1 - (sample.elevation - minimum) / range : 0.5) * bounds.height,
+      ]);
+  });
+}
+
 export async function renderRouteCard(
   request: RouteCardRequest,
   canvas: HTMLCanvasElement | OffscreenCanvas,
 ): Promise<Blob> {
   const geometry = clipRouteCardGeometry(request.segments, request.privacyRadius);
   try {
+    const template = request.template === undefined ? 'adventure' : request.template;
+    const accent = request.accent === undefined ? 'green' : request.accent;
     if (
-      (request.format !== 'post' && request.format !== 'story') ||
+      (request.template !== undefined &&
+        !['minimal', 'adventure', 'elevation'].includes(template)) ||
+      (request.accent !== undefined && !['green', 'blue', 'orange'].includes(accent)) ||
+      (request.elevationProfileLabel !== undefined &&
+        typeof request.elevationProfileLabel !== 'string') ||
+      (template === 'elevation' &&
+        request.segments.some((segment) => segment.some((point) => point.length !== 3))) ||
+      (request.format !== 'post' && request.format !== 'story' && request.format !== 'square') ||
       (request.theme !== 'light' && request.theme !== 'dark') ||
       typeof request.title !== 'string' ||
       (request.activity !== 'cycling' && request.activity !== 'hiking') ||
@@ -540,34 +623,44 @@ export async function renderRouteCard(
       )
     )
       throw new Error(RENDER_ERROR);
-    const height = request.format === 'story' ? 1920 : 1350;
-    canvas.width = 1080;
+    const { width, height } = getRouteCardDimensions(request.format);
+    canvas.width = width;
     canvas.height = height;
+    const topInset = request.format === 'story' ? 250 : 76;
+    const bottomInset = request.format === 'story' ? 250 : 72;
+    const headerOffset = topInset - 76;
+    const compact = request.format === 'square' || template !== 'adventure';
     const context = canvas.getContext('2d');
     if (!context) throw new Error(RENDER_ERROR);
     const dark = request.theme === 'dark';
     const ink = dark ? '#f4f7ef' : '#183c2c';
     const muted = dark ? '#adc5b6' : '#597264';
-    const green = dark ? '#9de4b5' : '#1f6846';
-    drawBackground(context, height, dark);
+    const palette = ACCENTS[accent];
+    const routeColor = dark ? palette.dark : palette.light;
+    drawBackground(context, height, dark, palette, template);
     context.textBaseline = 'top';
     context.textAlign = 'left';
-    drawBrand(context, ink, dark);
+    drawBrand(context, ink, dark, palette, topInset);
     context.font = '600 20px sans-serif';
     const planned = fitText(context, safeText(request.plannedLabel), 408);
     const badgeWidth = Math.min(440, context.measureText(planned).width + 32);
     const badgeX = 1008 - badgeWidth;
-    context.fillStyle = dark ? '#bdd3a51c' : '#173b3010';
-    context.beginPath();
-    context.roundRect(badgeX, 86, badgeWidth, 36, 18);
-    context.fill();
-    context.fillStyle = green;
-    drawCenteredText(context, planned, badgeX + 16, 104);
+    if (template !== 'minimal') {
+      context.fillStyle = dark ? palette.soft + '1c' : palette.deep + '10';
+      context.beginPath();
+      context.roundRect(badgeX, 86 + headerOffset, badgeWidth, 36, 18);
+      context.fill();
+    }
+    context.fillStyle = routeColor;
+    drawCenteredText(context, planned, badgeX + 16, 104 + headerOffset);
     context.fillStyle = ink;
-    context.font = '800 64px sans-serif';
-    const lines = titleLines(context, request.title, 936);
-    lines.forEach((line, index) => context.fillText(line, 72, 176 + index * 76));
-    const activityTop = 192 + lines.length * 76;
+    const titleStep = compact ? 56 : 76;
+    context.font = compact ? '700 44px sans-serif' : '800 64px sans-serif';
+    const lines = titleLines(context, request.title, 936, compact ? 2 : 3);
+    lines.forEach((line, index) =>
+      context.fillText(line, 72, 176 + headerOffset + index * titleStep),
+    );
+    const activityTop = 192 + headerOffset + lines.length * titleStep;
     context.fillStyle = muted;
     context.font = '500 30px sans-serif';
     drawActivityIcon(context, request.activity, 72, activityTop, muted);
@@ -578,12 +671,17 @@ export async function renderRouteCard(
     const columns = request.metrics.length === 4 ? 2 : Math.min(3, request.metrics.length);
     const rows = columns ? Math.ceil(request.metrics.length / columns) : 0;
     const metricPaddingX = 40;
-    const metricPaddingY = 36;
-    const metricRowHeight = 128;
+    const metricPaddingY = compact ? 16 : 36;
+    const metricRowHeight = compact ? 112 : 128;
     const panelHeight = rows ? metricPaddingY * 2 + rows * metricRowHeight : 0;
-    const footerTop = height - 72 - panelHeight;
-    const routeTop = activityTop + activity.length * 40 + 52;
-    const routeBounds = { x: 104, y: routeTop, width: 872, height: footerTop - routeTop - 66 };
+    const footerTop = height - bottomInset - panelHeight;
+    const profileHeight = template === 'elevation' ? 170 : 0;
+    const profileTop = footerTop - profileHeight - 24;
+    const routeTop = activityTop + activity.length * 40 + (compact ? 24 : 52);
+    const routeBottom =
+      template === 'elevation' ? profileTop - 32 : footerTop - (compact ? 32 : 66);
+    const routeBounds = { x: 104, y: routeTop, width: 872, height: routeBottom - routeTop };
+    if (routeBounds.height <= 0) throw new Error(RENDER_ERROR);
     const { points, privacyAreas } = projectRouteCardDrawing(
       geometry,
       request.segments,
@@ -626,10 +724,10 @@ export async function renderRouteCard(
       });
       // Both passes share the privacy union clip; casing stays within its eight-pixel padding.
       context.strokeStyle = dark ? '#10251e' : '#faf7f2';
-      context.lineWidth = 14;
+      context.lineWidth = template === 'minimal' ? 10 : 14;
       context.stroke();
-      context.strokeStyle = green;
-      context.lineWidth = 11;
+      context.strokeStyle = routeColor;
+      context.lineWidth = template === 'minimal' ? 7 : 11;
       context.stroke();
     }
     // Privacy cards deliberately have no endpoint markers.
@@ -639,22 +737,54 @@ export async function renderRouteCard(
         if (!point) continue;
         context.beginPath();
         context.arc(...point, 12, 0, TAU);
-        context.fillStyle = index === 0 ? green : '#faf7f2';
+        context.fillStyle = index === 0 ? routeColor : '#faf7f2';
         context.fill();
-        context.strokeStyle = index === 0 ? '#faf7f2' : green;
+        context.strokeStyle = index === 0 ? '#faf7f2' : routeColor;
         context.lineWidth = 3;
         context.stroke();
         if (index === 1) {
           context.beginPath();
           context.arc(...point, 4, 0, TAU);
-          context.fillStyle = green;
+          context.fillStyle = routeColor;
           context.fill();
         }
       }
     }
     context.restore();
-    if (rows) {
-      context.fillStyle = dark ? '#173b30' : '#faf7f2';
+    if (template === 'elevation') {
+      const profileBounds = { x: 104, y: profileTop + 50, width: 872, height: 104 };
+      const profile = projectRouteCardElevationProfile(geometry, profileBounds);
+      if (!profile.length) throw new Error(RENDER_ERROR);
+      context.fillStyle = muted;
+      context.font = '600 24px sans-serif';
+      context.fillText(
+        fitText(context, safeText(request.elevationProfileLabel ?? 'Elevation profile'), 936),
+        72,
+        profileTop,
+      );
+      context.strokeStyle = palette.soft;
+      context.lineWidth = 1;
+      for (const fraction of [0, 0.5, 1]) {
+        context.beginPath();
+        const y = profileBounds.y + fraction * profileBounds.height;
+        context.moveTo(profileBounds.x, y);
+        context.lineTo(profileBounds.x + profileBounds.width, y);
+        context.stroke();
+      }
+      context.strokeStyle = routeColor;
+      context.lineWidth = 4;
+      for (const segment of profile) {
+        if (segment.length < 2) continue;
+        context.beginPath();
+        segment.forEach((point, index) => {
+          if (index) context.lineTo(...point);
+          else context.moveTo(...point);
+        });
+        context.stroke();
+      }
+    }
+    if (rows && template !== 'minimal') {
+      context.fillStyle = dark ? palette.deep : '#faf7f2';
       context.beginPath();
       context.roundRect(72, footerTop, 936, panelHeight, 28);
       context.fill();
