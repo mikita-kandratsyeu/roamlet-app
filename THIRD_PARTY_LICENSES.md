@@ -46,7 +46,7 @@ The connector identifies Google Drive using the unmodified [official 2026 Google
 
 ## Weather data
 
-The optional weather panel requests forecasts from [Open-Meteo](https://open-meteo.com/). Weather data is provided under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), with visible source/license links in the panel. Roamlet selects departure-hour observations and formats numbers/units for display, without modifying the reported measurements. The free hosted endpoint is limited to non-commercial use and subject to [service limits and commercial licensing](https://open-meteo.com/en/pricing). Data licensing does not replace hosted-service terms. No Open-Meteo server code is bundled. See [weather behavior and privacy](./README.md#route-schedules-comparison-and-climb-analysis).
+The optional weather panel requests forecasts from [Open-Meteo](https://open-meteo.com/). Weather data is provided under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), with visible source/license links in the panel. Roamlet selects departure-hour observations and formats numbers/units for display, without modifying the reported measurements. The free hosted endpoint is limited to non-commercial use and subject to [service limits and commercial licensing](https://open-meteo.com/en/pricing). Data licensing does not replace hosted-service terms. No Open-Meteo server code is bundled. See [weather behavior and privacy](./docs/planning.md#route-schedules-comparison-and-climb-analysis).
 
 ## Map data and tiles
 

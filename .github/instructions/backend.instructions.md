@@ -14,4 +14,4 @@ applyTo: 'api/**/*.mjs,server/**/*.mjs,scripts/local-routing-api*.mjs,client/src
 - Cancellation and timeouts must cover both the request and response consumption. Do not introduce unbounded retries; account for quotas and cancelled requests.
 - Preserve testability through existing injected fetch, key getter and logger. Tests must not call live ORS or use real credentials.
 - Validate contract changes on both the server and affected client consumers. A missing key or provider outage must not block local workflows.
-- Do not replace documented Vercel Firewall protection with an in-memory limiter or claim unit tests verify live availability or provider quotas. See [README](../../README.md#server-key-and-public-api-protection) for limitations.
+- Do not replace documented Vercel Firewall protection with an in-memory limiter or claim unit tests verify live availability or provider quotas. See [deployment protection](../../docs/deployment.md#server-key-and-public-api-protection) for limitations.
