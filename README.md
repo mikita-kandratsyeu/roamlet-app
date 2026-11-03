@@ -140,6 +140,10 @@ Scrollbars share the planner's thin thumb and transparent track throughout the a
 
 ## Development
 
+[GitHub Actions CI](.github/workflows/ci.yml) runs lint, TypeScript checking and server/client unit tests on pushes and pull requests, using Node.js 26.x and the pinned Yarn release. It does not run production builds, layout, E2E or offline browser suites; the full regression command remains available locally.
+
+The header's **beta** marker has a small native browser tooltip showing the current application version in English/Russian. Its version comes from the root `package.json`; keep the root and client package versions aligned when releasing.
+
 Use Yarn 4.18.1 (the latest stable release verified on 28 October 2026), pinned in `packageManager` and bundled in `.yarn/releases`. `.yarnrc.yml` selects the standard npm registry and the familiar `node_modules` linker. Corepack uses the pin; existing Yarn Classic installations forward to the bundled release via `.yarnrc`. Without either launcher, use `node .yarn/releases/yarn-4.18.1.cjs` instead of `yarn`:
 
 ```sh

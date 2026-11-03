@@ -1,4 +1,5 @@
 {
+  "Version {{version}}": "Версия {{version}}",
   "Create a preview once. Design changes then refresh it automatically; format and privacy changes need a new preview.": "Создайте предпросмотр один раз. Изменения оформления обновят его автоматически. Для нового формата или радиуса скрытия нажмите кнопку снова.",
   "Export settings could not be saved. You can still export this image.": "Не удалось сохранить настройки экспорта. Изображение всё равно можно экспортировать.",
   "Image template": "Шаблон изображения",

@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, TypeScript and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.x'
+      - name: Install dependencies
+        run: node .yarn/releases/yarn-4.18.1.cjs install --immutable
+      - name: Lint
+        run: node .yarn/releases/yarn-4.18.1.cjs lint
+      - name: TypeScript
+        run: node .yarn/releases/yarn-4.18.1.cjs typecheck
+      - name: Unit tests
+        run: node .yarn/releases/yarn-4.18.1.cjs test

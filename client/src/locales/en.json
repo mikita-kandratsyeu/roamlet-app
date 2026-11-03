@@ -1,4 +1,5 @@
 {
+  "Version {{version}}": "Version {{version}}",
   "Create a preview once. Design changes then refresh it automatically; format and privacy changes need a new preview.": "Create a preview once. Design changes then refresh it automatically. Format and privacy changes need a new preview.",
   "Export settings could not be saved. You can still export this image.": "Export settings could not be saved. You can still export this image.",
   "Image template": "Image template",

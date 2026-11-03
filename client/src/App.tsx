@@ -1,3 +1,4 @@
+import { version as appVersion } from '../../package.json';
 import { Button } from './components/ui/button';
 import { Toaster } from './components/ui/sonner';
 import { Notification } from './components/Notification';
@@ -1084,7 +1085,9 @@ export default function App() {
               <img src="/icon.svg" alt="" />
             </span>
             <strong className="brand-wordmark">Roamlet</strong>
-            <span className="brand-beta">beta</span>
+            <span className="brand-beta" title={t('Version {{version}}', { version: appVersion })}>
+              beta
+            </span>
           </a>
           <nav ref={mainNavigation} aria-label={t('Main navigation')}>
             <HeaderMenu

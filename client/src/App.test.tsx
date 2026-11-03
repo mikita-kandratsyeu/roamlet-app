@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import type { Coordinate } from './domain/types';
 import { act, fireEvent, render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import App from './App';
+import { version as appVersion } from '../../package.json';
+import { version as clientVersion } from '../package.json';
 import { routeDb } from './domain/storage';
 import * as storage from './domain/storage';
 import { DISCLAIMER_KEY } from './domain/disclaimer';
@@ -554,12 +556,18 @@ describe('offline planner', () => {
 });
 
 describe('route planner interactions', () => {
-  it('shows a beta marker beside the header logo', async () => {
-    await i18n.changeLanguage('en');
+  it.each([
+    ['en', 'Roamlet home', 'Version'],
+    ['ru', 'Главная Roamlet', 'Версия'],
+  ])('shows the current version on the beta marker (%s)', async (language, home, label) => {
+    await i18n.changeLanguage(language);
     render(<App />);
-    const brand = screen.getByRole('link', { name: 'Roamlet home' });
+    const brand = screen.getByRole('link', { name: home });
     expect(within(brand).getByText('Roamlet')).toBeVisible();
-    expect(within(brand).getByText('beta')).toBeVisible();
+    const beta = within(brand).getByText('beta');
+    expect(beta).toBeVisible();
+    expect(beta).toHaveAttribute('title', `${label} ${appVersion}`);
+    expect(clientVersion).toBe(appVersion);
   });
 
   it('offers manual drawing in the empty planner and an explicit return without routing requests', async () => {
