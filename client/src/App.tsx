@@ -1969,6 +1969,10 @@ export default function App() {
                 changeWaypoints(reorderWaypoints(waypoints, waypoints.indexOf(point), 0));
             }}
             elevationCoordinate={drawingDetour ? null : elevationCoordinate}
+            slopeElevationSource={drawingDetour ? undefined
+              : result?.source === 'gpx' ? 'gpx'
+                : result?.source !== 'manual' && result?.source !== 'mapbox'
+                  ? result?.elevationSource : undefined}
             highlightSegments={drawingDetour ? emptySegments : climbSegments}
             routeStale={routeStale}
             directSegments={detourSegments ?? (result?.source === 'manual' ? result.segments : result?.directSegments)}

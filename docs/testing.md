@@ -37,6 +37,10 @@ yarn test:regression
 
 `yarn test:regression` runs lint, type checking, server/client units, the standalone Chromium layout checks, a production build, desktop/mobile E2E and production offline tests. `yarn test:layout` exposes the standalone layout tests that are outside Vitest's test selection. Browser suites exercise Chromium desktop/mobile layouts, English/Russian copy, light/dark themes, keyboard focus, touch targets, local library/GPX workflows and production service-worker recovery. Map and routing fixtures keep these checks deterministic; passing them does not verify live provider availability or Safari/Firefox. Browser checks wait for the global loader to release the editor and for responsive map controls to settle before interacting. Drag checks bring both endpoints into the planner's scroll viewport. Screenshots and retained failure traces use Playwright's output directory, not a developer-specific path. The complete runner separates `client/test-results/e2e` and `client/test-results/offline` so the offline run does not erase E2E evidence.
 
+## Route slope checks
+
+Use `yarn test:client src/domain/routeSlope.test.ts src/components/RouteMap.test.tsx src/App.test.tsx src/i18n.test.ts`, followed by `yarn typecheck` and `yarn test:e2e map-view.spec.ts`. Domain tests cover the distance window, gaps, zero-distance height jumps, incomplete/invalid data and bounded large tracks without mutation. Map/component tests cover provenance, keyboard toggling, localized legends, ORS notices, stale data and style restoration. Browser tests exercise synthetic GPX coloring and the tools menu on desktop/mobile in both languages/themes without routing requests. They do not establish real-world height accuracy.
+
 ## Dependency security checks
 
 After dependency updates, run `yarn install --immutable` and `yarn npm audit --all --recursive --no-deprecations`, then lint, typecheck, unit tests and a production build. The audit covers runtime and development dependencies in every workspace; `--no-deprecations` omits package deprecation notices, not security advisories. Use `yarn npm audit --all --recursive` to include those notices too.

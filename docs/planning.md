@@ -50,6 +50,14 @@ In **My routes**, select **2–5 different saved routes** and choose **Compare r
 
 **Climb analysis** lists sustained climbs only for complete finite GPX heights or marked ORS elevation geometry. Each climb needs at least **300 m horizontal length and 20 m net height gain**. Descents greater than **3 m** split climbs; smaller drops are ignored. Interior flat sections count toward length, edge flats do not. Track gaps and stationary points split climbs and are never connected. Displayed ascent is filtered **net gain**, and average grade is net gain divided by horizontal length, not maximum slope. Selecting a climb highlights its original segment on the map without moving the camera; selection clears when route geometry changes or becomes stale. ORS terrain heights are estimates, not ground measurements; these thresholds are transparent heuristics, not safety or difficulty ratings.
 
+## Route slope coloring
+
+In **More map tools → Color route by slope**, colors describe local estimated grade rather than the average grade of an entire detected climb. Complete GPX or confirmed ORS heights are required. Flat sections (−1% to +1%) are green, descents blue, and increasingly steep ascents yellow, orange and red, with color extremes at −10% and +10%. The legend and an estimate warning stay in the tools menu rather than covering the map.
+
+Grades use horizontal distance and a nominal 100 m window, truncated at each drawable run's boundaries. Sparse tracks use original points bracketing the window, so their effective window can be longer. No interpolated heights, saved-data changes or additional network requests are introduced. Track gaps and consecutive zero-horizontal-distance edges separate runs, so stationary height jumps do not create artificial grades. Missing or invalid heights make the coloring unavailable rather than filling them in.
+
+Rendering is bounded to 2,000 colored features while retaining original drawable geometry. Large tracks group neighboring edges, reducing color detail, not altering the saved track. More independent drawable runs than the feature limit cannot be safely joined and make coloring unavailable. Heights can be noisy or estimated: colors are planning aids, not ground measurements, accessibility classifications or safety assessments. Manual routes and retired Mapbox snapshots are not given invented slopes.
+
 ## Personal time estimates
 
 For cached-shell behavior and updates, see [PWA and offline behavior](offline.md).

@@ -179,3 +179,88 @@ test('loads the Standard OSM raster style and preserves waypoints when switching
   await expect(page.locator('[data-sonner-toast][data-type="warning"]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+for (const language of ['en', 'ru'] as const) {
+  for (const theme of ['light', 'dark'] as const) {
+    test(`slope coloring is optional, accessible and preserves map tools (${language}, ${theme})`, async ({ page }, testInfo) => {
+      const errors: string[] = [];
+      let routingRequests = 0;
+      page.on('pageerror', (error) => errors.push(error.message));
+      page.on('console', (message) => {
+        if (message.type() === 'error') errors.push(message.text());
+      });
+      await page.addInitScript(({ language, theme }) => {
+        localStorage.setItem('roamlet-language', language);
+        localStorage.setItem('roamlet-theme', theme);
+        localStorage.setItem('roamlet:preferences:v1', JSON.stringify({
+          version: 1, preferences: { panelHidden: true },
+        }));
+      }, { language, theme });
+      await page.route('**/__fixtures__/map-style.json', (route) => route.fulfill({ json: {
+        version: 8,
+        sources: { fixture: { type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+          attribution: 'Synthetic map attribution' } },
+        layers: [
+          { id: 'background', type: 'background', paint: { 'background-color': theme === 'dark' ? '#182a24' : '#faf7f2' } },
+          { id: 'fixture', type: 'circle', source: 'fixture' },
+        ],
+      } }));
+      await page.route('**/api/route', (route) => {
+        routingRequests++;
+        return route.abort();
+      });
+      const labels = language === 'ru'
+        ? { tools: 'Другие инструменты карты', controls: 'Управление картой', toggle: 'Окрасить маршрут по уклону',
+          legend: 'Легенда уклона', import: 'Импорт файла GPX', zoom: 'Приблизить' }
+        : { tools: 'More map tools', controls: 'Map controls', toggle: 'Color route by slope',
+          legend: 'Slope legend', import: 'Import GPX file', zoom: 'Zoom in' };
+      await page.goto('/');
+      await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
+      await page.getByRole('button', { name: labels.tools, exact: true }).click();
+      const panel = page.getByRole('dialog', { name: labels.controls, exact: true });
+      await expect(panel.getByRole('button', { name: labels.toggle })).toBeDisabled();
+      await panel.press('Escape');
+      const gpx = '<gpx version="1.1"><trk><name>Synthetic slope</name><trkseg>' +
+        '<trkpt lat="47" lon="11"><ele>100</ele></trkpt>' +
+        '<trkpt lat="47.002" lon="11.002"><ele>130</ele></trkpt>' +
+        '<trkpt lat="47.004" lon="11.004"><ele>130</ele></trkpt>' +
+        '<trkpt lat="47.006" lon="11.006"><ele>100</ele></trkpt>' +
+        '</trkseg></trk></gpx>';
+      await page.getByLabel(labels.import).setInputFiles({
+        name: 'slope.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from(gpx),
+      });
+      await page.getByRole('button', { name: labels.tools, exact: true }).click();
+      const toggle = panel.getByRole('button', { name: labels.toggle });
+      await expect(toggle).toBeEnabled();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      await toggle.scrollIntoViewIfNeeded();
+      await toggle.focus();
+      await toggle.press('Enter');
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      const legend = panel.getByRole('group', { name: labels.legend });
+      await legend.scrollIntoViewIfNeeded();
+      await expect(legend).toBeVisible();
+      await expect(panel).toBeInViewport();
+      const bounds = await toggle.boundingBox();
+      expect(bounds!.height).toBeGreaterThanOrEqual(44);
+      expect(bounds!.width).toBeGreaterThanOrEqual(44);
+      const overflow = await panel.evaluate((element) => element.scrollWidth > element.clientWidth);
+      expect(overflow).toBe(false);
+      await page.screenshot({ path: testInfo.outputPath('slope-tools.png') });
+      await panel.press('Escape');
+      await expect(page.getByRole('button', { name: labels.tools, exact: true })).toBeFocused();
+      await page.locator('.maplibregl-canvas').screenshot({ path: testInfo.outputPath('slope-map.png') });
+      await clickMapTool(page, labels.zoom);
+      await page.getByRole('button', { name: labels.tools, exact: true }).click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      await expect(legend).toHaveCount(0);
+      await panel.press('Escape');
+      await expect(page.locator('.maplibregl-ctrl-attrib')).toContainText('Synthetic map attribution');
+      expect(routingRequests).toBe(0);
+      expect(errors).toEqual([]);
+    });
+  }
+}

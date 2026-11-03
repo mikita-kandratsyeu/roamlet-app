@@ -50,6 +50,7 @@ vi.mock('./components/RouteMap', () => ({
     comparisonLayers,
     comparisonMode,
     highlightSegments,
+    slopeElevationSource,
     editingToolbar,
     onAdd,
     fitToken,
@@ -73,6 +74,7 @@ vi.mock('./components/RouteMap', () => ({
     comparisonLayers?: unknown[];
     comparisonMode?: boolean;
     highlightSegments?: unknown[];
+    slopeElevationSource?: 'gpx' | 'openrouteservice';
     editingToolbar?: ReactNode;
     onAdd?: (coordinate: [number, number]) => void;
     fitToken: number;
@@ -91,6 +93,7 @@ vi.mock('./components/RouteMap', () => ({
       data-comparison={comparisonMode}
       data-comparison-layers={JSON.stringify(comparisonLayers ?? [])}
       data-highlight={JSON.stringify(highlightSegments ?? [])}
+      data-slope-elevation-source={slopeElevationSource ?? ''}
       data-fit-token={fitToken}
       data-fit-max-zoom={fitMaxZoom}
     >
@@ -369,10 +372,25 @@ describe('route preparation features', () => {
     ).findByRole('button', { name: /Climb 1/ });
     fireEvent.click(climb);
     expect(screen.getByTestId('map').getAttribute('data-highlight')).not.toBe('[]');
+    expect(screen.getByTestId('map')).toHaveAttribute('data-slope-elevation-source', 'gpx');
     expect(provider.calculateRoute).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'New route' }));
     fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
     expect(screen.getByTestId('map')).toHaveAttribute('data-highlight', '[]');
+    expect(screen.getByTestId('map')).toHaveAttribute('data-slope-elevation-source', '');
+  });
+
+  it.each([false, true])('passes only confirmed ORS height provenance to slope coloring (confirmed: %s)', async (confirmed) => {
+    provider.calculateRoute.mockResolvedValue({
+      segments: [geometry],
+      stats: { distance: 1342, duration: 480, ascent: 30, descent: 15 },
+      ...(confirmed ? { elevationSource: 'openrouteservice' } : {}),
+    });
+    render(<App />);
+    await plan();
+    expect(screen.getByTestId('map')).toHaveAttribute(
+      'data-slope-elevation-source', confirmed ? 'openrouteservice' : '',
+    );
   });
 });
 

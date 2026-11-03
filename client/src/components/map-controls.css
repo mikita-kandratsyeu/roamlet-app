@@ -174,6 +174,134 @@
 .map-tools-panel button.map-manual-tool[aria-pressed='true'] > svg {
   color: inherit;
 }
+.map-slope-tools {
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+.map-tools-panel button.map-slope-toggle {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  gap: 10px;
+  min-height: 68px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--foreground);
+}
+.map-tools-panel button.map-slope-toggle:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--ring);
+}
+.map-tools-panel button.map-slope-toggle[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+  background: color-mix(in srgb, var(--primary) 8%, var(--background));
+}
+.map-tools-panel button.map-slope-toggle[aria-pressed='true']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 14%, var(--background));
+}
+.map-slope-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.map-slope-toggle[aria-pressed='true'] .map-slope-icon {
+  background: color-mix(in srgb, var(--primary) 14%, var(--background));
+  color: var(--primary);
+}
+.map-slope-toggle-label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.map-slope-toggle-label > span {
+  font-weight: 600;
+}
+.map-slope-toggle-label > small {
+  font-size: var(--font-size-small, 12px);
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+.map-slope-switch {
+  display: flex;
+  align-items: center;
+  width: 32px;
+  height: 20px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 150ms ease;
+}
+.map-slope-switch > span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--foreground);
+  transition: transform 150ms ease;
+}
+.map-slope-toggle[aria-pressed='true'] .map-slope-switch {
+  background: var(--primary);
+}
+.map-slope-toggle[aria-pressed='true'] .map-slope-switch > span {
+  transform: translateX(12px);
+  background: var(--primary-foreground);
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-slope-switch,
+  .map-slope-switch > span {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .map-tools-panel button.map-slope-toggle[aria-pressed='true'] {
+    border-color: Highlight;
+  }
+  .map-slope-switch {
+    outline: 1px solid ButtonText;
+  }
+}
+.map-slope-description {
+  margin: 8px 4px;
+  font-size: var(--font-size-small, 12px);
+  line-height: 1.5;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+.map-slope-legend {
+  padding: 4px;
+}
+.map-slope-ramp {
+  height: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.map-slope-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: var(--font-size-small, 12px);
+}
+.map-slope-labels > span {
+  display: grid;
+  gap: 2px;
+}
+.map-slope-labels > span:nth-child(2) {
+  text-align: center;
+}
+.map-slope-labels > span:last-child {
+  text-align: right;
+}
+.map-slope-labels small {
+  font-size: inherit;
+  color: var(--muted-foreground);
+}
 .map-tools-panel > a {
   border-top: 1px solid var(--border);
   border-radius: 0;
@@ -256,11 +384,15 @@
   border: 1px solid var(--border);
   border-radius: 13px;
   background: var(--surface);
-  box-shadow: 0 2px 6px #0000000d, 0 6px 18px #00000014;
+  box-shadow:
+    0 2px 6px #0000000d,
+    0 6px 18px #00000014;
 }
 .map-extra-controls .map-control.map-north-control:hover:not(:disabled) {
   background: var(--muted);
-  box-shadow: 0 3px 8px #00000014, 0 8px 20px #0000001a;
+  box-shadow:
+    0 3px 8px #00000014,
+    0 8px 20px #0000001a;
 }
 @media (prefers-reduced-motion: no-preference) {
   .map-extra-controls .map-control.map-north-control {

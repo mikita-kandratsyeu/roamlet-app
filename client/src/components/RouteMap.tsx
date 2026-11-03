@@ -5,12 +5,13 @@ import { Button } from './ui/button';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Popover } from 'radix-ui';
 import { useTranslation } from 'react-i18next';
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView } from '../domain/mapView';
 import { mapPadding } from '../domain/mapPadding';
 import { locationAccuracy } from '../domain/locationAccuracy';
+import { buildRouteSlope } from '../domain/routeSlope';
 import {
   loadPreferences,
   savePreferences,
@@ -43,6 +44,7 @@ import {
   RefreshCw,
   Library,
   MoreHorizontal,
+  Mountain,
 } from 'lucide-react';
 import { waypointKind } from './waypointStyle';
 import { useTheme } from '../theme';
@@ -50,6 +52,16 @@ import { Notification } from './Notification';
 import { MapLoader } from './MapLoader';
 import { MapLoadingIndicator } from './MapLoadingIndicator';
 import i18n, { formatNumber, translateMessage } from '../i18n';
+
+const slopeColorStops: [number, string][] = [
+  [-10, '#2563eb'],
+  [-3, '#38bdf8'],
+  [-1, '#32946b'],
+  [1, '#32946b'],
+  [3, '#eab308'],
+  [6, '#f97316'],
+  [10, '#dc2626'],
+];
 
 const mapMotionDuration = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 450;
@@ -100,6 +112,7 @@ interface Props {
   alternativeSegments?: Coordinate[][][];
   selectedAlternativeIndex?: number;
   elevationCoordinate?: Coordinate | null;
+  slopeElevationSource?: 'gpx' | 'openrouteservice';
   highlightSegments?: Coordinate[][];
   comparisonLayers?: { segments: Coordinate[][]; color: string; dashed?: boolean }[];
   comparisonMode?: boolean;
@@ -110,6 +123,7 @@ interface Props {
 export function RouteMap(props: Props) {
   const { t } = useTranslation();
   const accuracyId = useId();
+  const slopeDescriptionId = useId();
   const { resolvedTheme } = useTheme();
   const { manualDrawing, editable, onUndo, onRedo, canUndo, canRedo, online = true } = props;
   const container = useRef<HTMLDivElement>(null);
@@ -175,6 +189,15 @@ export function RouteMap(props: Props) {
     () => window.matchMedia?.('(max-width: 700px)').matches ?? false,
   );
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [slopeEnabled, setSlopeEnabled] = useState(false);
+  const slope = useMemo(
+    () => props.slopeElevationSource
+      ? buildRouteSlope(props.segments)
+      : { available: false, features: [] },
+    [props.segments, props.slopeElevationSource],
+  );
+  const slopeAvailable = slope.available && !props.routeStale && !props.comparisonMode;
+  const slopeActive = slopeEnabled && slopeAvailable;
   useEffect(() => {
     const media = window.matchMedia?.('(max-width: 700px)');
     if (!media) return;
@@ -749,6 +772,30 @@ export function RouteMap(props: Props) {
     const source = map.current.getSource('route') as maplibregl.GeoJSONSource | undefined;
     source?.setData(lineFeatures(props.segments));
   }, [ready, props.segments]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const instance = map.current;
+    let source = instance.getSource('route-slope') as maplibregl.GeoJSONSource | undefined;
+    if (!source && !slopeActive) return;
+    if (!source) {
+      instance.addSource('route-slope', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      instance.addLayer({
+        id: 'route-slope-line',
+        type: 'line',
+        source: 'route-slope',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': ['interpolate', ['linear'], ['get', 'grade'], ...slopeColorStops.flat()],
+          'line-width': 5,
+        },
+      }, 'route-comparison-casing');
+      source = instance.getSource('route-slope') as maplibregl.GeoJSONSource | undefined;
+    }
+    source?.setData({ type: 'FeatureCollection', features: slopeActive ? slope.features : [] });
+  }, [ready, slopeActive, slope.features]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const source = map.current.getSource('route-direct') as maplibregl.GeoJSONSource | undefined;
@@ -1347,6 +1394,62 @@ export function RouteMap(props: Props) {
               </div>
               {compactControls && navigationControls}
               {compactControls && editingControls}
+              {!props.comparisonMode && (
+                <section className="map-slope-tools" aria-label={t('Route slope')}>
+                  <Button
+                    variant="outline"
+                    className="map-control map-slope-toggle"
+                    aria-label={t('Color route by slope')}
+                    aria-pressed={slopeActive}
+                    aria-describedby={slopeDescriptionId}
+                    disabled={!ready || !slopeAvailable}
+                    onClick={() => setSlopeEnabled((enabled) => !enabled)}
+                  >
+                    <span className="map-slope-icon" aria-hidden="true">
+                      <Mountain className="size-5" />
+                    </span>
+                    <span className="map-slope-toggle-label">
+                      <span>{t('Color route by slope')}</span>
+                      <small aria-hidden="true">
+                        {!slopeAvailable ? t('Unavailable')
+                          : slopeActive ? t('Coloring enabled') : t('Coloring disabled')}
+                      </small>
+                    </span>
+                    <span className="map-slope-switch" aria-hidden="true">
+                      <span />
+                    </span>
+                  </Button>
+                  <p id={slopeDescriptionId} className="map-slope-description">
+                    {slopeAvailable
+                      ? t('Estimated grade over a 100 m window. Saved heights and geometry are unchanged.')
+                      : t('Needs a current route with complete GPX or OpenRouteService heights.')}
+                  </p>
+                  {slopeActive && (
+                    <div className="map-slope-legend" role="group" aria-label={t('Slope legend')}>
+                      <div
+                        className="map-slope-ramp"
+                        aria-hidden="true"
+                        style={{ background: `linear-gradient(to right, ${slopeColorStops
+                          .map(([grade, color]) => `${color} ${((grade + 10) / 20) * 100}%`)
+                          .join(', ')})` }}
+                      />
+                      <div className="map-slope-labels">
+                        <span>{t('Downhill')}<small>≤{formatNumber(-10)}%</small></span>
+                        <span>{t('Flat')}<small>{formatNumber(-1)}…+{formatNumber(1)}%</small></span>
+                        <span>{t('Uphill')}<small>≥+{formatNumber(10)}%</small></span>
+                      </div>
+                      <p className="map-slope-description">
+                        {t('Grades are planning estimates, not a safety assessment.')}
+                      </p>
+                      {props.slopeElevationSource === 'openrouteservice' && (
+                        <p className="map-slope-description">
+                          {t('Elevation: OpenRouteService terrain estimate, not a ground survey.')}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </section>
+              )}
               {ready && (
                 <a href="https://www.openstreetmap.org/" target="_blank" rel="noreferrer">
                   {t('Report a map issue ↗')}

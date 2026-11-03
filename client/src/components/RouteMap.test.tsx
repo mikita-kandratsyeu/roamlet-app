@@ -12,6 +12,7 @@ import {
 import { BRIGHT_MAP_STYLE } from '../domain/mapTiles';
 import { RouteMap } from './RouteMap';
 import i18n from '../i18n';
+import type { Coordinate } from '../domain/types';
 const mocks = vi.hoisted(() => ({
   options: vi.fn(),
   canvas: null as HTMLCanvasElement | null,
@@ -1792,4 +1793,124 @@ it('restores keyboard focus when selected marker styling changes', () => {
   rerender(<RouteMap {...props} waypoints={annotationWaypoints} selectedWaypointId="b" />);
   expect(focus).toHaveBeenCalledWith({ preventScroll: true });
   element.remove();
+});
+
+const slopeSegments: [number, number, number][][] = [[[0, 0, 0], [0.01, 0, 100]]];
+
+it.each([
+  ['en', 'light'], ['en', 'dark'], ['ru', 'light'], ['ru', 'dark'],
+])('toggles slope coloring and a localized legend with keyboard access (%s, %s)', async (language, theme) => {
+  await i18n.changeLanguage(language);
+  mocks.theme = theme;
+  const before = structuredClone(slopeSegments);
+  const user = userEvent.setup();
+  render(<RouteMap {...props} segments={slopeSegments} slopeElevationSource="gpx" />);
+  const trigger = screen.getByRole('button', { name: i18n.t('More map tools') });
+  await user.click(trigger);
+  const toggle = screen.getByRole('button', { name: i18n.t('Color route by slope') });
+  expect(toggle).toBeDisabled();
+  expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  expect(toggle).toHaveTextContent(i18n.t('Coloring disabled'));
+  expect(toggle.querySelector('.map-slope-switch')).toHaveAttribute('aria-hidden', 'true');
+  expect(toggle.querySelector('.map-slope-icon')).toHaveAttribute('aria-hidden', 'true');
+  act(() => mocks.handlers.get('load')?.());
+  expect(toggle).toBeEnabled();
+  expect(mocks.extraData.has('route-slope')).toBe(false);
+  toggle.focus();
+  await user.keyboard('{Enter}');
+  expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  expect(toggle).toHaveTextContent(i18n.t('Coloring enabled'));
+  expect(toggle).toHaveAttribute('aria-label', i18n.t('Color route by slope'));
+  expect(screen.getByRole('group', { name: i18n.t('Slope legend') })).toBeVisible();
+  for (const label of ['Downhill', 'Flat', 'Uphill'])
+    expect(screen.getByText(i18n.t(label))).toBeInTheDocument();
+  const data = mocks.extraData.get('route-slope')?.mock.lastCall?.[0];
+  expect(data.features).toHaveLength(1);
+  expect(data.features[0].properties.grade).toBeGreaterThan(8);
+  expect(data.features[0].geometry.coordinates).toEqual(slopeSegments[0]);
+  expect(mocks.layer).toHaveBeenCalledWith(expect.objectContaining({
+    id: 'route-slope-line',
+    paint: expect.objectContaining({ 'line-color': expect.arrayContaining(['interpolate']) }),
+  }), 'route-comparison-casing');
+  await user.keyboard('{Escape}');
+  expect(trigger).toHaveFocus();
+  await user.click(trigger);
+  await user.click(screen.getByRole('button', { name: i18n.t('Color route by slope') }));
+  expect(screen.queryByRole('group', { name: i18n.t('Slope legend') })).not.toBeInTheDocument();
+  expect(mocks.extraData.get('route-slope')).toHaveBeenLastCalledWith({
+    type: 'FeatureCollection', features: [],
+  });
+  expect(slopeSegments).toEqual(before);
+  expect(mocks.options).toHaveBeenCalledOnce();
+  expect(mocks.fit).not.toHaveBeenCalled();
+  expect(props.onAdd).not.toHaveBeenCalled();
+  expect(props.onMove).not.toHaveBeenCalled();
+});
+
+it.each([
+  { segments: [[[0, 0], [0.01, 0]]] as [number, number][][], slopeElevationSource: 'gpx' as const },
+  { segments: [[[0, 0, 0], [0.01, 0]]] as Coordinate[][], slopeElevationSource: 'gpx' as const },
+  { segments: [[[0, 0, 0]]] as [number, number, number][][], slopeElevationSource: 'gpx' as const },
+  { segments: slopeSegments, slopeElevationSource: undefined },
+  { segments: slopeSegments, slopeElevationSource: 'gpx' as const, routeStale: true },
+])('disables slope coloring without usable current height data ($slopeElevationSource, $routeStale)', async (options) => {
+  const user = userEvent.setup();
+  render(<RouteMap {...props} {...options} />);
+  act(() => mocks.handlers.get('load')?.());
+  await user.click(screen.getByRole('button', { name: 'More map tools' }));
+  expect(screen.getByRole('button', { name: 'Color route by slope' })).toBeDisabled();
+  expect(screen.getByText('Needs a current route with complete GPX or OpenRouteService heights.')).toBeVisible();
+  expect(mocks.extraData.has('route-slope')).toBe(false);
+});
+
+it('keeps the selected slope mode across style changes and clears invalid or stale coloring', async () => {
+  const user = userEvent.setup();
+  const options = { ...props, segments: slopeSegments, slopeElevationSource: 'gpx' as const };
+  const { rerender } = render(<RouteMap {...options} />);
+  act(() => mocks.handlers.get('load')?.());
+  await user.click(screen.getByRole('button', { name: 'More map tools' }));
+  await user.click(screen.getByRole('button', { name: 'Color route by slope' }));
+  await user.keyboard('{Escape}');
+  mocks.setStyle.mockImplementationOnce(() => {
+    mocks.sourceInstalled = false;
+    mocks.extraData.clear();
+  });
+  fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
+  const downhill: [number, number, number][][] = [[[0, 0, 100], [0.01, 0, 0]]];
+  rerender(<RouteMap {...options} segments={downhill} />);
+  expect(mocks.extraData.has('route-slope')).toBe(false);
+  act(() => mocks.handlers.get('style.load')?.());
+  const source = mocks.extraData.get('route-slope')!;
+  expect(source.mock.lastCall![0].features[0].properties.grade).toBeLessThan(-8);
+  rerender(<RouteMap {...options} routeStale />);
+  expect(source).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  rerender(<RouteMap {...options} />);
+  expect(source.mock.lastCall![0].features[0].properties.grade).toBeGreaterThan(8);
+  rerender(<RouteMap {...options} segments={[[[0, 0], [0.01, 0]]]} />);
+  expect(source).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  rerender(<RouteMap {...options} />);
+  expect(source.mock.lastCall![0].features).toHaveLength(1);
+  rerender(<RouteMap {...options} comparisonMode />);
+  expect(source).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
+  await user.click(screen.getByRole('button', { name: 'More map tools' }));
+  expect(screen.queryByRole('button', { name: 'Color route by slope' })).not.toBeInTheDocument();
+  expect(mocks.options).toHaveBeenCalledOnce();
+  expect(mocks.fit).not.toHaveBeenCalled();
+});
+
+it('labels ORS slopes as estimates while leaving climb highlights above the color layer', async () => {
+  const user = userEvent.setup();
+  render(<RouteMap {...props} segments={slopeSegments} slopeElevationSource="openrouteservice"
+    highlightSegments={slopeSegments} />);
+  act(() => mocks.handlers.get('load')?.());
+  await user.click(screen.getByRole('button', { name: 'More map tools' }));
+  await user.click(screen.getByRole('button', { name: 'Color route by slope' }));
+  expect(screen.getByText('Elevation: OpenRouteService terrain estimate, not a ground survey.')).toBeVisible();
+  expect(mocks.extraData.get('route-highlight')).toHaveBeenLastCalledWith(
+    expect.objectContaining({ features: [expect.objectContaining({
+      geometry: { type: 'LineString', coordinates: slopeSegments[0] },
+    })] }),
+  );
+  expect(mocks.data.mock.lastCall![0].features[0].geometry.coordinates).toEqual(slopeSegments[0]);
+  expect(mocks.layer).toHaveBeenCalledWith(expect.objectContaining({ id: 'route-directions' }));
 });
