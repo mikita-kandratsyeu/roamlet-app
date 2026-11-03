@@ -21,8 +21,4 @@ Use Node.js 26.x, matching the root/client package engines and CI, and the pinne
 
 ## Contributing
 
-Use the [pull request template](../.github/PULL_REQUEST_TEMPLATE.md) to summarize changes, report checks actually run and note local-data, localization and compatibility implications. Run the smallest relevant checks from [testing and verification](testing.md); builds and browser suites are not required for every change.
-
-The issue chooser provides a [bug report form](../.github/ISSUE_TEMPLATE/bug_report.yml) and a [feature request form](../.github/ISSUE_TEMPLATE/feature_request.yml). Blank issues remain available for other topics. Use synthetic examples and redact credentials, private route coordinates and personal data from reports and screenshots.
-
-[CODEOWNERS](../.github/CODEOWNERS) assigns the whole repository to `@mikita-kandratsyeu`. GitHub reads it from the pull request's base branch, and owners must have write access. Required code-owner approval must be enabled separately in branch protection or repository rules; the file alone does not enforce approval. Issue forms become available after they are merged into the default branch.
+See [Contributing to Roamlet](../CONTRIBUTING.md) for issue reporting, implementation expectations, verification and the pull request/review workflow.

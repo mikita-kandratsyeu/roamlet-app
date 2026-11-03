@@ -58,4 +58,6 @@ Maps, automatic routing, weather and cloud connections need internet. Offline su
 | Code organization, API errors and logging                 | [Architecture](docs/architecture.md)        |
 | CI, test commands, coverage and release checks            | [Testing](docs/testing.md)                  |
 
+Want to contribute? See [Contributing to Roamlet](CONTRIBUTING.md).
+
 See [third-party licenses and geographic data policies](THIRD_PARTY_LICENSES.md) before distributing or publicly deploying the app.
