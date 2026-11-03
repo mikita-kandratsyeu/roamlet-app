@@ -6,6 +6,12 @@
 
 [GitHub Actions CI](../.github/workflows/ci.yml) runs lint, TypeScript checking and server/client unit tests on pushes and pull requests, using Node.js 26.x and the pinned Yarn release. It does not run production builds, layout, E2E or offline browser suites; the full regression command remains available locally.
 
+CI caches Yarn's downloaded packages in `.yarn/cache`, keyed by the OS, Node runtime, lockfile, Yarn configuration/release and package manifests. A compatible older download cache can be reused, but `install --immutable` always runs; `node_modules` and install state are not cached.
+
+ESLint uses a content-based cache in `.yarn/ci-eslint.cache`. Its key includes dependency manifests, the lockfile, ESLint configuration and commit SHA; compatible earlier results can be restored. Changed files are checked again. Unit tests and TypeScript checks always run on code-changing workflows; test results are not cached. Superseded runs on the same workflow/ref are cancelled.
+
+Pushes and pull requests changing only Markdown files or files under `docs/` skip this workflow. Changes to code, configuration or `yarn.lock` still trigger it. If this CI is configured as a required status check, GitHub can leave documentation-only pull requests pending because the workflow was skipped; remove the path filters or use a separate always-reporting required gate before enabling that requirement.
+
 ## Validation commands
 
 ```sh

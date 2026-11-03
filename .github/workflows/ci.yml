@@ -2,7 +2,13 @@ name: CI
 
 on:
   push:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 permissions:
   contents: read
@@ -21,10 +27,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '26.x'
+      - name: Cache Yarn downloads
+        uses: actions/cache@v4
+        with:
+          path: .yarn/cache
+          key: ${{ runner.os }}-node26-yarn-${{ hashFiles('yarn.lock', '.yarnrc.yml', '.yarn/releases/yarn-4.18.1.cjs', 'package.json', 'client/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node26-yarn-
       - name: Install dependencies
         run: node .yarn/releases/yarn-4.18.1.cjs install --immutable
+      - name: Cache ESLint results
+        uses: actions/cache@v4
+        with:
+          path: .yarn/ci-eslint.cache
+          key: ${{ runner.os }}-node26-eslint-${{ hashFiles('yarn.lock', 'eslint.config.js', 'package.json', 'client/package.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-node26-eslint-${{ hashFiles('yarn.lock', 'eslint.config.js', 'package.json', 'client/package.json') }}-
       - name: Lint
-        run: node .yarn/releases/yarn-4.18.1.cjs lint
+        run: node .yarn/releases/yarn-4.18.1.cjs lint --cache --cache-strategy content --cache-location .yarn/ci-eslint.cache
       - name: TypeScript
         run: node .yarn/releases/yarn-4.18.1.cjs typecheck
       - name: Unit tests
