@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest an improvement to Roamlet.
+title: '[Feature]: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Roamlet is a local-first cycling and hiking planner. Describe the user need before proposing an implementation. Do not include secrets, private routes or personal data.
+  - type: checkboxes
+    id: existing-issues
+    attributes:
+      label: Existing issues
+      options:
+        - label: I searched existing issues for similar suggestions.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What is difficult or missing in the current workflow?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed improvement
+      description: Describe the expected behavior and who would benefit.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include existing workarounds or simpler approaches.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Give concrete examples of when the improvement would be complete.
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Offline, privacy and compatibility considerations
+      description: Does this require internet, transmit user data, change saved routes or affect GPX/backup compatibility? Describe any relevant limitations.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Optional mockups or redacted screenshots.

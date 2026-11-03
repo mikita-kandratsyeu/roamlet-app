@@ -1,0 +1,80 @@
+name: Bug report
+description: Report a reproducible problem in Roamlet.
+title: '[Bug]: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem using synthetic data where possible. Do not include API keys, tokens, passwords, cookies, private route coordinates or personal data. Redact screenshots and logs before sharing.
+  - type: checkboxes
+    id: existing-issues
+    attributes:
+      label: Existing issues
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the actual behavior and its impact.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Roamlet.
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Application version
+      description: Hover over the beta badge beside the logo, or provide the commit if running locally. Enter unknown if unavailable.
+      placeholder: '1.0.0'
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Device, OS and browser
+      placeholder: 'iPhone / iOS 18 / Safari, or Windows 11 / Chrome 130'
+    validations:
+      required: true
+  - type: dropdown
+    id: app-mode
+    attributes:
+      label: How is the app running?
+      options:
+        - Browser tab
+        - Installed PWA
+        - Local development
+        - Other / unknown
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network state
+      options:
+        - Online
+        - Offline
+        - Switching between online and offline
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, errors or additional context
+      description: Include relevant error messages and redacted screenshots. If a GPX or backup is needed, use a small synthetic example rather than a private route. Do not clear site data before backing up important routes.
