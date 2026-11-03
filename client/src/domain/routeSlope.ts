@@ -1,3 +1,4 @@
+import { analyzeRouteElevation } from './routeElevation';
 import { elevationSamples } from './stats';
 import type { Coordinate } from './types';
 
@@ -19,7 +20,8 @@ interface DrawableRun {
 
 /**
  * Grades are percentages over a 100 m window centred on each edge midpoint.
- * Windows are truncated at segment/zero-distance boundaries and use the original
+ * Only known-height runs contribute; windows stop at unknown points, segment gaps
+ * and zero-distance boundaries and use the original
  * samples bracketing the window (sparse samples can therefore exceed 100 m).
  * No heights or geometry are interpolated. Every zero-horizontal-distance edge
  * splits runs, so stationary elevation jumps never contribute to a grade.
@@ -33,37 +35,17 @@ export function buildRouteSlope(segments: Coordinate[][]): {
   features: SlopeFeature[];
 } {
   const unavailable = { available: false, features: [] };
-  let samples: ReturnType<typeof elevationSamples>;
-  try {
-    samples = elevationSamples(segments);
-  } catch {
-    return unavailable;
-  }
-  if (samples.length < 2) return unavailable;
+  const elevation = analyzeRouteElevation(segments);
+  if (!elevation.available || elevation.runs.length > MAX_SLOPE_FEATURES) return unavailable;
 
-  const runs: DrawableRun[] = [];
-  let sampleIndex = 0;
   let edgeCount = 0;
-  for (const segment of segments) {
-    let start = 0;
-    const finish = (end: number) => {
-      if (end <= start) return;
-      runs.push({
-        coordinates: segment.slice(start, end + 1),
-        distances: samples.slice(sampleIndex + start, sampleIndex + end + 1).map((s) => s.distance),
-      });
-      edgeCount += end - start;
+  const runs: DrawableRun[] = elevation.runs.map((coordinates) => {
+    edgeCount += coordinates.length - 1;
+    return {
+      coordinates,
+      distances: elevationSamples([coordinates]).map((sample) => sample.distance),
     };
-    for (let index = 1; index < segment.length; index++) {
-      if (samples[sampleIndex + index].distance === samples[sampleIndex + index - 1].distance) {
-        finish(index - 1);
-        start = index;
-      }
-    }
-    finish(segment.length - 1);
-    sampleIndex += segment.length;
-  }
-  if (edgeCount === 0 || runs.length > MAX_SLOPE_FEATURES) return unavailable;
+  });
 
   // Sum ceil(runEdges / groupSize) <= edgeCount / groupSize + runs.length - 1.
   const groupSize = Math.ceil(edgeCount / (MAX_SLOPE_FEATURES - runs.length + 1));

@@ -192,8 +192,9 @@ export function RouteMap(props: Props) {
   const [slopeEnabled, setSlopeEnabled] = useState(false);
   const slope = useMemo(
     () => props.slopeElevationSource
-      ? buildRouteSlope(props.segments)
-      : { available: false, features: [] },
+      ? { ...buildRouteSlope(props.segments),
+          partial: props.segments.some((segment) => segment.some((point) => point.length !== 3)) }
+      : { available: false, features: [], partial: false },
     [props.segments, props.slopeElevationSource],
   );
   const slopeAvailable = slope.available && !props.routeStale && !props.comparisonMode;
@@ -1422,7 +1423,7 @@ export function RouteMap(props: Props) {
                   <p id={slopeDescriptionId} className="map-slope-description">
                     {slopeAvailable
                       ? t('Estimated grade over a 100 m window. Saved heights and geometry are unchanged.')
-                      : t('Needs a current route with complete GPX or OpenRouteService heights.')}
+                      : t('Needs a current route with known GPX or OpenRouteService height sections.')}
                   </p>
                   {slopeActive && (
                     <div className="map-slope-legend" role="group" aria-label={t('Slope legend')}>
@@ -1441,6 +1442,11 @@ export function RouteMap(props: Props) {
                       <p className="map-slope-description">
                         {t('Grades are planning estimates, not a safety assessment.')}
                       </p>
+                      {slope.partial && (
+                        <p className="map-slope-description">
+                          {t('Only sections with known heights are colored. Missing heights are not estimated.')}
+                        </p>
+                      )}
                       {props.slopeElevationSource === 'openrouteservice' && (
                         <p className="map-slope-description">
                           {t('Elevation: OpenRouteService terrain estimate, not a ground survey.')}

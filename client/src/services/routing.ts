@@ -250,6 +250,7 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
     const segments: Coordinate[][] = [];
     const directSegments: Coordinate[][] = [];
     let duration = 0;
+    let hasOrsElevation = false;
     for (const run of waypointRuns(waypoints)) {
       if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
       const result =
@@ -263,6 +264,7 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
             );
       segments.push(...result.segments);
       if (run.mode === 'direct') directSegments.push(...result.segments);
+      else hasOrsElevation ||= result.elevationSource === 'openrouteservice';
       duration += result.stats.duration;
     }
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
@@ -272,7 +274,7 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
       segments,
       stats,
       ...(directSegments.length ? { directSegments } : {}),
-      ...(stats.ascent !== undefined ? { elevationSource: 'openrouteservice' as const } : {}),
+      ...(hasOrsElevation ? { elevationSource: 'openrouteservice' as const } : {}),
     };
   }
   async calculatePointAlternatives(

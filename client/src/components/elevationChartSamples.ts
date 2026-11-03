@@ -1,5 +1,5 @@
 import type { Coordinate } from '../domain/types';
-import { elevationSamples } from '../domain/stats';
+import { analyzeRouteElevation } from '../domain/routeElevation';
 
 export interface ElevationChartSample {
   distance: number;
@@ -8,19 +8,15 @@ export interface ElevationChartSample {
 }
 
 export function elevationChartSamples(segments: Coordinate[][]): ElevationChartSample[] {
-  const samples = elevationSamples(segments);
-  if (!samples.length) return [];
+  const { available, samples } = analyzeRouteElevation(segments);
+  if (!available) return [];
   const stride = Math.max(1, Math.ceil(samples.length / 400));
-  const chart: ElevationChartSample[] = [];
-  let offset = 0;
-  for (const segment of segments) {
-    if (segment.length && chart.length)
-      chart.push({ distance: samples[offset].distance, elevation: null });
-    for (let index = 0; index < segment.length; index++) {
-      if (index === 0 || index === segment.length - 1 || (offset + index) % stride === 0)
-        chart.push({ ...samples[offset + index], coordinate: segment[index] });
-    }
-    offset += segment.length;
-  }
-  return chart;
+  return samples.filter((sample, index) => {
+    if (index === 0 || index === samples.length - 1 || index % stride === 0) return true;
+    const unknown = sample.elevation === null;
+    return (
+      unknown !== (samples[index - 1].elevation === null) ||
+      unknown !== (samples[index + 1].elevation === null)
+    );
+  });
 }

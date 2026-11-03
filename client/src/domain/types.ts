@@ -38,6 +38,7 @@ export interface PlannedRoute {
   updatedAt: string;
   source: 'openrouteservice' | 'mapbox' | 'gpx' | 'manual' | 'mixed';
   routingOptions?: RoutingOptions;
+  /** Origin of known heights, not a guarantee of full-track coverage. */
   elevationSource?: 'openrouteservice';
   routingInputKey?: string;
   directSegments?: Coordinate[][];
@@ -46,6 +47,7 @@ export interface RoutingResult {
   segments: Coordinate[][];
   stats: RouteStats;
   directSegments?: Coordinate[][];
+  /** Mixed routes can retain ORS heights while direct sections remain 2D. */
   elevationSource?: 'openrouteservice';
 }
 export interface RoutingProvider {

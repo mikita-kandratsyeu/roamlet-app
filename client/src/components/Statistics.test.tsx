@@ -322,6 +322,33 @@ it('uses the larger provider estimate as an explicit planning reference even for
   expect(snapshot.stats.duration).toBe(3600);
 });
 
+it.each(['gpx', 'mixed'] as const)('shows only known height runs and labeled partial metrics for %s', async (source) => {
+  const segments: Coordinate[][] = [
+    [[0, 0, 100], [0.001, 0, 130]],
+    [[0.001, 0], [0.002, 0]],
+    [[0.002, 0, 50], [0.003, 0, 40]],
+  ];
+  const snapshot: PlannedRoute = { ...route(segments), source,
+    ...(source === 'mixed' ? { elevationSource: 'openrouteservice' as const, directSegments: [segments[1]] } : {}) };
+  const before = structuredClone(snapshot);
+  const onHover = vi.fn();
+  const { container, rerender } = render(<Statistics route={snapshot} elevationOpen={false} onElevationHover={onHover} />);
+  expect(screen.getByText('Elevation profile')).toBeInTheDocument();
+  expect(screen.getByText(i18n.t('Elevation gain (known sections)')).closest('div')).toHaveTextContent('30 m');
+  expect(screen.getByText(i18n.t('Elevation loss (known sections)')).closest('div')).toHaveTextContent('10 m');
+  expect(container.querySelectorAll('.elevation-preview g')).toHaveLength(2);
+  expect(screen.getByText(i18n.t('Missing heights leave gaps. Gain and loss cover only sections with known heights.'))).toBeInTheDocument();
+  rerender(<Statistics route={snapshot} elevationOpen onElevationHover={onHover} />);
+  expect(await screen.findByTestId('elevation-chart')).toBeInTheDocument();
+  const slider = screen.getByRole('slider', { name: 'Position on elevation profile' });
+  expect(slider).toHaveAttribute('max', '3');
+  fireEvent.change(slider, { target: { value: '2' } });
+  expect(onHover).toHaveBeenLastCalledWith([0.002, 0, 50]);
+  expect(snapshot).toEqual(before);
+  expect(snapshot.stats.ascent).toBeUndefined();
+  expect(snapshot.stats.descent).toBeUndefined();
+});
+
 it('keeps the elevation profile collapsed while its geometry changes', () => {
   const onOpen = vi.fn();
   const onHover = vi.fn();

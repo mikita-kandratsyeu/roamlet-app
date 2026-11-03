@@ -7,6 +7,7 @@ import { loadPreferences, savePreferences } from './preferences';
 import { isRouteResultCurrent, routingInputKey } from './editorRouting';
 import { editorReducer } from '../hooks/useRouteEditor';
 import type { PlannedRoute } from './types';
+import { exportGpx, importGpx } from './gpx';
 
 beforeEach(async () => {
   await routeDb.routes.clear();
@@ -126,6 +127,39 @@ it('persists new routing preferences and keeps old preference defaults', () => {
   expect(savePreferences({ routingOptions: { avoidSteps: 'yes' as never } })).toBe(false);
   expect(loadPreferences().routingOptions).toEqual(routingOptions);
 });
+it('round trips partial mixed elevation provenance without creating whole-route totals', async () => {
+  const route: PlannedRoute = { ...mixed(), elevationSource: 'openrouteservice' };
+  await saveRoute(route);
+  const stored = (await listRoutes())[0];
+  expect(stored).toMatchObject(route);
+  const copy = await duplicateRoute(stored);
+  expect(copy.elevationSource).toBe('openrouteservice');
+  expect(copy.segments).toEqual(route.segments);
+  expect(copy.stats.ascent).toBeUndefined();
+  await routeDb.routes.clear();
+  await importBackup(JSON.parse(exportBackup([stored])), 'replace');
+  const restored = (await listRoutes())[0];
+  expect(restored).toEqual(stored);
+  expect(restored.stats.ascent).toBeUndefined();
+  expect(importGpx(exportGpx(restored)).segments).toEqual(restored.segments);
+  const snapshot = { ...initialEditor(), result: restored };
+  const writer = draftWriter(vi.fn());
+  writer.schedule(snapshot);
+  expect(await writer.flush()).toBe(true);
+  expect((await loadDraft())!.snapshot.result).toEqual(restored);
+});
+
+it.each(['no-known-run', 'whole-route-totals', 'direct-heights', 'automatic-partial'] as const)(
+  'rejects invalid partial elevation provenance (%s)', async (kind) => {
+    const route: PlannedRoute = { ...mixed(), elevationSource: 'openrouteservice' };
+    if (kind === 'no-known-run') route.segments = [[[11, 47], [11.2, 47]]];
+    if (kind === 'whole-route-totals') route.stats = { ...route.stats, ascent: 10, descent: 0 };
+    if (kind === 'direct-heights') route.directSegments = [[[11, 47, 100], [11.1, 47, 120]]];
+    if (kind === 'automatic-partial') route.source = 'openrouteservice';
+    await expect(saveRoute(route)).rejects.toThrow('Unable to save route data.');
+  },
+);
+
 it('preserves confirmed elevation provenance in library and backup without granting it to legacy routes', async () => {
   const route = {
     ...mixed(),

@@ -1859,7 +1859,7 @@ it.each([
   act(() => mocks.handlers.get('load')?.());
   await user.click(screen.getByRole('button', { name: 'More map tools' }));
   expect(screen.getByRole('button', { name: 'Color route by slope' })).toBeDisabled();
-  expect(screen.getByText('Needs a current route with complete GPX or OpenRouteService heights.')).toBeVisible();
+  expect(screen.getByText('Needs a current route with known GPX or OpenRouteService height sections.')).toBeVisible();
   expect(mocks.extraData.has('route-slope')).toBe(false);
 });
 
@@ -1894,6 +1894,35 @@ it('keeps the selected slope mode across style changes and clears invalid or sta
   expect(source).toHaveBeenLastCalledWith({ type: 'FeatureCollection', features: [] });
   await user.click(screen.getByRole('button', { name: 'More map tools' }));
   expect(screen.queryByRole('button', { name: 'Color route by slope' })).not.toBeInTheDocument();
+  expect(mocks.options).toHaveBeenCalledOnce();
+  expect(mocks.fit).not.toHaveBeenCalled();
+});
+
+it('colors only known runs in a mixed route while retaining dashed manual geometry', async () => {
+  const user = userEvent.setup();
+  const segments: Coordinate[][] = [
+    [[0, 0, 100], [0.001, 0, 120]],
+    [[0.001, 0], [0.002, 0]],
+    [[0.002, 0, 80], [0.003, 0, 60]],
+  ];
+  const before = structuredClone(segments);
+  render(<RouteMap {...props} segments={segments} directSegments={[segments[1]]}
+    slopeElevationSource="openrouteservice" />);
+  act(() => mocks.handlers.get('load')?.());
+  await user.click(screen.getByRole('button', { name: 'More map tools' }));
+  const toggle = screen.getByRole('button', { name: 'Color route by slope' });
+  expect(toggle).toBeEnabled();
+  await user.click(toggle);
+  const colored = mocks.extraData.get('route-slope')?.mock.lastCall?.[0].features;
+  expect(colored.map((feature: { geometry: { coordinates: Coordinate[] } }) => feature.geometry.coordinates))
+    .toEqual([segments[0], segments[2]]);
+  expect(mocks.extraData.get('route-direct')).toHaveBeenLastCalledWith(
+    expect.objectContaining({ features: [expect.objectContaining({ geometry: {
+      type: 'LineString', coordinates: segments[1],
+    } })] }),
+  );
+  expect(screen.getByText('Only sections with known heights are colored. Missing heights are not estimated.')).toBeVisible();
+  expect(segments).toEqual(before);
   expect(mocks.options).toHaveBeenCalledOnce();
   expect(mocks.fit).not.toHaveBeenCalled();
 });

@@ -32,7 +32,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 describe('mixed direct and automatic routing', () => {
-  it('batches contiguous automatic runs, isolates direct chunks and omits incomplete elevations', async () => {
+  it('batches automatic runs and retains their height provenance without inventing direct-leg heights', async () => {
     const fetcher = mockProvider();
     const stops = points.map((point, index) => ({
       ...point,
@@ -48,7 +48,11 @@ describe('mixed direct and automatic routing', () => {
     expect(result.stats.duration).toBeCloseTo(200 + directStats.duration);
     expect(result.stats.distance).toBeCloseTo(calculateStats(result.segments, 'cycling').distance);
     expect(result.stats.ascent).toBeUndefined();
-    expect(result.elevationSource).toBeUndefined();
+    expect(result.stats.descent).toBeUndefined();
+    expect(result.elevationSource).toBe('openrouteservice');
+    expect(result.segments[0].every((point) => point.length === 3)).toBe(true);
+    expect(result.segments[2].every((point) => point.length === 3)).toBe(true);
+    expect(result.directSegments!.flat().every((point) => point.length === 2)).toBe(true);
   });
   it('does not connect a snapped automatic endpoint to a direct leg', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(

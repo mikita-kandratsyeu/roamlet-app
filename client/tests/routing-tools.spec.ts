@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { clickMapTool } from './mapControls';
+import { readFile } from 'node:fs/promises';
 
 const points = [
   [30, 52, 100],
@@ -209,7 +210,7 @@ test('a section detour stays local until Done and keeps the other section automa
     const coordinates = route.request().postDataJSON().coordinates as number[][];
     requests.push(coordinates);
     return route.fulfill({ json: { type: 'FeatureCollection', features: [{
-      type: 'Feature', geometry: { type: 'LineString', coordinates: coordinates.map((point) => [...point, 100]) },
+      type: 'Feature', geometry: { type: 'LineString', coordinates: coordinates.map((point, index) => [...point, 100 + index * 20]) },
       properties: { summary: { distance: 1000, duration: 300 } },
     }] } });
   });
@@ -266,6 +267,27 @@ test('a section detour stays local until Done and keeps the other section automa
   expect(requests.at(-1)).toEqual([[30.01, 52.01], [30.02, 52.02]]);
   await expect(page.getByRole('button', { name: 'Режим участка 1', exact: true })).toHaveText(/Прямая линия/);
   await expect(page.getByRole('button', { name: 'Режим участка 3', exact: true })).toHaveText(/По дорогам/);
+  const moreStatistics = page.getByText('Подробная статистика', { exact: true });
+  if (await moreStatistics.count()) await moreStatistics.click();
+  const gain = page.getByText('Набор высоты (на участках с высотами)', { exact: true });
+  await expect(gain).toBeVisible();
+  await expect(gain.locator('..')).toContainText('20 м');
+  await expect(page.getByText('Профиль высот', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Другие инструменты карты', exact: true }).click();
+  const slopeToggle = page.getByRole('button', { name: 'Окрасить маршрут по уклону', exact: true });
+  await expect(slopeToggle).toBeEnabled();
+  await slopeToggle.click();
+  await expect(page.getByText('Окрашены только участки с известными высотами. Отсутствующие высоты не вычисляются.', { exact: true })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Управление картой', exact: true }).press('Escape');
+  await page.getByRole('button', { name: 'Экспорт', exact: true }).click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Скачать GPX', exact: true }).click();
+  const downloadedPath = await (await downloadPromise).path();
+  expect(downloadedPath).not.toBeNull();
+  const gpx = await readFile(downloadedPath!, 'utf8');
+  expect(gpx.match(/<ele>/g)).toHaveLength(2);
+  expect(gpx.match(/<trkseg>/g)).toHaveLength(2);
+  await expect(page.getByRole('dialog', { name: 'Экспорт маршрута', exact: true })).toHaveCount(0);
   await clickMapTool(page, 'Отменить');
   await expect(page.getByRole('button', { name: 'Режим участка 3', exact: true })).toHaveCount(0);
 });

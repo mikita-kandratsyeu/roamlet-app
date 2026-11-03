@@ -97,7 +97,6 @@ describe('route slope', () => {
   it.each(
     (
       [
-        [0, 0],
         [0, 0, NaN],
         [0, 0, Infinity],
         [0, 0, -Infinity],
@@ -107,9 +106,47 @@ describe('route slope', () => {
         [0, 91, 100],
       ] satisfies Coordinate[]
     ).map((point) => ({ point })),
-  )('rejects the entire track for an invalid or incomplete point $point', ({ point }) => {
+  )('rejects the entire track for an invalid point $point', ({ point }) => {
     expect(buildRouteSlope([track(10, 5), [point]])).toEqual(unavailable);
     expect(buildRouteSlope([[track(2, 5)[0], point, track(2, 5)[1]]])).toEqual(unavailable);
+  });
+
+  it('accepts partial routes but never shares windows across unknown heights', () => {
+    const uphill = track(4, 10);
+    const downhill = track(4, -7).map((point): Coordinate => [
+      point[0],
+      point[1] + 0.0005,
+      point[2]! + 1000,
+    ]);
+    const segment: Coordinate[] = [...uphill, [0, 0.0004], ...downhill];
+    const result = buildRouteSlope([segment, [[1, 1]]]);
+    expect(result.available).toBe(true);
+    expect(result.features).toHaveLength(6);
+    result.features.slice(0, 3).forEach((f) => expect(f.properties.grade).toBeCloseTo(10, 8));
+    result.features.slice(3).forEach((f) => expect(f.properties.grade).toBeCloseTo(-7, 8));
+    expect(result.features.flatMap((f) => drawableEdges([f.geometry.coordinates]))).toEqual(
+      drawableEdges([uphill, downhill]),
+    );
+    expect(buildRouteSlope([[uphill[0], [0, 0.0004], downhill[0]]])).toEqual(unavailable);
+  });
+
+  it('caps partial independent runs without bridging unknown portions', () => {
+    const segment: Coordinate[] = [];
+    for (let index = 0; index < MAX_SLOPE_FEATURES; index++) {
+      segment.push(
+        [0, index * 0.001, 100],
+        [0, index * 0.001 + 0.0001, 100],
+        [0, index * 0.001 + 0.0002],
+      );
+    }
+    const result = buildRouteSlope([segment]);
+    expect(result.available).toBe(true);
+    expect(result.features).toHaveLength(MAX_SLOPE_FEATURES);
+    result.features.forEach((feature, index) => {
+      expect(feature.properties.grade).toBe(0);
+      expect(feature.geometry.coordinates).toEqual(segment.slice(index * 3, index * 3 + 2));
+    });
+    expect(buildRouteSlope([[...segment, [0, 3, 100], [0, 3.001, 100]]])).toEqual(unavailable);
   });
 
   it('rejects malformed coordinates using statistics validation', () => {

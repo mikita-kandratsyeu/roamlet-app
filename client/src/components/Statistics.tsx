@@ -3,7 +3,7 @@ import { useMemo, useEffect, useState, type ComponentProps } from 'react';
 import { optionalLazy } from './OptionalPanel';
 import { ChevronDown, Info } from 'lucide-react';
 import type { Coordinate, PlannedRoute } from '../domain/types';
-import { elevationSamples } from '../domain/stats';
+import { analyzeRouteElevation } from '../domain/routeElevation';
 import { elevationChartSamples } from './elevationChartSamples';
 import './TimeExplanation.css';
 import './disclosures.css';
@@ -82,20 +82,27 @@ export function Statistics({
     mobile.addEventListener('change', updateCompact);
     return () => mobile.removeEventListener('change', updateCompact);
   }, []);
-  const samples = useMemo(
-    () =>
-      route && (route.source === 'gpx' || route.elevationSource === 'openrouteservice')
-        ? elevationSamples(route.segments)
-        : [],
+  const elevation = useMemo(
+    () => route && (route.source === 'gpx' ||
+      ((route.source === 'openrouteservice' || route.source === 'mixed') &&
+        route.elevationSource === 'openrouteservice'))
+      ? analyzeRouteElevation(route.segments) : null,
     [route],
   );
-  const showElevation =
-    samples.length > 1 && route?.stats.ascent !== undefined && route.stats.descent !== undefined;
+  const samples = useMemo(
+    () => elevation?.samples.filter((sample): sample is typeof sample & { elevation: number } =>
+      sample.elevation !== null) ?? [],
+    [elevation],
+  );
+  const showElevation = elevation?.available ?? false;
+  const partialElevation = showElevation && !elevation?.complete;
+  const ascent = elevation?.complete ? route?.stats.ascent ?? elevation.ascent : elevation?.ascent;
+  const descent = elevation?.complete ? route?.stats.descent ?? elevation.descent : elevation?.descent;
   const { minimum, maximum } = useMemo(() => ({
     minimum: samples.length ? samples.reduce((min, s) => Math.min(min, s.elevation), Infinity) : 0,
     maximum: samples.length ? samples.reduce((max, s) => Math.max(max, s.elevation), -Infinity) : 0,
   }), [samples]);
-  const total = samples.at(-1)?.distance || 1;
+  const total = elevation?.distance || 1;
   const chartSamples = useMemo(
     () => (samples.length && route ? elevationChartSamples(route.segments) : []),
     [route, samples.length],
@@ -210,6 +217,11 @@ export function Statistics({
           </span>
           <span>{formatDistance(total)}</span>
         </div>
+        {partialElevation && (
+          <p className="fine-print">
+            {t('Missing heights leave gaps. Gain and loss cover only sections with known heights.')}
+          </p>
+        )}
         <p className="fine-print">
           {t(
             route?.elevationSource === 'openrouteservice'
@@ -260,12 +272,12 @@ export function Statistics({
       {showElevation && (
         <>
           <div className="stat-card">
-            <dt>{t('Elevation gain')}</dt>
-            <dd>{formatNumber(Math.round(route.stats.ascent!))} {t('m')}</dd>
+            <dt>{t(partialElevation ? 'Elevation gain (known sections)' : 'Elevation gain')}</dt>
+            <dd>{formatNumber(Math.round(ascent!))} {t('m')}</dd>
           </div>
           <div className="stat-card">
-            <dt>{t('Elevation loss')}</dt>
-            <dd>{formatNumber(Math.round(route.stats.descent!))} {t('m')}</dd>
+            <dt>{t(partialElevation ? 'Elevation loss (known sections)' : 'Elevation loss')}</dt>
+            <dd>{formatNumber(Math.round(descent!))} {t('m')}</dd>
           </div>
         </>
       )}
