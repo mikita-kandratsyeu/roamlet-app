@@ -846,6 +846,6 @@ export async function renderRouteCard(
     return blob;
   } catch (error) {
     if (error instanceof Error && error.message === NO_VISIBLE) throw error;
-    throw new Error(RENDER_ERROR);
+    throw new Error(RENDER_ERROR, { cause: error });
   }
 }

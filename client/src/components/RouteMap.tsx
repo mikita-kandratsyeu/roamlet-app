@@ -6,7 +6,7 @@ import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Popover } from 'radix-ui';
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import type { Coordinate, Waypoint } from '../domain/types';
 import { initialMapView } from '../domain/mapView';
 import { mapPadding } from '../domain/mapPadding';

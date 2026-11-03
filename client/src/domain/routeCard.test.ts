@@ -725,6 +725,17 @@ describe('social export compositions', () => {
 });
 
 describe('offline PNG rendering', () => {
+  it('preserves the rendering cause without exposing its message', async () => {
+    const { canvas, context } = canvasMock();
+    const cause = new Error('Internal canvas details');
+    context.fillRect.mockImplementation(() => {
+      throw cause;
+    });
+    await expect(renderRouteCard(request, canvas)).rejects.toMatchObject({
+      message: renderError,
+      cause,
+    });
+  });
   it.each(['План маршрута', 'Planned route', 'PLANNED ROUTE', 'gyp route'])(
     'centers visible badge glyphs rather than the font box for %s',
     async (plannedLabel) => {

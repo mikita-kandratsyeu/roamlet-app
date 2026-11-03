@@ -59,7 +59,6 @@ vi.mock('../theme', async (importOriginal) => ({
   useTheme: () => ({ resolvedTheme: mocks.theme }),
 }));
 vi.mock('maplibre-gl', () => ({
-  default: {
     Map: class {
       constructor(options: unknown) {
         mocks.options(options);
@@ -152,7 +151,6 @@ vi.mock('maplibre-gl', () => ({
         return this;
       }
     },
-  },
 }));
 const props = {
   segments: [],

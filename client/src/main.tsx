@@ -1,5 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { setWorkerUrl } from 'maplibre-gl';
+import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import App from './App';
 import { applyWaitingUpdateOnStartup } from './domain/appUpdate';
 import { capturePwaInstallPrompt } from './hooks/usePwa';
@@ -9,6 +11,7 @@ import '@fontsource-variable/manrope';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
 import './planner.css';
+setWorkerUrl(mapWorkerUrl);
 capturePwaInstallPrompt();
 async function start() {
   const offlineShell = import.meta.env.PROD && 'serviceWorker' in navigator;

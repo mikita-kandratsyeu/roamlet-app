@@ -35,6 +35,14 @@ yarn test:regression
 
 `yarn test:regression` runs lint, type checking, server/client units, the standalone Chromium layout checks, a production build, desktop/mobile E2E and production offline tests. `yarn test:layout` exposes the standalone layout tests that are outside Vitest's test selection. Browser suites exercise Chromium desktop/mobile layouts, English/Russian copy, light/dark themes, keyboard focus, touch targets, local library/GPX workflows and production service-worker recovery. Map and routing fixtures keep these checks deterministic; passing them does not verify live provider availability or Safari/Firefox. Browser checks wait for the global loader to release the editor and for responsive map controls to settle before interacting. Drag checks bring both endpoints into the planner's scroll viewport. Screenshots and retained failure traces use Playwright's output directory, not a developer-specific path. The complete runner separates `client/test-results/e2e` and `client/test-results/offline` so the offline run does not erase E2E evidence.
 
+## Dependency security checks
+
+After dependency updates, run `yarn install --immutable` and `yarn npm audit --all --recursive --no-deprecations`, then lint, typecheck, unit tests and a production build. The audit covers runtime and development dependencies in every workspace; `--no-deprecations` omits package deprecation notices, not security advisories. Use `yarn npm audit --all --recursive` to include those notices too.
+
+MapLibre 6 uses named ESM exports and a separate worker. The application imports that worker as a Vite URL asset and configures it before rendering, so it is served locally in development and included in the production manifest/offline shell. After map dependency updates, run `yarn test:e2e map-view.spec.ts` and `yarn test:offline` to verify actual worker loading as well as mocked map units.
+
+The root manifest overrides the ESLint/TypeScript tooling's Minimatch 10 ranges with patched Minimatch 11 releases. ESLint 10 avoids the older callable Minimatch 3 API; do not override that API with Minimatch 11. Remove the scoped overrides when upstream tooling requests patched versions itself. The React Hooks lint configuration retains the two existing checks without introducing React Compiler rules as part of a dependency update.
+
 ## Verification
 
 Earlier browser-only verification (28 October 2026) covered the previous implementation, not live ORS access. Tests use synthetic hosted ORS responses and non-real keys; they do not establish current provider availability, account quotas or legal permissions. Validate OpenFreeMap Liberty/Bright and custom style URLs, manual planning and GPX availability without an ORS key, visible OpenStreetMap/OpenMapTiles attribution without a Mapbox renderer logo, coordinate/map-only input, absence of geocoding/terrain requests, and GPX-only elevation visibility.

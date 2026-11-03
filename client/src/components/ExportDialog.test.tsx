@@ -91,7 +91,7 @@ describe('ExportDialog', () => {
     const value = (label: string) => within(summary).getByText(label, { selector: 'dt' }).nextElementSibling;
     expect(value('Activity')).toHaveTextContent('Cycling');
     expect(value('Distance')).toHaveTextContent('12.4 km');
-    expect(value('Original time estimate')).toHaveTextContent('10 min');
+    expect(value(i18n.t('Original time estimate'))).toHaveTextContent('10 min');
     expect(value('Track points')).toHaveTextContent('3');
     expect(value('GPX segments')).toHaveTextContent('3');
     expect(value('Waypoints')).toHaveTextContent('1');

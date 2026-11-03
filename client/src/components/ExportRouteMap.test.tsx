@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   control: vi.fn(), fail: false,
   handlers: new Map<string, () => void>(),
 }));
-vi.mock('maplibre-gl', () => ({ default: {
+vi.mock('maplibre-gl', () => ({
   Map: class {
     constructor(options: unknown) {
       mocks.options(options);
@@ -26,7 +26,7 @@ vi.mock('maplibre-gl', () => ({ default: {
     points: number[][] = [];
     extend(point: number[]) { this.points.push(point); return this; }
   },
-} }));
+}));
 
 beforeEach(() => { vi.clearAllMocks(); mocks.handlers.clear(); mocks.fail = false; });
 afterEach(cleanup);

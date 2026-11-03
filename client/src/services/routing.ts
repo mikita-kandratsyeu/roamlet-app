@@ -135,9 +135,11 @@ export async function requestJson(
   } catch (error) {
     if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
     if (controller.signal.aborted)
-      throw new Error('The service took too long to respond. Please try again.');
+      throw new Error('The service took too long to respond. Please try again.', { cause: error });
     if (error instanceof TypeError)
-      throw new Error('Cannot reach the service. Check your internet connection and provider URL.');
+      throw new Error('Cannot reach the service. Check your internet connection and provider URL.', {
+        cause: error,
+      });
     throw error;
   } finally {
     clearTimeout(timer);

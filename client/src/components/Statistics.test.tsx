@@ -45,16 +45,16 @@ it('keeps the mobile overview compact and reveals unchanged statistics on demand
   expect(within(overview).getByText('Distance')).toBeVisible();
   expect(within(overview).getByText('Total time with stops')).toBeVisible();
   expect(overview.children).toHaveLength(2);
-  expect(screen.getByText('Original time estimate')).not.toBeVisible();
+  expect(screen.getByText(i18n.t('Original time estimate'))).not.toBeVisible();
   expect(screen.getByText('Personal moving time')).not.toBeVisible();
   expect(screen.getByText('Elevation gain')).not.toBeVisible();
   await user.click(screen.getByText('More statistics'));
-  expect(screen.getByText('Original time estimate')).toBeVisible();
+  expect(screen.getByText(i18n.t('Original time estimate'))).toBeVisible();
   expect(screen.getByText('Personal moving time')).toBeVisible();
   expect(screen.getByText('Elevation gain')).toBeVisible();
   expect(screen.getByText('30 min')).toBeVisible();
   await user.click(screen.getByText('More statistics'));
-  expect(screen.getByText('Original time estimate')).not.toBeVisible();
+  expect(screen.getByText(i18n.t('Original time estimate'))).not.toBeVisible();
   expect(screen.getByText('Total time with stops')).toBeVisible();
   expect(snapshot).toEqual(before);
 });
@@ -62,7 +62,7 @@ it('keeps the mobile overview compact and reveals unchanged statistics on demand
 it('keeps the original estimate visible when the mobile personal estimate is unavailable', () => {
   vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
   render(<Statistics route={route([[[11, 47], [11.01, 47.01]]])} speedKmh={0} />);
-  expect(screen.getByText('Original time estimate')).toBeVisible();
+  expect(screen.getByText(i18n.t('Original time estimate'))).toBeVisible();
   expect(screen.getByText('Personal estimate unavailable for these inputs.')).toBeVisible();
   expect(screen.queryByText('More statistics')).not.toBeInTheDocument();
 });
@@ -144,7 +144,7 @@ it('shows personal movement and total while retaining the original duration esti
   ]);
   snapshot.stats = { distance: 18000, duration: 1800 };
   render(<Statistics route={snapshot} speedKmh={18} stopsMinutes={15} />);
-  expect(screen.getByText('Original time estimate')).toBeInTheDocument();
+  expect(screen.getByText(i18n.t('Original time estimate'))).toBeInTheDocument();
   expect(screen.getByText('30 min')).toBeInTheDocument();
   const moving = screen.getByText('Personal moving time').closest('div')!;
   const total = screen.getByText('Total time with stops').closest('div')!;

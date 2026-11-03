@@ -19,7 +19,11 @@ export default ts.config(
     files: ['**/*.{ts,tsx,js,mjs}'],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     plugins: { 'react-hooks': hooks },
-    rules: { ...hooks.configs.recommended.rules },
+    // Keep the existing Hooks checks; this app does not use React Compiler.
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+    },
   },
   prettier,
 );

@@ -13,8 +13,8 @@ import {
 } from './preferences';
 
 let storage: Map<string, string>;
-let changed: ReturnType<typeof vi.fn>;
-let failed: ReturnType<typeof vi.fn>;
+let changed: ReturnType<typeof vi.fn<EventListener>>;
+let failed: ReturnType<typeof vi.fn<EventListener>>;
 beforeEach(() => {
   storage = new Map();
   vi.stubGlobal('localStorage', {
@@ -22,8 +22,8 @@ beforeEach(() => {
     setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
     removeItem: vi.fn((key: string) => storage.delete(key)),
   });
-  changed = vi.fn();
-  failed = vi.fn();
+  changed = vi.fn<EventListener>();
+  failed = vi.fn<EventListener>();
   window.addEventListener(PREFERENCES_CHANGE_EVENT, changed);
   window.addEventListener(PREFERENCES_ERROR_EVENT, failed);
 });

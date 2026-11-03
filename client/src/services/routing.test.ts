@@ -60,6 +60,34 @@ describe('OpenRouteServiceRoutingService', () => {
     ).rejects.toThrow('took too long');
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+  it.each(['network', 'timeout'] as const)(
+    'preserves the %s cause without exposing its message',
+    async (failure) => {
+      vi.useFakeTimers();
+      const cause =
+        failure === 'network'
+          ? new TypeError('Internal network details')
+          : new DOMException('Internal abort details', 'AbortError');
+      vi.spyOn(globalThis, 'fetch').mockImplementation((_url, options) => {
+        if (failure === 'network') return Promise.reject(cause);
+        return new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => reject(cause), { once: true });
+        });
+      });
+      const pending = requestJson(
+        '/openrouteservice/v2/directions/cycling-regular/geojson',
+        {},
+      ).catch((error: unknown) => error);
+      if (failure === 'timeout') await vi.advanceTimersByTimeAsync(25_000);
+      expect(await pending).toMatchObject({
+        message:
+          failure === 'network'
+            ? 'Cannot reach the service. Check your internet connection and provider URL.'
+            : 'The service took too long to respond. Please try again.',
+        cause,
+      });
+    },
+  );
   it('reports bounded-response errors without fabricating route geometry', async () => {
     mockJson({ error: { code: 'UPSTREAM_RESPONSE_TOO_LARGE' } }, 502);
     await expect(

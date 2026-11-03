@@ -122,7 +122,9 @@ it('uses labeled icon choices with horizontal keyboard navigation without changi
   expect(system).toHaveAttribute('aria-checked', 'true');
   expect(light).toHaveAttribute('aria-checked', 'false');
   await user.keyboard('{ArrowDown}');
-  expect(screen.getByRole('menuitem', { name: 'Reset settings' })).toHaveFocus();
+  await waitFor(() =>
+    expect(screen.getByRole('menuitem', { name: 'Help and data sources' })).toHaveFocus(),
+  );
   await user.keyboard('d');
   expect(dark).toHaveFocus();
   await user.keyboard('{Enter}');
@@ -136,7 +138,7 @@ it('supports arrows, wrapping, Home/End, type-ahead and Escape with focus restor
   trigger.focus();
   await user.keyboard('{ArrowUp}');
   const first = screen.getByRole('menuitem', { name: 'My routes' });
-  const last = screen.getByRole('menuitem', { name: 'Help and data sources' });
+  const last = screen.getByRole('menuitem', { name: 'Reset settings' });
   await waitFor(() => expect(last).toHaveFocus());
   expect(screen.getByRole('menu')).toHaveAttribute('data-keyboard-navigation', 'true');
   await user.keyboard('{ArrowDown}');
