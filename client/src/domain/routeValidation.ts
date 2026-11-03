@@ -84,21 +84,32 @@ export function validateRoute(value: unknown): asserts value is PlannedRoute {
   const stats = value.stats;
   const segments = value.segments as PlannedRoute['segments'];
   const partialMixedElevation =
-    value.source === 'mixed' && record(stats) &&
-    stats.ascent === undefined && stats.descent === undefined &&
-    Array.isArray(value.directSegments) && value.directSegments.length > 0 &&
-    value.directSegments.every((segment) => segment.every((point: number[]) => point.length === 2)) &&
-    segments.some((segment) => segment.some((point, index) => {
-      const previous = segment[index - 1];
-      return point.length === 3 && previous?.length === 3 &&
-        (point[0] !== previous[0] || point[1] !== previous[1]);
-    }));
+    value.source === 'mixed' &&
+    record(stats) &&
+    stats.ascent === undefined &&
+    stats.descent === undefined &&
+    Array.isArray(value.directSegments) &&
+    value.directSegments.length > 0 &&
+    value.directSegments.every((segment) =>
+      segment.every((point: number[]) => point.length === 2),
+    ) &&
+    segments.some((segment) =>
+      segment.some((point, index) => {
+        const previous = segment[index - 1];
+        return (
+          point.length === 3 &&
+          previous?.length === 3 &&
+          (point[0] !== previous[0] || point[1] !== previous[1])
+        );
+      }),
+    );
   if (
     !record(stats) ||
     !nonnegative(stats.distance) ||
     !nonnegative(stats.duration) ||
     [stats.ascent, stats.descent].some((n) => n !== undefined && !nonnegative(n)) ||
-    (value.elevationSource !== undefined && !partialMixedElevation &&
+    (value.elevationSource !== undefined &&
+      !partialMixedElevation &&
       (!nonnegative(stats.ascent) ||
         !nonnegative(stats.descent) ||
         !value.segments.some((segment) => segment.length >= 2) ||
