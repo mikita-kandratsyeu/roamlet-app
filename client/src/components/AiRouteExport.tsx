@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Copy, LoaderCircle } from 'lucide-react';
+import { Check, Copy, Info, LoaderCircle } from 'lucide-react';
 import { buildAiExport } from '../domain/aiExport';
 import type { PersonalTimeOptions } from '../domain/time';
 import type { PlannedRoute } from '../domain/types';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Notification } from './Notification';
@@ -50,26 +49,48 @@ export function AiRouteExport({
     <section className="ai-route-export" aria-label={t('For AI')}>
       <p className="muted export-copy">
         {t(
-          'Copy this request into an AI chat. No API key is needed and Roamlet sends nothing automatically. Review the text before sharing; statistics alone do not guarantee anonymity.',
+          'Copy the request and paste it into your AI chat. No API key is needed. Roamlet does not send the request anywhere.',
         )}
       </p>
-      <div className="ai-export-privacy-section">
-        <Label className="ai-export-privacy" htmlFor="ai-export-sensitive">
-          <Input
+      <Label className="ai-export-privacy" htmlFor="ai-export-sensitive">
+        <span className="ai-export-checkbox">
+          <input
             id="ai-export-sensitive"
             type="checkbox"
             checked={includeSensitive}
-            aria-describedby="ai-export-privacy-hint"
+            aria-labelledby="ai-export-privacy-title"
+            aria-describedby="ai-export-privacy-hint ai-export-sharing-hint"
             onChange={(event) => setIncludeSensitive(event.target.checked)}
           />
-          <span>{t('Include names, coordinates and departure date')}</span>
-        </Label>
-        <p id="ai-export-privacy-hint" className="muted export-copy">
-          {t(
-            'Off by default. Enabling this includes the full track and can reveal your home address and travel plans. Descriptions, account data and keys are never included.',
-          )}
-        </p>
-      </div>
+          <Check size={14} strokeWidth={3} aria-hidden="true" />
+        </span>
+        <span className="ai-export-privacy-content">
+          <span id="ai-export-privacy-title">
+            {t('Include names, coordinates and departure date')}
+          </span>
+          <span id="ai-export-privacy-hint" className="muted export-copy">
+            {t(
+              'Off by default. Adds the full track and stop names, which may reveal your home address and travel plans.',
+            )}
+          </span>
+        </span>
+      </Label>
+      <aside className="ai-export-disclaimer" aria-labelledby="ai-export-disclaimer-title">
+        <Info size={18} aria-hidden="true" />
+        <div>
+          <h3 id="ai-export-disclaimer-title">{t('Before sharing with AI')}</h3>
+          <p id="ai-export-sharing-hint" className="export-copy">
+            {t(
+              'Review the preview before sharing. Even route statistics do not guarantee anonymity. How your data is stored and used depends on the AI service.',
+            )}
+          </p>
+          <p className="muted export-copy">
+            {t(
+              'Descriptions, account data and keys are never included. AI answers may be wrong and do not confirm that a route is safe.',
+            )}
+          </p>
+        </div>
+      </aside>
       <div className="ai-export-preview">
         <Label htmlFor="ai-export-text">{t('Request preview')}</Label>
         <Textarea

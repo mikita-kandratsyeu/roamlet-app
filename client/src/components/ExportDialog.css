@@ -3,36 +3,111 @@
   gap: 16px;
   min-width: 0;
 }
-.ai-export-privacy-section {
-  display: grid;
-  gap: 4px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--muted);
-}
 .roamlet-dialog .dialog-body .ai-export-privacy {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   min-height: 44px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
   cursor: pointer;
 }
-.roamlet-dialog .dialog-body .ai-export-privacy input {
+.roamlet-dialog .dialog-body .ai-export-privacy:hover {
+  background: var(--muted);
+}
+.roamlet-dialog .dialog-body .ai-export-privacy:has(input:checked) {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface));
+}
+.ai-export-privacy:has(input:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: -3px;
+}
+.ai-export-checkbox {
+  position: relative;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+.roamlet-dialog .dialog-body .ai-export-checkbox input {
+  appearance: none;
+  display: block;
   width: 20px;
   height: 20px;
   min-height: 20px;
+  margin: 0;
   padding: 0;
-  flex-shrink: 0;
-  accent-color: var(--primary);
+  border: 1.5px solid var(--muted-foreground);
+  border-radius: 5px;
+  background: var(--surface);
+  box-shadow: none;
   cursor: pointer;
 }
-.ai-export-privacy span {
+.roamlet-dialog .dialog-body .ai-export-checkbox input:checked {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.ai-export-checkbox svg {
+  position: absolute;
+  inset: 3px;
+  color: var(--primary-foreground);
+  visibility: hidden;
+  pointer-events: none;
+}
+.ai-export-checkbox input:checked + svg {
+  visibility: visible;
+}
+.ai-export-privacy-content {
+  display: grid;
+  gap: 6px;
   min-width: 0;
 }
-.ai-export-privacy-section .export-copy {
-  padding-inline-start: 32px;
+.ai-export-privacy-content .export-copy {
+  font-weight: 400;
+}
+.ai-export-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--muted);
+}
+.ai-export-disclaimer > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--muted-foreground);
+}
+.ai-export-disclaimer > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.ai-export-disclaimer h3 {
+  margin: 0;
+  font-size: var(--font-size-label);
+  font-weight: 600;
+  line-height: 1.45;
+}
+@media (forced-colors: active) {
+  .roamlet-dialog .dialog-body .ai-export-checkbox input {
+    appearance: auto;
+    accent-color: auto;
+  }
+  .ai-export-checkbox svg,
+  .ai-export-checkbox input:checked + svg {
+    visibility: hidden;
+  }
+  .roamlet-dialog .dialog-body .ai-export-privacy:has(input:checked),
+  .roamlet-dialog .dialog-body .ai-export-privacy:has(input:focus-visible) {
+    border-color: Highlight;
+    outline-color: Highlight;
+  }
 }
 .ai-export-preview {
   display: grid;
