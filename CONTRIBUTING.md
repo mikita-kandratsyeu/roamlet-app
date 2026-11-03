@@ -49,6 +49,8 @@ Use the [pull request template](.github/PULL_REQUEST_TEMPLATE.md):
 
 ## Safe reports and examples
 
+Report suspected vulnerabilities privately using the [security policy](SECURITY.md), not public issues or pull requests.
+
 Use small synthetic routes and fixtures. Never include API keys, tokens, passwords, cookies, private coordinates or personal data in commits, issues, logs or screenshots. Redact diagnostic material before sharing, and back up important local routes before testing storage-clearing or recovery scenarios.
 
 Preserve third-party attribution and notices. Consult [third-party licenses and data policies](THIRD_PARTY_LICENSES.md) when changing dependencies, geographic providers or export behavior.
