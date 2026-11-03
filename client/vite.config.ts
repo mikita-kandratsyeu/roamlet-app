@@ -63,6 +63,8 @@ export default defineConfig({
   resolve: { alias: { '@': new URL('./src', import.meta.url).pathname } },
   test: {
     environment: 'jsdom',
+    // Native Node storage shadows jsdom globals and is not isolated per test file.
+    execArgv: ['--no-experimental-webstorage'],
     setupFiles: ['./src/test-setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     restoreMocks: true,

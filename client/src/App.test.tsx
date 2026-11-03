@@ -230,11 +230,16 @@ function selectLanguage(label: string) {
   openMenu();
   fireEvent.click(screen.getByRole('menuitemradio', { name: label }));
 }
+function addCoordinates(texts: string[]) {
+  const latitude = screen.getByRole('textbox', { name: 'Latitude' });
+  const add = screen.getByRole('button', { name: 'Add coordinates' });
+  for (const text of texts) {
+    fireEvent.change(latitude, { target: { value: text } });
+    fireEvent.click(add);
+  }
+}
 function addCoordinate(text: string) {
-  fireEvent.change(screen.getByRole('textbox', { name: 'Latitude' }), {
-    target: { value: text },
-  });
-  fireEvent.click(screen.getByRole('button', { name: 'Add coordinates' }));
+  addCoordinates([text]);
 }
 function choosePlannerOption(label: string, option: string) {
   fireEvent.keyDown(screen.getByRole('button', { name: label }), { key: 'ArrowDown' });
@@ -1066,9 +1071,9 @@ describe('route planner interactions', () => {
 
   it('allows 50 automatic stops, rejects the 51st and labels both remaining actions', async () => {
     render(<App />);
-    for (let index = 0; index < 26; index++) addCoordinate(`47.${2600 + index}, 11.4`);
+    addCoordinates(Array.from({ length: 26 }, (_, index) => `47.${2600 + index}, 11.4`));
     expect(screen.getByRole('button', { name: 'Add a stop' })).toBeInTheDocument();
-    for (let index = 26; index < 50; index++) addCoordinate(`47.${2600 + index}, 11.4`);
+    addCoordinates(Array.from({ length: 24 }, (_, index) => `47.${2626 + index}, 11.4`));
     addCoordinate('47.2651, 11.4');
     expect(await screen.findByRole('alert')).toHaveTextContent(
       i18n.t('A route supports up to 50 stops. Remove a stop before adding another.'),
@@ -1091,7 +1096,7 @@ describe('route planner interactions', () => {
   it('supports more than 50 manual points without silently dropping them in automatic mode', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
-    for (let i = 0; i < 51; i++) addCoordinate(`47.${2600 + i}, 11.4`);
+    addCoordinates(Array.from({ length: 51 }, (_, index) => `47.${2600 + index}, 11.4`));
     fireEvent.click(screen.getByRole('button', { name: 'Manual drawing' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Automatic routing supports up to 50',

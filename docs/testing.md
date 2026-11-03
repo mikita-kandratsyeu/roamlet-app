@@ -8,6 +8,8 @@
 
 CI caches Yarn's downloaded packages in `.yarn/cache`, keyed by the OS, Node runtime, lockfile, Yarn configuration/release and package manifests. A compatible older download cache can be reused, but `install --immutable` always runs; `node_modules` and install state are not cached.
 
+Vitest disables native Node Web Storage in its workers with `--no-experimental-webstorage`, so `localStorage` and `sessionStorage` come from jsdom and remain isolated between test files. This prevents Node.js 26 globals from shadowing browser storage or becoming unavailable without a storage file. Tests that temporarily stub these globals restore the jsdom implementations.
+
 ESLint uses a content-based cache in `.yarn/ci-eslint.cache`. Its key includes dependency manifests, the lockfile, ESLint configuration and commit SHA; compatible earlier results can be restored. Changed files are checked again. Unit tests and TypeScript checks always run on code-changing workflows; test results are not cached. Superseded runs on the same workflow/ref are cancelled.
 
 Pushes and pull requests changing only Markdown files or files under `docs/` skip this workflow. Changes to code, configuration or `yarn.lock` still trigger it. If this CI is configured as a required status check, GitHub can leave documentation-only pull requests pending because the workflow was skipped; remove the path filters or use a separate always-reporting required gate before enabling that requirement.
