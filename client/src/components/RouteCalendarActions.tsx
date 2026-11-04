@@ -291,7 +291,7 @@ export function RouteCalendarActions({
                 {draftError}
               </p>
             )}
-            {googleVisible && !input.canPublish && (
+            {!input.canPublish && (
               <p role="status">
                 {t('Save the current route and its schedule before publishing to Google Calendar.')}
               </p>
