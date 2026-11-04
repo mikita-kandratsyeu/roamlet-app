@@ -121,7 +121,8 @@ test('publishes a previewed saved route, updates the same event manually and fit
   await prepare(page);
   await page.getByRole('button', { name: 'Add to calendar', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Route calendar event', exact: true });
-  await dialog.getByLabel('Start time zone (IANA)').fill('Europe/Warsaw');
+  await dialog.getByRole('button', { name: 'Start time zone (IANA)' }).click();
+  await page.getByRole('menuitemradio', { name: 'Europe/Warsaw', exact: true }).click();
   await expect(dialog.getByRole('button', { name: 'Confirm event creation' })).toBeEnabled();
   expect(publications).toHaveLength(0);
   await expect(dialog.getByRole('button', { name: 'Confirm event creation' })).toBeInViewport();
@@ -183,7 +184,8 @@ test('hides Google actions without a connector and downloads ICS offline', async
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Add to calendar' }).click();
   const dialog = page.getByRole('dialog', { name: 'Route calendar event', exact: true });
-  await dialog.getByLabel('Start time zone (IANA)').fill('Europe/Warsaw');
+  await dialog.getByRole('button', { name: 'Start time zone (IANA)' }).click();
+  await page.getByRole('menuitemradio', { name: 'Europe/Warsaw', exact: true }).click();
   const download = page.waitForEvent('download');
   await dialog.getByRole('button', { name: 'Download .ics' }).click();
   const file = await download;
@@ -236,7 +238,8 @@ test('event preview uses localized dates, grouped settings and full-width offlin
       .click();
     const dialog = page.getByRole('dialog', { name: /^(Route calendar event|Событие маршрута)$/ });
     await expect(dialog.getByLabel(zoneLabel)).toBeFocused();
-    await dialog.getByLabel(zoneLabel).fill('Europe/Warsaw');
+    await dialog.getByRole('button', { name: zoneLabel }).click();
+    await page.getByRole('menuitemradio', { name: 'Europe/Warsaw', exact: true }).click();
     const preview = dialog.getByRole('region', { name: previewLabel });
     await expect(preview.getByRole('heading', { name: 'Calendar ride' })).toBeVisible();
     await expect(preview.locator('time').first()).toHaveAttribute(

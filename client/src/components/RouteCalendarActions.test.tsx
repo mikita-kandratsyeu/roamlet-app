@@ -67,9 +67,8 @@ afterEach(() => {
 async function preview() {
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Add to calendar' }));
-  const zone = screen.getByRole('textbox', { name: 'Start time zone (IANA)' });
-  await user.clear(zone);
-  await user.type(zone, 'Europe/Warsaw');
+  await user.click(screen.getByRole('button', { name: 'Start time zone (IANA)' }));
+  await user.click(screen.getByRole('menuitemradio', { name: 'Europe/Warsaw' }));
   return user;
 }
 it('keeps ICS available without a connector and previews without transmitting data', async () => {
@@ -127,10 +126,13 @@ it.each([
         name: language === 'ru' ? 'Добавить в календарь' : 'Add to calendar',
       }),
     );
-    const zone = screen.getByRole('textbox', { name: zoneLabel });
+    const zone = screen.getByRole('button', { name: zoneLabel });
     expect(zone).toHaveFocus();
-    await user.clear(zone);
-    await user.type(zone, 'Europe/Warsaw');
+    await user.click(zone);
+    const warsaw = screen.getByRole('menuitemradio', { name: 'Europe/Warsaw' });
+    expect(warsaw).toHaveAttribute('aria-checked', 'false');
+    await user.click(warsaw);
+    expect(zone).toHaveTextContent('Europe/Warsaw');
     const preview = screen.getByRole('region', { name: previewLabel });
     expect(within(preview).getByRole('heading', { name: input.name })).toBeVisible();
     expect(preview.querySelector('time')).toHaveTextContent(language === 'ru' ? 'нояб.' : 'Nov');
@@ -207,17 +209,20 @@ it('retains calendar actions after expiry and offers reconnection', async () => 
   expect(screen.getByRole('button', { name: 'Confirm event creation' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Reconnect Google Calendar' })).toBeEnabled();
 });
-it('rejects an invalid zone without publishing or downloading', async () => {
+it('offers only supported time zones and lets the user select UTC', async () => {
   vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
   render(view());
   await screen.findByRole('button', { name: 'Add to calendar' });
-  const user = await preview();
-  const zone = screen.getByRole('textbox', { name: 'Start time zone (IANA)' });
-  await user.clear(zone);
-  await user.type(zone, 'Invalid/Zone');
-  expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid IANA time zone');
-  expect(screen.getByRole('button', { name: 'Confirm event creation' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Download .ics' })).toBeDisabled();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Add to calendar' }));
+  const zone = screen.getByRole('button', { name: 'Start time zone (IANA)' });
+  await user.click(zone);
+  expect(screen.getByRole('menuitemradio', { name: 'Europe/Warsaw' })).toBeInTheDocument();
+  await user.click(screen.getByRole('menuitemradio', { name: 'UTC' }));
+  expect(zone).toHaveTextContent('UTC');
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Confirm event creation' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Download .ics' })).toBeEnabled();
 });
 it('uses the same event ID after an uncertain network failure and reload', async () => {
   vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());

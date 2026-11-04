@@ -1,6 +1,13 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarPlus, Download, ExternalLink, Globe2, LoaderCircle } from 'lucide-react';
+import {
+  CalendarPlus,
+  ChevronDown,
+  Download,
+  ExternalLink,
+  Globe2,
+  LoaderCircle,
+} from 'lucide-react';
 import {
   buildCalendarEvent,
   CalendarDraftError,
@@ -17,7 +24,16 @@ import { Notification } from './Notification';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import './RouteCalendarActions.css';
+
+const timeZoneOptions = [...new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])].sort();
 
 export interface RouteCalendarInput {
   routeId: string;
@@ -63,8 +79,11 @@ export function RouteCalendarActions({
   const [notice, setNotice] = useState<'saved' | 'cancelled' | 'download-error' | null>(null);
   const id = useId();
   const cancelButton = useRef<HTMLButtonElement>(null);
-  const zoneInput = useRef<HTMLInputElement>(null);
+  const zoneInput = useRef<HTMLButtonElement>(null);
   const { record } = publication;
+  const availableTimeZones = timeZoneOptions.includes(timeZone)
+    ? timeZoneOptions
+    : [...timeZoneOptions, timeZone].sort();
   useEffect(() => {
     if (record) {
       setTimeZone(record.timeZone);
@@ -262,16 +281,35 @@ export function RouteCalendarActions({
               <div className="calendar-event-fields">
                 <div className="calendar-event-field">
                   <Label htmlFor={`${id}-zone`}>{t('Start time zone (IANA)')}</Label>
-                  <Input
-                    ref={zoneInput}
-                    id={`${id}-zone`}
-                    value={timeZone}
-                    disabled={publication.busy}
-                    onChange={(event) => setTimeZone(event.target.value)}
-                    placeholder="Europe/Warsaw"
-                    autoComplete="off"
-                    aria-describedby={`${id}-zone-help${draftError ? ` ${id}-error` : ''}`}
-                  />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild disabled={publication.busy}>
+                      <Button
+                        ref={zoneInput}
+                        id={`${id}-zone`}
+                        variant="outline"
+                        className="calendar-timezone-trigger"
+                        aria-label={t('Start time zone (IANA)')}
+                        aria-describedby={`${id}-zone-help${draftError ? ` ${id}-error` : ''}`}
+                        disabled={publication.busy}
+                      >
+                        <span>{timeZone}</span>
+                        <ChevronDown size={16} aria-hidden="true" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      collisionPadding={12}
+                      className="planner-choice-menu calendar-timezone-menu"
+                    >
+                      <DropdownMenuRadioGroup value={timeZone} onValueChange={setTimeZone}>
+                        {availableTimeZones.map((zone) => (
+                          <DropdownMenuRadioItem key={zone} value={zone}>
+                            {zone}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 <div className="calendar-event-field">
                   <Label htmlFor={`${id}-reminder`}>{t('Reminder before start (minutes)')}</Label>
