@@ -12,6 +12,14 @@
   white-space: normal;
   min-height: 44px;
 }
+.route-calendar-actions > .calendar-event-open {
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 0.5rem;
+  text-decoration: none;
+  white-space: normal;
+}
 .calendar-event-content {
   display: grid;
   gap: 20px;

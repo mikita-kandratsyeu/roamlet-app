@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarPlus, Download, Globe2, LoaderCircle } from 'lucide-react';
+import { CalendarPlus, Download, ExternalLink, Globe2, LoaderCircle } from 'lucide-react';
 import {
   buildCalendarEvent,
   CalendarDraftError,
@@ -159,9 +159,12 @@ export function RouteCalendarActions({
         </p>
       )}
       {googleVisible && record?.htmlLink && (
-        <a href={record.htmlLink} target="_blank" rel="noopener noreferrer">
-          {t('Open calendar event')}
-        </a>
+        <Button asChild variant="outline" className="calendar-event-open">
+          <a href={record.htmlLink} target="_blank" rel="noopener noreferrer">
+            <ExternalLink size={16} aria-hidden="true" />
+            {t('Open calendar event')}
+          </a>
+        </Button>
       )}
       {open && (
         <Dialog

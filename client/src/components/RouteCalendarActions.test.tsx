@@ -163,7 +163,10 @@ it('publishes only after confirmation and manually updates the same persisted ev
   const user = await preview();
   expect(publishCalendarEvent).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'Confirm event creation' }));
-  await screen.findByRole('link', { name: 'Open calendar event' });
+  const openEvent = await screen.findByRole('link', { name: 'Open calendar event' });
+  expect(openEvent).toHaveAttribute('href', 'https://www.google.com/calendar/event?eid=example');
+  expect(openEvent).toHaveAttribute('target', '_blank');
+  expect(openEvent).toHaveAttribute('rel', 'noopener noreferrer');
   const sent = vi.mocked(publishCalendarEvent).mock.calls[0][0];
   expect(sent).toMatchObject({
     summary: input.name,

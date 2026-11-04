@@ -131,7 +131,18 @@ test('publishes a previewed saved route, updates the same event manually and fit
     animations: 'disabled',
   });
   await dialog.getByRole('button', { name: 'Confirm event creation' }).click();
-  await expect(page.getByRole('link', { name: 'Open calendar event' })).toBeVisible();
+  const openEvent = page.getByRole('link', { name: 'Open calendar event' });
+  await expect(openEvent).toBeVisible();
+  const [addButtonSize, openButtonSize] = await Promise.all(
+    [page.getByRole('button', { name: 'Add to calendar', exact: true }), openEvent].map((button) =>
+      button.evaluate((element) => {
+        const { width, height } = element.getBoundingClientRect();
+        return { width, height };
+      }),
+    ),
+  );
+  expect(openButtonSize.width).toBeCloseTo(addButtonSize.width, 0);
+  expect(openButtonSize.height).toBe(addButtonSize.height);
   expect(publications).toHaveLength(1);
   expect(publications[0]).toMatchObject({ summary: 'Calendar ride', reminderMinutes: 30 });
   const schedule = page.getByRole('region', { name: 'Route schedule', exact: true });
