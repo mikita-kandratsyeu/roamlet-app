@@ -15,7 +15,7 @@ cp .env.example .env.local
 yarn dev
 ```
 
-Installing dependencies enables the tracked Husky hooks. Both local commits and pushes run `yarn check:ci`, the same checks used by GitHub Actions.
+Installing dependencies enables the tracked Husky hooks via the root `postinstall` script. Both local commits and pushes run `yarn check:ci`, the same checks used by GitHub Actions.
 
 Use Node.js 26.x, matching the root/client package engines and CI, and the pinned Yarn release. The existing `.nvmrc` still selects Node.js 24; with nvm, explicitly run `nvm install 26 && nvm use 26` for the declared runtime. Yarn’s default install-script restrictions remain in place; only esbuild’s required build script is explicitly allowed via `dependenciesMeta`. OpenFreeMap basemaps require no routing key. Configure server-only `ORS_API_KEY` in root `.env.local` for hosted OpenRouteService routing. Never use a `VITE_` prefix for secrets. The value is trimmed and must be nonempty; no Mapbox `pk.*` prefix is required. Never commit actual API keys. Restart Vite after changing the server key; on Vercel redeploy after changing server environment variables. Public `VITE_MAP_STYLE` changes require a restart or rebuild. A missing key disables automatic routing and loop discovery only, not the map, manual planning, local library, coordinate/map input or GPX workflows. Create a key in the [HeiGIT account dashboard](https://account.heigit.org/) and review current quotas and service terms. Paid geocoding and terrain services are not used.
 

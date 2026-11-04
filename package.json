@@ -11,7 +11,7 @@
     "client"
   ],
   "scripts": {
-    "prepare": "husky",
+    "postinstall": "husky",
     "dev": "yarn workspace @roamlet/client dev",
     "build": "yarn workspace @roamlet/client build",
     "check:ci": "yarn lint --cache --cache-strategy content --cache-location .yarn/ci-eslint.cache && yarn typecheck && yarn test",
