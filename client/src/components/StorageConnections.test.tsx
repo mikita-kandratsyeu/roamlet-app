@@ -182,13 +182,13 @@ it('keeps ciphertext upload explicit and clears passwords when the modal closes'
   expect(storage.uploadBackup).not.toHaveBeenCalled();
   await user.click(upload);
   await screen.findByText('Encrypted backup saved to GitHub.');
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   await user.click(screen.getByRole('button', { name: 'Manage connection' }));
   expect(screen.getByLabelText('Backup password', { exact: true })).toHaveValue('');
 });
 it('confirms disconnect for all tabs without removing routes or cloud files', async () => {
   const user = await setupRepository();
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   const disconnect = githubCard().getByRole('button', { name: 'Disconnect GitHub' });
   expect(disconnect.closest('.connector-card-heading')).toBeInTheDocument();
   expect(
@@ -208,7 +208,7 @@ it('confirms disconnect for all tabs without removing routes or cloud files', as
 });
 it('does not pretend disconnect succeeded after a server failure', async () => {
   const user = await setupRepository();
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   vi.mocked(logoutGitHub).mockRejectedValue(new ConnectorError('network'));
   await user.click(githubCard().getByRole('button', { name: 'Disconnect GitHub' }));
   const modal = screen.getByRole('dialog', { name: 'Disconnect GitHub?' });
@@ -237,7 +237,7 @@ it('refreshes status after another tab signs out and drops access to backup oper
     ).not.toBeInTheDocument(),
   );
   expect(screen.getByRole('button', { name: 'Sign in with GitHub' })).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
 });
 it('restores repository choice after reload from the cookie session and local metadata', async () => {
   localStorage.setItem(
@@ -309,10 +309,7 @@ it('keeps Calendar in its own group and closes its dialog without leaving connec
   expect(calendarDialog.querySelector('.connector-connection-summary')).toHaveTextContent(
     'calendar@example.test',
   );
-  expect(calendarDialog.querySelector('.connector-modal-footer')).toContainElement(
-    within(calendarDialog).getByRole('button', { name: 'Done' }),
-  );
-  expect(within(calendarDialog).getByRole('button', { name: 'Done' })).toHaveFocus();
+  expect(within(calendarDialog).getByRole('button', { name: 'Close dialog' })).toBeVisible();
   expect(calendarDialog.querySelectorAll('details')).toHaveLength(1);
   expect(calendarDialog.querySelector('details')).not.toHaveAttribute('open');
   expect(screen.queryByRole('tab', { name: 'Create a backup' })).not.toBeInTheDocument();
@@ -487,14 +484,14 @@ it('requires confirmation to stop an upload and ignores its late completion', as
   await user.click(screen.getByRole('button', { name: 'Create encrypted backup' }));
   await waitFor(() => expect(storage.uploadBackup).toHaveBeenCalled());
   const signal = vi.mocked(storage.uploadBackup).mock.calls[0][1];
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   const prompt = screen.getByRole('dialog', { name: 'Stop this operation?' });
   expect(within(prompt).getByRole('button', { name: 'Keep working' })).toHaveFocus();
   expect(signal?.aborted).toBe(false);
   expect(prompt).toHaveTextContent('The backup may already have reached GitHub.');
   await user.click(within(prompt).getByRole('button', { name: 'Keep working' }));
   expect(signal?.aborted).toBe(false);
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   await user.click(screen.getByRole('button', { name: 'Stop and close' }));
   expect(signal?.aborted).toBe(true);
   finish(entry);
