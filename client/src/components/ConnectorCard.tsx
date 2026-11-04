@@ -114,7 +114,7 @@ export function ConnectorCard({
           </span>
         </Button>
         {needsRetry && (
-          <Button variant="ghost" aria-haspopup="dialog" onClick={onManage}>
+          <Button variant="outline" aria-haspopup="dialog" onClick={onManage}>
             {connected ? t('Manage connection') : t('Set up connection')}
           </Button>
         )}

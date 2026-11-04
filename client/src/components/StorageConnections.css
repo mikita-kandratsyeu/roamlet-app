@@ -16,8 +16,9 @@
 }
 .connector-card-actions {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 .connections-list {
   display: grid;
@@ -39,6 +40,10 @@
 @media (max-width: 700px) {
   .connections-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .connector-card-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
   .connector-card-actions > button {
     width: 100%;

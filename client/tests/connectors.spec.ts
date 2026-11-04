@@ -288,6 +288,21 @@ test('provider card rechecks connection with an accessible pending state', async
   await expect(card.getByText('Проверьте подключение', { exact: true })).toBeVisible();
   const retry = card.getByRole('button', { name: 'Повторить', exact: true });
   await expect(retry).toBeVisible();
+  const settings = card.getByRole('button', { name: 'Настроить подключение', exact: true });
+  await expect(settings).toHaveAttribute('data-variant', 'outline');
+  const retryBox = (await retry.boundingBox())!;
+  const settingsBox = (await settings.boundingBox())!;
+  if (testInfo.project.name === 'desktop') {
+    expect(settingsBox.y).toBe(retryBox.y);
+    expect(settingsBox.x).toBeGreaterThan(retryBox.x + retryBox.width);
+  } else {
+    expect(settingsBox.y).toBeGreaterThan(retryBox.y + retryBox.height);
+    expect(settingsBox.width).toBeCloseTo(retryBox.width, 0);
+  }
+  await settings.click();
+  await expect(page.getByRole('dialog', { name: 'Настройки подключения GitHub' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeFocused();
   await retry.focus();
   await page.keyboard.press('Enter');
   const checking = card.getByRole('button', { name: 'Проверяем подключение', exact: true });
