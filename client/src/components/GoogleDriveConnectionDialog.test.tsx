@@ -158,7 +158,7 @@ it('displays expired Google access in Sonner and offers sign-in without affectin
   expect(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'Sign in with Google' }),
   ).toBeEnabled();
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   expect(card('GitHub').getByText('Unavailable')).toBeVisible();
 });
 it('confirms Google-only logout across tabs while preserving GitHub repository metadata', async () => {
@@ -167,7 +167,7 @@ it('confirms Google-only logout across tabs while preserving GitHub repository m
     JSON.stringify({ owner: 'example', repository: 'backups' }),
   );
   const user = await setup();
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   await user.click(card('Google Drive').getByRole('button', { name: 'Disconnect Google Drive' }));
   const prompt = screen.getByRole('dialog', { name: 'Disconnect Google Drive?' });
   expect(within(prompt).getByRole('button', { name: 'Cancel' })).toHaveFocus();
@@ -229,7 +229,7 @@ it('keeps Google unavailable without blocking GitHub or the map', async () => {
   const user = userEvent.setup();
   await user.click(card('Google Drive').getByRole('button', { name: 'Set up connection' }));
   expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeDisabled();
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   await user.click(screen.getByRole('button', { name: 'Back to map' }));
   expect(close).toHaveBeenCalledOnce();
 });
