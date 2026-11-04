@@ -128,10 +128,16 @@ it('persists new routing preferences and keeps old preference defaults', () => {
   expect(loadPreferences().routingOptions).toEqual(routingOptions);
 });
 it('round trips partial mixed elevation provenance without creating whole-route totals', async () => {
-  const route: PlannedRoute = { ...mixed(), elevationSource: 'openrouteservice' };
+  const route: PlannedRoute = {
+    ...mixed(),
+    updatedAt: '2000-01-01T00:00:00.000Z',
+    elevationSource: 'openrouteservice',
+  };
   await saveRoute(route);
   const stored = (await listRoutes())[0];
-  expect(stored).toMatchObject(route);
+  expect(stored).toMatchObject({ ...route, updatedAt: expect.any(String) });
+  expect(stored.updatedAt).not.toBe(route.updatedAt);
+  expect(new Date(stored.updatedAt).toISOString()).toBe(stored.updatedAt);
   const copy = await duplicateRoute(stored);
   expect(copy.elevationSource).toBe('openrouteservice');
   expect(copy.segments).toEqual(route.segments);
