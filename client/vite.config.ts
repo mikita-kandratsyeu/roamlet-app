@@ -1,4 +1,6 @@
 import { defineConfig } from 'vitest/config';
+const calendarApiModule = new URL('../server/google-calendar-middleware.mjs', import.meta.url).href;
+const { localGoogleCalendarApi } = await import(/* @vite-ignore */ calendarApiModule);
 const localApiModule = new URL('../scripts/local-routing-api.mjs', import.meta.url).href;
 const { localRoutingApi } = await import(/* @vite-ignore */ localApiModule);
 import react from '@vitejs/plugin-react';
@@ -8,6 +10,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     localRoutingApi(),
+    localGoogleCalendarApi(),
     {
       name: 'versioned-offline-shell',
       apply: 'build',

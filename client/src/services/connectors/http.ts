@@ -15,11 +15,12 @@ const codes: ConnectorErrorCode[] = [
 ];
 
 export async function connectorRequest(
-  endpoint: 'github' | 'google-drive',
+  endpoint: 'github' | 'google-drive' | 'google-calendar',
   action: string,
   params: Record<string, string> = {},
   signal?: AbortSignal,
   body?: Uint8Array | null,
+  contentType = 'application/octet-stream',
 ): Promise<Uint8Array> {
   const controller = new AbortController();
   const abort = () => controller.abort();
@@ -47,7 +48,7 @@ export async function connectorRequest(
         redirect: 'error',
         headers:
           body !== undefined
-            ? { 'Content-Type': 'application/octet-stream', 'X-Roamlet-Request': '1' }
+            ? { 'Content-Type': contentType, 'X-Roamlet-Request': '1' }
             : {},
         body: body ? new Uint8Array(body).buffer : undefined,
         signal: controller.signal,
@@ -121,7 +122,7 @@ export async function connectorRequest(
   }
 }
 export async function connectorJson(
-  endpoint: 'github' | 'google-drive',
+  endpoint: 'github' | 'google-drive' | 'google-calendar',
   action: string,
   params: Record<string, string> = {},
   signal?: AbortSignal,

@@ -1,0 +1,134 @@
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, afterEach, expect, it, vi } from 'vitest';
+import { RouteCalendarActions, type RouteCalendarInput } from './RouteCalendarActions';
+import { getGoogleCalendarSession, publishCalendarEvent, logoutGoogleCalendar } from '../services/connectors/googleCalendar';
+import { CALENDAR_CONNECTION_KEY } from '../hooks/useGoogleCalendarSession';
+import { ConnectorError } from '../services/connectors/types';
+import { Toaster } from './ui/sonner';
+import i18n from '../i18n';
+vi.mock('../services/connectors/googleCalendar', async (original) => ({
+  ...await original<typeof import('../services/connectors/googleCalendar')>(),
+  getGoogleCalendarSession: vi.fn(), publishCalendarEvent: vi.fn(), logoutGoogleCalendar: vi.fn(),
+}));
+const input: RouteCalendarInput = { routeId: 'route-one', name: 'Weekend ride', description: 'A local ride', canPublish: true, online: true };
+const connected = () => ({ available: true, connected: true, email: 'user@example.test', accountId: 'user-one', expiresAt: Date.now() + 3600000 });
+function view(overrides: Partial<RouteCalendarInput> = {}) {
+  return <><Toaster /><RouteCalendarActions input={{ ...input, ...overrides }} departureLocal="2026-11-07T10:00" durationSeconds={7200} location="Park" /></>;
+}
+beforeEach(async () => {
+  localStorage.clear();
+  vi.stubGlobal('BroadcastChannel', undefined);
+  vi.mocked(getGoogleCalendarSession).mockReset().mockResolvedValue({ available: true, connected: false });
+  vi.mocked(logoutGoogleCalendar).mockReset().mockResolvedValue(undefined);
+  vi.mocked(publishCalendarEvent).mockReset().mockImplementation(async (event) => ({ eventId: event.eventId, htmlLink: 'https://www.google.com/calendar/event?eid=example' }));
+  await i18n.changeLanguage('en');
+});
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+async function preview() {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Export calendar (.ics)' }));
+  const zone = screen.getByRole('textbox', { name: 'Start time zone (IANA)' });
+  await user.clear(zone);
+  await user.type(zone, 'Europe/Warsaw');
+  return user;
+}
+it('keeps ICS available without a connector and previews without transmitting data', async () => {
+  render(view());
+  await act(async () => {});
+  expect(screen.queryByRole('button', { name: 'Add to Google Calendar' })).not.toBeInTheDocument();
+  const user = await preview();
+  expect(screen.getByText('2026-11-07T10:00:00+01:00')).toBeVisible();
+  expect(screen.getByText('2026-11-07T12:00:00+01:00')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Confirm event creation' })).not.toBeInTheDocument();
+  const objectUrl = vi.fn().mockReturnValue('blob:calendar');
+  vi.stubGlobal('URL', class extends URL { static createObjectURL = objectUrl; static revokeObjectURL = vi.fn(); });
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  await user.click(screen.getByRole('button', { name: 'Download .ics' }));
+  expect(objectUrl).toHaveBeenCalledOnce();
+  expect(click).toHaveBeenCalledOnce();
+  expect(publishCalendarEvent).not.toHaveBeenCalled();
+});
+it('publishes only after confirmation and manually updates the same persisted event', async () => {
+  vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
+  const { rerender } = render(view());
+  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  const user = await preview();
+  expect(publishCalendarEvent).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Confirm event creation' }));
+  await screen.findByRole('link', { name: 'Open calendar event' });
+  const sent = vi.mocked(publishCalendarEvent).mock.calls[0][0];
+  expect(sent).toMatchObject({ summary: input.name, description: input.description, location: 'Park', reminderMinutes: 30 });
+  rerender(view({ description: 'Updated ride' }));
+  expect(screen.getByText('Route or event settings changed. Update the calendar event manually.')).toBeVisible();
+  expect(publishCalendarEvent).toHaveBeenCalledOnce();
+  await user.click(screen.getByRole('button', { name: 'Update calendar event' }));
+  await user.click(screen.getByRole('button', { name: 'Confirm event update' }));
+  await waitFor(() => expect(publishCalendarEvent).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(publishCalendarEvent).mock.calls[1][0].eventId).toBe(sent.eventId);
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+});
+it('blocks unsaved and offline publication but not ICS export', async () => {
+  vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
+  render(view({ canPublish: false, online: false }));
+  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  await preview();
+  expect(screen.getByRole('button', { name: 'Confirm event creation' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Download .ics' })).toBeEnabled();
+  expect(screen.getByText('Save the current route and its schedule before publishing to Google Calendar.')).toBeVisible();
+  expect(publishCalendarEvent).not.toHaveBeenCalled();
+});
+it('retains calendar actions after expiry and offers reconnection', async () => {
+  localStorage.setItem(CALENDAR_CONNECTION_KEY, '1');
+  render(view());
+  await act(async () => {});
+  await preview();
+  expect(screen.getByRole('button', { name: 'Confirm event creation' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Reconnect Google Calendar' })).toBeEnabled();
+});
+it('rejects an invalid zone without publishing or downloading', async () => {
+  vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
+  render(view());
+  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  const user = await preview();
+  const zone = screen.getByRole('textbox', { name: 'Start time zone (IANA)' });
+  await user.clear(zone);
+  await user.type(zone, 'Invalid/Zone');
+  expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid IANA time zone');
+  expect(screen.getByRole('button', { name: 'Confirm event creation' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Download .ics' })).toBeDisabled();
+});
+it('uses the same event ID after an uncertain network failure and reload', async () => {
+  vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
+  vi.mocked(publishCalendarEvent).mockRejectedValueOnce(new ConnectorError('network'));
+  const first = render(view());
+  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  let user = await preview();
+  await user.click(screen.getByRole('button', { name: 'Confirm event creation' }));
+  await screen.findByText('Could not reach Google Calendar. Check your connection, then retry.');
+  const sentId = vi.mocked(publishCalendarEvent).mock.calls[0][0].eventId;
+  first.unmount();
+  render(view());
+  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  user = await preview();
+  await user.click(screen.getByRole('button', { name: 'Confirm event creation' }));
+  await screen.findByRole('link', { name: 'Open calendar event' });
+  expect(vi.mocked(publishCalendarEvent).mock.calls[1][0].eventId).toBe(sentId);
+});
+it('confirms cancellation, aborts transport and ignores a late success', async () => {
+  vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
+  let finish!: (value: { eventId: string; htmlLink: string }) => void;
+  vi.mocked(publishCalendarEvent).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  render(view());
+  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  const user = await preview();
+  await user.click(screen.getByRole('button', { name: 'Confirm event creation' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
+  await screen.findByRole('dialog', { name: 'Stop calendar publication?' });
+  await user.click(screen.getByRole('button', { name: 'Stop and close' }));
+  expect(vi.mocked(publishCalendarEvent).mock.calls[0][1]?.aborted).toBe(true);
+  const eventId = vi.mocked(publishCalendarEvent).mock.calls[0][0].eventId;
+  await act(async () => finish({ eventId, htmlLink: 'https://www.google.com/calendar/event?eid=example' }));
+  expect(screen.queryByRole('link', { name: 'Open calendar event' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Calendar event saved. Future route changes require a manual update.')).not.toBeInTheDocument();
+});

@@ -44,6 +44,40 @@ node --input-type=module -e "import {randomBytes} from 'node:crypto'; console.lo
 
 Never commit secrets, share them in chat, use `VITE_` prefixes or embed tokens in URLs. Mark client/session secrets **Sensitive** on Vercel. Restart Vite after local changes; redeploy Vercel after changing production variables. Missing configuration shows Google Drive as unavailable without blocking other connectors or local workflows. Apply Vercel Firewall limits to `/api/google-drive` before public access and verify real consent, callbacks, cookie flags, account switch, app-data isolation and backup/restore on the permanent HTTPS origin. Mocked tests do not validate live Google Cloud setup or approval/publication status.
 
+### Google Calendar
+
+The independent backend MVP is `/api/google-calendar`, shared by Vercel and Vite development/preview middleware. It publishes only an explicitly supplied event to an **app-created secondary calendar named Roamlet**, never the primary calendar, an arbitrary client calendar or the user's calendar list. Local routes, Drive/GitHub backups and ICS export remain independent. Publication sends the supplied event text, times, location and reminder to Google; no geometry, estimated statistics, attendees or invitation emails are added.
+
+Enable **Google Calendar API** in Google Cloud and register a Web application OAuth client with exactly `https://YOUR_DOMAIN/api/google-calendar?action=callback` (development: `http://127.0.0.1:5173/api/google-calendar?action=callback`). Configure consent/test users as described for [Drive](#google-cloud-setup), but use only `openid`, `email`, `https://www.googleapis.com/auth/calendar.app.created`; no full calendar, calendar-list, Drive, profile or offline scopes. Use server-only `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_CALLBACK_URL` and a **separate canonical base64 32-byte** `GOOGLE_CALENDAR_SESSION_SECRET` in root `.env.local` or deployment variables. See [.env.example](../.env.example); restart Vite/redeploy after changes. Broad or combined grants are rejected rather than accepted as Calendar access; separate OAuth clients for Calendar and Drive avoid combined-grant ambiguity. Google's canonical `userinfo.email` scope alias is accepted.
+
+#### Calendar client contract
+
+- `GET ?action=session` returns `{available, connected}` and, when connected, `{email, accountId, expiresAt}`; `expiresAt` is Unix milliseconds. No tokens or calendar IDs are exposed. Missing configuration returns `{available:false, connected:false}`.
+- Navigate to `GET ?action=start` for PKCE S256 sign-in. The callback redirects to `/?connectors=google-calendar&calendar=connected` or `/?connectors=google-calendar&calendar=error`. Never persist callback codes/state in client storage.
+- `POST ?action=publish` accepts JSON (maximum **32 KiB**), with **exactly** the fields below and exactly `dateTime`/`timeZone` in each nested time. Send same-origin `Origin`, `X-Roamlet-Request: 1` and `Content-Type: application/json`. Cookies are browser-managed.
+
+```json
+{
+  "eventId": "0123456789abcdefghijklmnopqrstuv",
+  "summary": "Walk",
+  "description": "Explicitly selected event description",
+  "location": "Meeting point",
+  "start": {"dateTime": "2026-11-04T10:00:00+03:00", "timeZone": "Europe/Minsk"},
+  "end": {"dateTime": "2026-11-04T12:00:00+03:00", "timeZone": "Europe/Minsk"},
+  "reminderMinutes": 30
+}
+```
+
+`eventId` must match `/^[a-v0-9]{32}$/`: generate/persist one deterministic client ID for the intended publication and reuse it on retry or an explicit update. Summary is nonblank and at most 200 Unicode code points, description 4000 and location 500; controls are rejected except newline/tab in description. Reminder is an integer **0–40320** minutes (popup, defaults disabled). Times must be valid ISO date-times (years **1900–2100**, optional seconds, up to three fractional-second digits) with an explicit offset or `Z`, supported IANA zones, valid civil dates/times and zone-consistent offsets; end must be strictly after start and at most **28 elapsed days** later. Missing seconds are normalized before sending RFC3339 values to Google. DST gaps and wrong offsets fail; either actual offset for a repeated DST hour is accepted. Unknown keys (including calendar IDs, URLs, geometry and attendees) fail before upstream requests.
+
+Successful new publication **or explicit update** returns HTTP 200 `{eventId, htmlLink}`. Links are bounded canonical `https://www.google.com/calendar/event?...` or `https://calendar.google.com/calendar/event?...` provider links. Errors retain `{error:{code,message}}` with safe connector codes (`auth`, `permission`, `conflict`, `quota`, `not-found`, `invalid-data`, `too-large`, `network`, `timeout`, `unavailable`, `configuration`); no provider bodies are returned. Requests/decoded responses are bounded, with a **20-second total deadline including body consumption**, fixed Google endpoints, no automatic retries and metadata-only failure logs.
+
+The first publication creates the secondary calendar, saving its ID in an encrypted **token-free, account-bound target cookie for at most 365 days** before inserting the event. Reauthorization reuses a valid same-account target. Authorization/state/target cookie names and AES-GCM associated data are independent from Drive/GitHub and each other. Access-only authorization lasts at most one hour (never beyond provider expiry); refresh tokens are discarded. Event insertion uses the client ID and private `extendedProperties.private.roamlet = eventId`. On an insert conflict, the server reads the existing event and patches **only a matching owned, non-deleted event**, using `If-Match` ETag to reject concurrent edits. Unmarked collisions are never overwritten. Retrying an uncertain event insertion with the same ID/target avoids duplicate events; changes through the same endpoint must be explicitly requested by the client, not background synchronization.
+
+`POST ?action=logout` requires the same mutation headers and clears only Calendar authorization/state; **it preserves the target calendar and existing events**. This is a **local disconnect**, not Google token revocation: revoking a shared Google grant could break Drive. Copied stateless cookies remain usable until expiry; revoke the app manually in Google account settings if necessary, understanding this may also revoke other connectors sharing that grant. Rotating the Calendar session key invalidates both its authorization and target, not Drive/GitHub.
+
+Clearing/expiring the target cookie, changing account or rotating the Calendar key can create another Roamlet calendar; there is no broad calendar-list discovery or cross-device target store. A lost response to **calendar creation itself** may leave an unused secondary calendar; unlike known-target event retries, this cannot be deduplicated without storage/discovery. Concurrent first publications may also create separate calendars. A missing/deleted retained calendar fails explicitly rather than silently writing elsewhere. Disconnect never deletes calendars/events. Apply deployment firewall limits to this endpoint and exclude callback queries, cookies, authorization headers and event contents from infrastructure logs. Synthetic tests do not verify live Google consent, scope capabilities, provider links or deployment configuration.
+
 ### GitHub App
 
 **Connect GitHub:**

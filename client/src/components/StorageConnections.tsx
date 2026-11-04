@@ -10,6 +10,8 @@ import { Notification } from './Notification';
 import { useStorageConnector } from '../hooks/useStorageConnector';
 import { useGitHubSession } from '../hooks/useGitHubSession';
 import { useGoogleDriveSession } from '../hooks/useGoogleDriveSession';
+import { useGoogleCalendarSession } from '../hooks/useGoogleCalendarSession';
+import { GoogleCalendarConnection } from './GoogleCalendarConnection';
 import { GoogleDriveConnectionDialog, googleDriveErrors } from './GoogleDriveConnectionDialog';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '../services/connectors/registry';
 import {
@@ -26,6 +28,7 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
   const storage = useStorageConnector();
   const googleStorage = useStorageConnector();
   const google = useGoogleDriveSession(open);
+  const calendar = useGoogleCalendarSession(open);
   const github = useGitHubSession(open);
   const { connect, disconnect, cancel, connection } = storage;
   const [selected, setSelected] = useState<StorageProviderId | null>(null);
@@ -182,6 +185,8 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
       provider.name.toLowerCase().includes(query.trim().toLowerCase()) &&
       (filter === 'all' || states[provider.id].connected),
   );
+  const showCalendar = 'google calendar'.includes(query.trim().toLowerCase()) &&
+    (filter === 'all' || calendar.session?.connected);
   return (
     <section
       className="library-screen connections-screen"
@@ -189,7 +194,8 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
       aria-label={t('Connections')}
       aria-describedby={`${id}-description`}
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && !event.defaultPrevented && !selected && !disconnecting) {
+        if (event.key === 'Escape' && !event.defaultPrevented && !selected && !disconnecting &&
+          !(event.target instanceof Element && event.target.closest('[role="dialog"]'))) {
           event.preventDefault();
           close();
         }
@@ -258,8 +264,9 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
                 onManage={() => setSelected(provider.id)}
               />
             ))}
+            {showCalendar && <GoogleCalendarConnection google={calendar} />}
           </div>
-          {!providers.length && (
+          {!providers.length && !showCalendar && (
             <p className="connector-empty">{t('No connectors match this filter.')}</p>
           )}
           {available === false && !problem && (

@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor, within, fireEvent } from '@testing-li
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { StorageConnections } from './StorageConnections';
+import { getGoogleCalendarSession, logoutGoogleCalendar } from '../services/connectors/googleCalendar';
 import {
   getGoogleDriveSession,
   logoutGoogleDrive,
@@ -17,6 +18,10 @@ import { ConnectorError, type StorageConnector } from '../services/connectors/ty
 import { routeDb } from '../domain/storage';
 import { GITHUB_REPOSITORY_KEY } from '../domain/connectorPreferences';
 import i18n from '../i18n';
+vi.mock('../services/connectors/googleCalendar', async (original) => ({
+  ...await original<typeof import('../services/connectors/googleCalendar')>(),
+  getGoogleCalendarSession: vi.fn(), logoutGoogleCalendar: vi.fn(),
+}));
 vi.mock('../services/connectors/googleDriveSession', () => ({
   getGoogleDriveSession: vi.fn(),
   logoutGoogleDrive: vi.fn(),
@@ -48,6 +53,9 @@ const authorized = {
 let storage: StorageConnector;
 beforeEach(async () => {
   render(<Toaster />);
+  localStorage.removeItem('roamlet-google-calendar-connected');
+  vi.mocked(getGoogleCalendarSession).mockReset().mockResolvedValue({ available: false, connected: false });
+  vi.mocked(logoutGoogleCalendar).mockReset().mockResolvedValue(undefined);
   vi.mocked(getGoogleDriveSession)
     .mockReset()
     .mockResolvedValue({ available: false, connected: false });
@@ -276,6 +284,36 @@ it('shows session failures once in Sonner, keeps card status and permits a fresh
   vi.mocked(getGitHubSession).mockRejectedValueOnce(new ConnectorError('network'));
   fireEvent(window, new Event('focus'));
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach GitHub.');
+});
+
+it('shows Calendar separately, filters it and closes its dialog without leaving connections', async () => {
+  vi.mocked(getGoogleCalendarSession).mockResolvedValue({ available: true, connected: true,
+    accountId: 'calendar-user', email: 'calendar@example.test', expiresAt: Date.now() + 3600000 });
+  const close = vi.fn();
+  render(<StorageConnections open onClose={close} />);
+  const card = within(screen.getByRole('heading', { name: 'Google Calendar' }).closest('article')!);
+  await card.findByText('Connected');
+  const user = userEvent.setup();
+  const manage = card.getByRole('button', { name: 'Manage connection' });
+  await user.click(manage);
+  expect(screen.getByRole('dialog', { name: 'Google Calendar connection settings' })).toBeVisible();
+  expect(screen.queryByRole('tab', { name: 'Create a backup' })).not.toBeInTheDocument();
+  await user.keyboard('{Escape}');
+  await waitFor(() => expect(manage).toHaveFocus());
+  expect(close).not.toHaveBeenCalled();
+  await user.type(screen.getByRole('textbox', { name: 'Search connectors' }), 'calendar');
+  expect(screen.queryByRole('heading', { name: 'GitHub' })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Google Calendar' })).toBeVisible();
+  await user.click(card.getByRole('button', { name: 'Disconnect Google Calendar' }));
+  expect(screen.getByRole('dialog', { name: 'Disconnect Google Calendar?' })).toBeVisible();
+  vi.mocked(getGoogleCalendarSession).mockResolvedValue({ available: true, connected: false });
+  await user.click(screen.getByRole('button', { name: 'Disconnect', exact: true }));
+  await waitFor(() => expect(logoutGoogleCalendar).toHaveBeenCalledOnce());
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(logoutGoogleDrive).not.toHaveBeenCalled();
+  expect(logoutGitHub).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Connected connectors' }));
+  expect(screen.getByText('No connectors match this filter.')).toBeVisible();
 });
 
 it('rechecks Google Drive inside its own card after a session failure', async () => {
