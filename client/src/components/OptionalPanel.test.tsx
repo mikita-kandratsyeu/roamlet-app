@@ -66,3 +66,19 @@ it('keeps the surrounding UI usable and retries an optional loader after failure
   expect(await screen.findByText('Panel loaded')).toBeInTheDocument();
   expect(loader).toHaveBeenCalledTimes(2);
 });
+it('keeps lazy dialogs modal while loading and allows them to close', async () => {
+  let finish!: (value: { default: ComponentType<{ onClose: () => void }> }) => void;
+  const loader = () =>
+    new Promise<{ default: ComponentType<{ onClose: () => void }> }>((resolve) => {
+      finish = resolve;
+    });
+  const Panel = optionalLazy<{ onClose: () => void }>(loader, 'dialog', 'Export route');
+  const onClose = vi.fn();
+  render(<Panel onClose={onClose} />);
+  const dialog = await screen.findByRole('dialog', { name: 'Export route' });
+  expect(dialog).toContainElement(screen.getByTestId('panel-loader'));
+  fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+  expect(onClose).toHaveBeenCalledOnce();
+  finish({ default: () => <p>Export ready</p> });
+  expect(await screen.findByText('Export ready')).toBeInTheDocument();
+});

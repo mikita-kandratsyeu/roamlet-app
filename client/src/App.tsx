@@ -13,7 +13,7 @@ import { Alert } from './components/ui/alert';
 import { Card } from './components/ui/card';
 import { waypointKind } from './components/waypointStyle';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { useRouteEditor } from './hooks/useRouteEditor';
 import { usePointRouting } from './hooks/usePointRouting';
 import { useRoutingToast } from './hooks/useRoutingToast';
@@ -31,8 +31,7 @@ import { initialEditor, newIdentity, withEditorSchedule } from './domain/editorS
 import { estimatePersonalTime } from './domain/time';
 import { draftWriter, loadDraft, type DraftRecord } from './domain/drafts';
 import { loadPreferences, savePreferences } from './domain/preferences';
-import { Library } from './components/Library';
-import { ComparisonScreen } from './components/ComparisonScreen';
+import { optionalLazy } from './components/OptionalPanel';
 import { ClimbAnalysis } from './components/ClimbAnalysis';
 import { RouteSchedule } from './components/RouteSchedule';
 import { RouteWeather } from './components/RouteWeather';
@@ -63,7 +62,6 @@ import {
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
 import { exportGpx } from './domain/gpx';
 import { useGpxImport } from './hooks/useGpxImport';
-import { ExportDialog } from './components/ExportDialog';
 import { RouteDescription } from './components/RouteDescription';
 import { calculateStats } from './domain/stats';
 import { MANUAL_STOP_LIMIT } from './domain/manualRoute';
@@ -85,8 +83,42 @@ import { Dialog } from './components/Dialog';
 import { HeaderMenu } from './components/HeaderMenu';
 import { PwaDialog } from './components/PwaDialog';
 import { usePwa } from './hooks/usePwa';
-import { StorageConnections } from './components/StorageConnections';
 import i18n, { formatNumber, translateMessage } from './i18n';
+
+const Library = optionalLazy<ComponentProps<typeof import('./components/Library').Library>>(
+  () => import('./components/Library').then(({ Library }) => ({ default: Library })),
+  'screen',
+);
+const ComparisonScreen = optionalLazy<
+  ComponentProps<typeof import('./components/ComparisonScreen').ComparisonScreen>
+>(
+  () =>
+    import('./components/ComparisonScreen').then(({ ComparisonScreen }) => ({
+      default: ComparisonScreen,
+    })),
+  'screen',
+  'Loading panel…',
+  'Compare saved routes',
+  'Back to routes',
+);
+const ExportDialog = optionalLazy<
+  ComponentProps<typeof import('./components/ExportDialog').ExportDialog>
+>(
+  () => import('./components/ExportDialog').then(({ ExportDialog }) => ({ default: ExportDialog })),
+  'dialog',
+  'Export route',
+);
+const StorageConnections = optionalLazy<
+  ComponentProps<typeof import('./components/StorageConnections').StorageConnections>
+>(
+  () =>
+    import('./components/StorageConnections').then(({ StorageConnections }) => ({
+      default: StorageConnections,
+    })),
+  'screen',
+  'Loading panel…',
+  'Connections',
+);
 
 const emptySegments: Coordinate[][] = [];
 const cyclingChoices = [
@@ -220,15 +252,6 @@ export default function App() {
   const [connectionsOpen, setConnectionsOpen] = useState(
     () => ['github', 'google-drive', 'google-calendar'].includes(new URLSearchParams(window.location.search).get('connectors') || ''),
   );
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    if (!['github', 'google-drive', 'google-calendar'].includes(url.searchParams.get('connectors') || '')) return;
-    url.searchParams.delete('connectors');
-    url.searchParams.delete('github');
-    url.searchParams.delete('google');
-    url.searchParams.delete('calendar');
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
-  }, []);
   const secondaryScreenOpen = libraryOpen || connectionsOpen;
   const [comparisonRoutes, setComparisonRoutes] = useState<PlannedRoute[]>([]);
   const [climbSegments, setClimbSegments] = useState<Coordinate[][]>([]);
@@ -2067,7 +2090,9 @@ export default function App() {
           }}
         />
       </div>
-      <StorageConnections open={connectionsOpen} onClose={() => setConnectionsOpen(false)} />
+      {connectionsOpen && (
+        <StorageConnections open onClose={() => setConnectionsOpen(false)} />
+      )}
       {libraryOpen && (
         <Library
           onClose={closeLibrary}

@@ -365,8 +365,12 @@ describe('route preparation features', () => {
     const compare = screen.getByRole('button', { name: 'Compare routes' });
     compare.focus();
     fireEvent.click(compare);
+    await waitFor(() =>
+      expect(screen.getByRole('dialog', { name: 'Compare saved routes' })).toHaveClass(
+        'comparison-screen',
+      ),
+    );
     const dialog = screen.getByRole('dialog', { name: 'Compare saved routes' });
-    expect(dialog).toHaveClass('comparison-screen');
     fireEvent.click(within(dialog).getByText('Route statistics'));
     expect(
       within(dialog).getByRole('table', { name: 'Saved route comparison' }),
@@ -376,7 +380,12 @@ describe('route preparation features', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Back to routes' }));
     await waitFor(() => expect(compare).toHaveFocus());
     fireEvent.click(compare);
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Compare saved routes' })).getByRole('button', { name: 'Back to planner' }));
+    fireEvent.click(
+      within(await screen.findByRole('dialog', { name: 'Compare saved routes' })).getByRole(
+        'button',
+        { name: 'Back to planner' },
+      ),
+    );
     await waitFor(() => expect(screen.getByRole('button', { name: 'Menu' })).toHaveFocus());
     expect(screen.queryByRole('dialog', { name: 'Compare saved routes' })).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Saved routes' })).not.toBeInTheDocument();
@@ -516,9 +525,11 @@ describe('route export', () => {
     await plan();
     const geometryBefore = screen.getByTestId('map').getAttribute('data-geometry');
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    await screen.findByRole('dialog', { name: 'Export route' });
+    const fileName = await screen.findByRole('textbox', { name: 'File name' });
     const dialog = screen.getByRole('dialog', { name: 'Export route' });
     expect(createObjectURL).not.toHaveBeenCalled();
-    fireEvent.change(within(dialog).getByRole('textbox', { name: 'File name' }), {
+    fireEvent.change(fileName, {
       target: { value: 'Weekend/trip.gpx' },
     });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Download GPX' }));
@@ -637,7 +648,7 @@ describe('route planner interactions', () => {
   it('returns OAuth callbacks to connections and removes callback flags from the URL', async () => {
     window.history.replaceState(null, '', '/?connectors=github&github=error');
     render(<App />);
-    expect(screen.getByRole('region', { name: 'Connections' })).toBeVisible();
+    expect(await screen.findByRole('region', { name: 'Connections' })).toBeVisible();
     const message = await screen.findByText('GitHub authorization was cancelled or failed. Open connection settings to try again.');
     expect(message.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'error');
     expect(message).toBeVisible();
@@ -647,7 +658,7 @@ describe('route planner interactions', () => {
   it('returns Google OAuth callbacks to the catalog and removes provider flags', async () => {
     window.history.replaceState(null, '', '/?connectors=google-drive&google=error');
     render(<App />);
-    expect(screen.getByRole('region', { name: 'Connections' })).toBeVisible();
+    expect(await screen.findByRole('region', { name: 'Connections' })).toBeVisible();
     const message = await screen.findByText('Google authorization was cancelled or failed. Open connection settings to try again.');
     expect(message.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'error');
     expect(window.location.search).toBe('');
@@ -655,9 +666,10 @@ describe('route planner interactions', () => {
 
   it('opens connectors as a separate screen and restores planner navigation on return', async () => {
     render(<App />);
+    expect(screen.queryByRole('region', { name: 'Connections' })).not.toBeInTheDocument();
     openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Connections' }));
-    expect(screen.getByRole('region', { name: 'Connections' })).toBeVisible();
+    expect(await screen.findByRole('region', { name: 'Connections' })).toBeVisible();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(document.querySelector('.app-header')?.closest('[inert]')).not.toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Back to map' }));

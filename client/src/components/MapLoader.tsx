@@ -11,6 +11,7 @@ interface Props {
   ariaLabel?: string;
   title?: string;
   description?: string;
+  cancelLabel?: string;
   onCancel?: () => void;
 }
 interface Request extends Props {
@@ -77,7 +78,7 @@ export function MapLoader(props: Props = {}) {
       }
     };
   }, [id]);
-  const { purpose, ariaLabel, title, description, onCancel } = props;
+  const { purpose, ariaLabel, title, description, cancelLabel, onCancel } = props;
   useLayoutEffect(() => {
     const current = requests.get(id);
     if (
@@ -86,12 +87,13 @@ export function MapLoader(props: Props = {}) {
         current.ariaLabel !== ariaLabel ||
         current.title !== title ||
         current.description !== description ||
+        current.cancelLabel !== cancelLabel ||
         current.onCancel !== onCancel)
     ) {
-      requests.set(id, { id, purpose, ariaLabel, title, description, onCancel });
+      requests.set(id, { id, purpose, ariaLabel, title, description, cancelLabel, onCancel });
       publish();
     }
-  }, [id, purpose, ariaLabel, title, description, onCancel]);
+  }, [id, purpose, ariaLabel, title, description, cancelLabel, onCancel]);
   useLayoutEffect(() => {
     if (selected?.id === id) overlay.current?.focus({ preventScroll: true });
   }, [id, selected?.id]);
@@ -121,7 +123,7 @@ export function MapLoader(props: Props = {}) {
         {library && selected.onCancel && (
           <Button variant="ghost" className="back-to-map-button" onClick={selected.onCancel}>
             <ArrowLeft size={18} aria-hidden="true" />
-            {t('Back to map')}
+            {t(selected.cancelLabel ?? 'Back to map')}
           </Button>
         )}
       </div>

@@ -64,6 +64,24 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
     } else backButton.current?.focus({ preventScroll: true });
   }, [open, cancel, cancelGoogle]);
   useEffect(() => {
+    const url = new URL(window.location.href);
+    if (
+      !['github', 'google-drive', 'google-calendar'].includes(
+        url.searchParams.get('connectors') || '',
+      )
+    )
+      return;
+    url.searchParams.delete('connectors');
+    url.searchParams.delete('github');
+    url.searchParams.delete('google');
+    url.searchParams.delete('calendar');
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, []);
+  useEffect(() => {
     if (!open || authenticated === undefined) return;
     if (!authenticated) {
       disconnect();
