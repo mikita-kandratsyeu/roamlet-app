@@ -62,7 +62,7 @@ export default defineConfig({
     format: 'es',
     rollupOptions: { output: { inlineDynamicImports: true } },
   },
-  build: { manifest: 'assets/manifest.json' },
+  build: { manifest: 'assets/manifest.json', chunkSizeWarningLimit: 4096 },
   resolve: { alias: { '@': new URL('./src', import.meta.url).pathname } },
   test: {
     environment: 'jsdom',
