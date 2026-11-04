@@ -11,8 +11,10 @@
     "client"
   ],
   "scripts": {
+    "prepare": "husky",
     "dev": "yarn workspace @roamlet/client dev",
     "build": "yarn workspace @roamlet/client build",
+    "check:ci": "yarn lint --cache --cache-strategy content --cache-location .yarn/ci-eslint.cache && yarn typecheck && yarn test",
     "start": "yarn workspace @roamlet/client preview",
     "preview": "yarn workspace @roamlet/client preview",
     "typecheck": "yarn workspace @roamlet/client typecheck",
@@ -44,6 +46,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^16.4.0",
+    "husky": "^9.1.7",
     "prettier": "^3.9.10",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.0"

@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+node .yarn/releases/yarn-4.18.1.cjs check:ci

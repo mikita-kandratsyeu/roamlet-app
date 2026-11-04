@@ -6,6 +6,8 @@
 
 [GitHub Actions CI](../.github/workflows/ci.yml) runs lint, TypeScript checking and server/client unit tests on pushes and pull requests, using Node.js 26.x and the pinned Yarn release. It does not run production builds, layout, E2E or offline browser suites; the full regression command remains available locally.
 
+The tracked Husky hooks run the same `yarn check:ci` command before both local commits and pushes. The workflow uses that command too, so the checks stay in sync.
+
 CI caches Yarn's downloaded packages in `.yarn/cache`, keyed by the OS, Node runtime, lockfile, Yarn configuration/release and package manifests. A compatible older download cache can be reused, but `install --immutable` always runs; `node_modules` and install state are not cached.
 
 Vitest disables native Node Web Storage in its workers with `--no-experimental-webstorage`, so `localStorage` and `sessionStorage` come from jsdom and remain isolated between test files. This prevents Node.js 26 globals from shadowing browser storage or becoming unavailable without a storage file. Tests that temporarily stub these globals restore the jsdom implementations.
@@ -17,6 +19,7 @@ Pushes and pull requests changing only Markdown files or files under `docs/` ski
 ## Validation commands
 
 ```sh
+yarn check:ci
 yarn typecheck
 yarn lint
 yarn format:check

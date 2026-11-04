@@ -30,12 +30,10 @@ Open <http://127.0.0.1:5173>. For automatic routing, configure server-only `ORS_
 ## Checks
 
 ```sh
-yarn lint
-yarn typecheck
-yarn test
+yarn check:ci
 ```
 
-[CI](.github/workflows/ci.yml) runs only these checks; it does not build the app or run browser suites. See [testing and verification](docs/testing.md) for layout, E2E, production offline and full regression commands. [Deployment instructions](docs/deployment.md) cover Vercel, production variables and API protection.
+[CI](.github/workflows/ci.yml) and the local Git commit/push hooks run the same checks; the hooks are enabled by `yarn install`. They do not build the app or run browser suites. See [testing and verification](docs/testing.md) for layout, E2E, production offline and full regression commands. [Deployment instructions](docs/deployment.md) cover Vercel, production variables and API protection.
 
 ## Important limits
 
