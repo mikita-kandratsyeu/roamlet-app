@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { RouteCalendarActions, type RouteCalendarInput } from './RouteCalendarActions';
@@ -77,8 +77,13 @@ it('keeps ICS available without a connector and previews without transmitting da
   await act(async () => {});
   expect(screen.queryByRole('button', { name: 'Add to Google Calendar' })).not.toBeInTheDocument();
   const user = await preview();
-  expect(screen.getByText('2026-11-07T10:00:00+01:00')).toBeVisible();
-  expect(screen.getByText('2026-11-07T12:00:00+01:00')).toBeVisible();
+  const times = screen.getByRole('region', { name: 'Event preview' }).querySelectorAll('time');
+  expect(times[0]).toHaveAttribute('datetime', '2026-11-07T10:00:00+01:00');
+  expect(times[1]).toHaveAttribute('datetime', '2026-11-07T12:00:00+01:00');
+  expect(times[0]).toHaveTextContent('Nov 7, 2026');
+  expect(times[0]).toHaveTextContent('10:00');
+  expect(screen.getByText('Europe/Warsaw · UTC+01:00')).toBeVisible();
+  expect(screen.queryByText('2026-11-07T10:00:00+01:00')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Confirm event creation' })).not.toBeInTheDocument();
   const objectUrl = vi.fn().mockReturnValue('blob:calendar');
   vi.stubGlobal(
@@ -94,6 +99,61 @@ it('keeps ICS available without a connector and previews without transmitting da
   expect(click).toHaveBeenCalledOnce();
   expect(publishCalendarEvent).not.toHaveBeenCalled();
 });
+it.each([
+  [
+    'en',
+    'Event preview',
+    'Event settings',
+    'Start time zone (IANA)',
+    'Timing and privacy',
+    'Download .ics',
+  ],
+  [
+    'ru',
+    'Предпросмотр события',
+    'Настройки события',
+    'Часовой пояс старта (IANA)',
+    'Расчёт времени и приватность',
+    'Скачать .ics',
+  ],
+])(
+  'shows a localized event card, focused settings and collapsed guidance (%s)',
+  async (language, previewLabel, settingsLabel, zoneLabel, guidanceLabel, downloadLabel) => {
+    await i18n.changeLanguage(language);
+    render(view());
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole('button', {
+        name: language === 'ru' ? 'Экспорт в календарь (.ics)' : 'Export calendar (.ics)',
+      }),
+    );
+    const zone = screen.getByRole('textbox', { name: zoneLabel });
+    expect(zone).toHaveFocus();
+    await user.clear(zone);
+    await user.type(zone, 'Europe/Warsaw');
+    const preview = screen.getByRole('region', { name: previewLabel });
+    expect(within(preview).getByRole('heading', { name: input.name })).toBeVisible();
+    expect(preview.querySelector('time')).toHaveTextContent(language === 'ru' ? 'нояб.' : 'Nov');
+    expect(screen.getByRole('region', { name: settingsLabel })).toContainElement(zone);
+    const disclosure = screen.getByText(guidanceLabel).closest('details');
+    expect(disclosure).not.toHaveAttribute('open');
+    expect(screen.getByRole('button', { name: downloadLabel })).toHaveAttribute(
+      'data-variant',
+      'default',
+    );
+    expect(
+      screen.getByText(
+        language === 'ru'
+          ? 'Только файл календаря. В Google ничего не отправляется.'
+          : 'Calendar file only. Nothing is sent to Google.',
+      ),
+    ).toBeVisible();
+    await user.click(screen.getByText(guidanceLabel));
+    expect(disclosure).toHaveAttribute('open');
+    expect(publishCalendarEvent).not.toHaveBeenCalled();
+  },
+);
+
 it('publishes only after confirmation and manually updates the same persisted event', async () => {
   vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
   const { rerender } = render(view());

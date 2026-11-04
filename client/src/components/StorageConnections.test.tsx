@@ -291,7 +291,9 @@ it('shows Calendar separately, filters it and closes its dialog without leaving 
     accountId: 'calendar-user', email: 'calendar@example.test', expiresAt: Date.now() + 3600000 });
   const close = vi.fn();
   render(<StorageConnections open onClose={close} />);
-  const card = within(screen.getByRole('heading', { name: 'Google Calendar' }).closest('article')!);
+  const article = screen.getByRole('heading', { name: 'Google Calendar' }).closest('article')!;
+  const card = within(article);
+  expect(article.querySelector('img')).toHaveAttribute('src', '/google-calendar-2026.svg');
   await card.findByText('Connected');
   const user = userEvent.setup();
   const manage = card.getByRole('button', { name: 'Manage connection' });
@@ -315,7 +317,7 @@ it('shows Calendar separately, filters it and closes its dialog without leaving 
   await user.click(card.getByRole('button', { name: 'Disconnect Google Calendar' }));
   expect(screen.getByRole('dialog', { name: 'Disconnect Google Calendar?' })).toBeVisible();
   vi.mocked(getGoogleCalendarSession).mockResolvedValue({ available: true, connected: false });
-  await user.click(screen.getByRole('button', { name: 'Disconnect', exact: true }));
+  await user.click(screen.getByRole('button', { name: 'Disconnect' }));
   await waitFor(() => expect(logoutGoogleCalendar).toHaveBeenCalledOnce());
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   expect(logoutGoogleDrive).not.toHaveBeenCalled();

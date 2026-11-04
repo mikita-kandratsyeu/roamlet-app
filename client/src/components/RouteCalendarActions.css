@@ -12,26 +12,172 @@
   white-space: normal;
   min-height: 44px;
 }
-.calendar-event-fields {
+.calendar-event-content {
   display: grid;
-  gap: 0.5rem;
+  gap: 20px;
   min-width: 0;
 }
-.calendar-event-fields input {
-  width: 100%;
+.calendar-event-overview {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
   min-width: 0;
-  font-size: 16px;
+}
+.calendar-event-overview h3 {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.calendar-event-overview h3 > svg {
+  color: var(--primary);
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.calendar-event-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+.calendar-event-times > div + div {
+  border-left: 1px solid var(--border);
+  padding-left: 16px;
+}
+.calendar-event-times dt,
+.calendar-event-preview dt {
+  font-size: var(--font-size-label);
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+.calendar-event-times dd {
+  margin: 6px 0 0;
+  min-height: 50px;
+}
+.calendar-event-times time {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.calendar-event-date {
+  font-size: var(--font-size-label);
+  overflow-wrap: anywhere;
+}
+.calendar-event-clock {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.calendar-event-zone {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 0 0;
+  color: var(--muted-foreground);
+  font-size: var(--font-size-label);
+  overflow-wrap: anywhere;
+}
+.calendar-event-zone > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 .calendar-event-preview {
   display: grid;
-  gap: 0.75rem;
+  gap: 12px;
+  margin: 16px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
   min-width: 0;
 }
-.calendar-event-preview dt {
-  font-weight: 600;
-}
 .calendar-event-preview dd {
-  margin: 0.25rem 0 0;
+  margin: 4px 0 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.calendar-event-settings {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.calendar-event-settings h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.calendar-event-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  min-width: 0;
+}
+.calendar-event-field {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+.roamlet-dialog .calendar-event-fields input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font-size: 16px;
+}
+.calendar-event-content .fine-print {
+  margin: 0;
+  color: var(--muted-foreground);
+}
+.calendar-event-notice {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--muted);
+}
+.calendar-event-disclosure {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.calendar-event-disclosure > summary {
+  min-height: 44px;
+  padding: 12px;
+  cursor: pointer;
+}
+.calendar-event-disclosure-body {
+  padding: 0 12px 12px;
+  color: var(--muted-foreground);
+  font-size: var(--font-size-label);
+}
+.calendar-event-disclosure-body p {
+  margin: 0;
+}
+.calendar-event-disclosure-body p + p {
+  margin-top: 12px;
+}
+.roamlet-dialog .calendar-event-footer {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.roamlet-dialog .calendar-event-footer > button {
+  flex: 1;
+  min-height: 44px;
+  white-space: normal;
+}
+@media (max-width: 560px) {
+  .calendar-event-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .roamlet-dialog .calendar-event-footer {
+    flex-direction: column;
+  }
+}
+@media (forced-colors: active) {
+  .calendar-event-overview h3 > svg {
+    color: CanvasText;
+  }
 }

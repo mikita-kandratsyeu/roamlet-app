@@ -25,7 +25,7 @@ export function GoogleCalendarConnection({
     <>
       <ConnectorCard
         name="Google Calendar"
-        icon="/calendar.svg"
+        icon="/google-calendar-2026.svg"
         description="Reserve time for a route in a separate Roamlet calendar."
         connected={connected}
         account={connected ? google.session?.email : undefined}
@@ -68,56 +68,67 @@ export function GoogleCalendarConnection({
           )}
           onClose={() => setManaging(false)}
           initialFocusRef={done}
-          footer={<div className="button-row dialog-actions connector-modal-footer">
-            <Button ref={done} variant="outline" onClick={() => setManaging(false)}>{t('Done')}</Button>
-          </div>}
+          footer={
+            <div className="button-row dialog-actions connector-modal-footer">
+              <Button ref={done} variant="outline" onClick={() => setManaging(false)}>
+                {t('Done')}
+              </Button>
+            </div>
+          }
         >
           <div className="storage-connections">
-          {connected && <section className="connector-connection-summary" aria-label={t('Connection overview')}>
-            <div>
-              <span className="connector-note">{t('Signed in as {{login}}', { login: google.session?.email })}</span>
-              <strong>{t('Roamlet calendar')}</strong>
-            </div>
-          </section>}
-          <p>
-            {t(
-              'Roamlet creates a separate calendar on your first publication. It does not read your other calendars.',
+            {connected && (
+              <section
+                className="connector-connection-summary"
+                aria-label={t('Connection overview')}
+              >
+                <div>
+                  <span className="connector-note">
+                    {t('Signed in as {{login}}', { login: google.session?.email })}
+                  </span>
+                  <strong>{t('Roamlet calendar')}</strong>
+                </div>
+              </section>
             )}
-          </p>
-          <p>
-            {t(
-              'Create or update an event from Route schedule. Changes are never sent automatically.',
+            <p>
+              {t(
+                'Roamlet creates a separate calendar on your first publication. It does not read your other calendars.',
+              )}
+            </p>
+            <p>
+              {t(
+                'Create or update an event from Route schedule. Changes are never sent automatically.',
+              )}
+            </p>
+            {(!connected || google.error === 'auth') && (
+              <Button
+                disabled={google.loading || !google.session?.available}
+                onClick={() => window.location.assign('/api/google-calendar?action=start')}
+              >
+                {t('Sign in with Google')}
+              </Button>
             )}
-          </p>
-          {(!connected || google.error === 'auth') && (
-            <Button
-              disabled={google.loading || !google.session?.available}
-              onClick={() => window.location.assign('/api/google-calendar?action=start')}
-            >
-              {t('Sign in with Google')}
-            </Button>
-          )}
-          {google.session?.available === false && (
-            <p role="status">{t(googleCalendarErrors.unavailable)}</p>
-          )}
-          <details>
-            <summary>{t('Privacy and limits')}</summary>
-            <p>
-              {t(
-                'Only the confirmed event details are sent to Google. GPX and full route geometry are not attached.',
-              )}
-            </p>
-            <p>
-              {t(
-                'Calendar access lasts up to one hour. Sign in again after expiry. Disconnecting removes the browser session, not calendar events or the Google Drive connection.',
-              )}
-            </p>
-            <p>
-              {t(
-                'You can revoke Google authorization in your Google account settings; this may also affect Google Drive.',
-              )}
-            </p>
-          </details>
+            {google.session?.available === false && (
+              <p role="status">{t(googleCalendarErrors.unavailable)}</p>
+            )}
+            <details>
+              <summary>{t('Privacy and limits')}</summary>
+              <p>
+                {t(
+                  'Only the confirmed event details are sent to Google. GPX and full route geometry are not attached.',
+                )}
+              </p>
+              <p>
+                {t(
+                  'Calendar access lasts up to one hour. Sign in again after expiry. Disconnecting removes the browser session, not calendar events or the Google Drive connection.',
+                )}
+              </p>
+              <p>
+                {t(
+                  'You can revoke Google authorization in your Google account settings; this may also affect Google Drive.',
+                )}
+              </p>
+            </details>
           </div>
         </Dialog>
       )}

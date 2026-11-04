@@ -10,6 +10,7 @@ async function openConnections(page: Page) {
 }
 async function prepare(page: Page) {
   await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Use my location', exact: true })).toBeEnabled();
   await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
   for (const [latitude, longitude] of [
     ['47.26', '11.40'],
@@ -160,8 +161,11 @@ test('hides Google actions without a connector and downloads ICS offline', async
   await exportButton.scrollIntoViewIfNeeded();
   const dimensions = await exportButton.evaluate((button) => {
     const container = button.closest('.route-calendar-actions')!;
-    return { buttonWidth: button.getBoundingClientRect().width,
-      containerWidth: container.getBoundingClientRect().width, height: button.getBoundingClientRect().height };
+    return {
+      buttonWidth: button.getBoundingClientRect().width,
+      containerWidth: container.getBoundingClientRect().width,
+      height: button.getBoundingClientRect().height,
+    };
   });
   expect(dimensions.buttonWidth).toBeCloseTo(dimensions.containerWidth, 0);
   expect(dimensions.height).toBeGreaterThanOrEqual(44);
@@ -182,6 +186,140 @@ test('hides Google actions without a connector and downloads ICS offline', async
   expect(contents).toContain('DTSTART:20261107T090000Z\r\n');
   await expect(dialog.getByRole('button', { name: 'Confirm event creation' })).toHaveCount(0);
 });
+test('event preview uses localized dates, grouped settings and full-width offline download', async ({
+  page,
+  context,
+}, testInfo) => {
+  await context.route('**/api/google-calendar?**', (route) =>
+    route.fulfill({ json: { available: true, connected: false } }),
+  );
+  await prepare(page);
+  for (const dismiss of await page.getByRole('button', { name: 'Dismiss notification' }).all())
+    await dismiss.click();
+  await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
+  for (const [language, theme, zoneLabel, previewLabel, guidanceLabel, downloadLabel] of [
+    [
+      'en',
+      'Light',
+      'Start time zone (IANA)',
+      'Event preview',
+      'Timing and privacy',
+      'Download .ics',
+    ],
+    [
+      'ru',
+      'Dark',
+      'Часовой пояс старта (IANA)',
+      'Предпросмотр события',
+      'Расчёт времени и приватность',
+      'Скачать .ics',
+    ],
+  ]) {
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page.getByRole('menuitemradio', { name: theme, exact: true }).click();
+    await page.getByRole('button', { name: /^(Menu|Меню)$/ }).click();
+    await page
+      .getByRole('menuitemradio', { name: language === 'ru' ? 'Русский' : 'English', exact: true })
+      .click();
+    await page
+      .getByRole('button', { name: /^(Export calendar \(\.ics\)|Экспорт в календарь \(\.ics\))$/ })
+      .click();
+    const dialog = page.getByRole('dialog', { name: /^(Route calendar event|Событие маршрута)$/ });
+    await expect(dialog.getByLabel(zoneLabel)).toBeFocused();
+    await dialog.getByLabel(zoneLabel).fill('Europe/Warsaw');
+    const preview = dialog.getByRole('region', { name: previewLabel });
+    await expect(preview.getByRole('heading', { name: 'Calendar ride' })).toBeVisible();
+    await expect(preview.locator('time').first()).toHaveAttribute(
+      'datetime',
+      '2026-11-07T10:00:00+01:00',
+    );
+    await expect(preview.locator('time').first()).toContainText(
+      language === 'ru' ? 'нояб.' : 'Nov',
+    );
+    const disclosure = dialog.locator('details').filter({ hasText: guidanceLabel });
+    await expect(disclosure).not.toHaveAttribute('open');
+    const download = dialog.getByRole('button', { name: downloadLabel, exact: true });
+    await expect(download).toHaveAttribute('data-variant', 'default');
+    await expect(download).toBeInViewport();
+    await expect
+      .poll(() => download.evaluate((button) => button.getBoundingClientRect().height))
+      .toBeGreaterThanOrEqual(44);
+    const layout = await dialog.evaluate((element) => {
+      const button = element.querySelector('.calendar-event-footer > button')!;
+      return {
+        overflow: element.scrollWidth > element.clientWidth,
+        buttonWidth: button.getBoundingClientRect().width,
+        rowWidth: button.parentElement!.getBoundingClientRect().width,
+        height: button.getBoundingClientRect().height,
+      };
+    });
+    expect(layout.overflow).toBe(false);
+    expect(layout.buttonWidth).toBeCloseTo(layout.rowWidth, 0);
+    expect(layout.height).toBeGreaterThanOrEqual(44);
+    await page.screenshot({
+      path: testInfo.outputPath(`event-preview-${language}.png`),
+      animations: 'disabled',
+    });
+    await dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }).click();
+  }
+});
+
+test('Calendar connection uses the Drive dialog layout in English/light and Russian/dark', async ({
+  page,
+  context,
+}, testInfo) => {
+  await context.route('**/api/google-calendar?**', (route) =>
+    route.fulfill({
+      json: {
+        available: true,
+        connected: true,
+        accountId: 'synthetic-user',
+        email: 'user@example.test',
+        expiresAt: Date.now() + 3600000,
+      },
+    }),
+  );
+  await page.goto('/');
+  for (const [language, theme, manage, done] of [
+    ['en', 'light', 'Manage connection', 'Done'],
+    ['ru', 'dark', 'Управлять подключением', 'Готово'],
+  ]) {
+    await page.evaluate(
+      ({ language, theme }) => {
+        localStorage.setItem('roamlet-language', language);
+        localStorage.setItem('roamlet-theme', theme);
+      },
+      { language, theme },
+    );
+    await page.goto('/?connectors=google-calendar&calendar=connected');
+    const icon = calendarCard(page).locator('img');
+    await expect(icon).toHaveAttribute('src', '/google-calendar-2026.svg');
+    await expect.poll(() => icon.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(96);
+    await calendarCard(page).getByRole('button', { name: manage }).click();
+    const dialog = page.getByRole('dialog', { name: /Google Calendar/ });
+    await expect(dialog).not.toHaveClass(/compact/);
+    await expect(dialog.locator('.storage-connections')).toBeVisible();
+    await expect(dialog.locator('.connector-connection-summary')).toContainText(
+      'user@example.test',
+    );
+    await expect(dialog.locator('details')).toHaveCount(1);
+    await expect(dialog.locator('details')).not.toHaveAttribute('open');
+    const doneButton = dialog.getByRole('button', { name: done, exact: true });
+    await expect(dialog.locator('.connector-modal-footer')).toBeVisible();
+    await expect(doneButton).toBeInViewport();
+    await expect(doneButton).toBeFocused();
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
+    await page.screenshot({
+      path: testInfo.outputPath(`calendar-connection-${language}-${theme}.png`),
+      animations: 'disabled',
+    });
+    await doneButton.click();
+    await expect(calendarCard(page).getByRole('button', { name: manage })).toBeFocused();
+  }
+});
+
 test('OAuth return opens Calendar settings and disconnect leaves Drive independent', async ({
   page,
   context,

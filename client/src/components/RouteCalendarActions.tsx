@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, Download } from 'lucide-react';
+import { CalendarDays, ChevronDown, Download, Globe2, LoaderCircle } from 'lucide-react';
 import {
   buildCalendarEvent,
   CalendarDraftError,
@@ -46,7 +46,7 @@ export function RouteCalendarActions({
   durationSeconds: number | null;
   location: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const google = useGoogleCalendarSession(true);
   const publication = useCalendarPublication(
     google.session?.accountId,
@@ -63,6 +63,7 @@ export function RouteCalendarActions({
   const [notice, setNotice] = useState<'saved' | 'cancelled' | 'download-error' | null>(null);
   const id = useId();
   const cancelButton = useRef<HTMLButtonElement>(null);
+  const zoneInput = useRef<HTMLInputElement>(null);
   const { record } = publication;
   useEffect(() => {
     if (record) {
@@ -99,6 +100,32 @@ export function RouteCalendarActions({
       : publication.error
         ? t(googleCalendarErrors[publication.error])
         : null;
+  function previewTime(value: string | undefined) {
+    if (!value || !event) return <span>{t('Unavailable')}</span>;
+    const date = new Date(value);
+    const language = i18n.resolvedLanguage || 'en';
+    const zone = event.start.timeZone;
+    return (
+      <time dateTime={value}>
+        <span className="calendar-event-date">
+          {new Intl.DateTimeFormat(language, {
+            timeZone: zone,
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          }).format(date)}
+        </span>
+        <span className="calendar-event-clock">
+          {new Intl.DateTimeFormat(language, {
+            timeZone: zone,
+            hour: '2-digit',
+            minute: '2-digit',
+            ...(value.slice(17, 19) !== '00' ? { second: '2-digit' } : {}),
+          }).format(date)}
+        </span>
+      </time>
+    );
+  }
   function close() {
     if (publication.busy) setStopping(true);
     else setOpen(false);
@@ -145,13 +172,17 @@ export function RouteCalendarActions({
       {open && (
         <Dialog
           title={t('Route calendar event')}
-          description={t(
-            'Check the time zone at the route start. The default is your device time zone, not an inferred start location.',
-          )}
+          description={t('Review the event details and start time zone.')}
           onClose={close}
+          initialFocusRef={zoneInput}
           footer={
-            <div className="button-row">
-              <Button variant="outline" disabled={publication.busy || !event} onClick={download}>
+            <div className="button-row calendar-event-footer">
+              <Button
+                variant={googleVisible ? 'outline' : 'default'}
+                disabled={publication.busy || !event}
+                onClick={download}
+              >
+                <Download size={18} aria-hidden="true" />
                 {t('Download .ics')}
               </Button>
               {googleVisible && (
@@ -176,6 +207,11 @@ export function RouteCalendarActions({
                   }}
                   aria-busy={publication.busy}
                 >
+                  {publication.busy ? (
+                    <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />
+                  ) : (
+                    <CalendarDays size={18} aria-hidden="true" />
+                  )}
                   {publication.busy
                     ? t('Publishing event…')
                     : record?.htmlLink
@@ -186,88 +222,130 @@ export function RouteCalendarActions({
             </div>
           }
         >
-          <div className="calendar-event-fields">
-            <Label htmlFor={`${id}-zone`}>{t('Start time zone (IANA)')}</Label>
-            <Input
-              id={`${id}-zone`}
-              value={timeZone}
-              disabled={publication.busy}
-              onChange={(event) => setTimeZone(event.target.value)}
-              placeholder="Europe/Warsaw"
-              autoComplete="off"
-            />
-            <Label htmlFor={`${id}-reminder`}>{t('Reminder before start (minutes)')}</Label>
-            <Input
-              id={`${id}-reminder`}
-              value={reminder}
-              disabled={publication.busy}
-              inputMode="numeric"
-              onChange={(event) => setReminder(event.target.value)}
-            />
+          <div className="calendar-event-content">
+            <section className="calendar-event-overview" aria-label={t('Event preview')}>
+              <h3>
+                <CalendarDays size={20} aria-hidden="true" />
+                <span>{event?.summary || input.name || t('Route')}</span>
+              </h3>
+              <dl className="calendar-event-times">
+                <div>
+                  <dt>{t('Start')}</dt>
+                  <dd>{previewTime(event?.start.dateTime)}</dd>
+                </div>
+                <div>
+                  <dt>{t('Finish')}</dt>
+                  <dd>{previewTime(event?.end.dateTime)}</dd>
+                </div>
+              </dl>
+              {event && (
+                <p className="calendar-event-zone">
+                  <Globe2 size={15} aria-hidden="true" />
+                  <span>
+                    {event.start.timeZone} ·{' '}
+                    {[...new Set([event.start.dateTime.slice(-6), event.end.dateTime.slice(-6)])]
+                      .map((offset) => `UTC${offset}`)
+                      .join(' → ')}
+                  </span>
+                </p>
+              )}
+              <dl className="calendar-event-preview">
+                <div>
+                  <dt>{t('Location')}</dt>
+                  <dd>{(event?.location ?? location) || t('Not specified')}</dd>
+                </div>
+                <div>
+                  <dt>{t('Description')}</dt>
+                  <dd>{(event?.description ?? input.description) || t('Not specified')}</dd>
+                </div>
+              </dl>
+            </section>
+            <section className="calendar-event-settings" aria-labelledby={`${id}-settings`}>
+              <h3 id={`${id}-settings`}>{t('Event settings')}</h3>
+              <div className="calendar-event-fields">
+                <div className="calendar-event-field">
+                  <Label htmlFor={`${id}-zone`}>{t('Start time zone (IANA)')}</Label>
+                  <Input
+                    ref={zoneInput}
+                    id={`${id}-zone`}
+                    value={timeZone}
+                    disabled={publication.busy}
+                    onChange={(event) => setTimeZone(event.target.value)}
+                    placeholder="Europe/Warsaw"
+                    autoComplete="off"
+                    aria-describedby={`${id}-zone-help${draftError ? ` ${id}-error` : ''}`}
+                  />
+                </div>
+                <div className="calendar-event-field">
+                  <Label htmlFor={`${id}-reminder`}>{t('Reminder before start (minutes)')}</Label>
+                  <Input
+                    id={`${id}-reminder`}
+                    value={reminder}
+                    disabled={publication.busy}
+                    inputMode="numeric"
+                    onChange={(event) => setReminder(event.target.value)}
+                    aria-describedby={draftError ? `${id}-error` : undefined}
+                  />
+                </div>
+              </div>
+              <p className="fine-print" id={`${id}-zone-help`}>
+                {t('The default time zone is from your device. Check it against the route start.')}
+              </p>
+            </section>
+            {draftError && (
+              <p className="calendar-event-notice" id={`${id}-error`} role="alert">
+                {draftError}
+              </p>
+            )}
+            {googleVisible && !input.canPublish && (
+              <p role="status">
+                {t('Save the current route and its schedule before publishing to Google Calendar.')}
+              </p>
+            )}
+            {googleVisible && !input.online && (
+              <p role="status">
+                {t(
+                  'You are offline. ICS export remains available; Google Calendar needs internet.',
+                )}
+              </p>
+            )}
+            {googleVisible && !google.session?.connected && (
+              <Button
+                variant="outline"
+                disabled={google.loading || google.session?.available === false}
+                onClick={() => window.location.assign('/api/google-calendar?action=start')}
+              >
+                {t('Reconnect Google Calendar')}
+              </Button>
+            )}
+            <p className="fine-print calendar-event-privacy">
+              {googleVisible
+                ? t(
+                    'Only the previewed event details are sent to Google. No GPX or full track is attached.',
+                  )
+                : t('Calendar file only. Nothing is sent to Google.')}
+            </p>
+            <details className="calendar-event-disclosure planner-disclosure">
+              <summary className="section-heading">
+                <span>{t('Timing and privacy')}</span>
+                <span className="disclosure-toggle" aria-hidden="true">
+                  <ChevronDown size={18} />
+                </span>
+              </summary>
+              <div className="calendar-event-disclosure-body">
+                <p>
+                  {t(
+                    'Calendar end time includes waypoint pauses and elapsed moving time. Clock changes are applied here; planner arrivals remain local-clock estimates.',
+                  )}
+                </p>
+                <p>
+                  {t(
+                    'Changes are never sent automatically. Importing the same ICS file may create duplicates in another calendar app.',
+                  )}
+                </p>
+              </div>
+            </details>
           </div>
-          {event && (
-            <dl className="calendar-event-preview">
-              <div>
-                <dt>{t('Title')}</dt>
-                <dd>{event.summary}</dd>
-              </div>
-              <div>
-                <dt>{t('Start')}</dt>
-                <dd>
-                  <time dateTime={event.start.dateTime}>{event.start.dateTime}</time>
-                </dd>
-              </div>
-              <div>
-                <dt>{t('Finish')}</dt>
-                <dd>
-                  <time dateTime={event.end.dateTime}>{event.end.dateTime}</time>
-                </dd>
-              </div>
-              <div>
-                <dt>{t('Location')}</dt>
-                <dd>{event.location || t('Not specified')}</dd>
-              </div>
-              <div>
-                <dt>{t('Description')}</dt>
-                <dd>{event.description || t('Not specified')}</dd>
-              </div>
-            </dl>
-          )}
-          {draftError && <p role="alert">{draftError}</p>}
-          {googleVisible && !input.canPublish && (
-            <p role="status">
-              {t('Save the current route and its schedule before publishing to Google Calendar.')}
-            </p>
-          )}
-          {googleVisible && !input.online && (
-            <p role="status">
-              {t('You are offline. ICS export remains available; Google Calendar needs internet.')}
-            </p>
-          )}
-          {googleVisible && !google.session?.connected && (
-            <Button
-              variant="outline"
-              disabled={google.loading || google.session?.available === false}
-              onClick={() => window.location.assign('/api/google-calendar?action=start')}
-            >
-              {t('Reconnect Google Calendar')}
-            </Button>
-          )}
-          <p className="fine-print">
-            {t(
-              'Calendar end time includes waypoint pauses and elapsed moving time. Clock changes are applied here; planner arrivals remain local-clock estimates.',
-            )}
-          </p>
-          <p className="fine-print">
-            {t(
-              'Only the confirmed event details are sent to Google. GPX and full route geometry are not attached.',
-            )}
-          </p>
-          <p className="fine-print">
-            {t(
-              'Changes are never sent automatically. Importing the same ICS file may create duplicates in another calendar app.',
-            )}
-          </p>
         </Dialog>
       )}
       {open && (publicationError || google.error) && (

@@ -27,6 +27,10 @@ The connector uses the unmodified [official GitHub Mark](https://github.githubas
 
 The connector identifies Google Drive using the unmodified [official 2026 Google Drive product icon](https://www.gstatic.com/images/branding/productlogos/drive_2026/v2/web-64dp/logo_drive_2026_color_2x_web_64dp.png), bundled as `client/public/google-drive-2026.png` and served only from the application origin at runtime. Google Drive and its icon are Google trademarks, not Roamlet artwork or Lucide icons. Follow [Google's brand guidance](https://about.google/brand-resource-center/) and applicable [Drive branding guidance](https://developers.google.com/workspace/drive/api/guides/branding). This integration is not endorsed by Google.
 
+## Google Calendar connector brand asset
+
+The connector uses the unmodified [official 2026 Google Calendar product icon](https://storage.googleapis.com/gweb-workspace-assets/uploads/7uffzv9dk4sn-5uz5aNoFbGRSZAKesuq7ux-a3ed8ba53797f125e822bdf4e5c945ab-calendar_2026-192px.svg), referenced by the [official Calendar product page](https://workspace.google.com/intl/en/products/calendar/) when checked on 4 November 2026. It is bundled as `client/public/google-calendar-2026.svg` and served from the application origin, without runtime Google CDN requests. Google Calendar and its icon are Google trademarks, not Roamlet artwork or Lucide icons. Follow [Google's brand guidance](https://about.google/brand-resource-center/). This integration is not endorsed by Google.
+
 ## Development libraries
 
 - TypeScript 5.9.3: [Apache-2.0](https://github.com/microsoft/TypeScript/blob/main/LICENSE.txt).
