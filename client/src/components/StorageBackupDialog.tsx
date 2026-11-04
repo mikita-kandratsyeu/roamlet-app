@@ -67,7 +67,6 @@ export function StorageBackupDialog({
   const [selected, setSelected] = useState('');
   const [mode, setMode] = useState<ConflictMode>('copy');
   const [closeConfirm, setCloseConfirm] = useState(false);
-  const closeButton = useRef<HTMLButtonElement>(null);
   const keepWorking = useRef<HTMLButtonElement>(null);
   const busy = !!storage.operation || loading;
   const selectedBackup = storage.backups.find((item) => item.id === selected);
@@ -125,11 +124,11 @@ export function StorageBackupDialog({
         title={title}
         description={description}
         onClose={close}
-        initialFocusRef={closeButton}
+        dismissible={storage.operation !== 'restoring'}
         navigation={navigation}
         footer={
-          <div className="button-row dialog-actions connector-modal-footer">
-            {enabled && tab === 'create' && (
+          enabled && tab === 'create' && (
+            <div className="button-row dialog-actions connector-modal-footer">
               <Button
                 disabled={
                   busy ||
@@ -144,16 +143,8 @@ export function StorageBackupDialog({
               >
                 {t('Create encrypted backup')}
               </Button>
-            )}
-            <Button
-              ref={closeButton}
-              variant="outline"
-              disabled={storage.operation === 'restoring'}
-              onClick={close}
-            >
-              {t('Done')}
-            </Button>
-          </div>
+            </div>
+          )
         }
       >
         <div className="storage-connections">

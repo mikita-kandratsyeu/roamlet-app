@@ -37,6 +37,7 @@ export function ConnectorCard({
   retrying?: boolean;
 }) {
   const { t } = useTranslation();
+  const needsRetry = !!onRetry && (status === 'attention' || retrying);
   const retryButton = useRef<HTMLButtonElement>(null);
   const restoreRetryFocus = useRef(false);
   useEffect(() => {
@@ -57,7 +58,7 @@ export function ConnectorCard({
           className={`connector-brand-mark${name === 'GitHub' ? ' github-brand-mark' : ''}`}
         />
         <div>
-          <h2>{name}</h2>
+          <h3>{name}</h3>
           <span
             className="connector-status"
             role="status"
@@ -83,29 +84,40 @@ export function ConnectorCard({
       <p>{t(description)}</p>
       {account && <p className="connector-repository">{account}</p>}
       <div className="connector-card-actions">
-        {onRetry && (
-          <Button
-            variant="outline"
-            className="connector-check-action"
-            disabled={busy || retrying}
-            aria-busy={retrying}
-            ref={retryButton}
-            onClick={(event) => {
+        <Button
+          className="connector-primary-action"
+          disabled={busy || retrying}
+          aria-busy={retrying}
+          aria-haspopup={needsRetry ? undefined : 'dialog'}
+          ref={retryButton}
+          onClick={(event) => {
+            if (needsRetry && onRetry) {
               restoreRetryFocus.current = document.activeElement === event.currentTarget;
               onRetry();
-            }}
-          >
-            {retrying ? (
+            } else onManage();
+          }}
+        >
+          {needsRetry &&
+            (retrying ? (
               <LoaderCircle size={18} className="connector-spinner" aria-hidden="true" />
             ) : (
               <RefreshCw size={18} aria-hidden="true" />
-            )}
-            <span>{retrying ? t('Checking connection') : t('Check connection')}</span>
+            ))}
+          <span>
+            {retrying
+              ? t('Checking connection')
+              : needsRetry
+                ? t('Retry')
+                : connected
+                  ? t('Manage connection')
+                  : t('Set up connection')}
+          </span>
+        </Button>
+        {needsRetry && (
+          <Button variant="outline" aria-haspopup="dialog" onClick={onManage}>
+            {connected ? t('Manage connection') : t('Set up connection')}
           </Button>
         )}
-        <Button variant="outline" aria-haspopup="dialog" onClick={onManage}>
-          {connected ? t('Manage connection') : t('Set up connection')}
-        </Button>
       </div>
     </article>
   );

@@ -39,6 +39,7 @@ for (const language of ['en', 'ru']) {
       const dialog = page.getByRole('dialog', { name: title });
       const confirm = dialog.getByRole('button', { name: label });
       await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole('note')).toBeVisible();
       await expect(confirm).toBeFocused();
       await expect(dialog.getByRole('button')).toHaveCount(1);
       await page.keyboard.press('Escape');

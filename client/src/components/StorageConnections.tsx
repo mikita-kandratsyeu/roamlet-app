@@ -1,15 +1,15 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Plug, Search } from 'lucide-react';
+import { ArrowLeft, Plug } from 'lucide-react';
 import './Library.css';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
 import { Dialog } from './Dialog';
 import { Notification } from './Notification';
 import { useStorageConnector } from '../hooks/useStorageConnector';
 import { useGitHubSession } from '../hooks/useGitHubSession';
 import { useGoogleDriveSession } from '../hooks/useGoogleDriveSession';
+import { useGoogleCalendarSession } from '../hooks/useGoogleCalendarSession';
+import { GoogleCalendarConnection } from './GoogleCalendarConnection';
 import { GoogleDriveConnectionDialog, googleDriveErrors } from './GoogleDriveConnectionDialog';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '../services/connectors/registry';
 import {
@@ -26,6 +26,7 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
   const storage = useStorageConnector();
   const googleStorage = useStorageConnector();
   const google = useGoogleDriveSession(open);
+  const calendar = useGoogleCalendarSession(open);
   const github = useGitHubSession(open);
   const { connect, disconnect, cancel, connection } = storage;
   const [selected, setSelected] = useState<StorageProviderId | null>(null);
@@ -38,8 +39,6 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
         ? 'github'
         : null;
   });
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | 'connected'>('all');
   const backButton = useRef<HTMLButtonElement>(null);
   const cancelDisconnect = useRef<HTMLButtonElement>(null);
   const id = useId();
@@ -177,11 +176,6 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
       retrying: github.loading,
     },
   };
-  const providers = STORAGE_PROVIDERS.filter(
-    (provider) =>
-      provider.name.toLowerCase().includes(query.trim().toLowerCase()) &&
-      (filter === 'all' || states[provider.id].connected),
-  );
   return (
     <section
       className="library-screen connections-screen"
@@ -189,7 +183,13 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
       aria-label={t('Connections')}
       aria-describedby={`${id}-description`}
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && !event.defaultPrevented && !selected && !disconnecting) {
+        if (
+          event.key === 'Escape' &&
+          !event.defaultPrevented &&
+          !selected &&
+          !disconnecting &&
+          !(event.target instanceof Element && event.target.closest('[role="dialog"]'))
+        ) {
           event.preventDefault();
           close();
         }
@@ -218,50 +218,27 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
               'Connect your own services. Local planning and the route library work without connections.',
             )}
           </p>
-          <div className="library-toolbar">
-            <Label className="library-search">
-              <Search size={18} aria-hidden="true" />
-              <Input
-                aria-label={t('Search connectors')}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={t('Search connectors')}
-              />
-            </Label>
-            <div className="connections-filters" role="group" aria-label={t('Filter connectors')}>
-              <Button
-                variant="outline"
-                className="library-favorite-filter"
-                aria-pressed={filter === 'all'}
-                onClick={() => setFilter('all')}
-              >
-                {t('All connectors')}
-              </Button>
-              <Button
-                variant="outline"
-                className="library-favorite-filter"
-                aria-pressed={filter === 'connected'}
-                onClick={() => setFilter('connected')}
-              >
-                {t('Connected connectors')}
-              </Button>
+          <section className="connections-group" aria-labelledby={`${id}-backups`}>
+            <h2 id={`${id}-backups`}>{t('Backup connections')}</h2>
+            <div className="connections-list" role="list" aria-labelledby={`${id}-backups`}>
+              {STORAGE_PROVIDERS.map((provider) => (
+                <ConnectorCard
+                  key={provider.id}
+                  name={provider.name}
+                  icon={provider.icon}
+                  description={provider.description}
+                  {...states[provider.id]}
+                  onManage={() => setSelected(provider.id)}
+                />
+              ))}
             </div>
-          </div>
-          <div className="connections-list" role="list" aria-label={t('Available connectors')}>
-            {providers.map((provider) => (
-              <ConnectorCard
-                key={provider.id}
-                name={provider.name}
-                icon={provider.icon}
-                description={provider.description}
-                {...states[provider.id]}
-                onManage={() => setSelected(provider.id)}
-              />
-            ))}
-          </div>
-          {!providers.length && (
-            <p className="connector-empty">{t('No connectors match this filter.')}</p>
-          )}
+          </section>
+          <section className="connections-group" aria-labelledby={`${id}-calendar`}>
+            <h2 id={`${id}-calendar`}>{t('Calendar connections')}</h2>
+            <div className="connections-list" role="list" aria-labelledby={`${id}-calendar`}>
+              <GoogleCalendarConnection google={calendar} />
+            </div>
+          </section>
           {available === false && !problem && (
             <p className="connector-note">
               {t(

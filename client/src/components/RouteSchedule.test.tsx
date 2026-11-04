@@ -18,6 +18,24 @@ const props = (): RouteScheduleProps => ({ route, waypoints: route.waypoints,
   onDepartureLocal: vi.fn(), onWaypointPause: vi.fn() });
 beforeEach(async () => { await act(async () => { await i18n.changeLanguage('en'); }); });
 afterEach(cleanup);
+it('keeps one departure field with calendar actions across edits and route switches', async () => {
+  const consoleError = vi.spyOn(console, 'error');
+  const callbacks = props();
+  const calendar = { routeId: route.id, name: route.name, description: '', canPublish: false, online: false };
+  const { rerender } = render(<RouteSchedule {...callbacks} contextKey={route.id} calendar={calendar} departureLocal={undefined} />);
+  for (const departureLocal of ['2026-10-13T18:25', undefined, '2026-10-31T18:25', '2026-11-01T18:25']) {
+    rerender(<RouteSchedule {...callbacks} contextKey={route.id} calendar={calendar} departureLocal={departureLocal} />);
+    expect(screen.getAllByLabelText('Local departure date and time')).toHaveLength(1);
+    expect(screen.getByLabelText('Local departure date and time')).toHaveValue(departureLocal ?? '');
+    expect(screen.getAllByRole('button', { name: 'Add to calendar' })).toHaveLength(1);
+  }
+  rerender(<RouteSchedule {...callbacks} contextKey="another-route" calendar={{ ...calendar, routeId: 'another-route' }} />);
+  expect(screen.getAllByLabelText('Local departure date and time')).toHaveLength(1);
+  await act(async () => {});
+  expect(consoleError.mock.calls.filter((args) => args.some((arg) => typeof arg === 'string' && arg.includes('same key')))).toEqual([]);
+  consoleError.mockRestore();
+});
+
 it('reuses schedule calculations across unrelated parent renders', () => {
   const calculate = vi.spyOn(scheduleDomain, 'estimateRouteSchedule');
   const callbacks = props();

@@ -61,7 +61,7 @@ test('Google Drive is first and its access-only OAuth return opens the catalog w
     return route.fulfill({ json: {} });
   });
   await openCatalog(page);
-  const cards = page.getByRole('list', { name: 'Available connectors' }).getByRole('listitem');
+  const cards = page.getByRole('list', { name: 'Backups', exact: true }).getByRole('listitem');
   await expect(cards.nth(0).getByRole('heading')).toHaveText('Google Drive');
   await expect(cards.nth(1).getByRole('heading')).toHaveText('GitHub');
   await expect

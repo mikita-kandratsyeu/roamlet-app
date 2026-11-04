@@ -68,7 +68,7 @@ it('renders provider-owned content and collapsed privacy without backup panels u
   expect(screen.getByRole('dialog').querySelectorAll('details')).toHaveLength(1);
   expect(privacy?.querySelector('details')).toBeNull();
   expect(privacy?.querySelectorAll('summary')).toHaveLength(1);
-  await userEvent.setup().click(screen.getByRole('button', { name: 'Done' }));
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Close dialog' }));
   expect(value.storage.cancel).toHaveBeenCalledOnce();
   expect(value.onClose).toHaveBeenCalledOnce();
 });
@@ -281,7 +281,7 @@ it('uses the provider upload warning and confirms cancellation before closing', 
   value.storage.operation = 'uploading';
   render(<StorageBackupDialog {...value} />);
   const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   const prompt = screen.getByRole('dialog', { name: 'Stop this operation?' });
   expect(prompt).toHaveTextContent(value.uploadCancelWarning);
   expect(within(prompt).getByRole('button', { name: 'Keep working' })).toHaveFocus();
@@ -298,7 +298,7 @@ it('does not interrupt atomic local restoration when closing or pressing Escape'
   const value = props();
   value.storage.operation = 'restoring';
   render(<StorageBackupDialog {...value} />);
-  expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Close dialog' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Cancel operation' })).not.toBeInTheDocument();
   await userEvent.setup().keyboard('{Escape}');
   expect(screen.getByRole('dialog', { name: value.title })).toBeVisible();

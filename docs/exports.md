@@ -2,6 +2,12 @@
 
 [Back to overview](../README.md)
 
+## Calendar events (ICS)
+
+In **Route schedule → Export calendar (.ics)**, check the event preview, the IANA time zone at the start and reminder minutes, then select **Download .ics**. This local export works without Google authorization or internet and does not require saving the current route. A complete schedule and positive duration of at most 28 days are required. Supported dates are 1900–2100. Ambiguous or missing daylight-saving departure times are rejected instead of guessed. Event end time uses actual elapsed moving time plus all waypoint pauses, including start and finish; it applies timezone transitions independently of the planner's floating local-clock arrivals.
+
+The file contains one event with the route name, description, distance, total pauses, start-place name and optional reminder. It does not attach GPX or track geometry. Review potentially private names/descriptions before importing or sharing. UTC event times, escaped text and folded UTF-8 lines use the iCalendar format; a calendar app may still create duplicates when importing the same file repeatedly. ICS is an event export, not a route or schedule backup. For optional direct Google publication and manual updates, see [Google Calendar connections](connections.md#google-calendar).
+
 ## Route summaries for AI
 
 In **Export → For AI**, review a Markdown request containing structured JSON with route statistics, eligible sustained climbs, personal-time assumptions/ranges and available stop schedules, then press **Copy for AI**. Paste it into an AI chat yourself; no API key, provider connection or automatic network transmission is involved. If clipboard access fails or is unavailable, select and copy the preview manually or retry. Copy success and errors use the shared Sonner notifications, not inline messages in the export dialog. The request follows the interface language (English/Russian); JSON field names and units remain stable.

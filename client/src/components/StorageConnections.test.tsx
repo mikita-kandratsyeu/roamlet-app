@@ -3,6 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { StorageConnections } from './StorageConnections';
 import {
+  getGoogleCalendarSession,
+  logoutGoogleCalendar,
+} from '../services/connectors/googleCalendar';
+import {
   getGoogleDriveSession,
   logoutGoogleDrive,
 } from '../services/connectors/googleDriveSession';
@@ -17,6 +21,11 @@ import { ConnectorError, type StorageConnector } from '../services/connectors/ty
 import { routeDb } from '../domain/storage';
 import { GITHUB_REPOSITORY_KEY } from '../domain/connectorPreferences';
 import i18n from '../i18n';
+vi.mock('../services/connectors/googleCalendar', async (original) => ({
+  ...(await original<typeof import('../services/connectors/googleCalendar')>()),
+  getGoogleCalendarSession: vi.fn(),
+  logoutGoogleCalendar: vi.fn(),
+}));
 vi.mock('../services/connectors/googleDriveSession', () => ({
   getGoogleDriveSession: vi.fn(),
   logoutGoogleDrive: vi.fn(),
@@ -48,6 +57,11 @@ const authorized = {
 let storage: StorageConnector;
 beforeEach(async () => {
   render(<Toaster />);
+  localStorage.removeItem('roamlet-google-calendar-connected');
+  vi.mocked(getGoogleCalendarSession)
+    .mockReset()
+    .mockResolvedValue({ available: false, connected: false });
+  vi.mocked(logoutGoogleCalendar).mockReset().mockResolvedValue(undefined);
   vi.mocked(getGoogleDriveSession)
     .mockReset()
     .mockResolvedValue({ available: false, connected: false });
@@ -89,24 +103,29 @@ async function setupRepository() {
   await screen.findByText('Connected to example/backups');
   return user;
 }
-it('renders a searchable card grid and opens setup as an accessible modal with restored focus', async () => {
+it('groups services by purpose without search or filters and opens setup with restored focus', async () => {
   render(<StorageConnections open onClose={vi.fn()} />);
   await screen.findByText('Not connected');
   const card = screen.getByRole('heading', { name: 'GitHub' }).closest('article')!;
   expect(card.querySelector('img')).toHaveAttribute('src', '/github-mark.png');
   expect(within(card).queryByRole('button', { name: 'Disconnect GitHub' })).not.toBeInTheDocument();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  const search = screen.getByRole('textbox', { name: 'Search connectors' });
-  expect(search.closest('label')).toHaveClass('library-search');
-  expect(search.closest('.library-toolbar')).toBeInTheDocument();
-  expect(search.closest('label')?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
-  expect(screen.getByRole('button', { name: 'All connectors' })).toHaveClass(
-    'library-favorite-filter',
-  );
-  expect(screen.getByRole('button', { name: 'All connectors' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  expect(screen.queryByRole('textbox', { name: 'Search connectors' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: 'Filter connectors' })).not.toBeInTheDocument();
+  const backups = screen.getByRole('list', { name: 'Backups' });
+  expect(within(backups).getAllByRole('listitem')).toHaveLength(2);
+  expect(
+    within(backups)
+      .getAllByRole('heading')
+      .map((heading) => heading.textContent),
+  ).toEqual(['Google Drive', 'GitHub']);
+  const calendar = screen.getByRole('list', { name: 'Calendar' });
+  expect(within(calendar).getAllByRole('listitem')).toHaveLength(1);
+  expect(
+    within(calendar).getByRole('heading', { name: 'Google Calendar', level: 3 }),
+  ).toBeVisible();
+  expect(within(card).getAllByRole('button')).toHaveLength(1);
+  expect(within(card).queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
   const user = userEvent.setup();
   const setup = githubCard().getByRole('button', { name: 'Set up connection' });
   await user.click(setup);
@@ -129,19 +148,6 @@ it('renders a searchable card grid and opens setup as an accessible modal with r
   );
   await user.keyboard('{Escape}');
   await waitFor(() => expect(setup).toHaveFocus());
-  await user.type(screen.getByRole('textbox', { name: 'Search connectors' }), 'missing-service');
-  expect(screen.getByText('No connectors match this filter.')).toBeVisible();
-  await user.clear(screen.getByRole('textbox', { name: 'Search connectors' }));
-  await user.click(screen.getByRole('button', { name: 'Connected connectors' }));
-  expect(screen.getByRole('button', { name: 'Connected connectors' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  expect(screen.getByRole('button', { name: 'All connectors' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
-  expect(screen.getByText('No connectors match this filter.')).toBeVisible();
 });
 it('disables authorization with missing server configuration without hiding local navigation', async () => {
   vi.mocked(getGitHubSession).mockResolvedValue({ available: false, connected: false });
@@ -176,13 +182,13 @@ it('keeps ciphertext upload explicit and clears passwords when the modal closes'
   expect(storage.uploadBackup).not.toHaveBeenCalled();
   await user.click(upload);
   await screen.findByText('Encrypted backup saved to GitHub.');
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   await user.click(screen.getByRole('button', { name: 'Manage connection' }));
   expect(screen.getByLabelText('Backup password', { exact: true })).toHaveValue('');
 });
 it('confirms disconnect for all tabs without removing routes or cloud files', async () => {
   const user = await setupRepository();
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   const disconnect = githubCard().getByRole('button', { name: 'Disconnect GitHub' });
   expect(disconnect.closest('.connector-card-heading')).toBeInTheDocument();
   expect(
@@ -202,7 +208,7 @@ it('confirms disconnect for all tabs without removing routes or cloud files', as
 });
 it('does not pretend disconnect succeeded after a server failure', async () => {
   const user = await setupRepository();
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   vi.mocked(logoutGitHub).mockRejectedValue(new ConnectorError('network'));
   await user.click(githubCard().getByRole('button', { name: 'Disconnect GitHub' }));
   const modal = screen.getByRole('dialog', { name: 'Disconnect GitHub?' });
@@ -231,7 +237,7 @@ it('refreshes status after another tab signs out and drops access to backup oper
     ).not.toBeInTheDocument(),
   );
   expect(screen.getByRole('button', { name: 'Sign in with GitHub' })).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
 });
 it('restores repository choice after reload from the cookie session and local metadata', async () => {
   localStorage.setItem(
@@ -268,9 +274,8 @@ it('shows session failures once in Sonner, keeps card status and permits a fresh
   screen.getByRole('button', { name: 'Dismiss notification' }).focus();
   await user.keyboard('{Enter}');
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-  await user.type(screen.getByRole('textbox', { name: 'Search connectors' }), 'Git');
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'Check connection' }));
+  await user.click(githubCard().getByRole('button', { name: 'Retry' }));
   await screen.findByText('Not connected');
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   vi.mocked(getGitHubSession).mockRejectedValueOnce(new ConnectorError('network'));
@@ -278,12 +283,61 @@ it('shows session failures once in Sonner, keeps card status and permits a fresh
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach GitHub.');
 });
 
+it('keeps Calendar in its own group and closes its dialog without leaving connections', async () => {
+  vi.mocked(getGoogleCalendarSession).mockResolvedValue({
+    available: true,
+    connected: true,
+    accountId: 'calendar-user',
+    email: 'calendar@example.test',
+    expiresAt: Date.now() + 3600000,
+  });
+  const close = vi.fn();
+  render(<StorageConnections open onClose={close} />);
+  const article = screen.getByRole('heading', { name: 'Google Calendar' }).closest('article')!;
+  const card = within(article);
+  expect(article.querySelector('img')).toHaveAttribute('src', '/google-calendar-2026.svg');
+  await card.findByText('Connected');
+  const user = userEvent.setup();
+  const manage = card.getByRole('button', { name: 'Manage connection' });
+  await user.click(manage);
+  const calendarDialog = screen.getByRole('dialog', {
+    name: 'Google Calendar connection settings',
+  });
+  expect(calendarDialog).toBeVisible();
+  expect(calendarDialog).not.toHaveClass('compact');
+  expect(calendarDialog.querySelector('.storage-connections')).toBeInTheDocument();
+  expect(calendarDialog.querySelector('.connector-connection-summary')).toHaveTextContent(
+    'calendar@example.test',
+  );
+  expect(within(calendarDialog).getByRole('button', { name: 'Close dialog' })).toBeVisible();
+  expect(calendarDialog.querySelectorAll('details')).toHaveLength(1);
+  expect(calendarDialog.querySelector('details')).not.toHaveAttribute('open');
+  expect(screen.queryByRole('tab', { name: 'Create a backup' })).not.toBeInTheDocument();
+  await user.keyboard('{Escape}');
+  await waitFor(() => expect(manage).toHaveFocus());
+  expect(close).not.toHaveBeenCalled();
+  expect(screen.getByRole('heading', { name: 'GitHub' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Google Calendar' })).toBeVisible();
+  await user.click(card.getByRole('button', { name: 'Disconnect Google Calendar' }));
+  expect(screen.getByRole('dialog', { name: 'Disconnect Google Calendar?' })).toBeVisible();
+  vi.mocked(getGoogleCalendarSession).mockResolvedValue({ available: true, connected: false });
+  await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+  await waitFor(() => expect(logoutGoogleCalendar).toHaveBeenCalledOnce());
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(logoutGoogleDrive).not.toHaveBeenCalled();
+  expect(logoutGitHub).not.toHaveBeenCalled();
+  expect(card.getByRole('button', { name: 'Set up connection' })).toBeEnabled();
+  expect(
+    card.queryByRole('button', { name: 'Disconnect Google Calendar' }),
+  ).not.toBeInTheDocument();
+});
+
 it('rechecks Google Drive inside its own card after a session failure', async () => {
   vi.mocked(getGoogleDriveSession).mockRejectedValueOnce(new ConnectorError('network'));
   render(<StorageConnections open onClose={vi.fn()} />);
   const card = within(screen.getByRole('heading', { name: 'Google Drive' }).closest('article')!);
   await card.findByText('Connection needs attention');
-  await userEvent.setup().click(card.getByRole('button', { name: 'Check connection' }));
+  await userEvent.setup().click(card.getByRole('button', { name: 'Retry' }));
   await card.findByText('Unavailable');
   expect(getGoogleDriveSession).toHaveBeenCalledTimes(2);
 });
@@ -293,10 +347,13 @@ it('keeps retry inside the provider card with progress, no duplicate requests an
   render(<StorageConnections open onClose={vi.fn()} />);
   await screen.findByText('Connection needs attention');
   const card = screen.getByRole('heading', { name: 'GitHub' }).closest('article');
-  const retry = githubCard().getByRole('button', { name: 'Check connection' });
+  const retry = githubCard().getByRole('button', { name: 'Retry' });
   expect(card).toContainElement(retry);
+  expect(retry).toHaveClass('connector-primary-action');
   expect(retry.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
-  expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  expect(githubCard().getByRole('button', { name: 'Set up connection' })).not.toHaveClass(
+    'connector-primary-action',
+  );
   let complete!: (value: typeof authorized) => void;
   vi.mocked(getGitHubSession).mockReturnValueOnce(
     new Promise((resolve) => {
@@ -314,15 +371,18 @@ it('keeps retry inside the provider card with progress, no duplicate requests an
   expect(getGitHubSession).toHaveBeenCalledTimes(2);
   complete(authorized);
   await waitFor(() =>
-    expect(githubCard().getByRole('button', { name: 'Check connection' })).toBeEnabled(),
+    expect(githubCard().getByRole('button', { name: 'Manage connection' })).toBeEnabled(),
   );
-  expect(githubCard().getByRole('button', { name: 'Check connection' })).toHaveFocus();
+  expect(githubCard().getByRole('button', { name: 'Manage connection' })).toHaveFocus();
+  expect(githubCard().queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  expect(githubCard().getAllByRole('button')).toHaveLength(2);
   expect(screen.getByText('Connected', { exact: true })).toBeVisible();
 });
 
 it('does not steal focus if the user moves away while a connection check is pending', async () => {
+  vi.mocked(getGitHubSession).mockRejectedValueOnce(new ConnectorError('network'));
   render(<StorageConnections open onClose={vi.fn()} />);
-  await screen.findByText('Not connected');
+  await githubCard().findByText('Connection needs attention');
   let complete!: (value: typeof authorized) => void;
   vi.mocked(getGitHubSession).mockReturnValueOnce(
     new Promise((resolve) => {
@@ -330,14 +390,14 @@ it('does not steal focus if the user moves away while a connection check is pend
     }),
   );
   const user = userEvent.setup();
-  await user.click(githubCard().getByRole('button', { name: 'Check connection' }));
-  const search = screen.getByRole('textbox', { name: 'Search connectors' });
-  search.focus();
+  await user.click(githubCard().getByRole('button', { name: 'Retry' }));
+  const back = screen.getByRole('button', { name: 'Back to map' });
+  back.focus();
   complete(authorized);
   await waitFor(() =>
-    expect(githubCard().getByRole('button', { name: 'Check connection' })).toBeEnabled(),
+    expect(githubCard().getByRole('button', { name: 'Manage connection' })).toBeEnabled(),
   );
-  expect(search).toHaveFocus();
+  expect(back).toHaveFocus();
 });
 
 it('shows OAuth callback failure as a dismissible Sonner toast, not a page banner', async () => {
@@ -424,14 +484,14 @@ it('requires confirmation to stop an upload and ignores its late completion', as
   await user.click(screen.getByRole('button', { name: 'Create encrypted backup' }));
   await waitFor(() => expect(storage.uploadBackup).toHaveBeenCalled());
   const signal = vi.mocked(storage.uploadBackup).mock.calls[0][1];
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   const prompt = screen.getByRole('dialog', { name: 'Stop this operation?' });
   expect(within(prompt).getByRole('button', { name: 'Keep working' })).toHaveFocus();
   expect(signal?.aborted).toBe(false);
   expect(prompt).toHaveTextContent('The backup may already have reached GitHub.');
   await user.click(within(prompt).getByRole('button', { name: 'Keep working' }));
   expect(signal?.aborted).toBe(false);
-  await user.click(screen.getByRole('button', { name: 'Done' }));
+  await user.click(screen.getByRole('button', { name: 'Close dialog' }));
   await user.click(screen.getByRole('button', { name: 'Stop and close' }));
   expect(signal?.aborted).toBe(true);
   finish(entry);

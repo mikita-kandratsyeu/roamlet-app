@@ -14,6 +14,11 @@ import { exportGpx, importGpx } from './domain/gpx';
 import { checkRoutingConfiguration } from './services/routing';
 import { importGpxFile } from './services/gpxImport';
 import i18n, { detectLanguage, LANGUAGE_KEY } from './i18n';
+vi.mock('./services/connectors/googleCalendar', async (original) => ({
+  ...await original<typeof import('./services/connectors/googleCalendar')>(),
+  getGoogleCalendarSession: vi.fn().mockResolvedValue({ available: false, connected: false }),
+  logoutGoogleCalendar: vi.fn(),
+}));
 vi.mock('./services/connectors/googleDriveSession', () => ({
   getGoogleDriveSession: vi.fn().mockResolvedValue({ available: false, connected: false }),
   logoutGoogleDrive: vi.fn(),
@@ -162,6 +167,9 @@ describe('first-visit disclaimer', () => {
     const view = render(<App />);
     const dialog = screen.getByRole('dialog', { name: 'Before you plan' });
     const confirm = within(dialog).getByRole('button', { name: 'Understood' });
+    expect(within(dialog).getByRole('note')).toHaveTextContent(
+      'Routes do not guarantee safety or access.',
+    );
     expect(confirm).toHaveFocus();
     expect(within(dialog).getAllByRole('button')).toHaveLength(1);
     expect(localStorage.getItem(DISCLAIMER_KEY)).toBeNull();

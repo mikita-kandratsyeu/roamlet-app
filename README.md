@@ -8,6 +8,7 @@ An account-free, local-first cycling and hiking route planner.
 - Manual planning, GPX import/export and a local route library without a routing service.
 - Route comparison, elevation profiles, climb analysis and personal time estimates.
 - Departure schedules, waypoint pauses and optional weather forecasts.
+- Optional Google Calendar events with explicit time zones and manual updates; offline ICS export.
 - Draft recovery, undo/redo, local JSON backups and optional encrypted Google Drive/GitHub backups.
 - PNG route cards and structured summaries for manually sharing with an AI chat.
 - English/Russian, light/dark/system themes and responsive desktop/mobile layouts.
@@ -49,7 +50,7 @@ Maps, automatic routing, weather and cloud connections need internet. Offline su
 | Planning, schedules, weather, comparison and estimates    | [Route planning](docs/planning.md)          |
 | GPX, AI summaries and social images                       | [Exports and sharing](docs/exports.md)      |
 | Drafts, history, library and JSON backups                 | [Local storage](docs/storage.md)            |
-| Google Drive/GitHub setup, sessions and encrypted backups | [Connections](docs/connections.md)          |
+| Google Calendar, Drive/GitHub setup and sessions          | [Connections](docs/connections.md)          |
 | Local tools, environment and dev server                   | [Development](docs/development.md)          |
 | Vercel deployment, secrets and public API protection      | [Deployment](docs/deployment.md)            |
 | Installation, offline readiness and app updates           | [PWA and offline behavior](docs/offline.md) |

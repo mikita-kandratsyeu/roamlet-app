@@ -9,6 +9,7 @@ import {
   type ScheduleUnavailable,
 } from '../domain/schedule';
 import type { Coordinate, PlannedRoute, Waypoint } from '../domain/types';
+import { RouteCalendarActions, type RouteCalendarInput } from './RouteCalendarActions';
 
 const emptySegments: Coordinate[][] = [];
 import './RouteSchedule.css';
@@ -17,6 +18,7 @@ import './disclosures.css';
 export interface RouteScheduleProps {
   route: PlannedRoute | null;
   showHeading?: boolean;
+  calendar?: RouteCalendarInput;
   /** Editor waypoints, not the possibly older waypoint metadata in a routing response. */
   waypoints: Waypoint[];
   departureLocal?: string;
@@ -85,7 +87,7 @@ function PauseField({ waypoint, onCommit }: {
   </div>;
 }
 export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds,
-  geometryCurrent = true, contextKey, showHeading = true, onDepartureLocal, onWaypointPause }: RouteScheduleProps) {
+  geometryCurrent = true, contextKey, showHeading = true, calendar, onDepartureLocal, onWaypointPause }: RouteScheduleProps) {
   const { t, i18n } = useTranslation();
   const segments = geometryCurrent ? route?.segments ?? emptySegments : emptySegments;
   const coordinatesKey = JSON.stringify(waypoints.map((point) => point.coordinate));
@@ -108,7 +110,7 @@ export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds,
     {showHeading && <div className="section-heading">
       <h2><Clock3 size={16} aria-hidden="true" />{t('Route schedule')}</h2>
     </div>}
-    <DepartureField key={contextKey ?? route?.id} value={departureLocal} onCommit={onDepartureLocal} />
+    <DepartureField key={`departure:${contextKey ?? route?.id}`} value={departureLocal} onCommit={onDepartureLocal} />
     {schedule.unavailable && <p className="route-schedule-notice">{t(reasons[schedule.unavailable])}</p>}
     <ol className="route-schedule-list">
       {schedule.rows.map((row, index) => <li key={`${contextKey ?? route?.id}:${row.waypoint.id}`}>
@@ -126,6 +128,15 @@ export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds,
       </li>)}
     </ol>
     <p className="route-schedule-finish"><strong>{t('Route end after all pauses')}</strong> {time(schedule.finishLocal)}</p>
+    {calendar && <RouteCalendarActions key={`calendar:${calendar.routeId}`}
+      input={{ ...calendar, description: [calendar.description,
+        route ? t('Distance: {{distance}} km', { distance: (route.stats.distance / 1000).toLocaleString(language, { maximumFractionDigits: 1 }) }) : '',
+        t('Waypoint pauses: {{minutes}} minutes', { minutes: waypoints.reduce((sum, point) => sum + (point.pauseMinutes ?? 0), 0) }),
+      ].filter(Boolean).join('\n') }}
+      departureLocal={departureLocal}
+      durationSeconds={schedule.finishLocal && !schedule.unavailable && movingSeconds !== null
+        ? movingSeconds + waypoints.reduce((sum, point) => sum + (point.pauseMinutes ?? 0) * 60, 0) : null}
+      location={waypoints[0]?.name ?? ''} />}
     <details className="route-schedule-explanation planner-disclosure">
       <summary className="section-heading">
         <span>{t('How arrival times are estimated')}</span>
