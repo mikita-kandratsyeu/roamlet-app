@@ -28,8 +28,10 @@ import { Label } from './ui/label';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import './RouteCalendarActions.css';
@@ -73,6 +75,9 @@ export function RouteCalendarActions({
   const [localEventId] = useState(createCalendarEventId);
   const [open, setOpen] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [timeZoneMenuOpen, setTimeZoneMenuOpen] = useState(false);
+  const [searchAllTimeZones, setSearchAllTimeZones] = useState(false);
+  const [timeZoneQuery, setTimeZoneQuery] = useState('');
   const [timeZone, setTimeZone] = useState(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   );
@@ -81,10 +86,34 @@ export function RouteCalendarActions({
   const id = useId();
   const cancelButton = useRef<HTMLButtonElement>(null);
   const zoneInput = useRef<HTMLButtonElement>(null);
+  const timeZoneSearchInput = useRef<HTMLInputElement>(null);
   const { record } = publication;
   const availableTimeZones = timeZoneOptions.includes(timeZone)
     ? timeZoneOptions
     : [...timeZoneOptions, timeZone].sort();
+  const popularTimeZones = [
+    ...new Set([
+      timeZone,
+      'UTC',
+      'Europe/Minsk',
+      'Europe/Warsaw',
+      'Europe/London',
+      'Europe/Paris',
+      'America/New_York',
+      'America/Los_Angeles',
+      'Asia/Dubai',
+      'Asia/Tokyo',
+      'Australia/Sydney',
+    ]),
+  ].filter((zone) => availableTimeZones.includes(zone));
+  const matchingTimeZones = timeZoneQuery.trim()
+    ? availableTimeZones.filter((zone) =>
+        zone.toLocaleLowerCase().includes(timeZoneQuery.trim().toLocaleLowerCase()),
+      )
+    : [];
+  useEffect(() => {
+    if (searchAllTimeZones) timeZoneSearchInput.current?.focus();
+  }, [searchAllTimeZones]);
   useEffect(() => {
     if (record) {
       setTimeZone(record.timeZone);
@@ -290,7 +319,16 @@ export function RouteCalendarActions({
               <div className="calendar-event-fields">
                 <div className="calendar-event-field">
                   <Label htmlFor={`${id}-zone`}>{t('Start time zone (IANA)')}</Label>
-                  <DropdownMenu>
+                  <DropdownMenu
+                    open={timeZoneMenuOpen}
+                    onOpenChange={(nextOpen) => {
+                      setTimeZoneMenuOpen(nextOpen);
+                      if (!nextOpen) {
+                        setSearchAllTimeZones(false);
+                        setTimeZoneQuery('');
+                      }
+                    }}
+                  >
                     <DropdownMenuTrigger asChild disabled={publication.busy}>
                       <Button
                         ref={zoneInput}
@@ -310,13 +348,73 @@ export function RouteCalendarActions({
                       collisionPadding={12}
                       className="planner-choice-menu calendar-timezone-menu"
                     >
+                      {searchAllTimeZones && (
+                        <div className="calendar-timezone-search">
+                          <Input
+                            ref={timeZoneSearchInput}
+                            type="search"
+                            value={timeZoneQuery}
+                            onChange={(event) => setTimeZoneQuery(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'ArrowDown') {
+                                event.preventDefault();
+                                event.currentTarget
+                                  .closest('[role="menu"]')
+                                  ?.querySelector<HTMLElement>('[role="menuitemradio"]')
+                                  ?.focus();
+                              } else if (event.key === 'Escape') {
+                                event.preventDefault();
+                                setTimeZoneMenuOpen(false);
+                              } else if (event.key !== 'Tab') {
+                                event.stopPropagation();
+                              }
+                            }}
+                            aria-label={t('Search all time zones')}
+                            placeholder={t('Search by region, e.g. Europe/Minsk')}
+                            autoComplete="off"
+                          />
+                        </div>
+                      )}
                       <DropdownMenuRadioGroup value={timeZone} onValueChange={setTimeZone}>
-                        {availableTimeZones.map((zone) => (
+                        {(searchAllTimeZones
+                          ? matchingTimeZones.slice(0, 30)
+                          : popularTimeZones
+                        ).map((zone) => (
                           <DropdownMenuRadioItem key={zone} value={zone}>
                             {zone}
                           </DropdownMenuRadioItem>
                         ))}
                       </DropdownMenuRadioGroup>
+                      {searchAllTimeZones && !timeZoneQuery.trim() && (
+                        <p className="calendar-timezone-search-hint" role="status">
+                          {t('Type to search all time zones.')}
+                        </p>
+                      )}
+                      {searchAllTimeZones &&
+                        timeZoneQuery.trim() &&
+                        matchingTimeZones.length === 0 && (
+                          <p className="calendar-timezone-search-hint" role="status">
+                            {t('No matching time zones.')}
+                          </p>
+                        )}
+                      {searchAllTimeZones && matchingTimeZones.length > 30 && (
+                        <p className="calendar-timezone-search-hint" role="status">
+                          {t('Refine your search to see fewer matches.')}
+                        </p>
+                      )}
+                      {!searchAllTimeZones && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onSelect={(event) => {
+                              event.preventDefault();
+                              setSearchAllTimeZones(true);
+                            }}
+                          >
+                            {t('Search all time zones')}
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

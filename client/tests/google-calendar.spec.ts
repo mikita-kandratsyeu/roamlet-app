@@ -122,7 +122,19 @@ test('publishes a previewed saved route, updates the same event manually and fit
   await page.getByRole('button', { name: 'Add to calendar', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Route calendar event', exact: true });
   await dialog.getByRole('button', { name: 'Start time zone (IANA)' }).click();
-  await page.getByRole('menuitemradio', { name: 'Europe/Warsaw', exact: true }).click();
+  await expect(page.locator('.calendar-timezone-menu')).toHaveCSS('overflow-y', 'auto');
+  await expect(
+    page.getByRole('menuitemradio', { name: 'Europe/Warsaw', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('menuitemradio', { name: 'America/Chicago', exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole('menuitem', { name: 'Search all time zones' }).click();
+  await page.getByRole('searchbox', { name: 'Search all time zones' }).fill('America/Chicago');
+  await page.getByRole('menuitemradio', { name: 'America/Chicago', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Start time zone (IANA)' })).toContainText(
+    'America/Chicago',
+  );
   await expect(dialog.getByRole('button', { name: 'Confirm event creation' })).toBeEnabled();
   expect(publications).toHaveLength(0);
   await expect(dialog.getByRole('button', { name: 'Confirm event creation' })).toBeInViewport();

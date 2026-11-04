@@ -225,7 +225,7 @@ it('retains calendar actions after expiry and offers reconnection', async () => 
   expect(screen.getByRole('button', { name: 'Confirm event creation' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Reconnect Google Calendar' })).toBeEnabled();
 });
-it('offers only supported time zones and lets the user select UTC', async () => {
+it('keeps popular zones compact and searches the full timezone list', async () => {
   vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
   render(view());
   await screen.findByRole('button', { name: 'Add to calendar' });
@@ -234,6 +234,18 @@ it('offers only supported time zones and lets the user select UTC', async () => 
   const zone = screen.getByRole('button', { name: 'Start time zone (IANA)' });
   await user.click(zone);
   expect(screen.getByRole('menuitemradio', { name: 'Europe/Warsaw' })).toBeInTheDocument();
+  expect(screen.queryByRole('menuitemradio', { name: 'America/Chicago' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('menuitem', { name: 'Search all time zones' }));
+  const search = screen.getByRole('searchbox', { name: 'Search all time zones' });
+  await user.type(search, 'America/Chicago');
+  await user.click(screen.getByRole('menuitemradio', { name: 'America/Chicago' }));
+  expect(zone).toHaveTextContent('America/Chicago');
+
+  await user.click(zone);
+  expect(screen.getByRole('menuitemradio', { name: 'America/Chicago' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
   await user.click(screen.getByRole('menuitemradio', { name: 'UTC' }));
   expect(zone).toHaveTextContent('UTC');
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();

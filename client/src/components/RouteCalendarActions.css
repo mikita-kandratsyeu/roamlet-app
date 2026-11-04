@@ -148,6 +148,29 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.calendar-timezone-menu {
+  max-height: min(360px, calc(100dvh - 24px));
+  overflow-y: auto;
+}
+.calendar-timezone-search {
+  position: sticky;
+  top: -4px;
+  z-index: 1;
+  padding: 4px;
+  background: var(--popover);
+}
+.calendar-timezone-search input {
+  width: 100%;
+  min-height: 40px;
+  font-size: 16px;
+}
+.calendar-timezone-search-hint {
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--muted-foreground);
+  font-size: var(--font-size-label);
+  line-height: 1.4;
+}
 .calendar-event-content .fine-print {
   margin: 0;
   color: var(--muted-foreground);
