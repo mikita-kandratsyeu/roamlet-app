@@ -68,13 +68,6 @@ export function GoogleCalendarConnection({
           )}
           onClose={() => setManaging(false)}
           initialFocusRef={done}
-          footer={
-            <div className="button-row dialog-actions connector-modal-footer">
-              <Button ref={done} variant="outline" onClick={() => setManaging(false)}>
-                {t('Done')}
-              </Button>
-            </div>
-          }
         >
           <div className="storage-connections">
             {connected && (
