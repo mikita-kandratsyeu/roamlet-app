@@ -450,7 +450,7 @@ describe('social export compositions', () => {
       expect(context.createLinearGradient).toHaveBeenCalledTimes(
         variant.template === 'adventure' ? 1 : 0,
       );
-      expect(context.roundRect).toHaveBeenCalledTimes(variant.template === 'minimal' ? 1 : 3);
+      expect(context.roundRect).toHaveBeenCalledTimes(variant.template === 'minimal' ? 1 : 2);
       expect(texts.some((text) => text.text === 'Elevation profile')).toBe(
         variant.template === 'elevation',
       );
@@ -529,6 +529,12 @@ describe('social export compositions', () => {
     expect(legacy.strokes).toEqual(explicit.strokes);
     expect(legacy.texts).toEqual(explicit.texts);
     expect(legacy.gradients).toEqual(explicit.gradients);
+  });
+
+  it.each(['teal', 'violet', 'rose'] as const)('renders with the %s accent', async (accent) => {
+    const { canvas } = canvasMock();
+    await renderRouteCard({ ...request, accent }, canvas);
+    expect(canvas.toBlob).toHaveBeenCalledOnce();
   });
 
   it('uses only visible original heights after privacy clipping, not hidden endpoint heights', async () => {
@@ -737,14 +743,12 @@ describe('offline PNG rendering', () => {
     });
   });
   it.each(['План маршрута', 'Planned route', 'PLANNED ROUTE', 'gyp route'])(
-    'centers visible badge glyphs rather than the font box for %s',
+    'omits the planned-route badge from the exported image for %s',
     async (plannedLabel) => {
       const { canvas, context, texts } = canvasMock();
       await renderRouteCard({ ...request, plannedLabel }, canvas);
-      const badge = texts.find((text) => text.text === plannedLabel)!;
-      const [, top, , height] = context.roundRect.mock.calls[1];
-      expect(badge.baseline).toBe('alphabetic');
-      expect(badge.y + (badge.descent - badge.ascent) / 2).toBe(top + height / 2);
+      expect(texts.some((text) => text.text === plannedLabel)).toBe(false);
+      expect(context.roundRect.mock.calls.some(([, y]) => y === 86)).toBe(false);
       expect(context.textBaseline).toBe('top');
     },
   );
@@ -864,7 +868,7 @@ describe('offline PNG rendering', () => {
         expect(value.align).toBe('center');
         expect(value.x).toBe(labels[index].x);
       });
-      if (count) expect(context.roundRect.mock.calls[2][4]).toBe(28);
+      if (count) expect(context.roundRect.mock.calls[1][4]).toBe(28);
     },
   );
   it.each(['light', 'dark'] as const)(
@@ -908,12 +912,9 @@ describe('offline PNG rendering', () => {
       expect(context.fillText.mock.invocationCallOrder[0]).toBeLessThan(
         context.fillText.mock.invocationCallOrder[1],
       );
-      expect(context.roundRect.mock.calls[1][1]).toBe(86);
-      const [badgeX, , badgeWidth] = context.roundRect.mock.calls[1];
-      expect(badgeX + badgeWidth).toBe(1008);
-      expect(texts[0].x + texts[0].width + 24).toBeLessThan(badgeX);
-      expect(texts[2].font).toBe('800 64px sans-serif');
-      expect(texts[0].y + 36).toBeLessThan(texts[2].y);
+      const title = texts.find((text) => text.font === '800 64px sans-serif');
+      expect(title?.y).toBeGreaterThan(texts[0].y + 36);
+      expect(context.roundRect.mock.calls.some(([, y]) => y === 86)).toBe(false);
     },
   );
   it.each(['light', 'dark'] as const)(
@@ -1003,13 +1004,10 @@ describe('offline PNG rendering', () => {
       expect(title[2].text).toContain('…');
       expect(activity).toHaveLength(2);
       expect(activity[0].y).toBeGreaterThan(title[2].y + 64);
-      const [badgeX, badgeY, badgeWidth, badgeHeight] = context.roundRect.mock.calls[1];
-      expect([badgeY, badgeHeight]).toEqual([format === 'story' ? 260 : 86, 36]);
-      expect(badgeWidth).toBeLessThanOrEqual(440);
-      expect(badgeX + badgeWidth).toBe(1008);
-      expect(texts[0].x + texts[0].width + 24).toBeLessThan(badgeX);
-      expect(texts[1].x + texts[1].width).toBeLessThanOrEqual(badgeX + badgeWidth - 16);
-      expect(title[0].y).toBeGreaterThan(badgeY + badgeHeight);
+      expect(
+        context.roundRect.mock.calls.some(([, y]) => y === (format === 'story' ? 260 : 86)),
+      ).toBe(false);
+      expect(title[0].y).toBeGreaterThanOrEqual(176 + (format === 'story' ? 174 : 0));
       for (const text of texts) {
         const left = text.align === 'center' ? text.x - text.width / 2 : text.x;
         expect(left).toBeGreaterThanOrEqual(72);
@@ -1033,10 +1031,10 @@ describe('offline PNG rendering', () => {
       });
       expect(values).toHaveLength(count);
       if (!count) {
-        expect(context.roundRect).toHaveBeenCalledTimes(2);
+        expect(context.roundRect).toHaveBeenCalledTimes(1);
         return;
       }
-      const [panelX, panelY, panelWidth, panelHeight] = context.roundRect.mock.calls[2];
+      const [panelX, panelY, panelWidth, panelHeight] = context.roundRect.mock.calls[1];
       expect([panelX, panelWidth, panelY + panelHeight]).toEqual([
         72,
         936,

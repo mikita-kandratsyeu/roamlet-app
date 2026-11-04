@@ -44,7 +44,7 @@ it.each([
 it('accepts all formats, templates and colors', () => {
   for (const format of ['post', 'story', 'square'])
     for (const template of ['minimal', 'adventure', 'elevation'])
-      for (const accent of ['green', 'blue', 'orange'])
+      for (const accent of ['green', 'blue', 'orange', 'teal', 'violet', 'rose'])
         expect(validSocialExport({ ...DEFAULT_SOCIAL_EXPORT, format, template, accent })).toBe(
           true,
         );

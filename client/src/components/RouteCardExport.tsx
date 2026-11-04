@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Copy, Download, Image, LoaderCircle, Share2, X } from 'lucide-react';
+import { Check, Copy, Download, Image, LoaderCircle, Share2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -321,22 +321,40 @@ export function RouteCardExport({
               variant="outline"
               aria-label={t('Accent color')}
               onValueChange={(value) => {
-                if (value === 'green' || value === 'blue' || value === 'orange') setAccent(value);
+                if (
+                  value === 'green' ||
+                  value === 'blue' ||
+                  value === 'orange' ||
+                  value === 'teal' ||
+                  value === 'violet' ||
+                  value === 'rose'
+                )
+                  setAccent(value);
               }}
+              className="route-card-accent-options"
             >
-              {(['green', 'blue', 'orange'] as const).map((color) => (
-                <ToggleGroupItem key={color} value={color}>
+              {(
+                [
+                  ['green', 'Forest green'],
+                  ['blue', 'Lake blue'],
+                  ['orange', 'Sunset orange'],
+                  ['teal', 'Lagoon turquoise'],
+                  ['violet', 'Heather violet'],
+                  ['rose', 'Berry pink'],
+                ] as const
+              ).map(([color, label]) => (
+                <ToggleGroupItem
+                  key={color}
+                  value={color}
+                  aria-label={t(label)}
+                  className={`route-card-accent-option route-card-accent-option-${color}`}
+                >
                   <span
                     className={`route-card-swatch route-card-swatch-${color}`}
                     aria-hidden="true"
-                  />
-                  {t(
-                    color === 'green'
-                      ? 'Forest green'
-                      : color === 'blue'
-                        ? 'Lake blue'
-                        : 'Sunset orange',
-                  )}
+                  >
+                    {accent === color && <Check size={18} strokeWidth={3} />}
+                  </span>
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>

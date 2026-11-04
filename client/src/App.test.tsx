@@ -571,7 +571,7 @@ describe('offline planner', () => {
     const original = screen.getByTestId('map').getAttribute('data-geometry');
     provider.calculateRoute.mockClear();
     setOnline(false);
-    expect(screen.getByText('No internet connection')).toBeVisible();
+    expect(screen.getByText('No network connection detected')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Update route' })).toBeDisabled();
     expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeDisabled();
     expect(screen.getByRole('radio', { name: 'Cycling' })).toBeDisabled();
@@ -581,7 +581,7 @@ describe('offline planner', () => {
     expect(screen.getByTestId('map').getAttribute('data-geometry')).toBe(original);
     setOnline(true);
     expect(screen.getByRole('button', { name: 'Update route' })).toBeEnabled();
-    expect(screen.queryByText('No internet connection')).not.toBeInTheDocument();
+    expect(screen.queryByText('No network connection detected')).not.toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(provider.calculateRoute).not.toHaveBeenCalled();
     expect(screen.getByTestId('map').getAttribute('data-geometry')).toBe(original);

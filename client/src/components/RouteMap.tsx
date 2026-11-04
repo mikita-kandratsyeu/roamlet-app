@@ -654,7 +654,7 @@ export function RouteMap(props: Props) {
     const timeout = window.setTimeout(() => {
       setLoading(false);
       if (!fallbackSavedStyle())
-        setMapError('The map took too long to load. Check your connection and reload the page.');
+        setMapError('The map took too long to load. The map provider may be unavailable.');
     }, 30000);
     instance.on('load', () => {
       installRouteLayers();
@@ -667,7 +667,7 @@ export function RouteMap(props: Props) {
       setLoading(false);
       if (fallbackSavedStyle()) return;
       setMapError(
-        'Some map tiles could not load. Check your connection or configured tile provider. No offline map is stored.',
+        'Some map tiles could not load. The map provider may be unavailable even if other internet services work. No offline map is stored.',
       );
     });
     instance.on('click', (event) => {
@@ -1261,7 +1261,13 @@ export function RouteMap(props: Props) {
       )}
       {(mapError || preferenceWarning) && (
         <Notification
-          title={t(mapError ? 'Map error' : 'Notification')}
+          title={t(
+            mapError
+              ? configurationError
+                ? 'Map configuration error'
+                : 'Map unavailable'
+              : 'Notification',
+          )}
           message={translateMessage(mapError || preferenceWarning)}
           variant={mapError ? 'error' : 'warning'}
           dismissible={!configurationError}

@@ -61,6 +61,37 @@ it('keeps privacy guidance compact, accessible and expandable without generating
   expect(generateRouteCard).not.toHaveBeenCalled();
 });
 
+it('shows accent color swatches without text and keeps their accessible names', () => {
+  render(<RouteCardExport route={route} />);
+  const selected = screen.getByRole('radio', { name: 'Forest green' });
+  expect(selected).toHaveAttribute('data-state', 'on');
+  expect(selected.querySelector('svg')).toBeInTheDocument();
+  for (const name of [
+    'Forest green',
+    'Lake blue',
+    'Sunset orange',
+    'Lagoon turquoise',
+    'Heather violet',
+    'Berry pink',
+  ]) {
+    const option = screen.getByRole('radio', { name });
+    expect(option).not.toHaveTextContent(name);
+    expect(option.querySelector('.route-card-swatch')).toBeInTheDocument();
+  }
+});
+
+it('uses the added accent color when generating the route image', async () => {
+  const user = userEvent.setup();
+  render(<RouteCardExport route={route} />);
+  await user.click(screen.getByRole('radio', { name: 'Lagoon turquoise' }));
+  await user.click(screen.getByRole('button', { name: 'Create preview' }));
+  await screen.findByRole('img', { name: 'Generated route image' });
+  expect(generateRouteCard).toHaveBeenCalledWith(
+    expect.objectContaining({ accent: 'teal' }),
+    expect.any(AbortSignal),
+  );
+});
+
 it('generates on button press, downloads the same PNG, and preserves the route', async () => {
   const original = JSON.stringify(route);
   const user = userEvent.setup();

@@ -5,7 +5,7 @@ export { getRouteCardDimensions } from './routeCardLayout';
 
 export type RouteCardFormat = 'post' | 'story' | 'square';
 export type RouteCardTemplate = 'minimal' | 'adventure' | 'elevation';
-export type RouteCardAccent = 'green' | 'blue' | 'orange';
+export type RouteCardAccent = 'green' | 'blue' | 'orange' | 'teal' | 'violet' | 'rose';
 export type RouteCardTheme = 'light' | 'dark';
 
 export interface RouteCardRequest {
@@ -380,6 +380,9 @@ const ACCENTS = {
   green: { light: '#1f6846', dark: '#9de4b5', deep: '#173b30', soft: '#bdd3a5' },
   blue: { light: '#245f9e', dark: '#9ecfff', deep: '#193754', soft: '#b5d4ee' },
   orange: { light: '#a34719', dark: '#ffc18c', deep: '#4a2d20', soft: '#edc5a0' },
+  teal: { light: '#0f766e', dark: '#5eead4', deep: '#123f3a', soft: '#a7f3d0' },
+  violet: { light: '#6d28d9', dark: '#c4b5fd', deep: '#35215e', soft: '#ddd6fe' },
+  rose: { light: '#be185d', dark: '#f9a8d4', deep: '#4c1d35', soft: '#fbcfe8' },
 } satisfies Record<RouteCardAccent, { light: string; dark: string; deep: string; soft: string }>;
 type AccentPalette = (typeof ACCENTS)[RouteCardAccent];
 
@@ -605,7 +608,8 @@ export async function renderRouteCard(
     if (
       (request.template !== undefined &&
         !['minimal', 'adventure', 'elevation'].includes(template)) ||
-      (request.accent !== undefined && !['green', 'blue', 'orange'].includes(accent)) ||
+      (request.accent !== undefined &&
+        !['green', 'blue', 'orange', 'teal', 'violet', 'rose'].includes(accent)) ||
       (request.elevationProfileLabel !== undefined &&
         typeof request.elevationProfileLabel !== 'string') ||
       (template === 'elevation' &&
@@ -641,18 +645,6 @@ export async function renderRouteCard(
     context.textBaseline = 'top';
     context.textAlign = 'left';
     drawBrand(context, ink, dark, palette, topInset);
-    context.font = '600 20px sans-serif';
-    const planned = fitText(context, safeText(request.plannedLabel), 408);
-    const badgeWidth = Math.min(440, context.measureText(planned).width + 32);
-    const badgeX = 1008 - badgeWidth;
-    if (template !== 'minimal') {
-      context.fillStyle = dark ? palette.soft + '1c' : palette.deep + '10';
-      context.beginPath();
-      context.roundRect(badgeX, 86 + headerOffset, badgeWidth, 36, 18);
-      context.fill();
-    }
-    context.fillStyle = routeColor;
-    drawCenteredText(context, planned, badgeX + 16, 104 + headerOffset);
     context.fillStyle = ink;
     const titleStep = compact ? 56 : 76;
     context.font = compact ? '700 44px sans-serif' : '800 64px sans-serif';

@@ -3,6 +3,7 @@ import { Toaster } from './ui/sonner';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MAP_VIEW_KEY, defaultMapView } from '../domain/mapView';
+import { toast } from 'sonner';
 import {
   PREFERENCES_KEY,
   loadPreferences,
@@ -294,21 +295,25 @@ it('shows the route loader inside the comparison map without locking the backgro
 });
 
 it('unblocks the application on errors and never leaves an endless loader', async () => {
+  const toastError = vi.spyOn(toast, 'error');
   render(<RouteMap {...props} />);
   act(() => mocks.handlers.get('error')?.());
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
   fireEvent.click(await screen.findByRole('button', { name: 'Dismiss notification' }));
+  expect(toastError).toHaveBeenCalledWith('Map unavailable', expect.anything());
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
 });
 it('releases the global loader after a map loading timeout', () => {
+  const toastError = vi.spyOn(toast, 'error');
   vi.useFakeTimers();
   render(<RouteMap {...props} />);
   act(() => vi.advanceTimersByTime(30000));
   act(() => vi.advanceTimersByTime(1));
   expect(screen.queryByTestId('global-map-loader')).not.toBeInTheDocument();
   expect(
-    screen.getByText('The map took too long to load. Check your connection and reload the page.'),
+    screen.getByText('The map took too long to load. The map provider may be unavailable.'),
   ).toBeInTheDocument();
+  expect(toastError).toHaveBeenCalledWith('Map unavailable', expect.anything());
 });
 it('changes supported styles and restores actual geometry without resetting the camera', () => {
   const segments: [number, number][][] = [
@@ -451,6 +456,7 @@ it('shows persistent configuration UI for an unsupported map style', async () =>
   render(<RouteMap {...props} />);
   expect(mocks.options).not.toHaveBeenCalled();
   expect(await screen.findByRole('alert')).toHaveTextContent('VITE_MAP_STYLE');
+  expect(screen.getByText('Map configuration error')).toBeInTheDocument();
   expect(screen.getByRole('alert')).toHaveTextContent('Offline basemaps are not supported');
   expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Use my location' })).toBeDisabled();

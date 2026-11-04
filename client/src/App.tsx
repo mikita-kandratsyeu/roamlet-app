@@ -1142,7 +1142,7 @@ export default function App() {
           <Alert className="offline-banner" role="status">
             <WifiOff size={18} aria-hidden="true" />
             <div className="offline-banner-copy">
-              <strong>{t('No internet connection')}</strong>
+              <strong>{t('No network connection detected')}</strong>
               <span>
                 {t(
                   'Saved routes, GPX and coordinate-based manual drawing remain available. Map loading and automatic routing need internet.',
@@ -1171,7 +1171,7 @@ export default function App() {
                 </Button>
               )}
               <Button variant="outline" onClick={checkConnection}>
-                {t('Check connection')}
+                {t('Refresh network status')}
               </Button>
             </div>
           </Alert>

@@ -40,7 +40,7 @@ export function validSocialExport(value: unknown): value is SocialExportPreferen
     ['minimal', 'adventure', 'elevation'].includes(value.template) &&
     'accent' in value &&
     typeof value.accent === 'string' &&
-    ['green', 'blue', 'orange'].includes(value.accent) &&
+    ['green', 'blue', 'orange', 'teal', 'violet', 'rose'].includes(value.accent) &&
     'privacyRadius' in value &&
     typeof value.privacyRadius === 'number' &&
     Number.isInteger(value.privacyRadius) &&

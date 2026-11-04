@@ -282,6 +282,71 @@
 .route-card-swatch-orange {
   background: #b65821;
 }
+.route-card-swatch-teal {
+  background: #0f766e;
+}
+.route-card-swatch-violet {
+  background: #6d28d9;
+}
+.route-card-swatch-rose {
+  background: #be185d;
+}
+.route-card-accent-option-green {
+  --route-card-option-accent: #268052;
+}
+.route-card-accent-option-blue {
+  --route-card-option-accent: #286bb0;
+}
+.route-card-accent-option-orange {
+  --route-card-option-accent: #b65821;
+}
+.route-card-accent-option-teal {
+  --route-card-option-accent: #0f766e;
+}
+.route-card-accent-option-violet {
+  --route-card-option-accent: #6d28d9;
+}
+.route-card-accent-option-rose {
+  --route-card-option-accent: #be185d;
+}
+.route-card-settings .route-card-accent-options {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  width: 100%;
+}
+.route-card-settings .route-card-accent-options [data-slot='toggle-group-item'] {
+  min-height: 48px;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--foreground);
+  transition:
+    border-color 150ms,
+    box-shadow 150ms;
+}
+.route-card-settings
+  .route-card-accent-options
+  [data-slot='toggle-group-item']:hover:not(:disabled):not([data-state='on']) {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--route-card-option-accent) 55%, transparent);
+}
+.route-card-settings .route-card-accent-options [data-slot='toggle-group-item'][data-state='on'] {
+  border-color: var(--route-card-option-accent);
+  box-shadow: 0 0 0 1px var(--route-card-option-accent);
+}
+.route-card-settings .route-card-accent-options [data-state='on'] .route-card-swatch {
+  border-color: var(--surface);
+}
+.route-card-settings .route-card-accent-options .route-card-swatch {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+}
 .route-card-settings .route-card-privacy-presets [data-slot='toggle-group-item'] {
   justify-content: center;
   padding-inline: 4px;
@@ -294,8 +359,20 @@
   outline-offset: 2px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .route-card-settings [data-slot='toggle-group-item'] {
+  .route-card-settings [data-slot='toggle-group-item'],
+  .route-card-settings .route-card-accent-options [data-slot='toggle-group-item'] {
     transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .route-card-settings .route-card-accent-options [data-slot='toggle-group-item'][data-state='on'] {
+    border: 2px solid Highlight;
+    background: ButtonFace;
+    color: ButtonText;
+    box-shadow: none;
+  }
+  .route-card-settings .route-card-accent-options .route-card-swatch {
+    border: 1px solid ButtonText;
   }
 }
 .route-card-sharing-note {

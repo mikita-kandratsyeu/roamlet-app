@@ -573,7 +573,9 @@ for (const viewport of [
       await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeEnabled();
       await context.setOffline(true);
       try {
-        await expect(page.getByText('No internet connection', { exact: true })).toBeVisible();
+        await expect(
+          page.getByText('No network connection detected', { exact: true }),
+        ).toBeVisible();
         await expect(page.getByRole('heading', { name: 'Map unavailable offline' })).toBeVisible();
         await expect(page.getByTestId('global-map-loader')).toHaveCount(0);
         await expect(page.getByRole('group', { name: 'Map controls' })).toHaveCount(0);
