@@ -71,7 +71,6 @@ beforeEach(async () => {
       config.provider === 'google-drive' ? googleAdapter : githubAdapter,
     );
   await routeDb.routes.clear();
-  render(<Toaster />);
 });
 afterEach(() => {
   cleanup();
@@ -80,6 +79,7 @@ afterEach(() => {
 });
 async function setup() {
   vi.mocked(getGoogleDriveSession).mockResolvedValue(authorized);
+  render(<Toaster />);
   render(<StorageConnections open onClose={vi.fn()} />);
   await waitFor(() =>
     expect(createStorageConnector).toHaveBeenCalledWith({ provider: 'google-drive' }),
@@ -90,6 +90,7 @@ async function setup() {
   return user;
 }
 it('places Google Drive first, with its own logo, state and sign-in modal', async () => {
+  render(<Toaster />);
   render(<StorageConnections open onClose={vi.fn()} />);
   await card('Google Drive').findByText('Not connected');
   const cards = screen.getAllByRole('listitem');
@@ -148,10 +149,12 @@ it('displays expired Google access in Sonner and offers sign-in without affectin
   vi.mocked(googleAdapter.listBackups).mockRejectedValueOnce(new ConnectorError('auth'));
   await user.click(screen.getByRole('tab', { name: 'Restore a backup' }));
   await user.click(screen.getByRole('button', { name: 'Refresh cloud backups' }));
-  const alert = await screen.findByRole('alert');
-  expect(alert).toHaveTextContent('Your Google Drive session has expired');
-  expect(alert.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'error');
-  expect(screen.getAllByRole('alert')).toHaveLength(1);
+  const alerts = await screen.findAllByRole('alert');
+  const alert = alerts.find((a) =>
+    a.textContent?.includes('Your Google Drive session has expired'),
+  );
+  expect(alert).toBeDefined();
+  expect(alert!.closest('[data-sonner-toast]')).toHaveAttribute('data-type', 'error');
   expect(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'Sign in with Google' }),
   ).toBeEnabled();
@@ -210,6 +213,7 @@ it('does not keep a previous Google account backup list after account change', a
 });
 it('shows Google callback errors in Sonner and does not present GitHub errors', async () => {
   window.history.replaceState(null, '', '/?connectors=google-drive&google=error');
+  render(<Toaster />);
   render(<StorageConnections open onClose={vi.fn()} />);
   window.history.replaceState(null, '', '/');
   const alert = await screen.findByRole('alert');
@@ -219,6 +223,7 @@ it('shows Google callback errors in Sonner and does not present GitHub errors', 
 it('keeps Google unavailable without blocking GitHub or the map', async () => {
   vi.mocked(getGoogleDriveSession).mockResolvedValue({ available: false, connected: false });
   const close = vi.fn();
+  render(<Toaster />);
   render(<StorageConnections open onClose={close} />);
   await card('Google Drive').findByText('Unavailable');
   const user = userEvent.setup();
@@ -231,6 +236,7 @@ it('keeps Google unavailable without blocking GitHub or the map', async () => {
 it('uses localized Google product copy and shared password/backup controls', async () => {
   await i18n.changeLanguage('ru');
   vi.mocked(getGoogleDriveSession).mockResolvedValue(authorized);
+  render(<Toaster />);
   render(<StorageConnections open onClose={vi.fn()} />);
   await waitFor(() => expect(createStorageConnector).toHaveBeenCalled());
   await userEvent

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, Download, Globe2, LoaderCircle } from 'lucide-react';
+import { CalendarPlus, Download, Globe2, LoaderCircle } from 'lucide-react';
 import {
   buildCalendarEvent,
   CalendarDraftError,
@@ -148,15 +148,9 @@ export function RouteCalendarActions({
   return (
     <div className="route-calendar-actions">
       <div className="button-row">
-        {googleVisible && (
-          <Button variant="outline" aria-haspopup="dialog" onClick={() => setOpen(true)}>
-            <CalendarDays size={18} aria-hidden="true" />
-            {record?.htmlLink ? t('Update calendar event') : t('Add to Google Calendar')}
-          </Button>
-        )}
         <Button variant="outline" aria-haspopup="dialog" onClick={() => setOpen(true)}>
-          <Download size={18} aria-hidden="true" />
-          {t('Export calendar (.ics)')}
+          <CalendarPlus size={18} aria-hidden="true" />
+          {t('Add to calendar')}
         </Button>
       </div>
       {googleVisible && changed && (
@@ -210,7 +204,7 @@ export function RouteCalendarActions({
                   {publication.busy ? (
                     <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />
                   ) : (
-                    <CalendarDays size={18} aria-hidden="true" />
+                    <CalendarPlus size={18} aria-hidden="true" />
                   )}
                   {publication.busy
                     ? t('Publishing event…')
@@ -225,7 +219,7 @@ export function RouteCalendarActions({
           <div className="calendar-event-content">
             <section className="calendar-event-overview" aria-label={t('Event preview')}>
               <h3>
-                <CalendarDays size={20} aria-hidden="true" />
+                <CalendarPlus size={20} aria-hidden="true" />
                 <span>{event?.summary || input.name || t('Route')}</span>
               </h3>
               <dl className="calendar-event-times">

@@ -66,7 +66,7 @@ afterEach(() => {
 });
 async function preview() {
   const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: 'Export calendar (.ics)' }));
+  await user.click(screen.getByRole('button', { name: 'Add to calendar' }));
   const zone = screen.getByRole('textbox', { name: 'Start time zone (IANA)' });
   await user.clear(zone);
   await user.type(zone, 'Europe/Warsaw');
@@ -75,7 +75,7 @@ async function preview() {
 it('keeps ICS available without a connector and previews without transmitting data', async () => {
   render(view());
   await act(async () => {});
-  expect(screen.queryByRole('button', { name: 'Add to Google Calendar' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Add to calendar' })).toBeInTheDocument();
   const user = await preview();
   const times = screen.getByRole('region', { name: 'Event preview' }).querySelectorAll('time');
   expect(times[0]).toHaveAttribute('datetime', '2026-11-07T10:00:00+01:00');
@@ -124,7 +124,7 @@ it.each([
     const user = userEvent.setup();
     await user.click(
       screen.getByRole('button', {
-        name: language === 'ru' ? 'Экспорт в календарь (.ics)' : 'Export calendar (.ics)',
+        name: language === 'ru' ? 'Добавить в календарь' : 'Add to calendar',
       }),
     );
     const zone = screen.getByRole('textbox', { name: zoneLabel });
@@ -159,7 +159,7 @@ it.each([
 it('publishes only after confirmation and manually updates the same persisted event', async () => {
   vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
   const { rerender } = render(view());
-  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  await screen.findByRole('button', { name: 'Add to calendar' });
   const user = await preview();
   expect(publishCalendarEvent).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'Confirm event creation' }));
@@ -176,7 +176,7 @@ it('publishes only after confirmation and manually updates the same persisted ev
     screen.getByText('Route or event settings changed. Update the calendar event manually.'),
   ).toBeVisible();
   expect(publishCalendarEvent).toHaveBeenCalledOnce();
-  await user.click(screen.getByRole('button', { name: 'Update calendar event' }));
+  await user.click(screen.getByRole('button', { name: 'Add to calendar' }));
   await user.click(screen.getByRole('button', { name: 'Confirm event update' }));
   await waitFor(() => expect(publishCalendarEvent).toHaveBeenCalledTimes(2));
   expect(vi.mocked(publishCalendarEvent).mock.calls[1][0].eventId).toBe(sent.eventId);
@@ -185,7 +185,7 @@ it('publishes only after confirmation and manually updates the same persisted ev
 it('blocks unsaved and offline publication but not ICS export', async () => {
   vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
   render(view({ canPublish: false, online: false }));
-  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  await screen.findByRole('button', { name: 'Add to calendar' });
   await preview();
   expect(screen.getByRole('button', { name: 'Confirm event creation' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Download .ics' })).toBeEnabled();
@@ -207,7 +207,7 @@ it('retains calendar actions after expiry and offers reconnection', async () => 
 it('rejects an invalid zone without publishing or downloading', async () => {
   vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
   render(view());
-  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  await screen.findByRole('button', { name: 'Add to calendar' });
   const user = await preview();
   const zone = screen.getByRole('textbox', { name: 'Start time zone (IANA)' });
   await user.clear(zone);
@@ -220,14 +220,14 @@ it('uses the same event ID after an uncertain network failure and reload', async
   vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
   vi.mocked(publishCalendarEvent).mockRejectedValueOnce(new ConnectorError('network'));
   const first = render(view());
-  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  await screen.findByRole('button', { name: 'Add to calendar' });
   let user = await preview();
   await user.click(screen.getByRole('button', { name: 'Confirm event creation' }));
   await screen.findByText('Could not reach Google Calendar. Check your connection, then retry.');
   const sentId = vi.mocked(publishCalendarEvent).mock.calls[0][0].eventId;
   first.unmount();
   render(view());
-  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  await screen.findByRole('button', { name: 'Add to calendar' });
   user = await preview();
   await user.click(screen.getByRole('button', { name: 'Confirm event creation' }));
   await screen.findByRole('link', { name: 'Open calendar event' });
@@ -242,7 +242,7 @@ it('confirms cancellation, aborts transport and ignores a late success', async (
     }),
   );
   render(view());
-  await screen.findByRole('button', { name: 'Add to Google Calendar' });
+  await screen.findByRole('button', { name: 'Add to calendar' });
   const user = await preview();
   await user.click(screen.getByRole('button', { name: 'Confirm event creation' }));
   await user.click(screen.getByRole('button', { name: 'Close dialog' }));
