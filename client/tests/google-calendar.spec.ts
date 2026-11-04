@@ -197,22 +197,13 @@ test('event preview uses localized dates, grouped settings and full-width offlin
   for (const dismiss of await page.getByRole('button', { name: 'Dismiss notification' }).all())
     await dismiss.click();
   await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
-  for (const [
-    language,
-    theme,
-    zoneLabel,
-    previewLabel,
-    guidanceLabel,
-    guidanceDescription,
-    downloadLabel,
-  ] of [
+  for (const [language, theme, zoneLabel, previewLabel, guidanceLabel, downloadLabel] of [
     [
       'en',
       'Light',
       'Start time zone (IANA)',
       'Event preview',
       'Timing and privacy',
-      'How the end time is calculated and what gets shared.',
       'Download .ics',
     ],
     [
@@ -221,7 +212,6 @@ test('event preview uses localized dates, grouped settings and full-width offlin
       'Часовой пояс старта (IANA)',
       'Предпросмотр события',
       'Расчёт времени и приватность',
-      'Как рассчитывается время окончания и какие данные передаются.',
       'Скачать .ics',
     ],
   ]) {
@@ -248,7 +238,16 @@ test('event preview uses localized dates, grouped settings and full-width offlin
     );
     const disclosure = dialog.locator('details').filter({ hasText: guidanceLabel });
     await expect(disclosure).not.toHaveAttribute('open');
-    await expect(disclosure.getByText(guidanceDescription)).toBeVisible();
+    const collapsedSpacing = await disclosure.evaluate((details) => ({
+      padding: getComputedStyle(details).padding,
+      summaryPadding: getComputedStyle(details.querySelector('summary')!).padding,
+      summaryMinHeight: getComputedStyle(details.querySelector('summary')!).minHeight,
+    }));
+    expect(collapsedSpacing).toEqual({
+      padding: '12px',
+      summaryPadding: '0px',
+      summaryMinHeight: '0px',
+    });
     const download = dialog.getByRole('button', { name: downloadLabel, exact: true });
     await expect(download).toHaveAttribute('data-variant', 'default');
     await expect(download).toBeInViewport();
@@ -312,7 +311,9 @@ test('Calendar connection uses the Drive dialog layout in English/light and Russ
     await page.goto('/?connectors=google-calendar&calendar=connected');
     const icon = calendarCard(page).locator('img');
     await expect(icon).toHaveAttribute('src', '/google-calendar-2026.svg');
-    await expect.poll(() => icon.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(96);
+    await expect
+      .poll(() => icon.evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBe(96);
     await calendarCard(page).getByRole('button', { name: manage }).click();
     const dialog = page.getByRole('dialog', { name: /Google Calendar/ });
     await expect(dialog).not.toHaveClass(/compact/);

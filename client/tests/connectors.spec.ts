@@ -364,7 +364,14 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(action).toBeEnabled();
       await expect(card.getByRole('button')).toHaveCount(1);
       await expect(action).toHaveAttribute('data-variant', 'default');
-      expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      const actionBox = (await action.boundingBox())!;
+      const cardBox = (await card.boundingBox())!;
+      expect(actionBox.height).toBeGreaterThanOrEqual(44);
+      if (testInfo.project.name === 'desktop') {
+        expect(actionBox.width).toBeLessThan(cardBox.width * 0.75);
+      } else {
+        expect(actionBox.width).toBeCloseTo(cardBox.width - 42, 0);
+      }
       expect(await card.evaluate((node) => node.scrollWidth)).toBeLessThanOrEqual(
         (await card.boundingBox())!.width,
       );

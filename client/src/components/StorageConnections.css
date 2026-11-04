@@ -1,4 +1,4 @@
-.connections-content {
+.library-screen-scroll > .connections-content {
   width: 100%;
   max-width: 1000px;
   min-width: 0;
@@ -29,7 +29,9 @@
   margin-top: auto;
 }
 .connector-card-actions > button {
-  width: 100%;
+  align-self: flex-start;
+  width: auto;
+  max-width: 100%;
 }
 .connector-primary-action > span {
   min-width: 0;
@@ -37,6 +39,9 @@
 @media (max-width: 700px) {
   .connections-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .connector-card-actions > button {
+    width: 100%;
   }
 }
 .connector-error {
