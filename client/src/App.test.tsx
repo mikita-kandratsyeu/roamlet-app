@@ -261,6 +261,17 @@ async function plan() {
   addCoordinate('47.27, 11.41');
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
 }
+it('uses an editable adventure name suggestion for a newly planned route', async () => {
+  await i18n.changeLanguage('en');
+  render(<App />);
+  await plan();
+  fireEvent.click(screen.getByRole('button', { name: 'Save route' }));
+  const nameInput = await screen.findByRole('textbox', { name: 'Route name' });
+  expect(nameInput).not.toHaveValue('Untitled adventure');
+  expect((nameInput as HTMLInputElement).value.trim()).not.toBe('');
+  fireEvent.change(nameInput, { target: { value: 'My own title' } });
+  expect(nameInput).toHaveValue('My own title');
+});
 function setOnline(online: boolean) {
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(online);
   act(() => window.dispatchEvent(new Event(online ? 'online' : 'offline')));
@@ -523,6 +534,7 @@ describe('route export', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     render(<App />);
     await plan();
+    const routeName = screen.getByRole('heading', { level: 1 }).textContent;
     const geometryBefore = screen.getByTestId('map').getAttribute('data-geometry');
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
     await screen.findByRole('dialog', { name: 'Export route' });
@@ -543,7 +555,7 @@ describe('route export', () => {
       reader.onerror = () => reject(reader.error);
       reader.readAsText(blob);
     });
-    expect(xml).toContain('<name>Untitled route</name>');
+    expect(xml).toContain(`<name>${routeName}</name>`);
     expect(importGpx(xml).segments).toEqual(JSON.parse(geometryBefore!));
     expect(xml).not.toContain('Weekend');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

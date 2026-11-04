@@ -51,6 +51,25 @@ it('does not use semicolons as separators in translations', () => {
   }
 });
 
+it('distinguishes offline network status from map and routing provider failures', async () => {
+  await i18n.changeLanguage('en');
+  expect(i18n.t('No network connection detected')).toBe('No network connection detected');
+  expect(
+    translateMessage(
+      'Some map tiles could not load. The map provider may be unavailable even if other internet services work. No offline map is stored.',
+    ),
+  ).toContain('map provider may be unavailable even if other internet services work');
+  expect(
+    translateMessage('Cannot reach the service. Check your internet connection and provider URL.'),
+  ).toContain('internet connection may still be working');
+
+  await i18n.changeLanguage('ru');
+  expect(i18n.t('No network connection detected')).toBe('Сетевое подключение отсутствует');
+  expect(
+    translateMessage('Cannot reach the service. Check your internet connection and provider URL.'),
+  ).toContain('Интернет при этом может работать');
+});
+
 it('loads complete JSON dictionaries with matching keys and interpolation placeholders', async () => {
   expect(Object.keys(russian).sort()).toEqual(Object.keys(english).sort());
   for (const key of Object.keys(english) as Array<keyof typeof english>) {

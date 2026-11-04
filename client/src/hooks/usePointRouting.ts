@@ -103,7 +103,7 @@ export function usePointRouting({
     ): PlannedRoute => ({
       ...latest.current.identity,
       ...latest.current.routeMetadata,
-      name: i18n.t('Untitled adventure'),
+      name: latest.current.name || i18n.t('Untitled adventure'),
       description: '',
       activity,
       waypoints: latest.current.waypoints,

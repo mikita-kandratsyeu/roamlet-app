@@ -84,6 +84,7 @@ import { HeaderMenu } from './components/HeaderMenu';
 import { PwaDialog } from './components/PwaDialog';
 import { usePwa } from './hooks/usePwa';
 import i18n, { formatNumber, translateMessage } from './i18n';
+import { routeNameSuggestionKey } from './domain/routeName';
 
 const Library = optionalLazy<ComponentProps<typeof import('./components/Library').Library>>(
   () => import('./components/Library').then(({ Library }) => ({ default: Library })),
@@ -146,6 +147,7 @@ export default function App() {
   const [timeSyncRevision, setTimeSyncRevision] = useState(0);
   const [editorInitial] = useState(() => ({
     ...initialEditor(),
+    name: i18n.t(routeNameSuggestionKey()),
     activity: preferences.activity,
     planningMode: preferences.planningMode,
     automaticMode: preferences.planningMode === 'loop' ? ('loop' as const) : ('point' as const),
@@ -718,6 +720,7 @@ export default function App() {
     editor.reset({
       ...initialEditor(),
       identity: newIdentity(),
+      name: i18n.t(routeNameSuggestionKey()),
       activity: defaults.activity,
       planningMode: defaults.planningMode,
       targetKm: defaults.targetKm,
@@ -998,7 +1001,7 @@ export default function App() {
           }));
     setResult({
       ...routeIdentity.current,
-      name: i18n.t('Untitled adventure'),
+      name: name || i18n.t('Untitled adventure'),
       description: '',
       activity,
       waypoints: stops,
@@ -1935,7 +1938,7 @@ export default function App() {
                   className="primary"
                   disabled={!canUseRoute}
                   onClick={() => {
-                    if (!name) setName(i18n.t('Untitled adventure'));
+                    if (!name) setName(i18n.t(routeNameSuggestionKey()));
                     setSaveOpen(true);
                   }}
                 >

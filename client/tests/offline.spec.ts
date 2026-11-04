@@ -313,10 +313,10 @@ for (const width of [320, 390, 1440]) {
       try {
         const banner = page.locator('.offline-banner');
         await expect(
-          banner.getByText('Нет подключения к интернету', { exact: true }),
+          banner.getByText('Сетевое подключение отсутствует', { exact: true }),
         ).toBeVisible();
         const manual = banner.getByRole('button', { name: 'Рисовать вручную', exact: true });
-        const retry = banner.getByRole('button', { name: 'Проверить подключение', exact: true });
+        const retry = banner.getByRole('button', { name: 'Обновить статус сети', exact: true });
         for (const button of [manual, retry]) {
           await expect(button).toBeVisible();
           const measured = await button.evaluate((element) => {

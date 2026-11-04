@@ -284,11 +284,13 @@ describe('retaining ready geometry while stale routing is pending', () => {
   it('calculates all-direct point mode offline immediately with no routing request', () => {
     const calculate = vi.spyOn(routingProvider, 'calculateRoute');
     const snapshot = initial();
+    snapshot.name = 'Through quiet places';
     snapshot.waypoints = points.map((point) => ({ ...point, legMode: 'direct' }));
     snapshot.routeStale = true;
     const { result } = renderHook(() => useHarness(snapshot, false));
     expect(calculate).not.toHaveBeenCalled();
     expect(result.current.editor.result?.source).toBe('manual');
+    expect(result.current.editor.result?.name).toBe('Through quiet places');
     expect(result.current.editor.result?.directSegments).toEqual(
       result.current.editor.result?.segments,
     );
