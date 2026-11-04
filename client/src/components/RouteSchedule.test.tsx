@@ -27,7 +27,7 @@ it('keeps one departure field with calendar actions across edits and route switc
     rerender(<RouteSchedule {...callbacks} contextKey={route.id} calendar={calendar} departureLocal={departureLocal} />);
     expect(screen.getAllByLabelText('Local departure date and time')).toHaveLength(1);
     expect(screen.getByLabelText('Local departure date and time')).toHaveValue(departureLocal ?? '');
-    expect(screen.getAllByRole('button', { name: 'Export calendar (.ics)' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Add to calendar' })).toHaveLength(1);
   }
   rerender(<RouteSchedule {...callbacks} contextKey="another-route" calendar={{ ...calendar, routeId: 'another-route' }} />);
   expect(screen.getAllByLabelText('Local departure date and time')).toHaveLength(1);

@@ -119,7 +119,7 @@ test('publishes a previewed saved route, updates the same event manually and fit
     return route.fulfill({ json: {} });
   });
   await prepare(page);
-  await page.getByRole('button', { name: 'Add to Google Calendar', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to calendar', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Route calendar event', exact: true });
   await dialog.getByLabel('Start time zone (IANA)').fill('Europe/Warsaw');
   await expect(dialog.getByRole('button', { name: 'Confirm event creation' })).toBeEnabled();
@@ -142,7 +142,7 @@ test('publishes a previewed saved route, updates the same event manually and fit
   ).toBeVisible();
   expect(publications).toHaveLength(1);
   await save(page);
-  await page.getByRole('button', { name: 'Update calendar event', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to calendar', exact: true }).click();
   await dialog.getByRole('button', { name: 'Confirm event update' }).click();
   await expect(dialog).toHaveCount(0);
   expect(publications).toHaveLength(2);
@@ -156,8 +156,7 @@ test('hides Google actions without a connector and downloads ICS offline', async
     route.fulfill({ json: { available: true, connected: false } }),
   );
   await prepare(page);
-  await expect(page.getByRole('button', { name: 'Add to Google Calendar' })).toHaveCount(0);
-  const exportButton = page.getByRole('button', { name: 'Export calendar (.ics)' });
+  const exportButton = page.getByRole('button', { name: 'Add to calendar' });
   await exportButton.scrollIntoViewIfNeeded();
   const dimensions = await exportButton.evaluate((button) => {
     const container = button.closest('.route-calendar-actions')!;
@@ -169,9 +168,9 @@ test('hides Google actions without a connector and downloads ICS offline', async
   });
   expect(dimensions.buttonWidth).toBeCloseTo(dimensions.containerWidth, 0);
   expect(dimensions.height).toBeGreaterThanOrEqual(44);
-  await expect(exportButton).toHaveAttribute('data-variant', 'outline');
+  await expect(exportButton).toHaveAttribute('data-variant', 'default');
   await context.setOffline(true);
-  await page.getByRole('button', { name: 'Export calendar (.ics)' }).click();
+  await page.getByRole('button', { name: 'Add to calendar' }).click();
   const dialog = page.getByRole('dialog', { name: 'Route calendar event', exact: true });
   await dialog.getByLabel('Start time zone (IANA)').fill('Europe/Warsaw');
   const download = page.waitForEvent('download');
