@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getGoogleCalendarSession, logoutGoogleCalendar, type GoogleCalendarSession } from '../services/connectors/googleCalendar';
+import {
+  getGoogleCalendarSession,
+  logoutGoogleCalendar,
+  type GoogleCalendarSession,
+} from '../services/connectors/googleCalendar';
 import { ConnectorError, type ConnectorErrorCode } from '../services/connectors/types';
 
 export const CALENDAR_CONNECTION_KEY = 'roamlet-google-calendar-connected';
 export const CALENDAR_SESSION_CHANGE = 'roamlet-google-calendar-session-change';
 function connectionHint() {
-  try { return localStorage.getItem(CALENDAR_CONNECTION_KEY) === '1'; }
-  catch { return false; }
+  try {
+    return localStorage.getItem(CALENDAR_CONNECTION_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 function storeHint(connected: boolean) {
-  try { localStorage.setItem(CALENDAR_CONNECTION_KEY, connected ? '1' : '0'); }
-  catch { /* Session cookies remain authoritative when local storage is unavailable. */ }
+  try {
+    localStorage.setItem(CALENDAR_CONNECTION_KEY, connected ? '1' : '0');
+  } catch {
+    /* Session cookies remain authoritative when local storage is unavailable. */
+  }
 }
 export function useGoogleCalendarSession(enabled: boolean) {
   const [session, setSession] = useState<GoogleCalendarSession | null>(null);
@@ -39,7 +49,10 @@ export function useGoogleCalendarSession(enabled: boolean) {
       if (request.current === controller && !controller.signal.aborted)
         setError(failure instanceof ConnectorError ? failure.code : 'network');
     } finally {
-      if (request.current === controller) { request.current = null; setLoading(false); }
+      if (request.current === controller) {
+        request.current = null;
+        setLoading(false);
+      }
     }
   }, []);
   useEffect(() => {
@@ -48,7 +61,8 @@ export function useGoogleCalendarSession(enabled: boolean) {
     const updated = () => {
       const hint = connectionHint();
       setKnownConnected(hint);
-      if (!hint) setSession((value) => value ? { available: value.available, connected: false } : value);
+      if (!hint)
+        setSession((value) => (value ? { available: value.available, connected: false } : value));
       if (document.visibilityState !== 'hidden') void refresh();
     };
     const storage = (event: StorageEvent) => {
@@ -75,10 +89,13 @@ export function useGoogleCalendarSession(enabled: boolean) {
   }, [enabled, refresh]);
   useEffect(() => {
     if (!enabled || !session?.connected || !session.expiresAt) return;
-    const timer = setTimeout(() => {
-      setSession((value) => value ? { ...value, connected: false } : value);
-      void refresh();
-    }, Math.min(2_147_483_647, Math.max(0, session.expiresAt - Date.now())));
+    const timer = setTimeout(
+      () => {
+        setSession((value) => (value ? { ...value, connected: false } : value));
+        void refresh();
+      },
+      Math.min(2_147_483_647, Math.max(0, session.expiresAt - Date.now())),
+    );
     return () => clearTimeout(timer);
   }, [enabled, session?.connected, session?.expiresAt, refresh]);
   async function disconnect() {
@@ -94,7 +111,11 @@ export function useGoogleCalendarSession(enabled: boolean) {
       setKnownConnected(false);
       storeHint(false);
       channel.current?.postMessage('changed');
-      try { localStorage.setItem(CALENDAR_SESSION_CHANGE, String(Date.now())); } catch { /* Optional cross-tab signal. */ }
+      try {
+        localStorage.setItem(CALENDAR_SESSION_CHANGE, String(Date.now()));
+      } catch {
+        /* Optional cross-tab signal. */
+      }
       window.dispatchEvent(new Event(CALENDAR_SESSION_CHANGE));
       return true;
     } catch (failure) {
@@ -102,7 +123,10 @@ export function useGoogleCalendarSession(enabled: boolean) {
         setError(failure instanceof ConnectorError ? failure.code : 'network');
       return false;
     } finally {
-      if (request.current === controller) { request.current = null; setLoading(false); }
+      if (request.current === controller) {
+        request.current = null;
+        setLoading(false);
+      }
     }
   }
   return { session, knownConnected, loading, error, refresh, disconnect };

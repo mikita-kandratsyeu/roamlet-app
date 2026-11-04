@@ -6,6 +6,7 @@ export default defineConfig({
     'planner.spec.ts',
     'connectors.spec.ts',
     'google-drive.spec.ts',
+    'google-calendar.spec.ts',
     'map-view.spec.ts',
     'lifecycle.spec.ts',
     'ui-consistency.spec.ts',
