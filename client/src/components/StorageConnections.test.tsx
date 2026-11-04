@@ -296,7 +296,15 @@ it('shows Calendar separately, filters it and closes its dialog without leaving 
   const user = userEvent.setup();
   const manage = card.getByRole('button', { name: 'Manage connection' });
   await user.click(manage);
-  expect(screen.getByRole('dialog', { name: 'Google Calendar connection settings' })).toBeVisible();
+  const calendarDialog = screen.getByRole('dialog', { name: 'Google Calendar connection settings' });
+  expect(calendarDialog).toBeVisible();
+  expect(calendarDialog).not.toHaveClass('compact');
+  expect(calendarDialog.querySelector('.storage-connections')).toBeInTheDocument();
+  expect(calendarDialog.querySelector('.connector-connection-summary')).toHaveTextContent('calendar@example.test');
+  expect(calendarDialog.querySelector('.connector-modal-footer')).toContainElement(within(calendarDialog).getByRole('button', { name: 'Done' }));
+  expect(within(calendarDialog).getByRole('button', { name: 'Done' })).toHaveFocus();
+  expect(calendarDialog.querySelectorAll('details')).toHaveLength(1);
+  expect(calendarDialog.querySelector('details')).not.toHaveAttribute('open');
   expect(screen.queryByRole('tab', { name: 'Create a backup' })).not.toBeInTheDocument();
   await user.keyboard('{Escape}');
   await waitFor(() => expect(manage).toHaveFocus());

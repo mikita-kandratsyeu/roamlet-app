@@ -2,10 +2,13 @@
   margin-top: 1rem;
   min-width: 0;
 }
-.route-calendar-actions .button-row {
-  flex-wrap: wrap;
+.route-calendar-actions > .button-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 0;
 }
-.route-calendar-actions button {
+.route-calendar-actions > .button-row > button {
+  width: 100%;
   white-space: normal;
   min-height: 44px;
 }

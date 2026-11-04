@@ -22,6 +22,7 @@ async function prepare(page: Page) {
   await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
   await page.locator('.planner-details > summary').filter({ hasText: 'Route schedule' }).click();
   const schedule = page.getByRole('region', { name: 'Route schedule', exact: true });
+  await expect(schedule.getByLabel('Local departure date and time')).toHaveCount(1);
   await schedule.getByLabel('Local departure date and time').fill('2026-11-07T10:00');
   await schedule.getByLabel('Local departure date and time').press('Enter');
   await schedule
@@ -41,7 +42,9 @@ async function save(page: Page) {
   await expect(page.getByRole('button', { name: 'Save to library', exact: true })).toHaveCount(0);
 }
 test.beforeEach(async ({ context }) => {
-  await context.addInitScript(() => localStorage.setItem('roamlet-language', 'en'));
+  await context.addInitScript(() => {
+    if (!localStorage.getItem('roamlet-language')) localStorage.setItem('roamlet-language', 'en');
+  });
   await context.route('**/__fixtures__/map-style.json', (route) =>
     route.fulfill({
       json: {
@@ -153,6 +156,16 @@ test('hides Google actions without a connector and downloads ICS offline', async
   );
   await prepare(page);
   await expect(page.getByRole('button', { name: 'Add to Google Calendar' })).toHaveCount(0);
+  const exportButton = page.getByRole('button', { name: 'Export calendar (.ics)' });
+  await exportButton.scrollIntoViewIfNeeded();
+  const dimensions = await exportButton.evaluate((button) => {
+    const container = button.closest('.route-calendar-actions')!;
+    return { buttonWidth: button.getBoundingClientRect().width,
+      containerWidth: container.getBoundingClientRect().width, height: button.getBoundingClientRect().height };
+  });
+  expect(dimensions.buttonWidth).toBeCloseTo(dimensions.containerWidth, 0);
+  expect(dimensions.height).toBeGreaterThanOrEqual(44);
+  await expect(exportButton).toHaveAttribute('data-variant', 'outline');
   await context.setOffline(true);
   await page.getByRole('button', { name: 'Export calendar (.ics)' }).click();
   const dialog = page.getByRole('dialog', { name: 'Route calendar event', exact: true });

@@ -110,7 +110,7 @@ export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds,
     {showHeading && <div className="section-heading">
       <h2><Clock3 size={16} aria-hidden="true" />{t('Route schedule')}</h2>
     </div>}
-    <DepartureField key={contextKey ?? route?.id} value={departureLocal} onCommit={onDepartureLocal} />
+    <DepartureField key={`departure:${contextKey ?? route?.id}`} value={departureLocal} onCommit={onDepartureLocal} />
     {schedule.unavailable && <p className="route-schedule-notice">{t(reasons[schedule.unavailable])}</p>}
     <ol className="route-schedule-list">
       {schedule.rows.map((row, index) => <li key={`${contextKey ?? route?.id}:${row.waypoint.id}`}>
@@ -128,7 +128,7 @@ export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds,
       </li>)}
     </ol>
     <p className="route-schedule-finish"><strong>{t('Route end after all pauses')}</strong> {time(schedule.finishLocal)}</p>
-    {calendar && <RouteCalendarActions key={calendar.routeId}
+    {calendar && <RouteCalendarActions key={`calendar:${calendar.routeId}`}
       input={{ ...calendar, description: [calendar.description,
         route ? t('Distance: {{distance}} km', { distance: (route.stats.distance / 1000).toLocaleString(language, { maximumFractionDigits: 1 }) }) : '',
         t('Waypoint pauses: {{minutes}} minutes', { minutes: waypoints.reduce((sum, point) => sum + (point.pauseMinutes ?? 0), 0) }),

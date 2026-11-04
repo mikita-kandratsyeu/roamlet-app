@@ -14,6 +14,11 @@ import { exportGpx, importGpx } from './domain/gpx';
 import { checkRoutingConfiguration } from './services/routing';
 import { importGpxFile } from './services/gpxImport';
 import i18n, { detectLanguage, LANGUAGE_KEY } from './i18n';
+vi.mock('./services/connectors/googleCalendar', async (original) => ({
+  ...await original<typeof import('./services/connectors/googleCalendar')>(),
+  getGoogleCalendarSession: vi.fn().mockResolvedValue({ available: false, connected: false }),
+  logoutGoogleCalendar: vi.fn(),
+}));
 vi.mock('./services/connectors/googleDriveSession', () => ({
   getGoogleDriveSession: vi.fn().mockResolvedValue({ available: false, connected: false }),
   logoutGoogleDrive: vi.fn(),

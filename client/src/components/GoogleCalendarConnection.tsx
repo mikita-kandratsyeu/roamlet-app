@@ -19,6 +19,7 @@ export function GoogleCalendarConnection({
     () => new URLSearchParams(window.location.search).get('calendar') === 'error',
   );
   const cancel = useRef<HTMLButtonElement>(null);
+  const done = useRef<HTMLButtonElement>(null);
   const connected = !!google.session?.connected;
   return (
     <>
@@ -66,9 +67,18 @@ export function GoogleCalendarConnection({
             'Calendar publishing is optional. Local planning and ICS export need no connection.',
           )}
           onClose={() => setManaging(false)}
-          compact
+          initialFocusRef={done}
+          footer={<div className="button-row dialog-actions connector-modal-footer">
+            <Button ref={done} variant="outline" onClick={() => setManaging(false)}>{t('Done')}</Button>
+          </div>}
         >
-          {connected && <p>{t('Signed in as {{login}}', { login: google.session?.email })}</p>}
+          <div className="storage-connections">
+          {connected && <section className="connector-connection-summary" aria-label={t('Connection overview')}>
+            <div>
+              <span className="connector-note">{t('Signed in as {{login}}', { login: google.session?.email })}</span>
+              <strong>{t('Roamlet calendar')}</strong>
+            </div>
+          </section>}
           <p>
             {t(
               'Roamlet creates a separate calendar on your first publication. It does not read your other calendars.',
@@ -90,7 +100,7 @@ export function GoogleCalendarConnection({
           {google.session?.available === false && (
             <p role="status">{t(googleCalendarErrors.unavailable)}</p>
           )}
-          <details className="planner-disclosure">
+          <details>
             <summary>{t('Privacy and limits')}</summary>
             <p>
               {t(
@@ -108,6 +118,7 @@ export function GoogleCalendarConnection({
               )}
             </p>
           </details>
+          </div>
         </Dialog>
       )}
       {disconnecting && (
