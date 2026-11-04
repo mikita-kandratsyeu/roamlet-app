@@ -140,7 +140,12 @@ export function RouteCalendarActions({
   }
   const changed =
     !!record?.fingerprint && !!event && record.fingerprint !== calendarEventFingerprint(event);
-  const googleVisible = google.knownConnected || !!google.session?.connected;
+  const calendarUnavailable =
+    google.session?.available === false ||
+    google.error === 'unavailable' ||
+    publication.error === 'unavailable';
+  const googleVisible =
+    !calendarUnavailable && (google.knownConnected || !!google.session?.connected);
   const changedNoticeId = `${id}-calendar-event-changed`;
   useEffect(() => {
     if (!googleVisible || !changed) return;
@@ -439,7 +444,7 @@ export function RouteCalendarActions({
                 {draftError}
               </p>
             )}
-            {!input.canPublish && (
+            {googleVisible && !input.canPublish && (
               <p role="status">
                 {t('Save the current route and its schedule before publishing to Google Calendar.')}
               </p>
@@ -485,7 +490,7 @@ export function RouteCalendarActions({
           </div>
         </Dialog>
       )}
-      {open && (publicationError || google.error) && (
+      {open && !calendarUnavailable && (publicationError || google.error) && (
         <Notification
           title={t('Google Calendar')}
           variant="error"

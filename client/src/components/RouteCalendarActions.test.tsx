@@ -99,6 +99,69 @@ it('keeps ICS available without a connector and previews without transmitting da
   expect(click).toHaveBeenCalledOnce();
   expect(publishCalendarEvent).not.toHaveBeenCalled();
 });
+it('does not show publication guidance when Google Calendar is not configured', async () => {
+  vi.mocked(getGoogleCalendarSession).mockResolvedValue({
+    available: false,
+    connected: false,
+  });
+  render(view({ canPublish: false }));
+  await act(async () => {});
+  await preview();
+  expect(
+    screen.queryByText(
+      'Save the current route and its schedule before publishing to Google Calendar.',
+    ),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(
+      'Google Calendar is not configured. Local planning and ICS export remain available.',
+    ),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Download .ics' })).toBeEnabled();
+  expect(publishCalendarEvent).not.toHaveBeenCalled();
+});
+it('does not notify about unavailable Google Calendar when a stale connection is remembered', async () => {
+  localStorage.setItem(CALENDAR_CONNECTION_KEY, '1');
+  vi.mocked(getGoogleCalendarSession).mockRejectedValueOnce(new ConnectorError('unavailable'));
+  render(view({ canPublish: false }));
+  await act(async () => {});
+  await preview();
+  expect(
+    screen.queryByText(
+      'Google Calendar is not configured. Local planning and ICS export remain available.',
+    ),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByText('Could not reach Google Calendar. Check your connection, then retry.'),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(
+      'Save the current route and its schedule before publishing to Google Calendar.',
+    ),
+  ).not.toBeInTheDocument();
+});
+it('does not show an unavailable notification when publication confirms the connector is not configured', async () => {
+  vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
+  vi.mocked(publishCalendarEvent).mockRejectedValueOnce(new ConnectorError('unavailable'));
+  render(view());
+  await screen.findByRole('button', { name: 'Add to calendar' });
+  const user = await preview();
+  await user.click(screen.getByRole('button', { name: 'Confirm event creation' }));
+  await waitFor(() => expect(publishCalendarEvent).toHaveBeenCalledOnce());
+  await waitFor(() =>
+    expect(
+      screen.queryByRole('button', { name: 'Confirm event creation' }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(
+    screen.queryByText(
+      'Google Calendar is not configured. Local planning and ICS export remain available.',
+    ),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByText('Could not reach Google Calendar. Check your connection, then retry.'),
+  ).not.toBeInTheDocument();
+});
 it.each([
   [
     'en',
