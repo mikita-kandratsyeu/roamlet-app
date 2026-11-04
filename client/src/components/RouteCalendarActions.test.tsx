@@ -106,6 +106,7 @@ it.each([
     'Event settings',
     'Start time zone (IANA)',
     'Timing and privacy',
+    'How the end time is calculated and what gets shared.',
     'Download .ics',
   ],
   [
@@ -114,11 +115,20 @@ it.each([
     'Настройки события',
     'Часовой пояс старта (IANA)',
     'Расчёт времени и приватность',
+    'Как рассчитывается время окончания и какие данные передаются.',
     'Скачать .ics',
   ],
 ])(
   'shows a localized event card, focused settings and collapsed guidance (%s)',
-  async (language, previewLabel, settingsLabel, zoneLabel, guidanceLabel, downloadLabel) => {
+  async (
+    language,
+    previewLabel,
+    settingsLabel,
+    zoneLabel,
+    guidanceLabel,
+    guidanceDescription,
+    downloadLabel,
+  ) => {
     await i18n.changeLanguage(language);
     render(view());
     const user = userEvent.setup();
@@ -137,6 +147,8 @@ it.each([
     expect(screen.getByRole('region', { name: settingsLabel })).toContainElement(zone);
     const disclosure = screen.getByText(guidanceLabel).closest('details');
     expect(disclosure).not.toHaveAttribute('open');
+    expect(screen.getByText(guidanceDescription)).toBeVisible();
+    expect(disclosure?.querySelector('.calendar-event-disclosure-body')).not.toBeVisible();
     expect(screen.getByRole('button', { name: downloadLabel })).toHaveAttribute(
       'data-variant',
       'default',
@@ -150,6 +162,7 @@ it.each([
     ).toBeVisible();
     await user.click(screen.getByText(guidanceLabel));
     expect(disclosure).toHaveAttribute('open');
+    expect(disclosure?.querySelector('.calendar-event-disclosure-body p')).toBeVisible();
     expect(publishCalendarEvent).not.toHaveBeenCalled();
   },
 );

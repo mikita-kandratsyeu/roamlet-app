@@ -1,4 +1,6 @@
 {
+  "Backup connections": "Backups",
+  "Calendar connections": "Calendar",
   "Review the event details and start time zone.": "Review the event details and start time zone.",
   "Event preview": "Event preview",
   "Event settings": "Event settings",
@@ -6,6 +8,7 @@
   "Only the previewed event details are sent to Google. No GPX or full track is attached.": "Only the previewed event details are sent to Google. No GPX or full track is attached.",
   "Calendar file only. Nothing is sent to Google.": "Calendar file only. Nothing is sent to Google.",
   "Timing and privacy": "Timing and privacy",
+  "How the end time is calculated and what gets shared.": "How the end time is calculated and what gets shared.",
   "Roamlet calendar": "Roamlet calendar",
   "Title": "Title",
   "Google Calendar": "Google Calendar",

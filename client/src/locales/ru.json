@@ -1,4 +1,6 @@
 {
+  "Backup connections": "Резервные копии",
+  "Calendar connections": "Календарь",
   "Review the event details and start time zone.": "Проверьте сведения о событии и часовой пояс старта.",
   "Event preview": "Предпросмотр события",
   "Event settings": "Настройки события",
@@ -6,6 +8,7 @@
   "Only the previewed event details are sent to Google. No GPX or full track is attached.": "В Google отправляются только сведения из предпросмотра. GPX и полный трек не прикрепляются.",
   "Calendar file only. Nothing is sent to Google.": "Только файл календаря. В Google ничего не отправляется.",
   "Timing and privacy": "Расчёт времени и приватность",
+  "How the end time is calculated and what gets shared.": "Как рассчитывается время окончания и какие данные передаются.",
   "Roamlet calendar": "Календарь Roamlet",
   "Title": "Название",
   "Google Calendar": "Google Calendar",

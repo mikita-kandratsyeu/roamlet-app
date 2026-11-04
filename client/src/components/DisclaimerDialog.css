@@ -1,0 +1,31 @@
+.disclaimer-notice {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface));
+}
+
+.disclaimer-notice > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--primary);
+}
+
+.disclaimer-notice > p {
+  margin: 0;
+}
+
+@media (forced-colors: active) {
+  .disclaimer-notice {
+    border-color: CanvasText;
+    background: Canvas;
+  }
+
+  .disclaimer-notice > svg {
+    color: CanvasText;
+  }
+}

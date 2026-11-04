@@ -197,13 +197,22 @@ test('event preview uses localized dates, grouped settings and full-width offlin
   for (const dismiss of await page.getByRole('button', { name: 'Dismiss notification' }).all())
     await dismiss.click();
   await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
-  for (const [language, theme, zoneLabel, previewLabel, guidanceLabel, downloadLabel] of [
+  for (const [
+    language,
+    theme,
+    zoneLabel,
+    previewLabel,
+    guidanceLabel,
+    guidanceDescription,
+    downloadLabel,
+  ] of [
     [
       'en',
       'Light',
       'Start time zone (IANA)',
       'Event preview',
       'Timing and privacy',
+      'How the end time is calculated and what gets shared.',
       'Download .ics',
     ],
     [
@@ -212,6 +221,7 @@ test('event preview uses localized dates, grouped settings and full-width offlin
       'Часовой пояс старта (IANA)',
       'Предпросмотр события',
       'Расчёт времени и приватность',
+      'Как рассчитывается время окончания и какие данные передаются.',
       'Скачать .ics',
     ],
   ]) {
@@ -238,6 +248,7 @@ test('event preview uses localized dates, grouped settings and full-width offlin
     );
     const disclosure = dialog.locator('details').filter({ hasText: guidanceLabel });
     await expect(disclosure).not.toHaveAttribute('open');
+    await expect(disclosure.getByText(guidanceDescription)).toBeVisible();
     const download = dialog.getByRole('button', { name: downloadLabel, exact: true });
     await expect(download).toHaveAttribute('data-variant', 'default');
     await expect(download).toBeInViewport();
@@ -258,6 +269,13 @@ test('event preview uses localized dates, grouped settings and full-width offlin
     expect(layout.height).toBeGreaterThanOrEqual(44);
     await page.screenshot({
       path: testInfo.outputPath(`event-preview-${language}.png`),
+      animations: 'disabled',
+    });
+    await disclosure.locator('summary').click();
+    await expect(disclosure).toHaveAttribute('open');
+    await expect(disclosure.locator('.calendar-event-disclosure-body')).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath(`event-preview-guidance-${language}.png`),
       animations: 'disabled',
     });
     await dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }).click();

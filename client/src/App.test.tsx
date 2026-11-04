@@ -167,6 +167,9 @@ describe('first-visit disclaimer', () => {
     const view = render(<App />);
     const dialog = screen.getByRole('dialog', { name: 'Before you plan' });
     const confirm = within(dialog).getByRole('button', { name: 'Understood' });
+    expect(within(dialog).getByRole('note')).toHaveTextContent(
+      'Routes do not guarantee safety or access.',
+    );
     expect(confirm).toHaveFocus();
     expect(within(dialog).getAllByRole('button')).toHaveLength(1);
     expect(localStorage.getItem(DISCLAIMER_KEY)).toBeNull();

@@ -205,9 +205,13 @@ test('scalable catalog opens a Russian dark-theme modal and restores focus', asy
     .getByRole('button', { name: 'Настроить подключение' });
   const screen = page.getByRole('region', { name: 'Подключения', exact: true });
   await expect(screen.getByText('Не подключён', { exact: true })).toBeVisible();
-  await screen.getByRole('textbox', { name: 'Поиск коннекторов' }).fill('Missing service');
-  await expect(screen.getByText('По этому фильтру коннекторы не найдены.')).toBeVisible();
-  await screen.getByRole('textbox', { name: 'Поиск коннекторов' }).fill('');
+  await expect(screen.getByRole('textbox', { name: 'Поиск коннекторов' })).toHaveCount(0);
+  await expect(
+    screen.getByRole('list', { name: 'Резервные копии' }).getByRole('listitem'),
+  ).toHaveCount(2);
+  await expect(screen.getByRole('list', { name: 'Календарь' }).getByRole('listitem')).toHaveCount(
+    1,
+  );
   await setup.click();
   const modal = page.getByRole('dialog', { name: 'Настройки подключения GitHub' });
   await expect(modal).toBeVisible();
@@ -282,7 +286,7 @@ test('provider card rechecks connection with an accessible pending state', async
     .locator('.connector-card')
     .filter({ has: page.getByRole('heading', { name: 'GitHub', exact: true }) });
   await expect(card.getByText('Проверьте подключение', { exact: true })).toBeVisible();
-  const retry = card.getByRole('button', { name: 'Проверить подключение', exact: true });
+  const retry = card.getByRole('button', { name: 'Повторить', exact: true });
   await expect(retry).toBeVisible();
   await retry.focus();
   await page.keyboard.press('Enter');
@@ -300,17 +304,24 @@ test('provider card rechecks connection with an accessible pending state', async
     animations: 'disabled',
   });
   complete();
-  await expect(retry).toBeEnabled();
-  await expect(retry).toBeFocused();
+  const setup = card.getByRole('button', { name: 'Настроить подключение', exact: true });
+  await expect(setup).toBeEnabled();
+  await expect(setup).toBeFocused();
+  await expect(retry).toHaveCount(0);
   await expect(card.getByText('Не подключён', { exact: true })).toBeVisible();
   expect(attempts).toBe(2);
 });
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`connector toolbar matches library controls (${theme})`, async ({ page }, testInfo) => {
+  test(`connector groups have responsive cards and one primary action (${theme})`, async ({
+    page,
+  }, testInfo) => {
     if (testInfo.project.name === 'desktop')
       await page.setViewportSize({ width: 1600, height: 900 });
     await page.route('**/api/github?**', (route) =>
+      route.fulfill({ json: { available: true, connected: false } }),
+    );
+    await page.route('**/api/google-calendar?**', (route) =>
       route.fulfill({ json: { available: true, connected: false } }),
     );
     await page.getByRole('button', { name: 'Menu', exact: true }).click();
@@ -326,90 +337,68 @@ for (const theme of ['light', 'dark'] as const) {
         ? {
             menu: 'Меню',
             connections: 'Подключения',
-            search: 'Поиск коннекторов',
-            all: 'Все коннекторы',
-            connected: 'Подключённые',
-            back: 'Назад к карте',
-            library: 'Мои маршруты',
-            librarySearch: 'Поиск сохранённых маршрутов',
+            backups: 'Резервные копии',
+            calendar: 'Календарь',
+            setup: 'Настроить подключение',
           }
         : {
             menu: 'Menu',
             connections: 'Connections',
-            search: 'Search connectors',
-            all: 'All connectors',
-            connected: 'Connected connectors',
-            back: 'Back to map',
-            library: 'My routes',
-            librarySearch: 'Search saved routes',
+            backups: 'Backups',
+            calendar: 'Calendar',
+            setup: 'Set up connection',
           };
     await page.getByRole('button', { name: labels.menu, exact: true }).click();
     await page.getByRole('menuitem', { name: labels.connections, exact: true }).click();
     const screen = page.getByRole('region', { name: labels.connections, exact: true });
-    const search = screen.getByRole('textbox', { name: labels.search });
-    const metrics = (input: HTMLInputElement) => {
-      const wrapper = input.closest('label')!;
-      const outer = getComputedStyle(wrapper);
-      const inner = getComputedStyle(input);
-      const icon = wrapper.querySelector('svg')!;
-      const box = wrapper.getBoundingClientRect();
-      const iconBox = icon.getBoundingClientRect();
-      return {
-        height: box.height,
-        radius: outer.borderRadius,
-        padding: outer.padding,
-        gap: outer.gap,
-        background: outer.backgroundColor,
-        inputBackground: inner.backgroundColor,
-        inputBorder: inner.borderWidth,
-        font: inner.fontSize,
-        iconInset: iconBox.left - box.left,
-      };
-    };
-    const connectorMetrics = await search.evaluate(metrics);
-    expect(connectorMetrics.height).toBe(44);
-    expect(connectorMetrics.iconInset).toBeGreaterThan(0);
-    await search.focus();
-    await expect
-      .poll(() =>
-        search.evaluate((input) => getComputedStyle(input.closest('label')!).outlineStyle),
-      )
-      .toBe('solid');
-    const all = screen.getByRole('button', { name: labels.all, exact: true });
-    const connected = screen.getByRole('button', { name: labels.connected, exact: true });
-    await connected.click();
-    await expect(connected).toHaveAttribute('aria-pressed', 'true');
-    await all.click();
-    await expect(all).toHaveAttribute('aria-pressed', 'true');
-    const filters = await all.evaluate((button) => ({
-      height: button.getBoundingClientRect().height,
-      background: getComputedStyle(button).backgroundColor,
-    }));
-    expect(filters.height).toBeGreaterThanOrEqual(44);
-    const grid = screen.getByRole('list', {
-      name: labels.connections === 'Connections' ? 'Available connectors' : 'Доступные коннекторы',
-    });
-    const gridWidth = (await grid.boundingBox())!.width;
-    const columns = Math.max(1, Math.floor((gridWidth + 16) / (360 + 16)));
-    const cardWidth = (await grid.getByRole('listitem').first().boundingBox())!.width;
-    expect(cardWidth).toBeCloseTo((gridWidth - (columns - 1) * 16) / columns, 0);
-    if (testInfo.project.name === 'mobile') {
-      expect((await search.boundingBox())!.y).toBeLessThan((await all.boundingBox())!.y);
-      expect(await screen.evaluate((node) => node.scrollWidth)).toBeLessThanOrEqual(
-        page.viewportSize()!.width,
+    await expect(screen.getByRole('textbox')).toHaveCount(0);
+    await expect(screen.locator('[aria-pressed]')).toHaveCount(0);
+    const backups = screen.getByRole('list', { name: labels.backups, exact: true });
+    const calendar = screen.getByRole('list', { name: labels.calendar, exact: true });
+    await expect(backups.getByRole('listitem')).toHaveCount(2);
+    await expect(backups.getByRole('heading')).toHaveText(['Google Drive', 'GitHub']);
+    await expect(calendar.getByRole('heading')).toHaveText(['Google Calendar']);
+    const cards = screen.getByRole('listitem');
+    for (const card of await cards.all()) {
+      const action = card.getByRole('button', { name: labels.setup, exact: true });
+      await expect(action).toBeEnabled();
+      await expect(card.getByRole('button')).toHaveCount(1);
+      await expect(action).toHaveAttribute('data-variant', 'default');
+      expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      expect(await card.evaluate((node) => node.scrollWidth)).toBeLessThanOrEqual(
+        (await card.boundingBox())!.width,
       );
     }
+    const first = (await backups.getByRole('listitem').nth(0).boundingBox())!;
+    const second = (await backups.getByRole('listitem').nth(1).boundingBox())!;
+    const calendarCard = (await calendar.getByRole('listitem').boundingBox())!;
+    if (testInfo.project.name === 'mobile') {
+      expect(second.y).toBeGreaterThan(first.y + first.height);
+    } else {
+      expect(second.y).toBe(first.y);
+      expect(second.x).toBeGreaterThan(first.x + first.width);
+      expect(
+        (await screen.locator('.connections-content').boundingBox())!.width,
+      ).toBeLessThanOrEqual(1000);
+    }
+    expect(calendarCard.width).toBeCloseTo(first.width, 0);
+    expect(calendarCard.y).toBeGreaterThan(second.y + second.height);
+    expect(await screen.evaluate((node) => node.scrollWidth)).toBeLessThanOrEqual(
+      page.viewportSize()!.width,
+    );
+    const setup = backups
+      .getByRole('listitem')
+      .nth(1)
+      .getByRole('button', { name: labels.setup, exact: true });
+    await setup.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(setup).toBeFocused();
     await page.screenshot({
-      path: testInfo.outputPath(`connector-toolbar-${theme}.png`),
+      path: testInfo.outputPath(`connector-groups-${theme}.png`),
       fullPage: true,
       animations: 'disabled',
     });
-    await screen.getByRole('button', { name: labels.back, exact: true }).click();
-    await page.getByRole('button', { name: labels.menu, exact: true }).click();
-    await page.getByRole('menuitem', { name: labels.library, exact: true }).click();
-    const libraryMetrics = await page
-      .getByRole('textbox', { name: labels.librarySearch })
-      .evaluate(metrics);
-    expect(connectorMetrics).toEqual(libraryMetrics);
   });
 }

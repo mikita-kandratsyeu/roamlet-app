@@ -1,23 +1,27 @@
 .connections-content {
   width: 100%;
-  max-width: 1600px;
+  max-width: 1000px;
   min-width: 0;
   margin: 0 auto;
 }
-.connections-filters,
+.connections-group {
+  display: grid;
+  gap: 12px;
+  margin-top: 28px;
+}
+.connections-group > h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
 .connector-card-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-@media (max-width: 700px) {
-  .connections-filters > button {
-    flex: 1;
-  }
+  flex-direction: column;
+  gap: 4px;
 }
 .connections-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
   gap: 16px;
 }
@@ -25,14 +29,15 @@
   margin-top: auto;
 }
 .connector-card-actions > button {
-  flex: 1 1 150px;
+  width: 100%;
 }
-.connector-check-action > span {
+.connector-primary-action > span {
   min-width: 0;
 }
-.connector-empty {
-  padding: 24px 0;
-  color: var(--muted-foreground);
+@media (max-width: 700px) {
+  .connections-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .connector-error {
   color: var(--destructive);
@@ -78,7 +83,7 @@
 .connector-disconnect-action:hover {
   color: var(--destructive);
 }
-.connector-card h2,
+.connector-card h3,
 .storage-connections h2 {
   margin: 0;
   font-size: 18px;

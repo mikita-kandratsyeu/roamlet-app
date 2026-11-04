@@ -139,23 +139,60 @@
 }
 .calendar-event-disclosure {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary) 4%, var(--surface));
+  overflow: hidden;
 }
-.calendar-event-disclosure > summary {
-  min-height: 44px;
+.calendar-event-disclosure > summary.calendar-event-disclosure-summary {
+  min-height: 68px;
   padding: 12px;
-  cursor: pointer;
+  gap: 12px;
+}
+.calendar-event-disclosure-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--primary);
+}
+.calendar-event-disclosure-heading {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.calendar-event-disclosure-heading > span:first-child {
+  color: var(--foreground);
+  font-size: var(--font-size-control);
+  font-weight: 600;
+}
+.calendar-event-disclosure-heading > span:last-child {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-label);
+  font-weight: 400;
+  line-height: 1.4;
+}
+.calendar-event-disclosure .disclosure-toggle {
+  color: var(--muted-foreground);
 }
 .calendar-event-disclosure-body {
-  padding: 0 12px 12px;
+  padding: 0 16px 14px;
   color: var(--muted-foreground);
   font-size: var(--font-size-label);
 }
+.calendar-event-disclosure[open] .calendar-event-disclosure-body {
+  border-top: 1px solid var(--border);
+}
 .calendar-event-disclosure-body p {
   margin: 0;
+  padding: 12px 0;
+  line-height: 1.5;
 }
 .calendar-event-disclosure-body p + p {
-  margin-top: 12px;
+  border-top: 1px solid var(--border);
 }
 .roamlet-dialog .calendar-event-footer {
   display: flex;
@@ -178,6 +215,12 @@
 }
 @media (forced-colors: active) {
   .calendar-event-overview h3 > svg {
+    color: CanvasText;
+  }
+  .calendar-event-disclosure {
+    background: Canvas;
+  }
+  .calendar-event-disclosure-icon {
     color: CanvasText;
   }
 }

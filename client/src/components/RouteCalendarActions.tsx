@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, ChevronDown, Download, Globe2, LoaderCircle } from 'lucide-react';
+import { CalendarDays, ChevronDown, Clock3, Download, Globe2, LoaderCircle } from 'lucide-react';
 import {
   buildCalendarEvent,
   CalendarDraftError,
@@ -326,8 +326,14 @@ export function RouteCalendarActions({
                 : t('Calendar file only. Nothing is sent to Google.')}
             </p>
             <details className="calendar-event-disclosure planner-disclosure">
-              <summary className="section-heading">
-                <span>{t('Timing and privacy')}</span>
+              <summary className="calendar-event-disclosure-summary section-heading">
+                <span className="calendar-event-disclosure-icon">
+                  <Clock3 size={18} aria-hidden="true" />
+                </span>
+                <span className="calendar-event-disclosure-heading">
+                  <span>{t('Timing and privacy')}</span>
+                  <span>{t('How the end time is calculated and what gets shared.')}</span>
+                </span>
                 <span className="disclosure-toggle" aria-hidden="true">
                   <ChevronDown size={18} />
                 </span>
