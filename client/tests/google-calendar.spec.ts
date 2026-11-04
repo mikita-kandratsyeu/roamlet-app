@@ -149,9 +149,11 @@ test('publishes a previewed saved route, updates the same event manually and fit
   const schedule = page.getByRole('region', { name: 'Route schedule', exact: true });
   await schedule.getByLabel('Local departure date and time').fill('2026-11-07T11:00');
   await schedule.getByLabel('Local departure date and time').press('Enter');
-  await expect(
-    schedule.getByText('Route or event settings changed. Update the calendar event manually.'),
-  ).toBeVisible();
+  const changedNotice = page
+    .locator('[data-sonner-toast]')
+    .filter({ hasText: 'Route or event settings changed. Update the calendar event manually.' });
+  await expect(changedNotice).toBeVisible();
+  await changedNotice.getByRole('button', { name: 'Dismiss notification' }).click();
   expect(publications).toHaveLength(1);
   await save(page);
   await page.getByRole('button', { name: 'Add to calendar', exact: true }).click();

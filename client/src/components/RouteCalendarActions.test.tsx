@@ -11,6 +11,7 @@ import { CALENDAR_CONNECTION_KEY } from '../hooks/useGoogleCalendarSession';
 import { ConnectorError } from '../services/connectors/types';
 import { Toaster } from './ui/sonner';
 import i18n from '../i18n';
+import { toast } from 'sonner';
 vi.mock('../services/connectors/googleCalendar', async (original) => ({
   ...(await original<typeof import('../services/connectors/googleCalendar')>()),
   getGoogleCalendarSession: vi.fn(),
@@ -176,16 +177,31 @@ it('publishes only after confirmation and manually updates the same persisted ev
     location: 'Park',
     reminderMinutes: 30,
   });
+  const warningToast = vi.spyOn(toast, 'warning').mockImplementation(() => 'calendar-change');
+  const dismissToast = vi.spyOn(toast, 'dismiss');
   rerender(view({ description: 'Updated ride' }));
+  await waitFor(() =>
+    expect(warningToast).toHaveBeenCalledWith(
+      'Route or event settings changed. Update the calendar event manually.',
+      expect.objectContaining({
+        duration: Infinity,
+        dismissible: true,
+        closeButton: true,
+      }),
+    ),
+  );
+  const warningId = warningToast.mock.calls[0][1]?.id;
+  expect(warningId).toBeTruthy();
   expect(
-    screen.getByText('Route or event settings changed. Update the calendar event manually.'),
-  ).toBeVisible();
+    screen.queryByText('Route or event settings changed. Update the calendar event manually.'),
+  ).not.toBeInTheDocument();
   expect(publishCalendarEvent).toHaveBeenCalledOnce();
   await user.click(screen.getByRole('button', { name: 'Add to calendar' }));
   await user.click(screen.getByRole('button', { name: 'Confirm event update' }));
   await waitFor(() => expect(publishCalendarEvent).toHaveBeenCalledTimes(2));
   expect(vi.mocked(publishCalendarEvent).mock.calls[1][0].eventId).toBe(sent.eventId);
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(dismissToast).toHaveBeenCalledWith(warningId);
 });
 it('blocks unsaved and offline publication but not ICS export', async () => {
   vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import {
   CalendarPlus,
   ChevronDown,
@@ -111,6 +112,19 @@ export function RouteCalendarActions({
   const changed =
     !!record?.fingerprint && !!event && record.fingerprint !== calendarEventFingerprint(event);
   const googleVisible = google.knownConnected || !!google.session?.connected;
+  const changedNoticeId = `${id}-calendar-event-changed`;
+  useEffect(() => {
+    if (!googleVisible || !changed) return;
+    toast.warning(t('Route or event settings changed. Update the calendar event manually.'), {
+      id: changedNoticeId,
+      duration: Infinity,
+      dismissible: true,
+      closeButton: true,
+    });
+    return () => {
+      toast.dismiss(changedNoticeId);
+    };
+  }, [changed, changedNoticeId, googleVisible, t]);
   const publicationError =
     publication.error === 'local'
       ? t(
@@ -172,11 +186,6 @@ export function RouteCalendarActions({
           {t('Add to calendar')}
         </Button>
       </div>
-      {googleVisible && changed && (
-        <p className="fine-print" role="status">
-          {t('Route or event settings changed. Update the calendar event manually.')}
-        </p>
-      )}
       {googleVisible && record?.htmlLink && (
         <Button asChild variant="outline" className="calendar-event-open">
           <a href={record.htmlLink} target="_blank" rel="noopener noreferrer">
