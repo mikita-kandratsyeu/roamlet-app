@@ -156,6 +156,148 @@ describe('OpenRouteServiceRoutingService', () => {
     await provider.calculateRoute([...points].reverse(), 'cycling');
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
+  it('shares identical in-flight requests and returns independent geometry', async () => {
+    let finish!: (value: Response) => void;
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const provider = new OpenRouteServiceRoutingService();
+    const first = provider.calculateRoute(points, 'cycling');
+    const second = provider.calculateRoute(
+      points.map((point) => ({ ...point, name: 'Renamed' })),
+      'cycling',
+    );
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    finish(Response.json(response()));
+    const [one, two] = await Promise.all([first, second]);
+    one.segments[0][0][0] = 0;
+    expect(two.segments[0][0][0]).toBe(11.4);
+    await provider.calculateRoute(points, 'cycling');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('cancels one subscriber without aborting a shared request', async () => {
+    let finish!: (value: Response) => void;
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const provider = new OpenRouteServiceRoutingService();
+    const controller = new AbortController();
+    const cancelled = provider.calculateRoute(points, 'cycling', controller.signal);
+    const rejected = expect(cancelled).rejects.toMatchObject({ name: 'AbortError' });
+    const remaining = provider.calculateRoute(points, 'cycling');
+    controller.abort();
+    expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(false);
+    finish(Response.json(response()));
+    await rejected;
+    await expect(remaining).resolves.toMatchObject({ stats: { duration: 420 } });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('aborts when all subscribers cancel and does not reuse an abandoned late result', async () => {
+    const finishes: ((value: Response) => void)[] = [];
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishes.push(resolve);
+        }),
+    );
+    const provider = new OpenRouteServiceRoutingService();
+    const one = new AbortController();
+    const two = new AbortController();
+    const first = provider
+      .calculateRoute(points, 'cycling', one.signal)
+      .catch((error: unknown) => error);
+    const second = provider
+      .calculateRoute(points, 'cycling', two.signal)
+      .catch((error: unknown) => error);
+    one.abort();
+    expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(false);
+    two.abort();
+    expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    expect(await first).toMatchObject({ name: 'AbortError' });
+    expect(await second).toMatchObject({ name: 'AbortError' });
+    const retry = provider.calculateRoute(points, 'cycling');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    finishes[0](Response.json(response()));
+    finishes[1](Response.json(response()));
+    await expect(retry).resolves.toMatchObject({ stats: { duration: 420 } });
+    await provider.calculateRoute(points, 'cycling');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it('shares a failure but allows retry without caching the error', async () => {
+    let finish!: (value: Response) => void;
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const provider = new OpenRouteServiceRoutingService();
+    const first = provider.calculateRoute(points, 'cycling').catch((error: unknown) => error);
+    const second = provider.calculateRoute(points, 'cycling').catch((error: unknown) => error);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    finish(Response.json({ error: { code: 'UPSTREAM_RATE_LIMITED' } }, { status: 503 }));
+    expect(await first).toMatchObject({ message: expect.stringContaining('quota') });
+    expect(await second).toMatchObject({ message: expect.stringContaining('quota') });
+    const retry = provider.calculateRoute(points, 'cycling');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    finish(Response.json(response()));
+    await expect(retry).resolves.toMatchObject({ stats: { duration: 420 } });
+  });
+  it('keeps distinct routing profiles, options and alternatives separate in flight', async () => {
+    const finishes: ((value: Response) => void)[] = [];
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishes.push(resolve);
+        }),
+    );
+    const provider = new OpenRouteServiceRoutingService();
+    const requests = [
+      provider.calculateRoute(points, 'cycling'),
+      provider.calculateRoute(points, 'hiking'),
+      provider.calculateRoute(points, 'cycling', undefined, { avoidFerries: true }),
+      provider.calculatePointAlternatives(points, 'cycling'),
+    ];
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    for (const finish of finishes) finish(Response.json(response()));
+    await Promise.all(requests);
+  });
+  it('does not cache geometry exceeding the serialized memory budget', async () => {
+    const coordinates = Array.from({ length: 120_000 }, () => [
+      11.40000012345, 47.26000012345, 600,
+    ]);
+    const fetcher = mockJson(response(coordinates));
+    const provider = new OpenRouteServiceRoutingService();
+    await provider.calculateRoute(points, 'cycling');
+    await provider.calculateRoute(points, 'cycling');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it('retains recently used cache entries while respecting the five-minute expiry', async () => {
+    vi.useFakeTimers();
+    const fetcher = mockJson(response());
+    const provider = new OpenRouteServiceRoutingService();
+    const stops = (index: number): Waypoint[] => [
+      points[0],
+      { ...points[1], coordinate: [11.41 + index / 1000, 47.27] },
+    ];
+    for (let index = 0; index < 50; index++) await provider.calculateRoute(stops(index), 'cycling');
+    await provider.calculateRoute(stops(0), 'cycling');
+    expect(fetcher).toHaveBeenCalledTimes(50);
+    await provider.calculateRoute(stops(50), 'cycling');
+    await provider.calculateRoute(stops(0), 'cycling');
+    expect(fetcher).toHaveBeenCalledTimes(51);
+    await provider.calculateRoute(stops(1), 'cycling');
+    expect(fetcher).toHaveBeenCalledTimes(52);
+    await vi.advanceTimersByTimeAsync(300_000);
+    await provider.calculateRoute(stops(0), 'cycling');
+    expect(fetcher).toHaveBeenCalledTimes(53);
+  });
   it.each([401, 403, 429, 503, 400, 422])('reports service failure %s', async (status) => {
     mockJson({}, status);
     await expect(

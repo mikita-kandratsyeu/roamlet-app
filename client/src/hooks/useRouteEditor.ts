@@ -27,10 +27,10 @@ function restoreTiming(present: EditorSnapshot, target: EditorSnapshot): EditorS
   return { ...present, result, departureLocal: target.departureLocal,
     waypoints: present.waypoints.map((point) => {
       const saved = points.get(point.id);
-      if (!saved || saved.pauseMinutes === point.pauseMinutes) return point;
+      if (!saved || (saved.pauseMinutes === point.pauseMinutes && saved.name === point.name)) return point;
       const { pauseMinutes: _pause, ...rest } = point;
       void _pause;
-      return { ...rest, ...(saved.pauseMinutes === undefined ? {} : { pauseMinutes: saved.pauseMinutes }) };
+      return { ...rest, name: saved.name, ...(saved.pauseMinutes === undefined ? {} : { pauseMinutes: saved.pauseMinutes }) };
     }),
   };
 }
@@ -38,7 +38,7 @@ type Action =
   | { type: 'patch'; key: keyof EditorSnapshot; value: unknown }
   | { type: 'departure'; value: string | undefined }
   | { type: 'pause'; id: string; value: number | undefined }
-  | { type: 'checkpoint' }
+  | { type: 'checkpoint'; localOnly?: boolean }
   | { type: 'undo' | 'redo' }
   | { type: 'reset'; snapshot: EditorSnapshot };
 export function editorReducer(state: EditorHistory, action: Action): EditorHistory {
@@ -79,7 +79,7 @@ export function editorReducer(state: EditorHistory, action: Action): EditorHisto
       ...state,
       past: [...state.past, state.present].slice(-50),
       future: [],
-      pastTiming: [...timingFlags(state.past, state.pastTiming), false].slice(-50),
+      pastTiming: [...timingFlags(state.past, state.pastTiming), action.localOnly ?? false].slice(-50),
       futureTiming: [],
     };
   if (action.type === 'reset')
@@ -113,8 +113,7 @@ export function useRouteEditor(initial: EditorSnapshot = initialEditor()) {
     () => normalizeRoutingOptions(history.present.routingOptions),
     [history.present.routingOptions],
   );
-  // usePointRouting depends on waypoint identity as well as its geometry key. Supply this
-  // snapshot to routing so a pause edit cannot abort/restart an in-flight calculation.
+  // Timing remains editor-local and is overlaid onto router results when rendering or saving.
   const routingWaypointsKey = JSON.stringify(history.present.waypoints.map((point) => {
     const { pauseMinutes: _pause, ...rest } = point;
     void _pause;
@@ -170,7 +169,7 @@ export function useRouteEditor(initial: EditorSnapshot = initialEditor()) {
     canRedo: history.future.length > 0,
     undoChangesGeometry: history.pastTiming?.at(-1) !== true,
     redoChangesGeometry: history.futureTiming?.[0] !== true,
-    checkpoint: () => dispatch({ type: 'checkpoint' }),
+    checkpoint: (localOnly = false) => dispatch({ type: 'checkpoint', localOnly }),
     undo: () => {
       if (history.pastTiming?.at(-1) !== true) routingAllowed.current = false;
       dispatch({ type: 'undo' });

@@ -268,6 +268,28 @@ it('renders planner sections without duplicate React keys before and after plann
   )).toEqual([]);
 });
 
+it('keeps a ready route exportable when a stop is replaced with identical coordinates', async () => {
+  render(<App />);
+  await plan();
+  const calls = provider.calculateRoute.mock.calls.length;
+  const geometry = screen.getByTestId('map').getAttribute('data-geometry');
+  vi.useFakeTimers();
+  try {
+    fireEvent.click(screen.getByRole('button', { name: 'Replace stop 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Replace stop coordinates' }));
+    expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
+    expect(screen.getByRole('textbox', { name: 'Latitude' })).toHaveValue('');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+    expect(provider.calculateRoute).toHaveBeenCalledTimes(calls);
+    expect(screen.getByTestId('map').getAttribute('data-geometry')).toBe(geometry);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it('draws a local section detour, cancels losslessly and applies it as a single route edit', async () => {
   render(<App />);
   await plan();

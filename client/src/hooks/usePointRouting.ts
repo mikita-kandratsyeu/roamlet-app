@@ -1,8 +1,18 @@
-import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import {
+  useEffect,
+  useRef,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from 'react';
 import type { EditorSnapshot } from '../domain/editorSnapshot';
 import type { PlannedRoute } from '../domain/types';
 import { manualRoute } from '../domain/manualRoute';
-import { routingInputKey, isRouteResultCurrent } from '../domain/editorRouting';
+import {
+  routingCalculationKey,
+  routingInputKey,
+  isRouteResultCurrent,
+} from '../domain/editorRouting';
 import { automaticPointCount } from '../domain/waypointLegs';
 import { normalizeRoutingOptions } from '../domain/routingOptions';
 import { routingProvider } from '../services/routing';
@@ -34,14 +44,49 @@ export function usePointRouting({
   setNotice,
   onStart,
 }: Options) {
-  const { activity, waypoints, mode, planningMode, identity, routeMetadata, routingOptions } =
-    snapshot;
-  const inputKey = routingInputKey(snapshot);
+  const latest = useRef(snapshot);
+  const calculationKey = routingCalculationKey(snapshot);
+  const identityKey = JSON.stringify([
+    snapshot.identity,
+    snapshot.waypoints.map((point) => point.id),
+  ]);
+  const mode = snapshot.mode;
+  useEffect(() => {
+    latest.current = snapshot;
+  }, [snapshot]);
   useEffect(() => {
     if (snapshot.result && !snapshot.routeStale && !isRouteResultCurrent(snapshot))
       setRouteStale?.(true);
-  }, [snapshot, setRouteStale]);
+    if (
+      snapshot.mode !== 'manual' ||
+      snapshot.planningMode === 'loop' ||
+      !isRouteResultCurrent(snapshot)
+    )
+      return;
+    const points = snapshot.waypoints;
+    if (
+      !snapshot.result?.waypoints.some(
+        (point, index) =>
+          points[index] && (points[index].name !== point.name || points[index].id !== point.id),
+      )
+    )
+      return;
+    setResult((current) => {
+      if (!current || current !== snapshot.result) return current;
+      const waypoints = current.waypoints.map((point, index) => {
+        const edited = points[index];
+        return edited && (edited.name !== point.name || edited.id !== point.id)
+          ? { ...point, name: edited.name, id: edited.id }
+          : point;
+      });
+      return waypoints.some((point, index) => point !== current.waypoints[index])
+        ? { ...current, waypoints }
+        : current;
+    });
+  }, [snapshot, setRouteStale, setResult]);
   useEffect(() => {
+    const { activity, waypoints, planningMode, routingOptions } = latest.current;
+    const inputKey = routingInputKey(latest.current);
     const hasAutomaticLegs =
       planningMode === 'loop' || (planningMode === 'point' && automaticPointCount(waypoints) > 0);
     if (!online && hasAutomaticLegs) {
@@ -56,12 +101,12 @@ export function usePointRouting({
       calculated: ReturnType<typeof manualRoute>,
       source: PlannedRoute['source'],
     ): PlannedRoute => ({
-      ...identity,
-      ...routeMetadata,
+      ...latest.current.identity,
+      ...latest.current.routeMetadata,
       name: i18n.t('Untitled adventure'),
       description: '',
       activity,
-      waypoints,
+      waypoints: latest.current.waypoints,
       ...calculated,
       updatedAt: new Date().toISOString(),
       source,
@@ -105,7 +150,8 @@ export function usePointRouting({
         })
         .catch((error) => {
           if (!controller.signal.aborted) {
-            const text = error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+            const text =
+              error instanceof Error ? error.message : 'Something went wrong. Please try again.';
             setNotice({ text, error: true, kind: 'routing' });
             notification?.error(text);
           }
@@ -119,14 +165,9 @@ export function usePointRouting({
       controller.abort();
     };
   }, [
-    activity,
-    waypoints,
+    calculationKey,
+    identityKey,
     mode,
-    planningMode,
-    identity,
-    routeMetadata,
-    routingOptions,
-    inputKey,
     revision,
     online,
     allowed,

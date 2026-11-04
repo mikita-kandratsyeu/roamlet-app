@@ -73,7 +73,7 @@ import {
   reorderWaypoints,
   insertWaypoint,
 } from './domain/waypointLegs';
-import { isRouteResultCurrent } from './domain/editorRouting';
+import { isRouteResultCurrent, routingCalculationKey } from './domain/editorRouting';
 import { DEFAULT_ROUTING_OPTIONS } from './domain/routingOptions';
 import { routeSectionSegments } from './domain/routeInsertion';
 type PlanningMode = 'point' | 'loop' | 'manual';
@@ -559,6 +559,7 @@ export default function App() {
     editor.routingAllowed.current = true;
     request.current?.abort();
     setBusy(false);
+    setRouteRevision((revision) => revision + 1);
     setRouteStale(preserveGeometry);
     setElevationCoordinate(null);
     if (!preserveGeometry) setResult(null);
@@ -569,6 +570,20 @@ export default function App() {
   }
   function changeWaypoints(next: Waypoint[]) {
     if (offlineAutomatic) return;
+    if (JSON.stringify(waypoints) === JSON.stringify(next)) return;
+    if (
+      routingCalculationKey(editor.snapshot) ===
+        routingCalculationKey({ ...editor.snapshot, waypoints: next }) &&
+      next.every(
+        (point, index) =>
+          point.id === waypoints[index].id && point.legMode === waypoints[index].legMode,
+      )
+    ) {
+      editor.checkpoint(true);
+      setWaypoints(next);
+      setDirty(true);
+      return;
+    }
     invalidate(planningMode === 'point' && next.length >= 2);
     setWaypoints(next);
   }

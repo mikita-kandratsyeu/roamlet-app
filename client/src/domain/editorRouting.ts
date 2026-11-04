@@ -18,6 +18,15 @@ export function routingInputKey(
     snapshot.planningMode === 'manual' ? null : normalizeRoutingOptions(snapshot.routingOptions),
   ]);
 }
+/** Local direct geometry also depends on supplied heights, unlike the ORS request body. */
+export function routingCalculationKey(
+  snapshot: Pick<EditorSnapshot, 'activity' | 'planningMode' | 'waypoints' | 'routingOptions'>,
+): string {
+  return JSON.stringify([
+    routingInputKey(snapshot),
+    snapshot.waypoints.map((point) => point.coordinate),
+  ]);
+}
 /** Use this guard for save/export: retained ready geometry is only a visual reference while stale. */
 export function isRouteResultCurrent(snapshot: EditorSnapshot): boolean {
   if (!snapshot.result || snapshot.routeStale) return false;

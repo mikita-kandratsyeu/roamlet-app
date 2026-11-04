@@ -31,7 +31,7 @@ function initial(): EditorSnapshot {
   };
   return snapshot;
 }
-function useHarness(snapshot: EditorSnapshot, online: boolean) {
+function useHarness(snapshot: EditorSnapshot, online: boolean, revision = 0) {
   const editor = useRouteEditor(snapshot);
   const once = useRef(true);
   if (once.current) {
@@ -47,7 +47,7 @@ function useHarness(snapshot: EditorSnapshot, online: boolean) {
   } | null>(null);
   usePointRouting({
     snapshot: editor.snapshot,
-    revision: 0,
+    revision,
     online,
     allowed: editor.routingAllowed,
     request,
@@ -113,6 +113,90 @@ describe('retaining ready geometry while stale routing is pending', () => {
     expect(result.current.busy).toBe(false);
     expect(notification.success).toHaveBeenCalledOnce();
     expect(notification.error).not.toHaveBeenCalled();
+  });
+  it('does not restart routing for waypoint names and applies current names to the result', async () => {
+    let resolve!: (value: RoutingResult) => void;
+    const calculate = vi.spyOn(routingProvider, 'calculateRoute').mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    const { result } = renderHook(() => useHarness(initial(), true));
+    const controller = result.current.request.current!;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    act(() =>
+      result.current.editor.setWaypoints((current) =>
+        current.map((point) => ({ ...point, name: `${point.name} renamed` })),
+      ),
+    );
+    expect(controller.signal.aborted).toBe(false);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+    expect(calculate).toHaveBeenCalledTimes(1);
+    act(() =>
+      result.current.editor.setWaypoints((current) =>
+        current.map((point) => ({ ...point, name: `${point.name} again` })),
+      ),
+    );
+    expect(controller.signal.aborted).toBe(false);
+    await act(async () => {
+      resolve(calculated);
+    });
+    expect(result.current.editor.result?.waypoints.map((point) => point.name)).toEqual([
+      'A renamed again',
+      'B renamed again',
+    ]);
+    const geometry = result.current.editor.result!.segments;
+    act(() => {
+      result.current.editor.checkpoint(true);
+      result.current.editor.setWaypoints((current) =>
+        current.map((point) => ({ ...point, name: `${point.name} final` })),
+      );
+    });
+    await runDebounce();
+    expect(calculate).toHaveBeenCalledTimes(1);
+    expect(result.current.editor.result?.waypoints.map((point) => point.name)).toEqual([
+      'A renamed again final',
+      'B renamed again final',
+    ]);
+    expect(result.current.editor.result?.segments).toBe(geometry);
+    expect(result.current.editor.routeStale).toBe(false);
+    expect(result.current.busy).toBe(false);
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(notification.success).toHaveBeenCalledTimes(1);
+    expect(result.current.editor.undoChangesGeometry).toBe(false);
+    act(() => result.current.editor.undo());
+    expect(result.current.editor.result?.waypoints[0].name).toBe('A renamed again');
+    expect(result.current.editor.result?.segments).toBe(geometry);
+    act(() => result.current.editor.redo());
+    expect(result.current.editor.result?.waypoints[0].name).toBe('A renamed again final');
+    await runDebounce();
+    expect(calculate).toHaveBeenCalledTimes(1);
+    expect(result.current.editor.routingAllowed.current).toBe(true);
+  });
+  it('preserves explicit retry for unchanged inputs and aborts it on unmount', async () => {
+    const calculate = vi
+      .spyOn(routingProvider, 'calculateRoute')
+      .mockResolvedValueOnce(calculated)
+      .mockImplementation(() => new Promise(() => {}));
+    const snapshot = initial();
+    const { result, rerender, unmount } = renderHook(
+      ({ revision }) => useHarness(snapshot, true, revision),
+      { initialProps: { revision: 0 } },
+    );
+    await runDebounce();
+    expect(result.current.busy).toBe(false);
+    rerender({ revision: 1 });
+    await runDebounce();
+    expect(calculate).toHaveBeenCalledTimes(2);
+    expect(result.current.busy).toBe(true);
+    const controller = result.current.request.current!;
+    unmount();
+    expect(controller.signal.aborted).toBe(true);
   });
   it('keeps geometry stale and nonexportable after a service error or notice dismissal', async () => {
     vi.spyOn(routingProvider, 'calculateRoute').mockRejectedValue(

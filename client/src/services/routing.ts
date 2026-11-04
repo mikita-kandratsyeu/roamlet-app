@@ -137,9 +137,12 @@ export async function requestJson(
     if (controller.signal.aborted)
       throw new Error('The service took too long to respond. Please try again.', { cause: error });
     if (error instanceof TypeError)
-      throw new Error('Cannot reach the service. Check your internet connection and provider URL.', {
-        cause: error,
-      });
+      throw new Error(
+        'Cannot reach the service. Check your internet connection and provider URL.',
+        {
+          cause: error,
+        },
+      );
     throw error;
   } finally {
     clearTimeout(timer);
@@ -147,8 +150,81 @@ export async function requestJson(
   }
 }
 
+const ROUTING_CACHE_TTL = 300_000;
+const ROUTING_CACHE_ENTRIES = 50;
+const ROUTING_CACHE_BYTES = 8 * 1024 * 1024;
+interface PendingRouteRequest {
+  controller: AbortController;
+  promise: Promise<RoutingResult[]>;
+  consumers: number;
+  settled: boolean;
+}
 export class OpenRouteServiceRoutingService implements RoutingProvider {
-  private cache = new Map<string, { time: number; results: RoutingResult[] }>();
+  private cache = new Map<string, { time: number; results: RoutingResult[]; bytes: number }>();
+  private cacheBytes = 0;
+  private pending = new Map<string, PendingRouteRequest>();
+  private removeCached(key: string) {
+    const entry = this.cache.get(key);
+    if (entry) this.cacheBytes -= entry.bytes;
+    this.cache.delete(key);
+  }
+  private cacheResults(key: string, results: RoutingResult[]) {
+    for (const [cachedKey, entry] of this.cache) {
+      if (Date.now() - entry.time >= ROUTING_CACHE_TTL) this.removeCached(cachedKey);
+    }
+    // Bound serialized UTF-16 data as well as entry count; large routes need not be cached.
+    const bytes = 2 * (key.length + JSON.stringify(results).length);
+    if (bytes > ROUTING_CACHE_BYTES) return;
+    this.removeCached(key);
+    while (
+      this.cache.size >= ROUTING_CACHE_ENTRIES ||
+      this.cacheBytes + bytes > ROUTING_CACHE_BYTES
+    ) {
+      const oldest = this.cache.keys().next().value;
+      if (oldest === undefined) break;
+      this.removeCached(oldest);
+    }
+    this.cache.set(key, { time: Date.now(), results, bytes });
+    this.cacheBytes += bytes;
+  }
+  private subscribe(
+    key: string,
+    pending: PendingRouteRequest,
+    signal?: AbortSignal,
+  ): Promise<RoutingResult[]> {
+    pending.consumers++;
+    return new Promise((resolve, reject) => {
+      let active = true;
+      const release = () => {
+        active = false;
+        signal?.removeEventListener('abort', cancel);
+        pending.consumers--;
+        if (!pending.consumers && !pending.settled) {
+          if (this.pending.get(key) === pending) this.pending.delete(key);
+          pending.controller.abort();
+        }
+      };
+      const cancel = () => {
+        if (!active) return;
+        release();
+        reject(new DOMException('Request cancelled', 'AbortError'));
+      };
+      signal?.addEventListener('abort', cancel, { once: true });
+      pending.promise.then(
+        (results) => {
+          if (!active) return;
+          release();
+          resolve(structuredClone(results));
+        },
+        (error: unknown) => {
+          if (!active) return;
+          release();
+          reject(error);
+        },
+      );
+      if (signal?.aborted) cancel();
+    });
+  }
   private async requestRoutes(
     coordinates: Coordinate[],
     activity: Activity,
@@ -172,7 +248,43 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
     };
     const cacheKey = JSON.stringify([profile, body]);
     const cached = this.cache.get(cacheKey);
-    if (cached && Date.now() - cached.time < 300_000) return structuredClone(cached.results);
+    if (cached && Date.now() - cached.time < ROUTING_CACHE_TTL) {
+      this.cache.delete(cacheKey);
+      this.cache.set(cacheKey, cached);
+      return structuredClone(cached.results);
+    }
+    if (cached) this.removeCached(cacheKey);
+    let pending = this.pending.get(cacheKey);
+    if (!pending) {
+      const controller = new AbortController();
+      const entry: PendingRouteRequest = {
+        controller,
+        consumers: 0,
+        settled: false,
+        promise: this.fetchRoutes(profile, body, activity, controller.signal, alternatives),
+      };
+      entry.promise = entry.promise
+        .then((results) => {
+          if (controller.signal.aborted) throw new DOMException('Request cancelled', 'AbortError');
+          this.cacheResults(cacheKey, results);
+          return results;
+        })
+        .finally(() => {
+          entry.settled = true;
+          if (this.pending.get(cacheKey) === entry) this.pending.delete(cacheKey);
+        });
+      this.pending.set(cacheKey, entry);
+      pending = entry;
+    }
+    return this.subscribe(cacheKey, pending, signal);
+  }
+  private async fetchRoutes(
+    profile: string,
+    body: object,
+    activity: Activity,
+    signal: AbortSignal,
+    alternatives: boolean,
+  ): Promise<RoutingResult[]> {
     const data = object(
       await requestJson(
         `/openrouteservice/v2/directions/${profile}/geojson`,
@@ -218,9 +330,7 @@ export class OpenRouteServiceRoutingService implements RoutingProvider {
         ...(stats.ascent !== undefined ? { elevationSource: 'openrouteservice' as const } : {}),
       };
     });
-    if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
-    if (this.cache.size >= 20) this.cache.delete(this.cache.keys().next().value!);
-    this.cache.set(cacheKey, { time: Date.now(), results: structuredClone(results) });
+    if (signal.aborted) throw new DOMException('Request cancelled', 'AbortError');
     return results;
   }
   private async calculate(

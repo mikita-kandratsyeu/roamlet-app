@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { initialEditor, migrateSnapshot, validateSnapshot } from './editorSnapshot';
-import { editableRouteWaypoints, isRouteResultCurrent, routingInputKey } from './editorRouting';
+import { editableRouteWaypoints, isRouteResultCurrent, routingInputKey, routingCalculationKey } from './editorRouting';
 import {
   automaticPointCount,
   insertWaypoint,
@@ -74,6 +74,24 @@ describe('outgoing waypoint modes', () => {
   });
 });
 describe('stale geometry and backwards compatible snapshots', () => {
+  it('ignores names and pauses for calculation but retains changes to supplied heights', () => {
+    const snapshot = { ...initialEditor(), planningMode: 'manual' as const, waypoints: points };
+    expect(
+      routingCalculationKey({
+        ...snapshot,
+        waypoints: points.map((point) => ({ ...point, name: 'Renamed', pauseMinutes: 10 })),
+      }),
+    ).toBe(routingCalculationKey(snapshot));
+    expect(
+      routingCalculationKey({
+        ...snapshot,
+        waypoints: points.map((point): Waypoint => ({
+          ...point,
+          coordinate: [point.coordinate[0], point.coordinate[1], 100],
+        })),
+      }),
+    ).not.toBe(routingCalculationKey(snapshot));
+  });
   it('retains old snapshots and defaults missing fields, but rejects malformed option/mode/stale values', () => {
     const old = initialEditor();
     delete old.routingOptions;
