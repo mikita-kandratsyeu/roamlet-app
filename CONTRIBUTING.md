@@ -1,6 +1,6 @@
 # Contributing to Roamlet
 
-Contributions to code, tests, documentation and English/Russian translations are welcome. Roamlet is a local-first cycling and hiking planner; changes should preserve local workflows and existing user data.
+Roamlet is protected by an [All Rights Reserved](LICENSE) license. Contributions to code, tests, documentation and English/Russian translations are welcome. Roamlet is a local-first cycling and hiking planner; changes should preserve local workflows and existing user data.
 
 ## Before starting
 
