@@ -261,6 +261,7 @@ export function Statistics({
       <dd>{formatTimeRange(personal.totalRange)}</dd>
     </div>
   );
+  const showStopTotal = stopsMinutes > 0;
   const additionalStats = (
     <>
       {personal?.planningReference !== null && personal?.planningReference !== undefined && (
@@ -290,8 +291,14 @@ export function Statistics({
           <dt>{t('Distance')}</dt>
           <dd>{formatDistance(route.stats.distance)}</dd>
         </div>
-        {compact && personal ? totalTime : originalEstimate}
-        {!compact && <>{movingTime}{totalTime}{additionalStats}</>}
+        {compact && personal ? (showStopTotal ? totalTime : movingTime) : originalEstimate}
+        {!compact && (
+          <>
+            {movingTime}
+            {showStopTotal && totalTime}
+            {additionalStats}
+          </>
+        )}
       </dl>
       {compact && (personal || showElevation) && (
         <details className="statistics-details planner-disclosure">
@@ -301,7 +308,7 @@ export function Statistics({
           </summary>
           <dl className="stat-grid stat-grid-details">
             {personal && originalEstimate}
-            {movingTime}
+            {showStopTotal && movingTime}
             {additionalStats}
           </dl>
         </details>

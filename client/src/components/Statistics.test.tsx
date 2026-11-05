@@ -165,6 +165,29 @@ it('shows personal movement and total while retaining the original duration esti
   expect(snapshot.stats.duration).toBe(1800);
 });
 
+it.each([false, true])(
+  'shows one personal time estimate when there are no stops (mobile: %s)',
+  (mobile) => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(max-width: 700px)' ? mobile : false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    const snapshot = route([
+      [
+        [11, 47],
+        [11.01, 47.01],
+      ],
+    ]);
+    snapshot.stats = { distance: 18000, duration: 1800 };
+    const { container } = render(<Statistics route={snapshot} speedKmh={18} stopsMinutes={0} />);
+    expect(screen.getByText('Personal moving time')).toBeInTheDocument();
+    expect(screen.queryByText('Total time with stops')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.stat-card-personal')).toHaveLength(1);
+    expect(container.querySelector('.stat-card-personal')).toHaveTextContent('42 min – 1 h 30 min');
+  },
+);
+
 for (const desktop of [false, true]) {
   it(`hides unavailable profiles and removes them after changing routes (desktop: ${desktop})`, async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
