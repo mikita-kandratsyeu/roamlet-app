@@ -99,18 +99,20 @@ export function RouteWeather({
           ) : (
             <>
               <h3>{t('Forecast near departure')}</h3>
-              <p>
+              <div className="route-weather-summary">
                 <time dateTime={first.time}>{localTime(first.time)}</time>
-              </p>
+                <dl className="route-weather-highlight">
+                  <div>
+                    <dt>{t('Temperature')}</dt>
+                    <dd>{value(first.temperature, '°C')}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('Feels like')}</dt>
+                    <dd>{value(first.apparent, '°C')}</dd>
+                  </div>
+                </dl>
+              </div>
               <dl className="route-weather-metrics">
-                <div>
-                  <dt>{t('Temperature')}</dt>
-                  <dd>{value(first.temperature, '°C')}</dd>
-                </div>
-                <div>
-                  <dt>{t('Feels like')}</dt>
-                  <dd>{value(first.apparent, '°C')}</dd>
-                </div>
                 <div>
                   <dt>{t('Precipitation probability')}</dt>
                   <dd>{value(first.probability, '%')}</dd>
@@ -137,15 +139,20 @@ export function RouteWeather({
                 {hours.map((hour) => (
                   <li key={hour.time}>
                     <time dateTime={hour.time}>{localTime(hour.time)}</time>
-                    <span>
-                      {t('Temperature')}: {value(hour.temperature, '°C')}
-                    </span>
-                    <span>
-                      {t('Precipitation probability')}: {value(hour.probability, '%')}
-                    </span>
-                    <span>
-                      {t('Wind')}: {value(hour.wind, t('km/h'))}
-                    </span>
+                    <dl>
+                      <div>
+                        <dt>{t('Temperature')}</dt>
+                        <dd>{value(hour.temperature, '°C')}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('Precipitation probability')}</dt>
+                        <dd>{value(hour.probability, '%')}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('Wind')}</dt>
+                        <dd>{value(hour.wind, t('km/h'))}</dd>
+                      </div>
+                    </dl>
                   </li>
                 ))}
               </ol>

@@ -18,15 +18,52 @@
   width: 100%;
   white-space: normal;
 }
-.route-weather-metrics {
+.route-weather-summary {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--muted);
+}
+.route-weather-summary > time {
+  font-size: var(--font-size-control, 14px);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.route-weather-highlight {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin: 0;
 }
+.route-weather-highlight dt,
 .route-weather-metrics dt {
   font-size: var(--font-size-label, 13px);
   color: var(--muted-foreground);
+}
+.route-weather-highlight dd {
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.route-weather-highlight > div:first-child dd {
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 650;
+}
+.route-weather-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.route-weather-metrics > div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
 }
 .route-weather-metrics dd {
   margin: 4px 0 0;
@@ -34,6 +71,8 @@
 }
 .route-weather-hours {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  container-type: inline-size;
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -42,7 +81,7 @@
 .route-weather-hours li {
   display: grid;
   gap: 6px;
-  padding: 12px;
+  padding: 10px;
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -51,4 +90,37 @@
 }
 .route-weather-hours time {
   font-weight: 600;
+}
+.route-weather-hours dl {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+.route-weather-hours dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+}
+.route-weather-hours dt {
+  min-width: 0;
+  overflow-wrap: normal;
+}
+.route-weather-hours dd {
+  margin: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+@container (max-width: 320px) {
+  .route-weather-hours li {
+    grid-column: 1 / -1;
+  }
+  .route-weather-hours dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .route-weather-hours dd {
+    text-align: left;
+  }
 }
