@@ -68,10 +68,21 @@ afterEach(() => {
 async function preview() {
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Add to calendar' }));
-  await user.click(screen.getByRole('button', { name: 'Start time zone (IANA)' }));
-  await user.click(screen.getByRole('menuitemradio', { name: 'Europe/Warsaw' }));
+  await user.click(screen.getByRole('button', { name: 'Time zone at route start' }));
+  await user.click(screen.getByRole('menuitemradio', { name: /Warsaw.*UTC\+1/ }));
   return user;
 }
+it('formats reminder labels with localized plural words', async () => {
+  await i18n.changeLanguage('ru');
+  render(view());
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Добавить в календарь' }));
+  await user.click(screen.getByRole('button', { name: 'Напомнить до старта (минуты)' }));
+  await user.click(screen.getByRole('menuitemradio', { name: '1 час 30 минут' }));
+  expect(screen.getByRole('button', { name: 'Напомнить до старта (минуты)' })).toHaveTextContent(
+    '1 час 30 минут',
+  );
+});
 it('keeps ICS available without a connector and previews without transmitting data', async () => {
   render(view());
   await act(async () => {});
@@ -167,7 +178,7 @@ it.each([
     'en',
     'Event preview',
     'Event settings',
-    'Start time zone (IANA)',
+    'Time zone at route start',
     'Timing and privacy',
     'Download .ics',
   ],
@@ -175,7 +186,7 @@ it.each([
     'ru',
     'Предпросмотр события',
     'Настройки события',
-    'Часовой пояс старта (IANA)',
+    'Часовой пояс старта маршрута',
     'Расчёт времени и приватность',
     'Скачать .ics',
   ],
@@ -193,10 +204,10 @@ it.each([
     const zone = screen.getByRole('button', { name: zoneLabel });
     expect(zone).toHaveFocus();
     await user.click(zone);
-    const warsaw = screen.getByRole('menuitemradio', { name: 'Europe/Warsaw' });
+    const warsaw = screen.getByRole('menuitemradio', { name: /Warsaw.*UTC\+1/ });
     expect(warsaw).toHaveAttribute('aria-checked', 'false');
     await user.click(warsaw);
-    expect(zone).toHaveTextContent('Europe/Warsaw');
+    expect(zone).toHaveTextContent(/Warsaw.*UTC\+1/);
     const preview = screen.getByRole('region', { name: previewLabel });
     expect(within(preview).getByRole('heading', { name: input.name })).toBeVisible();
     expect(preview.querySelector('time')).toHaveTextContent(language === 'ru' ? 'нояб.' : 'Nov');
@@ -288,24 +299,22 @@ it('retains calendar actions after expiry and offers reconnection', async () => 
   expect(screen.getByRole('button', { name: 'Confirm event creation' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Reconnect Google Calendar' })).toBeEnabled();
 });
-it('keeps popular zones compact and searches the full timezone list', async () => {
+it('keeps popular zones compact and shows the full timezone list without search', async () => {
   vi.mocked(getGoogleCalendarSession).mockResolvedValue(connected());
   render(view());
   await screen.findByRole('button', { name: 'Add to calendar' });
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Add to calendar' }));
-  const zone = screen.getByRole('button', { name: 'Start time zone (IANA)' });
+  const zone = screen.getByRole('button', { name: 'Time zone at route start' });
   await user.click(zone);
-  expect(screen.getByRole('menuitemradio', { name: 'Europe/Warsaw' })).toBeInTheDocument();
-  expect(screen.queryByRole('menuitemradio', { name: 'America/Chicago' })).not.toBeInTheDocument();
-  await user.click(screen.getByRole('menuitem', { name: 'Search all time zones' }));
-  const search = screen.getByRole('searchbox', { name: 'Search all time zones' });
-  await user.type(search, 'America/Chicago');
-  await user.click(screen.getByRole('menuitemradio', { name: 'America/Chicago' }));
-  expect(zone).toHaveTextContent('America/Chicago');
+  expect(screen.getByRole('menuitemradio', { name: /Warsaw.*UTC\+1/ })).toBeInTheDocument();
+  expect(screen.getByRole('menuitemradio', { name: /Chicago.*UTC-6/ })).toBeInTheDocument();
+  expect(screen.queryByRole('searchbox', { name: 'Search all time zones' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('menuitemradio', { name: /Chicago.*UTC-6/ }));
+  expect(zone).toHaveTextContent(/Chicago.*UTC-6/);
 
   await user.click(zone);
-  expect(screen.getByRole('menuitemradio', { name: 'America/Chicago' })).toHaveAttribute(
+  expect(screen.getByRole('menuitemradio', { name: /Chicago.*UTC-6/ })).toHaveAttribute(
     'aria-checked',
     'true',
   );

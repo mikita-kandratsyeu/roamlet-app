@@ -23,12 +23,11 @@ import { googleCalendarErrors } from '../services/connectors/googleCalendar';
 import { Dialog } from './Dialog';
 import { Notification } from './Notification';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Label } from './ui/label';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -37,6 +36,35 @@ import {
 import './RouteCalendarActions.css';
 
 const timeZoneOptions = [...new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])].sort();
+
+function formatReminderLabel(value: string, locale: string, t: (key: string) => string) {
+  const totalMinutes = Number(value);
+  if (Number.isNaN(totalMinutes) || totalMinutes <= 0) return t('No reminder');
+
+  const pluralKey = (baseKey: string, count: number) => {
+    const form = new Intl.PluralRules(locale).select(count);
+    return t(`${baseKey}_${form}`);
+  };
+
+  const hours = Math.floor(totalMinutes / 60);
+  const remainder = totalMinutes % 60;
+  const formatUnit = (baseKey: string, count: number) => `${count} ${pluralKey(baseKey, count)}`;
+
+  if (hours === 0) return formatUnit('minute', totalMinutes);
+  if (remainder === 0) return formatUnit('hour', hours);
+  return `${formatUnit('hour', hours)} ${formatUnit('minute', remainder)}`;
+}
+
+function formatTimeZoneLabel(zone: string, locale: string) {
+  if (zone === 'UTC') return 'UTC';
+  const cityName = zone.split('/').at(-1)?.replace(/_/g, ' ') ?? zone;
+  const parts = new Intl.DateTimeFormat(locale, {
+    timeZone: zone,
+    timeZoneName: 'shortOffset',
+  }).formatToParts(new Date());
+  const offset = parts.find((part) => part.type === 'timeZoneName')?.value ?? 'UTC';
+  return `${cityName} (${offset.replace(/^GMT/, 'UTC')})`;
+}
 
 export interface RouteCalendarInput {
   routeId: string;
@@ -76,8 +104,7 @@ export function RouteCalendarActions({
   const [open, setOpen] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [timeZoneMenuOpen, setTimeZoneMenuOpen] = useState(false);
-  const [searchAllTimeZones, setSearchAllTimeZones] = useState(false);
-  const [timeZoneQuery, setTimeZoneQuery] = useState('');
+  const [reminderMenuOpen, setReminderMenuOpen] = useState(false);
   const [timeZone, setTimeZone] = useState(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   );
@@ -86,7 +113,6 @@ export function RouteCalendarActions({
   const id = useId();
   const cancelButton = useRef<HTMLButtonElement>(null);
   const zoneInput = useRef<HTMLButtonElement>(null);
-  const timeZoneSearchInput = useRef<HTMLInputElement>(null);
   const { record } = publication;
   const availableTimeZones = timeZoneOptions.includes(timeZone)
     ? timeZoneOptions
@@ -106,14 +132,8 @@ export function RouteCalendarActions({
       'Australia/Sydney',
     ]),
   ].filter((zone) => availableTimeZones.includes(zone));
-  const matchingTimeZones = timeZoneQuery.trim()
-    ? availableTimeZones.filter((zone) =>
-        zone.toLocaleLowerCase().includes(timeZoneQuery.trim().toLocaleLowerCase()),
-      )
-    : [];
-  useEffect(() => {
-    if (searchAllTimeZones) timeZoneSearchInput.current?.focus();
-  }, [searchAllTimeZones]);
+  const allTimeZones = availableTimeZones.filter((zone) => !popularTimeZones.includes(zone));
+  const reminderOptions = ['0', '5', '10', '15', '30', '45', '60', '90', '120', '180'];
   useEffect(() => {
     if (record) {
       setTimeZone(record.timeZone);
@@ -231,7 +251,7 @@ export function RouteCalendarActions({
       {open && (
         <Dialog
           title={t('Route calendar event')}
-          description={t('Review the event details and start time zone.')}
+          description={t('Review the event details and the time zone at the route start.')}
           onClose={close}
           initialFocusRef={zoneInput}
           footer={
@@ -323,28 +343,27 @@ export function RouteCalendarActions({
               <h3 id={`${id}-settings`}>{t('Event settings')}</h3>
               <div className="calendar-event-fields">
                 <div className="calendar-event-field">
-                  <Label htmlFor={`${id}-zone`}>{t('Start time zone (IANA)')}</Label>
+                  <Label htmlFor={`${id}-zone`}>{t('Time zone at route start')}</Label>
                   <DropdownMenu
                     open={timeZoneMenuOpen}
-                    onOpenChange={(nextOpen) => {
-                      setTimeZoneMenuOpen(nextOpen);
-                      if (!nextOpen) {
-                        setSearchAllTimeZones(false);
-                        setTimeZoneQuery('');
-                      }
-                    }}
+                    onOpenChange={setTimeZoneMenuOpen}
                   >
                     <DropdownMenuTrigger asChild disabled={publication.busy}>
                       <Button
                         ref={zoneInput}
                         id={`${id}-zone`}
                         variant="outline"
-                        className="calendar-timezone-trigger"
-                        aria-label={t('Start time zone (IANA)')}
+                        className="planner-choice calendar-timezone-trigger"
+                        aria-label={t('Time zone at route start')}
                         aria-describedby={`${id}-zone-help${draftError ? ` ${id}-error` : ''}`}
                         disabled={publication.busy}
                       >
-                        <span>{timeZone}</span>
+                        <span>
+                          {formatTimeZoneLabel(
+                            timeZone,
+                            i18n.resolvedLanguage || i18n.language || 'en',
+                          )}
+                        </span>
                         <ChevronDown size={16} aria-hidden="true" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -353,71 +372,42 @@ export function RouteCalendarActions({
                       collisionPadding={12}
                       className="planner-choice-menu calendar-timezone-menu"
                     >
-                      {searchAllTimeZones && (
-                        <div className="calendar-timezone-search">
-                          <Input
-                            ref={timeZoneSearchInput}
-                            type="search"
-                            value={timeZoneQuery}
-                            onChange={(event) => setTimeZoneQuery(event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === 'ArrowDown') {
-                                event.preventDefault();
-                                event.currentTarget
-                                  .closest('[role="menu"]')
-                                  ?.querySelector<HTMLElement>('[role="menuitemradio"]')
-                                  ?.focus();
-                              } else if (event.key === 'Escape') {
-                                event.preventDefault();
-                                setTimeZoneMenuOpen(false);
-                              } else if (event.key !== 'Tab') {
-                                event.stopPropagation();
-                              }
-                            }}
-                            aria-label={t('Search all time zones')}
-                            placeholder={t('Search by region, e.g. Europe/Minsk')}
-                            autoComplete="off"
-                          />
-                        </div>
-                      )}
+                      <DropdownMenuLabel>{t('Popular time zones')}</DropdownMenuLabel>
                       <DropdownMenuRadioGroup value={timeZone} onValueChange={setTimeZone}>
-                        {(searchAllTimeZones
-                          ? matchingTimeZones.slice(0, 30)
-                          : popularTimeZones
-                        ).map((zone) => (
-                          <DropdownMenuRadioItem key={zone} value={zone}>
-                            {zone}
+                        {popularTimeZones.map((zone) => (
+                          <DropdownMenuRadioItem
+                            key={zone}
+                            value={zone}
+                            aria-label={formatTimeZoneLabel(
+                              zone,
+                              i18n.resolvedLanguage || i18n.language || 'en',
+                            )}
+                          >
+                            {formatTimeZoneLabel(zone, i18n.resolvedLanguage || i18n.language || 'en')}
                           </DropdownMenuRadioItem>
                         ))}
                       </DropdownMenuRadioGroup>
-                      {searchAllTimeZones && !timeZoneQuery.trim() && (
-                        <p className="calendar-timezone-search-hint" role="status">
-                          {t('Type to search all time zones.')}
-                        </p>
-                      )}
-                      {searchAllTimeZones &&
-                        timeZoneQuery.trim() &&
-                        matchingTimeZones.length === 0 && (
-                          <p className="calendar-timezone-search-hint" role="status">
-                            {t('No matching time zones.')}
-                          </p>
-                        )}
-                      {searchAllTimeZones && matchingTimeZones.length > 30 && (
-                        <p className="calendar-timezone-search-hint" role="status">
-                          {t('Refine your search to see fewer matches.')}
-                        </p>
-                      )}
-                      {!searchAllTimeZones && (
+                      {allTimeZones.length > 0 && (
                         <>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onSelect={(event) => {
-                              event.preventDefault();
-                              setSearchAllTimeZones(true);
-                            }}
-                          >
-                            {t('Search all time zones')}
-                          </DropdownMenuItem>
+                          <DropdownMenuLabel>{t('All time zones')}</DropdownMenuLabel>
+                          <DropdownMenuRadioGroup value={timeZone} onValueChange={setTimeZone}>
+                            {allTimeZones.map((zone) => (
+                              <DropdownMenuRadioItem
+                                key={zone}
+                                value={zone}
+                                aria-label={formatTimeZoneLabel(
+                                  zone,
+                                  i18n.resolvedLanguage || i18n.language || 'en',
+                                )}
+                              >
+                                {formatTimeZoneLabel(
+                                  zone,
+                                  i18n.resolvedLanguage || i18n.language || 'en',
+                                )}
+                              </DropdownMenuRadioItem>
+                            ))}
+                          </DropdownMenuRadioGroup>
                         </>
                       )}
                     </DropdownMenuContent>
@@ -425,18 +415,55 @@ export function RouteCalendarActions({
                 </div>
                 <div className="calendar-event-field">
                   <Label htmlFor={`${id}-reminder`}>{t('Reminder before start (minutes)')}</Label>
-                  <Input
-                    id={`${id}-reminder`}
-                    value={reminder}
-                    disabled={publication.busy}
-                    inputMode="numeric"
-                    onChange={(event) => setReminder(event.target.value)}
-                    aria-describedby={draftError ? `${id}-error` : undefined}
-                  />
+                  <DropdownMenu open={reminderMenuOpen} onOpenChange={setReminderMenuOpen}>
+                    <DropdownMenuTrigger asChild disabled={publication.busy}>
+                      <Button
+                        id={`${id}-reminder`}
+                        variant="outline"
+                        className="planner-choice calendar-timezone-trigger calendar-reminder-trigger"
+                        aria-label={t('Reminder before start (minutes)')}
+                        aria-describedby={draftError ? `${id}-error` : undefined}
+                        disabled={publication.busy}
+                      >
+                        <span>
+                          {reminder === '0'
+                            ? t('No reminder')
+                            : formatReminderLabel(
+                                reminder,
+                                i18n.resolvedLanguage || i18n.language || 'en',
+                                t,
+                              )}
+                        </span>
+                        <ChevronDown size={16} aria-hidden="true" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      collisionPadding={12}
+                      className="planner-choice-menu calendar-timezone-menu"
+                    >
+                      <DropdownMenuRadioGroup value={reminder} onValueChange={(value) => {
+                        setReminder(value);
+                        setReminderMenuOpen(false);
+                      }}>
+                        {reminderOptions.map((option) => (
+                          <DropdownMenuRadioItem key={option} value={option}>
+                        {option === '0'
+                          ? t('No reminder')
+                          : formatReminderLabel(
+                              option,
+                              i18n.resolvedLanguage || i18n.language || 'en',
+                              t,
+                            )}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
               <p className="fine-print" id={`${id}-zone-help`}>
-                {t('The default time zone is from your device. Check it against the route start.')}
+                {t('The default time zone is based on your device. Check it matches the route start.')}
               </p>
             </section>
             {draftError && (
