@@ -1469,7 +1469,11 @@ export default function App() {
                         <li
                           key={point.id}
                           data-stop-id={point.id}
-                          className={selectedWaypointId === point.id ? 'selected-stop' : ''}
+                          className={
+                            selectedWaypointId === point.id
+                              ? 'waypoint-entry selected-stop'
+                              : 'waypoint-entry'
+                          }
                         >
                           <Card className="waypoint-card">
                             <Badge
@@ -1491,7 +1495,7 @@ export default function App() {
                                     ? t('Finish')
                                     : t('Via')}
                               </small>
-                              {point.name}
+                              <span className="stop-name-value">{point.name}</span>
                             </Button>
                             <div className="stop-controls">
                               <Button

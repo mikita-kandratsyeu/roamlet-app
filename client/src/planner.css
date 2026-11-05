@@ -449,9 +449,25 @@
   font-size: var(--font-size-helper);
 }
 .waypoint-list {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.waypoint-list::before {
+  position: absolute;
+  z-index: 0;
+  top: 22px;
+  bottom: 22px;
+  left: 21px;
+  width: 2px;
+  content: '';
+  background: var(--border);
+}
+.waypoint-entry {
+  position: relative;
+  z-index: 1;
 }
 .waypoint-list li + li {
   border-top: 0;
@@ -484,6 +500,13 @@
 .stop-name small {
   margin-top: 0;
   margin-bottom: 1px;
+}
+.stop-name-value {
+  display: block;
+  color: var(--foreground);
+  font-size: var(--font-size-control);
+  font-weight: 550;
+  line-height: 1.35;
 }
 .waypoint-tools {
   display: flex;

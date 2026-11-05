@@ -8,6 +8,7 @@ const css = (
     [
       '../styles.css',
       '../planner.css',
+      '../route-editing.css',
       './Library.css',
       './ComparisonScreen.css',
       './RouteWeather.css',
@@ -170,6 +171,128 @@ test('weather forecast cards stay readable without horizontal overflow', async (
         } else {
           assert.equal(metrics.hourlyCardGridColumn, 'auto');
         }
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('route stop cards read as a connected route timeline on narrow and desktop layouts', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const width of [320, 390, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const theme of ['', 'dark']) {
+        const border = theme ? '#36463a' : '#d7ded9';
+        await page.setContent(`<style>${css}</style>
+          <div class="${theme}" style="--border:${border};--surface:${theme ? '#202a23' : '#ffffff'};--foreground:${theme ? '#eef2ef' : '#17211b'};--muted-foreground:${theme ? '#b0bcb3' : '#616b64'};--background:${theme ? '#151b18' : '#f4f5f2'};--primary:${theme ? '#9bc5a7' : '#286046'};--radius-md:8px;width:min(360px,calc(100vw - 32px))">
+            <ol class="waypoint-list" aria-label="Route stops">
+              <li class="waypoint-entry">
+                <article class="waypoint-card">
+                  <span class="stop-badge">1</span>
+                  <button class="stop-name"><small>Start</small><span class="stop-name-value">53.86772, 27.15273</span></button>
+                  <div class="stop-controls"><button class="icon-button" aria-label="Replace stop 1">Edit</button></div>
+                </article>
+                <div class="leg-mode"><span>Section 1</span><button class="planner-choice">Road/path routing</button></div>
+              </li>
+              <li class="waypoint-entry selected-stop">
+                <article class="waypoint-card">
+                  <span class="stop-badge finish">2</span>
+                  <button class="stop-name" aria-pressed="true"><small>Finish</small><span class="stop-name-value">53.87829, 27.11476</span></button>
+                  <div class="stop-controls"><button class="icon-button" aria-label="Replace stop 2">Edit</button></div>
+                </article>
+              </li>
+            </ol>
+          </div>`);
+        const layout = await page.locator('.waypoint-list').evaluate((list) => {
+          const line = getComputedStyle(list, '::before');
+          const listBounds = list.getBoundingClientRect();
+          const badge = list.querySelector('.stop-badge').getBoundingClientRect();
+          const section = list.querySelector('.leg-mode');
+          const sectionBounds = section.getBoundingClientRect();
+          const marker = getComputedStyle(section, '::before');
+          const markerTop = marker.top.endsWith('%')
+            ? (Number.parseFloat(marker.top) / 100) * sectionBounds.height
+            : Number.parseFloat(marker.top);
+          const markerTranslation = new DOMMatrixReadOnly(marker.transform).m42;
+          const value = list.querySelector('.stop-name-value');
+          return {
+            scrollWidth: document.documentElement.scrollWidth,
+            itemCount: list.querySelectorAll(':scope > .waypoint-entry').length,
+            lineCenter:
+              listBounds.left + Number.parseFloat(line.left) + Number.parseFloat(line.width) / 2,
+            badgeCenter: badge.left + badge.width / 2,
+            sectionCenter:
+              sectionBounds.left +
+              Number.parseFloat(marker.left) +
+              Number.parseFloat(marker.width) / 2,
+            sectionMarkerCenterY:
+              sectionBounds.top +
+              markerTop +
+              markerTranslation +
+              Number.parseFloat(marker.height) / 2,
+            sectionRowCenterY: sectionBounds.top + sectionBounds.height / 2,
+            lineWidth: line.width,
+            lineColor: line.backgroundColor,
+            sectionMarkerWidth: marker.width,
+            valueText: value.textContent,
+            actionCount: list.querySelectorAll('.stop-controls button').length,
+            selected: list.querySelector('.selected-stop .stop-name').getAttribute('aria-pressed'),
+          };
+        });
+        assert.equal(layout.scrollWidth, width);
+        assert.equal(layout.itemCount, 2);
+        assert.equal(layout.lineCenter, layout.badgeCenter);
+        assert.equal(layout.lineCenter, layout.sectionCenter);
+        assert.equal(layout.sectionMarkerCenterY, layout.sectionRowCenterY);
+        assert.equal(layout.lineWidth, '2px');
+        assert.equal(layout.lineColor, theme ? 'rgb(54, 70, 58)' : 'rgb(215, 222, 217)');
+        assert.equal(layout.sectionMarkerWidth, '8px');
+        assert.equal(layout.valueText, '53.86772, 27.15273');
+        assert.equal(layout.actionCount, 2);
+        assert.equal(layout.selected, 'true');
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('route calculation actions are visually separated from stop editing controls', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const width of [320, 390, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const theme of ['', 'dark']) {
+        const border = theme ? '#36463a' : '#d7ded9';
+        await page.setContent(`<style>${css}</style>
+          <div class="${theme}" style="--border:${border};--surface:${theme ? '#202a23' : '#ffffff'};--foreground:${theme ? '#eef2ef' : '#17211b'};--muted-foreground:${theme ? '#b0bcb3' : '#616b64'};--background:${theme ? '#151b18' : '#f4f5f2'};--primary:${theme ? '#9bc5a7' : '#286046'};--radius-md:8px;width:min(360px,calc(100vw - 32px))">
+            <div class="waypoint-tools"><button class="add-stop">Add a stop</button><button class="reverse-stops">Reverse</button><button class="clear-stops">Clear stops</button></div>
+            <div class="calculate-action"><button class="primary">Calculate route</button><button class="find-alternatives">Find alternatives</button></div>
+          </div>`);
+        const spacing = await page.evaluate(() => {
+          const editActions = document.querySelector('.waypoint-tools').getBoundingClientRect();
+          const routeActions = document.querySelector('.calculate-action');
+          const routeBounds = routeActions.getBoundingClientRect();
+          const style = getComputedStyle(routeActions);
+          return {
+            distance: routeBounds.top - editActions.bottom,
+            marginTop: style.marginTop,
+            paddingTop: style.paddingTop,
+            dividerWidth: style.borderTopWidth,
+            dividerColor: style.borderTopColor,
+            routeActionCount: routeActions.querySelectorAll('button').length,
+          };
+        });
+        assert.equal(spacing.distance, 16);
+        assert.equal(spacing.marginTop, '16px');
+        assert.equal(spacing.paddingTop, '14px');
+        assert.equal(spacing.dividerWidth, '1px');
+        assert.equal(spacing.dividerColor, theme ? 'rgb(54, 70, 58)' : 'rgb(215, 222, 217)');
+        assert.equal(spacing.routeActionCount, 2);
       }
     }
   } finally {

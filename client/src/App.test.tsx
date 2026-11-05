@@ -1343,6 +1343,11 @@ describe('route planner interactions', () => {
     const items = stops();
     const originalOrder = items.map((item) => item.getAttribute('data-stop-id'));
     expect(items.every((item) => !item.querySelector('[draggable]'))).toBe(true);
+    expect(items[0].querySelector('.stop-name-value')).toHaveTextContent(/\d/);
+    expect(within(items[0]).getByRole('button', { name: /Start/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Move stop 1 down' }));
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
     expect(provider.calculateRoute.mock.calls[1][0][0].coordinate).toEqual([11.41, 47.27]);

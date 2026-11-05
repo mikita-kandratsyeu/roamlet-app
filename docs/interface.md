@@ -12,7 +12,7 @@ Desktop route statistics keep distance and the original time estimate side by si
 
 The planner shows a compact, non-interactive **Not saved** badge below the route title for unsaved edits, with **Unsaved changes** as its tooltip. Saving removes the badge; subsequent edits restore it. Recalculation warnings retain their explanatory text instead of the badge. The badge supports English/Russian and light/dark themes.
 
-Route stop actions adapt to the number of available buttons: one fills the row, two share it equally, and both layouts show icons with text. With three actions, Add a stop retains its label while Reverse and Clear stops remain icon buttons with accessible names and tooltips.
+Route stops read as a connected vertical timeline: numbered markers connect through small section markers, with each point's role secondary to its name or coordinates. Each point remains grouped with its outgoing section selector. Stop actions adapt to the number of available buttons: one fills the row, two share it equally, and both layouts show icons with text. With three actions, Add a stop retains its label while Reverse and Clear stops remain icon buttons with accessible names and tooltips.
 
 “Report a map issue” is available in the map’s “More map tools” (⋯) menu on desktop and mobile, rather than as an overlay on the map.
 
