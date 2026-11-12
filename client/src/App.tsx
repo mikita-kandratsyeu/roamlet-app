@@ -126,6 +126,7 @@ const cyclingChoices = [
   { value: 'cycling-regular', label: 'Regular cycling' },
   { value: 'cycling-road', label: 'Road cycling' },
   { value: 'cycling-mountain', label: 'Mountain biking' },
+  { value: 'cycling-gravel', label: 'Gravel cycling' },
 ] as const;
 const sectionChoices = [
   { value: 'automatic', label: 'Road/path routing' },
@@ -1401,6 +1402,13 @@ export default function App() {
                               changeRoutingOptions({ ...routingOptions, cyclingProfile })
                             }
                           />
+                          {routingOptions.cyclingProfile === 'cycling-gravel' && (
+                            <p className="fine-print" role="note">
+                              {t(
+                                'Gravel uses the ORS mountain-biking profile. Surface suitability is not verified.',
+                              )}
+                            </p>
+                          )}
                         </div>
                       )}
                       <div className="routing-avoid-options">

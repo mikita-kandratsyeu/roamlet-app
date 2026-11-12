@@ -1796,6 +1796,22 @@ describe('map and routing improvements', () => {
     expect(screen.getByRole('button', { name: 'Find alternatives' })).toBeDisabled();
   });
 
+  it('offers gravel routing with a clear provider limitation', async () => {
+    await i18n.changeLanguage('en');
+    render(<App />);
+    await plan();
+    choosePlannerOption('Cycling route profile', 'Gravel cycling');
+    expect(
+      screen.getByText(
+        'Gravel uses the ORS mountain-biking profile. Surface suitability is not verified.',
+      ),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
+    expect(provider.calculateRoute.mock.calls[1][3]).toMatchObject({
+      cyclingProfile: 'cycling-gravel',
+    });
+  });
+
   it('preserves direct section meaning when reversing stops and undoing', async () => {
     await i18n.changeLanguage('en');
     render(<App />);

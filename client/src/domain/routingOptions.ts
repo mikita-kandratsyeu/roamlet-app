@@ -4,6 +4,7 @@ export const CYCLING_PROFILES: CyclingProfile[] = [
   'cycling-regular',
   'cycling-road',
   'cycling-mountain',
+  'cycling-gravel',
 ];
 export const DEFAULT_ROUTING_OPTIONS: Required<RoutingOptions> = {
   cyclingProfile: 'cycling-regular',
@@ -30,7 +31,12 @@ export function normalizeRoutingOptions(options: RoutingOptions = {}): Required<
 export function routingProfile(activity: Activity, options: RoutingOptions = {}): string {
   const normalized = normalizeRoutingOptions(options);
   if (activity === 'hiking') return 'foot-hiking';
-  if (activity === 'cycling') return normalized.cyclingProfile;
+  if (activity === 'cycling') {
+    // ORS has no gravel profile, so this UI choice uses its mountain-biking profile.
+    return normalized.cyclingProfile === 'cycling-gravel'
+      ? 'cycling-mountain'
+      : normalized.cyclingProfile;
+  }
   throw new Error('Invalid route activity.');
 }
 /** These standard ORS avoid_features are supported by both cycling and foot profiles. */

@@ -29,7 +29,7 @@ function mixed(): PlannedRoute {
     description: '',
     source: 'mixed',
     updatedAt: new Date().toISOString(),
-    routingOptions: { cyclingProfile: 'cycling-road', avoidFerries: true, avoidSteps: true },
+    routingOptions: { cyclingProfile: 'cycling-gravel', avoidFerries: true, avoidSteps: true },
     waypoints: [
       { id: 'a', name: '', coordinate: [11, 47], legMode: 'direct' },
       { id: 'b', name: '', coordinate: [11.1, 47] },
@@ -118,7 +118,7 @@ it('persists new routing preferences and keeps old preference defaults', () => {
     avoidSteps: false,
   });
   const routingOptions = {
-    cyclingProfile: 'cycling-mountain' as const,
+    cyclingProfile: 'cycling-gravel' as const,
     avoidFerries: true,
     avoidSteps: true,
   };

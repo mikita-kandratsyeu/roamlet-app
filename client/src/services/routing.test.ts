@@ -108,6 +108,13 @@ describe('OpenRouteServiceRoutingService', () => {
       'Unsupported OpenRouteService endpoint',
     );
   });
+  it('routes the gravel selection through the ORS mountain-biking profile', async () => {
+    const fetcher = mockJson(response());
+    await new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling', undefined, {
+      cyclingProfile: 'cycling-gravel',
+    });
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body)).profile).toBe('cycling-mountain');
+  });
   it('uses cycling geometry distance, provider time and confirmed provider heights', async () => {
     const fetcher = mockJson(response());
     const result = await new OpenRouteServiceRoutingService().calculateRoute(points, 'cycling');

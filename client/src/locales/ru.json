@@ -833,6 +833,8 @@
   "Regular cycling": "Обычный велосипед",
   "Road cycling": "Шоссейный велосипед",
   "Mountain biking": "Горный велосипед",
+  "Gravel cycling": "Гревел",
+  "Gravel uses the ORS mountain-biking profile. Surface suitability is not verified.": "Для гревела используется профиль ORS для горного велосипеда. Пригодность покрытия не проверяется.",
   "Avoid ferries": "Избегать паромов",
   "Avoid steps": "Избегать лестниц",
   "Connect to the internet to find alternatives.": "Для поиска альтернатив подключитесь к интернету.",

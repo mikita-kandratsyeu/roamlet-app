@@ -1,7 +1,11 @@
 export type Activity = 'cycling' | 'hiking';
 export type Coordinate = [number, number] | [number, number, number];
 export type LegMode = 'automatic' | 'direct';
-export type CyclingProfile = 'cycling-regular' | 'cycling-road' | 'cycling-mountain';
+export type CyclingProfile =
+  | 'cycling-regular'
+  | 'cycling-road'
+  | 'cycling-mountain'
+  | 'cycling-gravel';
 export interface RoutingOptions {
   cyclingProfile?: CyclingProfile;
   avoidFerries?: boolean;
