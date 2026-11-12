@@ -27,7 +27,6 @@ import {
   ArrowDownWideNarrow,
   ChevronDown,
   ArrowUpRight,
-  Save,
   Upload,
   Download,
   Star,
@@ -1092,7 +1091,6 @@ export function Library({
                       {t('Cancel')}
                     </Button>
                     <Button type="submit" className="primary" disabled={busy || !name.trim()}>
-                      <Save size={16} aria-hidden="true" />
                       {t('Save changes')}
                     </Button>
                   </div>
