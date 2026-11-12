@@ -207,6 +207,33 @@ test('manual drawing uses one ruler tool, direct map points and local undo witho
   expect(directions).toEqual([]);
 });
 
+test('roadbook print media shows only the A4 route sheet', async ({ page }) => {
+  await page.getByLabel('Import GPX file').setInputFiles({
+    name: 'roadbook.gpx',
+    mimeType: 'application/gpx+xml',
+    buffer: Buffer.from(gpx),
+  });
+  const exportButton = page.getByRole('button', { name: 'Export', exact: true });
+  await exportButton.click();
+  const dialog = page.getByRole('dialog', { name: 'Export route', exact: true });
+  await dialog.getByRole('radio', { name: 'Roadbook', exact: true }).click();
+  const sheet = page.locator('.roadbook-print-sheet');
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole('heading', { name: 'Mountain morning' })).toBeVisible();
+  await expect(sheet.getByText('Meeting point')).toBeVisible();
+  await expect(
+    sheet.getByRole('img', { name: 'Elevation profile from 600 to 630 m' }),
+  ).toBeVisible();
+  await expect(page.locator('body')).toHaveClass(/roamlet-roadbook-printing/);
+
+  await page.emulateMedia({ media: 'print' });
+  await expect(sheet).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Print roadbook' })).toBeHidden();
+  await expect(dialog.locator('.dialog-header')).toBeHidden();
+  await expect(sheet).toHaveCSS('color', 'rgb(17, 17, 17)');
+  await page.emulateMedia({ media: 'screen' });
+});
+
 test('export dialog edits a safe filename, keeps Komoot help collapsed and restores focus', async ({
   page,
 }) => {

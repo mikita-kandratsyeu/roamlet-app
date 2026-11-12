@@ -1,10 +1,11 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, ExternalLink } from 'lucide-react';
 import { Dialog } from './Dialog';
 import { ExportRouteMap } from './ExportRouteMap';
 import { RouteCardExport } from './RouteCardExport';
 import { AiRouteExport } from './AiRouteExport';
+import { RouteBookExport } from './RouteBookExport';
 import type { PersonalTimeOptions } from '../domain/time';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Notification } from './Notification';
@@ -29,12 +30,17 @@ export function ExportDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<'gpx' | 'image' | 'ai'>('gpx');
+  const [mode, setMode] = useState<'gpx' | 'image' | 'ai' | 'roadbook'>('gpx');
   const [actionsContainer, setActionsContainer] = useState<HTMLDivElement | null>(null);
   const [filename, setFilename] = useState(() => gpxFilename(route.name));
   const [error, setError] = useState<string | null>(null);
   const filenameInput = useRef<HTMLInputElement>(null);
   const exportModes = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (mode !== 'roadbook') return;
+    document.body.classList.add('roamlet-roadbook-printing');
+    return () => document.body.classList.remove('roamlet-roadbook-printing');
+  }, [mode]);
   useLayoutEffect(() => {
     const body = exportModes.current?.closest('.roamlet-dialog')?.querySelector('.dialog-body');
     if (body) body.scrollTop = 0;
@@ -69,18 +75,32 @@ export function ExportDialog({
       title={t('Export route')}
       initialFocusRef={filenameInput}
       onClose={onClose}
-      wide={mode === 'image'}
+      wide={mode === 'image' || mode === 'roadbook'}
       navigation={
-        <ToggleGroup ref={exportModes} type="single" value={mode} variant="outline" className="export-mode" aria-label={t('Export format')}
-          onValueChange={(value) => { if (value === 'gpx' || value === 'image' || value === 'ai') setMode(value); }}>
+        <ToggleGroup
+          ref={exportModes}
+          type="single"
+          value={mode}
+          variant="outline"
+          className="export-mode"
+          aria-label={t('Export format')}
+          onValueChange={(value) => {
+            if (value === 'gpx' || value === 'image' || value === 'ai' || value === 'roadbook') {
+              setMode(value);
+            }
+          }}
+        >
           <ToggleGroupItem value="gpx">GPX</ToggleGroupItem>
           <ToggleGroupItem value="image">{t('For social media')}</ToggleGroupItem>
           <ToggleGroupItem value="ai">{t('For AI')}</ToggleGroupItem>
+          <ToggleGroupItem value="roadbook">{t('Roadbook')}</ToggleGroupItem>
         </ToggleGroup>
       }
       footer={mode === 'image' ? <div ref={setActionsContainer} /> : undefined}
     >
-      {mode === 'ai' ? <AiRouteExport route={route} personalTime={personalTime} /> : mode === 'image' ? <RouteCardExport route={route} elevationGain={showElevation ? route.stats.ascent : undefined} actionsContainer={actionsContainer} /> : <>
+      {mode === 'ai' ? <AiRouteExport route={route} personalTime={personalTime} /> : mode === 'image' ? <RouteCardExport route={route} elevationGain={showElevation ? route.stats.ascent : undefined} actionsContainer={actionsContainer} /> : mode === 'roadbook' ? (
+        <RouteBookExport route={route} onPrint={() => window.print()} />
+      ) : <>
       <section className="export-route-overview" aria-label={t('Route details')}>
         <p className="export-route-summary">
           <strong>{route.name || t('Untitled adventure')}</strong>

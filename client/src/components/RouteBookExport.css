@@ -1,0 +1,315 @@
+.roadbook-export {
+  display: grid;
+  gap: 12px;
+}
+
+.roadbook-print-help,
+.roadbook-elevation-note,
+.roadbook-unavailable {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: var(--font-size-helper);
+  line-height: 1.5;
+}
+
+.roadbook-print-action {
+  width: 100%;
+  min-height: 44px;
+}
+
+.roadbook-print-sheet {
+  display: grid;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.roadbook-header {
+  display: grid;
+  gap: 12px;
+}
+
+.roadbook-kicker,
+.roadbook-header h1,
+.roadbook-section h2,
+.roadbook-stop-content h3,
+.roadbook-stop-role,
+.roadbook-stop-coordinates,
+.roadbook-stop-pause {
+  margin: 0;
+}
+
+.roadbook-kicker,
+.roadbook-stop-role {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-helper);
+  font-weight: 600;
+}
+
+.roadbook-header h1 {
+  font-size: 24px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.roadbook-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.roadbook-metrics > div {
+  min-width: 0;
+}
+
+.roadbook-metrics dt {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-helper);
+  line-height: 1.4;
+}
+
+.roadbook-metrics dd {
+  margin: 4px 0 0;
+  font-size: var(--font-size-body);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.roadbook-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.roadbook-section h2 {
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.roadbook-print-sheet .export-route-map {
+  height: 230px;
+  border-color: var(--border);
+  background: #fff;
+}
+
+.roadbook-elevation-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 180px;
+  overflow: visible;
+  color: var(--foreground);
+}
+
+.roadbook-elevation-chart text {
+  fill: currentColor;
+  font-size: 11px;
+}
+
+.roadbook-chart-axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.roadbook-chart-line {
+  stroke: var(--primary);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.roadbook-stops ol {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roadbook-stops li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  break-inside: avoid;
+}
+
+.roadbook-stop-marker {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: var(--font-size-helper);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.roadbook-stop-content {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.roadbook-stop-content h3 {
+  font-size: var(--font-size-body);
+  font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.roadbook-stop-coordinates,
+.roadbook-stop-pause {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-helper);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@media print {
+  body.roamlet-roadbook-printing {
+    min-width: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+    overflow: visible !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body.roamlet-roadbook-printing * {
+    visibility: hidden !important;
+  }
+
+  body.roamlet-roadbook-printing [data-slot='dialog-overlay'] {
+    display: none !important;
+  }
+
+  body.roamlet-roadbook-printing .roamlet-dialog:has(.roadbook-print-sheet) {
+    position: static !important;
+    inset: auto !important;
+    display: contents !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    transform: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    animation: none !important;
+  }
+
+  body.roamlet-roadbook-printing .roamlet-dialog:has(.roadbook-print-sheet) > :not(.dialog-body) {
+    display: none !important;
+  }
+
+  body.roamlet-roadbook-printing .roamlet-dialog:has(.roadbook-print-sheet) .dialog-body {
+    display: contents !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-print-sheet,
+  body.roamlet-roadbook-printing .roadbook-print-sheet * {
+    visibility: visible !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-print-sheet {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    color: #111 !important;
+    box-shadow: none !important;
+    font-family: Arial, sans-serif !important;
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
+    overflow: visible !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-header,
+  body.roamlet-roadbook-printing .roadbook-section {
+    margin-bottom: 7mm !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-print-action,
+  body.roamlet-roadbook-printing .roadbook-print-help {
+    display: none !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-header,
+  body.roamlet-roadbook-printing .roadbook-section:has(.export-route-map),
+  body.roamlet-roadbook-printing .roadbook-section:has(.roadbook-elevation-chart) {
+    break-inside: avoid;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-header h1 {
+    font-size: 22pt !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-kicker,
+  body.roamlet-roadbook-printing .roadbook-metrics dt,
+  body.roamlet-roadbook-printing .roadbook-stop-role,
+  body.roamlet-roadbook-printing .roadbook-stop-coordinates,
+  body.roamlet-roadbook-printing .roadbook-stop-pause,
+  body.roamlet-roadbook-printing .roadbook-elevation-note,
+  body.roamlet-roadbook-printing .roadbook-unavailable {
+    color: #444 !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-section h2 {
+    font-size: 13pt !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-print-sheet .export-route-map {
+    height: 68mm !important;
+    border: 1px solid #bbb !important;
+    border-radius: 0 !important;
+    break-inside: avoid;
+  }
+
+  body.roamlet-roadbook-printing .export-route-map figcaption {
+    color: #444 !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-elevation-chart {
+    max-height: 42mm !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-chart-axis {
+    stroke: #777 !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-chart-line {
+    stroke: #111 !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-elevation-chart text {
+    fill: #111 !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-stops li {
+    border-color: #bbb !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-stop-marker {
+    border-color: #555 !important;
+  }
+}

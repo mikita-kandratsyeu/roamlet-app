@@ -32,7 +32,11 @@ const route: PlannedRoute = {
 };
 
 beforeEach(() => render(<Toaster />));
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  document.body.classList.remove('roamlet-roadbook-printing');
+});
 
 describe('ExportDialog', () => {
   it('opens AI export locally and returns to unchanged GPX export', async () => {
@@ -62,6 +66,97 @@ describe('ExportDialog', () => {
     expect(screen.getByRole('dialog')).not.toHaveClass('wide');
     expect(screen.getByRole('textbox', { name: 'File name' })).toHaveValue('Forest walk.gpx');
     expect(screen.getByRole('button', { name: 'Download GPX' })).toBeVisible();
+  });
+
+  it('prints a localized route sheet with route data and does not download a file', async () => {
+    const user = userEvent.setup();
+    const print = vi.fn();
+    vi.stubGlobal('print', print);
+    const snapshot: PlannedRoute = {
+      ...route,
+      stats: { ...route.stats, ascent: 30, descent: 0 },
+      waypoints: [
+        {
+          id: 'start',
+          name: 'Trailhead',
+          coordinate: [11.4, 47.2],
+          pauseMinutes: 10,
+        },
+        { id: 'finish', name: 'Shelter', coordinate: [11.5, 47.3] },
+      ],
+    };
+    const onDownload = vi.fn();
+    render(<ExportDialog route={snapshot} onDownload={onDownload} onClose={vi.fn()} />);
+    await user.click(screen.getByRole('radio', { name: 'Roadbook' }));
+    expect(screen.getByRole('article')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Forest walk' })).toBeVisible();
+    expect(screen.getByRole('figure', { name: 'Route map preview' })).toBeVisible();
+    expect(screen.getByRole('img', { name: 'Elevation profile from 600 to 630 m' })).toBeVisible();
+    expect(screen.getByText('Trailhead')).toBeVisible();
+    expect(screen.getByText('Shelter')).toBeVisible();
+    expect(screen.getByText('Pause: 10 min')).toBeVisible();
+    expect(document.body).toHaveClass('roamlet-roadbook-printing');
+    await user.click(screen.getByRole('button', { name: 'Print roadbook' }));
+    expect(print).toHaveBeenCalledOnce();
+    expect(onDownload).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('radio', { name: 'GPX' }));
+    expect(document.body).not.toHaveClass('roamlet-roadbook-printing');
+  });
+
+  it('does not fabricate an elevation profile or control points', async () => {
+    const user = userEvent.setup();
+    render(
+      <ExportDialog
+        route={{
+          ...route,
+          source: 'manual',
+          segments: [
+            [
+              [11.4, 47.2],
+              [11.5, 47.3],
+            ],
+          ],
+          waypoints: [],
+          stats: { ...route.stats, ascent: 30, descent: 0 },
+        }}
+        onDownload={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole('radio', { name: 'Roadbook' }));
+    expect(screen.getByText('Elevation data is unavailable for this route.')).toBeVisible();
+    expect(screen.getByText('No saved route points.')).toBeVisible();
+    expect(screen.queryByRole('img', { name: /Elevation profile from/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('30 m')).not.toBeInTheDocument();
+  });
+
+  it('labels partial elevation and reports ascent only for known sections', async () => {
+    const user = userEvent.setup();
+    render(
+      <ExportDialog
+        route={{
+          ...route,
+          segments: [
+            [
+              [11.4, 47.2, 600],
+              [11.45, 47.25, 630],
+              [11.5, 47.3],
+            ],
+          ],
+          stats: { ...route.stats, ascent: 999, descent: 500 },
+        }}
+        onDownload={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole('radio', { name: 'Roadbook' }));
+    expect(screen.getByText('Known elevation sections only')).toBeVisible();
+    expect(
+      screen.getByText('Known elevation gain', { selector: 'dt' }).nextElementSibling,
+    ).toHaveTextContent('30 m');
+    expect(
+      screen.getByText('Known elevation loss', { selector: 'dt' }).nextElementSibling,
+    ).toHaveTextContent('0 m');
   });
   it('shows route details and a collapsed guide without downloading', () => {
     const onDownload = vi.fn();

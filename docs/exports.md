@@ -2,6 +2,12 @@
 
 [Back to overview](../README.md)
 
+## Printable route roadbook
+
+In **Export → Roadbook**, review the A4 portrait sheet and choose **Print roadbook** to open the browser's print dialog. Printing is initiated only by this action. The sheet includes the route name, activity, distance, original time estimate, route map, available elevation profile and ascent/descent, and saved route points in their existing order with names/coordinates and nonzero pauses. The map uses the existing map provider and falls back to a local route outline when basemap tiles are unavailable. No roadbook file is uploaded or sent to a new service.
+
+Elevation is shown only for GPX tracks and routes with confirmed OpenRouteService height provenance. If only some track sections have heights, the profile and climbing totals are labeled as known sections only and preserve gaps; otherwise elevation is clearly unavailable. Route points and pauses are shown only when saved in the route. The roadbook does not generate turn-by-turn directions, infer missing control points or heights, or certify route access or safety. Review the printed sheet before relying on it; estimated durations are not navigation predictions.
+
 ## Calendar events (ICS)
 
 In **Route schedule → Export calendar (.ics)**, check the event preview, the IANA time zone at the start and reminder minutes, then select **Download .ics**. This local export works without Google authorization or internet and does not require saving the current route. A complete schedule and positive duration of at most 28 days are required. Supported dates are 1900–2100. Ambiguous or missing daylight-saving departure times are rejected instead of guessed. Event end time uses actual elapsed moving time plus all waypoint pauses, including start and finish; it applies timezone transitions independently of the planner's floating local-clock arrivals.
