@@ -60,7 +60,7 @@ For partial profiles, planner gain/loss labels explicitly say **known sections**
 
 ## Route slope coloring
 
-In **More map tools → Color route by slope**, colors describe local estimated grade rather than the average grade of an entire detected climb. At least one drawable section with known GPX or confirmed ORS heights is required. Flat sections (−1% to +1%) are green, descents blue, and increasingly steep ascents yellow, orange and red, with color extremes at −10% and +10%. The legend and an estimate warning stay in the tools menu rather than covering the map.
+In **More map tools → Color route by slope**, coloring starts enabled when the route has at least one drawable section with known GPX or confirmed ORS heights; turn it off in the menu if desired. Colors describe local estimated grade rather than the average grade of an entire detected climb. Flat sections (−1% to +1%) are green, descents blue, and increasingly steep ascents yellow, orange and red, with color extremes at −10% and +10%. The legend and an estimate warning stay in the tools menu rather than covering the map.
 
 Grades use horizontal distance and a nominal 100 m window, truncated at each drawable run's boundaries. Sparse tracks use original points bracketing the window, so their effective window can be longer. No interpolated heights, saved-data changes or additional network requests are introduced. Track gaps and consecutive zero-horizontal-distance edges separate runs, so stationary height jumps do not create artificial grades. Missing heights split runs rather than being filled in. A track with no known drawable run, or invalid coordinates, has no slope coloring.
 

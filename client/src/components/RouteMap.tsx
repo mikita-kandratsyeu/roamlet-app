@@ -189,7 +189,7 @@ export function RouteMap(props: Props) {
     () => window.matchMedia?.('(max-width: 700px)').matches ?? false,
   );
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [slopeEnabled, setSlopeEnabled] = useState(false);
+  const [slopeEnabled, setSlopeEnabled] = useState(true);
   const slope = useMemo(
     () => props.slopeElevationSource
       ? { ...buildRouteSlope(props.segments),

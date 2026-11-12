@@ -1815,15 +1815,26 @@ it.each([
   await user.click(trigger);
   const toggle = screen.getByRole('button', { name: i18n.t('Color route by slope') });
   expect(toggle).toBeDisabled();
-  expect(toggle).toHaveAttribute('aria-pressed', 'false');
-  expect(toggle).toHaveTextContent(i18n.t('Coloring disabled'));
+  expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  expect(toggle).toHaveTextContent(i18n.t('Coloring enabled'));
   expect(toggle.querySelector('.map-slope-switch')).toHaveAttribute('aria-hidden', 'true');
   expect(toggle.querySelector('.map-slope-icon')).toHaveAttribute('aria-hidden', 'true');
   act(() => mocks.handlers.get('load')?.());
   expect(toggle).toBeEnabled();
-  expect(mocks.extraData.has('route-slope')).toBe(false);
+  expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  expect(toggle).toHaveTextContent(i18n.t('Coloring enabled'));
+  expect(screen.getByRole('group', { name: i18n.t('Slope legend') })).toBeVisible();
+  expect(mocks.extraData.get('route-slope')?.mock.lastCall?.[0].features).toHaveLength(1);
   toggle.focus();
   await user.keyboard('{Enter}');
+  expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  expect(toggle).toHaveTextContent(i18n.t('Coloring disabled'));
+  expect(screen.queryByRole('group', { name: i18n.t('Slope legend') })).not.toBeInTheDocument();
+  expect(mocks.extraData.get('route-slope')).toHaveBeenLastCalledWith({
+    type: 'FeatureCollection', features: [],
+  });
+  toggle.focus();
+  await user.keyboard(' ');
   expect(toggle).toHaveAttribute('aria-pressed', 'true');
   expect(toggle).toHaveTextContent(i18n.t('Coloring enabled'));
   expect(toggle).toHaveAttribute('aria-label', i18n.t('Color route by slope'));
@@ -1875,7 +1886,6 @@ it('keeps the selected slope mode across style changes and clears invalid or sta
   const { rerender } = render(<RouteMap {...options} />);
   act(() => mocks.handlers.get('load')?.());
   await user.click(screen.getByRole('button', { name: 'More map tools' }));
-  await user.click(screen.getByRole('button', { name: 'Color route by slope' }));
   await user.keyboard('{Escape}');
   mocks.setStyle.mockImplementationOnce(() => {
     mocks.sourceInstalled = false;
@@ -1918,7 +1928,7 @@ it('colors only known runs in a mixed route while retaining dashed manual geomet
   await user.click(screen.getByRole('button', { name: 'More map tools' }));
   const toggle = screen.getByRole('button', { name: 'Color route by slope' });
   expect(toggle).toBeEnabled();
-  await user.click(toggle);
+  expect(toggle).toHaveAttribute('aria-pressed', 'true');
   const colored = mocks.extraData.get('route-slope')?.mock.lastCall?.[0].features;
   expect(colored.map((feature: { geometry: { coordinates: Coordinate[] } }) => feature.geometry.coordinates))
     .toEqual([segments[0], segments[2]]);
@@ -1939,7 +1949,6 @@ it('labels ORS slopes as estimates while leaving climb highlights above the colo
     highlightSegments={slopeSegments} />);
   act(() => mocks.handlers.get('load')?.());
   await user.click(screen.getByRole('button', { name: 'More map tools' }));
-  await user.click(screen.getByRole('button', { name: 'Color route by slope' }));
   expect(screen.getByText('Elevation: OpenRouteService terrain estimate, not a ground survey.')).toBeVisible();
   expect(mocks.extraData.get('route-highlight')).toHaveBeenLastCalledWith(
     expect.objectContaining({ features: [expect.objectContaining({
