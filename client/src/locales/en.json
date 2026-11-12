@@ -955,6 +955,7 @@
   "Weather, wind, load and access are not inferred. Original route statistics remain unchanged.": "Weather, wind, load and access are not inferred. Original route statistics remain unchanged.",
   "Personal estimate unavailable for these inputs.": "Personal estimate unavailable for these inputs.",
   "Export": "Export",
+  "Route actions": "Route actions",
   "Export route": "Export route",
   "Route details": "Route details",
   "Route map preview": "Route map preview",

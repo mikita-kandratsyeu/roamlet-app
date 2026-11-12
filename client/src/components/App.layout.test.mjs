@@ -333,3 +333,45 @@ test('application and full-screen views stop shrinking below 320px', async () =>
     await browser.close();
   }
 });
+
+test('planner footer keeps save and route actions aligned at narrow widths', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    for (const width of [280, 320, 390, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const theme of ['', 'dark']) {
+        await page.setContent(`<style>${css}</style>
+          <div class="${theme}" style="width: min(390px, calc(100vw - 24px))">
+            <footer class="planner-footer">
+              <div class="route-actions">
+                <button class="primary" style="display:flex;align-items:center;gap:8px">
+                  <span class="route-action-label">Сохранить маршрут</span>
+                </button>
+                <button class="footer-icon-action">⋯</button>
+              </div>
+            </footer>
+          </div>`);
+        const metrics = await page.locator('.route-actions').evaluate((actions) => {
+          const save = actions.querySelector('.primary').getBoundingClientRect();
+          const menu = actions.querySelector('.footer-icon-action').getBoundingClientRect();
+          return {
+            columns: getComputedStyle(actions).gridTemplateColumns.split(' '),
+            saveRight: save.right,
+            menuLeft: menu.left,
+            menuWidth: menu.width,
+            menuHeight: menu.height,
+            documentWidth: document.documentElement.scrollWidth,
+          };
+        });
+        assert.equal(metrics.columns.length, 2, `${theme || 'light'} at ${width}px`);
+        assert.equal(metrics.menuWidth, 44);
+        assert.equal(metrics.menuHeight, 44);
+        assert.ok(metrics.saveRight <= metrics.menuLeft, 'save action does not overlap menu');
+        assert.equal(metrics.documentWidth, Math.max(320, width));
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+});

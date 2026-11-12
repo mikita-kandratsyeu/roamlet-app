@@ -277,6 +277,29 @@ function setOnline(online: boolean) {
   act(() => window.dispatchEvent(new Event(online ? 'online' : 'offline')));
 }
 
+function getRouteAction(name: string) {
+  let menu = screen.queryByRole('menu');
+  if (!menu) {
+    fireEvent.keyDown(screen.getByRole('button', { name: i18n.t('Route actions') }), {
+      key: 'ArrowDown',
+    });
+    menu = screen.getByRole('menu');
+  }
+  return within(menu).getByRole('menuitem', { name });
+}
+
+function expectRouteActionEnabled(name: string) {
+  const action = getRouteAction(name);
+  expect(action).not.toHaveAttribute('aria-disabled', 'true');
+  fireEvent.keyDown(action, { key: 'Escape' });
+}
+
+function expectRouteActionDisabled(name: string) {
+  const action = getRouteAction(name);
+  expect(action).toHaveAttribute('aria-disabled', 'true');
+  fireEvent.keyDown(action, { key: 'Escape' });
+}
+
 it('renders planner sections without duplicate React keys before and after planning', async () => {
   const consoleError = vi.spyOn(console, 'error');
   render(<App />);
@@ -297,7 +320,7 @@ it('keeps a ready route exportable when a stop is replaced with identical coordi
     fireEvent.click(screen.getByRole('button', { name: 'Replace stop 1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Replace stop coordinates' }));
     expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
+    expectRouteActionEnabled('Export');
     expect(screen.getByRole('textbox', { name: 'Latitude' })).toHaveValue('');
     await act(async () => {
       await vi.advanceTimersByTimeAsync(350);
@@ -403,7 +426,7 @@ describe('route preparation features', () => {
     expect(screen.getByTestId('map')).toBe(editorMap);
     expect(editorMap).toHaveAttribute('data-geometry', before!);
     expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
+    expectRouteActionEnabled('Export');
     expect(provider.calculateRoute).toHaveBeenCalledTimes(requests);
   });
 
@@ -445,6 +468,24 @@ describe('route preparation features', () => {
 });
 
 describe('GPX file selection', () => {
+  it('opens export and import actions from the compact route menu', () => {
+    render(<App />);
+    const fileInput = screen.getByLabelText('Import GPX file') as HTMLInputElement;
+    const openFilePicker = vi.spyOn(fileInput, 'click').mockImplementation(() => {});
+
+    expect(screen.getByRole('button', { name: 'Route actions' })).toBeVisible();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Route actions' }), {
+      key: 'ArrowDown',
+    });
+    expect(screen.getByRole('menuitem', { name: 'Export' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Import GPX' }));
+
+    expect(openFilePicker).toHaveBeenCalledOnce();
+  });
+
   it('shows cancellable processing and leaves the route untouched after a late worker response', async () => {
     let complete!: (route: ReturnType<typeof importGpx>) => void;
     vi.mocked(importGpxFile).mockImplementationOnce(() => new Promise((resolve) => { complete = resolve; }));
@@ -452,21 +493,23 @@ describe('GPX file selection', () => {
     const original = screen.getByTestId('map').getAttribute('data-geometry');
     fireEvent.change(screen.getByLabelText('Import GPX file'), { target: { files: [new File(['<gpx/>'], 'large.gpx')] } });
     expect(await screen.findByText('Importing GPX…')).toHaveAttribute('role', 'status');
-    const importAction = screen.getByRole('button', { name: 'Import GPX' });
-    expect(importAction).toBeDisabled();
+    const importAction = getRouteAction('Import GPX');
+    expect(importAction).toHaveAttribute('aria-disabled', 'true');
     expect(importAction).toHaveAttribute('aria-busy', 'true');
     expect(importAction).toHaveAttribute('title', 'Importing GPX…');
     const signal = vi.mocked(importGpxFile).mock.calls[0][1]!;
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel GPX import' }));
+    fireEvent.click(getRouteAction('Cancel GPX import'));
     expect(signal.aborted).toBe(true);
     await act(async () => {
       complete(importGpx('<gpx><trk><trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.01" lon="11.01"/></trkseg></trk></gpx>'));
     });
     expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', original!);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(importAction).toHaveAttribute('aria-busy', 'false');
-    expect(importAction).toBeEnabled();
-    expect(importAction).toHaveAttribute('title', 'Import GPX');
+    const readyImportAction = getRouteAction('Import GPX');
+    expect(readyImportAction).toHaveAttribute('aria-busy', 'false');
+    expect(readyImportAction).not.toHaveAttribute('aria-disabled', 'true');
+    expect(readyImportAction).toHaveAttribute('title', 'Import GPX');
+    fireEvent.keyDown(readyImportAction, { key: 'Escape' });
   });
   it('imports dropped GPX through the worker boundary and still confirms replacing unsaved work', async () => {
     render(<App />);
@@ -502,7 +545,7 @@ describe('GPX file selection', () => {
         JSON.stringify(route.segments),
       ),
     );
-    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
+    expectRouteActionEnabled('Export');
     expect(provider.calculateRoute).not.toHaveBeenCalled();
   });
 
@@ -536,7 +579,7 @@ describe('route export', () => {
     await plan();
     const routeName = screen.getByRole('heading', { level: 1 }).textContent;
     const geometryBefore = screen.getByTestId('map').getAttribute('data-geometry');
-    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    fireEvent.click(getRouteAction('Export'));
     await screen.findByRole('dialog', { name: 'Export route' });
     const fileName = await screen.findByRole('textbox', { name: 'File name' });
     const dialog = screen.getByRole('dialog', { name: 'Export route' });
@@ -587,7 +630,7 @@ describe('offline planner', () => {
     expect(screen.getByRole('button', { name: 'Update route' })).toBeDisabled();
     expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeDisabled();
     expect(screen.getByRole('radio', { name: 'Cycling' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
+    expectRouteActionEnabled('Export');
     expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Move first map point' }));
     expect(screen.getByTestId('map').getAttribute('data-geometry')).toBe(original);
@@ -621,7 +664,7 @@ describe('offline planner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Use manual drawing' }));
     addCoordinate('47.26, 11.4');
     addCoordinate('47.27, 11.41');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled());
+    await waitFor(() => expectRouteActionEnabled('Export'));
     expect(screen.getByRole('textbox', { name: 'Latitude' })).toBeEnabled();
     expect(
       screen.getByText(/Enter coordinates to draw straight lines without an online map\./),
@@ -786,7 +829,7 @@ describe('route planner interactions', () => {
       ).toBeEnabled();
       expect(screen.getAllByText(expected)).toHaveLength(1);
       expect(document.querySelector('.planner-route-status')).not.toHaveTextContent(expected);
-      expect(screen.getByRole('button', { name: i18n.t('Export') })).toBeDisabled();
+      expectRouteActionDisabled(i18n.t('Export'));
       await act(async () => {
         await i18n.changeLanguage('en');
       });
@@ -843,7 +886,7 @@ describe('route planner interactions', () => {
         ],
       ]),
     );
-    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
+    expectRouteActionEnabled('Export');
     fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
     expect(screen.getByTestId('map')).toHaveAttribute(
       'data-geometry',
@@ -1314,7 +1357,7 @@ describe('route planner interactions', () => {
   it('starts with an actionable empty overview instead of unavailable metrics', () => {
     render(<App />);
     expect(screen.getByRole('button', { name: 'Save route' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
+    expectRouteActionDisabled('Export');
     expect(screen.getByRole('button', { name: 'Calculate route' })).toBeDisabled();
     expect(screen.getByText('Where shall we go?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add a stop' })).toBeEnabled();
@@ -1331,7 +1374,7 @@ describe('route planner interactions', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Calculating route…' })).toBeDisabled(),
     );
-    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
+    expectRouteActionDisabled('Export');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save route' })).toBeEnabled());
     expect(provider.calculateRoute).toHaveBeenCalledTimes(2);
   });
@@ -1389,7 +1432,7 @@ describe('route planner interactions', () => {
     expect(
       within(screen.getByRole('list', { name: 'Route stops' })).getAllByRole('listitem'),
     ).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
+    expectRouteActionDisabled('Export');
   });
   it('plans, saves, opens its library and reopens a persistent route', async () => {
     render(<App />);
@@ -1416,7 +1459,7 @@ describe('route planner interactions', () => {
     const open = await screen.findByRole('button', { name: /River escape Cycling/ });
     fireEvent.click(open);
     expect(screen.getByRole('heading', { name: 'River escape' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
+    expectRouteActionEnabled('Export');
     const tags = screen.getByRole('button', { name: 'View all route tags' });
     expect(tags).toHaveTextContent('ScenicWeekendForest+2');
     fireEvent.click(tags);
@@ -1433,7 +1476,7 @@ describe('route planner interactions', () => {
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(3));
     expect(provider.calculateRoute.mock.calls[2][1]).toBe('hiking');
     fireEvent.click(screen.getByRole('button', { name: 'Remove stop 2' }));
-    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
+    expectRouteActionDisabled('Export');
   });
   it.each([
     ['en', 'Not saved', 'Unsaved changes'],
@@ -1471,7 +1514,7 @@ describe('route planner interactions', () => {
     const error = await screen.findByText(i18n.t('Routing quota reached.'));
     const toast = error.closest<HTMLElement>('[data-sonner-toast]')!;
     expect(toast).toHaveAttribute('data-type', 'error');
-    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
+    expectRouteActionDisabled('Export');
     expect(screen.getByTestId('map')).toHaveAttribute('data-segments', '1');
     const status = document.querySelector('.planner-route-status')!;
     expect(status).toHaveAttribute('role', 'status');
@@ -1485,7 +1528,7 @@ describe('route planner interactions', () => {
         'Previous route shown. Recalculate successfully before saving or exporting.',
       ),
     ).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
+    expectRouteActionDisabled('Export');
   });
   it('validates coordinate bounds without calling a service', () => {
     render(<App />);
@@ -1503,10 +1546,10 @@ describe('route planner interactions', () => {
     expect(screen.getByRole('button', { name: 'Discard changes' })).not.toHaveClass('primary');
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled();
+    expectRouteActionEnabled('Export');
     fireEvent.click(screen.getByRole('button', { name: 'New route' }));
     fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
-    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
+    expectRouteActionDisabled('Export');
   });
   it('edits, duplicates and confirms deletion in the local library', async () => {
     render(<App />);
@@ -1747,7 +1790,7 @@ describe('map and routing improvements', () => {
     addCoordinate('47.28, 11.42');
     expect(screen.getByTestId('map')).toHaveAttribute('data-geometry', previous);
     expect(screen.getByTestId('map')).toHaveAttribute('data-stale', 'true');
-    expect(screen.getByRole('button', { name: 'Export' })).toBeDisabled();
+    expectRouteActionDisabled('Export');
     await waitFor(() => expect(provider.calculateRoute).toHaveBeenCalledTimes(2));
     await act(async () =>
       resolve({ segments: [geometry], stats: { distance: 1500, duration: 500 } }),

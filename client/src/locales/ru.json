@@ -955,6 +955,7 @@
   "Weather, wind, load and access are not inferred. Original route statistics remain unchanged.": "Погода, ветер, груз и доступность не определяются. Исходная статистика маршрута не изменяется.",
   "Personal estimate unavailable for these inputs.": "Для этих параметров личная оценка недоступна.",
   "Export": "Экспорт",
+  "Route actions": "Действия с маршрутом",
   "Export route": "Экспорт маршрута",
   "Route details": "Данные маршрута",
   "Route map preview": "Мини-карта маршрута",

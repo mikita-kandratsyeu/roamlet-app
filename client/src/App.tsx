@@ -8,6 +8,12 @@ import { Textarea } from './components/ui/textarea';
 import { Label } from './components/ui/label';
 import { Slider } from './components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from './components/ui/toggle-group';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './components/ui/dropdown-menu';
 import { Badge } from './components/ui/badge';
 import { Alert } from './components/ui/alert';
 import { Card } from './components/ui/card';
@@ -58,6 +64,7 @@ import {
   Route as RouteIcon,
   Ruler,
   WifiOff,
+  MoreHorizontal,
 } from 'lucide-react';
 import type { Activity, Coordinate, PlannedRoute, RoutingResult, Waypoint } from './domain/types';
 import { exportGpx } from './domain/gpx';
@@ -1946,7 +1953,7 @@ export default function App() {
               )}
             </div>
             <footer className={`planner-footer ${canUseRoute ? 'route-ready' : ''}`}>
-              <div className="route-actions" data-importing={importing || undefined}>
+              <div className="route-actions">
                 <Button
                   className="primary"
                   disabled={!canUseRoute}
@@ -1958,45 +1965,46 @@ export default function App() {
                   <Bookmark size={17} aria-hidden="true" />
                   <span className="route-action-label">{t('Save route')}</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="secondary footer-icon-action"
-                  aria-label={t('Export')}
-                  title={t('Export')}
-                  disabled={!canUseRoute}
-                  onClick={() => {
-                    if (!busy) setExportRoute(currentRoute());
-                  }}
-                >
-                  <FileOutput size={17} aria-hidden="true" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="import-action footer-icon-action"
-                  aria-label={t('Import GPX')}
-                  title={t(importing ? 'Importing GPX…' : 'Import GPX')}
-                  aria-busy={importing}
-                  disabled={importing}
-                  onClick={() => fileInput.current?.click()}
-                >
-                  {importing
-                    ? <LoaderCircle size={18} className="spin" aria-hidden="true" />
-                    : <FileUp size={18} aria-hidden="true" />}
-                </Button>
-                {importing && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="footer-icon-action"
-                    onClick={cancelImport}
-                    aria-label={t('Cancel GPX import')}
-                    title={t('Cancel GPX import')}
-                  >
-                    <X size={18} aria-hidden="true" />
-                  </Button>
-                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="footer-icon-action"
+                      aria-label={t('Route actions')}
+                    >
+                      <MoreHorizontal size={19} aria-hidden="true" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" collisionPadding={12}>
+                    <DropdownMenuItem
+                      disabled={!canUseRoute}
+                      onSelect={() => {
+                        if (!busy) setExportRoute(currentRoute());
+                      }}
+                    >
+                      <FileOutput aria-hidden="true" />
+                      {t('Export')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={importing}
+                      aria-busy={importing}
+                      title={t(importing ? 'Importing GPX…' : 'Import GPX')}
+                      onSelect={() => fileInput.current?.click()}
+                    >
+                      {importing
+                        ? <LoaderCircle className="spin" aria-hidden="true" />
+                        : <FileUp aria-hidden="true" />}
+                      {t('Import GPX')}
+                    </DropdownMenuItem>
+                    {importing && (
+                      <DropdownMenuItem onSelect={cancelImport}>
+                        <X aria-hidden="true" />
+                        {t('Cancel GPX import')}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               {importing && <span className="sr-only" role="status">{t('Importing GPX…')}</span>}
             </footer>
