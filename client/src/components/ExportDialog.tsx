@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, Download, ExternalLink, Image, Route, Sparkles } from 'lucide-react';
+import { Download, ExternalLink } from 'lucide-react';
 import { Dialog } from './Dialog';
 import { ExportRouteMap } from './ExportRouteMap';
 import { RouteCardExport } from './RouteCardExport';
@@ -94,22 +94,10 @@ export function ExportDialog({
             }
           }}
         >
-          <ToggleGroupItem value="gpx">
-            <Route size={16} aria-hidden="true" />
-            GPX
-          </ToggleGroupItem>
-          <ToggleGroupItem value="roadbook">
-            <BookOpen size={16} aria-hidden="true" />
-            {t('Roadbook')}
-          </ToggleGroupItem>
-          <ToggleGroupItem value="image">
-            <Image size={16} aria-hidden="true" />
-            {t('For social media')}
-          </ToggleGroupItem>
-          <ToggleGroupItem value="ai">
-            <Sparkles size={16} aria-hidden="true" />
-            {t('For AI')}
-          </ToggleGroupItem>
+          <ToggleGroupItem value="gpx">GPX</ToggleGroupItem>
+          <ToggleGroupItem value="roadbook">{t('Roadbook')}</ToggleGroupItem>
+          <ToggleGroupItem value="image">{t('For social media')}</ToggleGroupItem>
+          <ToggleGroupItem value="ai">{t('For AI')}</ToggleGroupItem>
         </ToggleGroup>
       }
       footer={mode === 'image' ? <div ref={setActionsContainer} /> : undefined}
