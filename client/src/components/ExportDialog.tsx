@@ -98,6 +98,10 @@ export function ExportDialog({
             <Route size={16} aria-hidden="true" />
             GPX
           </ToggleGroupItem>
+          <ToggleGroupItem value="roadbook">
+            <BookOpen size={16} aria-hidden="true" />
+            {t('Roadbook')}
+          </ToggleGroupItem>
           <ToggleGroupItem value="image">
             <Image size={16} aria-hidden="true" />
             {t('For social media')}
@@ -105,10 +109,6 @@ export function ExportDialog({
           <ToggleGroupItem value="ai">
             <Sparkles size={16} aria-hidden="true" />
             {t('For AI')}
-          </ToggleGroupItem>
-          <ToggleGroupItem value="roadbook">
-            <BookOpen size={16} aria-hidden="true" />
-            {t('Roadbook')}
           </ToggleGroupItem>
         </ToggleGroup>
       }

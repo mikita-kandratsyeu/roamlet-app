@@ -382,12 +382,19 @@
 
 @media print {
   body.roamlet-roadbook-printing {
+    height: auto !important;
     min-width: 0 !important;
+    min-height: 0 !important;
     background: #fff !important;
     color: #173b30 !important;
     overflow: visible !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+  }
+
+  body.roamlet-roadbook-printing #root,
+  body.roamlet-roadbook-printing [data-sonner-toaster] {
+    display: none !important;
   }
 
   body.roamlet-roadbook-printing * {
@@ -398,14 +405,22 @@
     display: none !important;
   }
 
+  body.roamlet-roadbook-printing [data-slot='dialog-portal'],
   body.roamlet-roadbook-printing .roamlet-dialog:has(.roadbook-print-sheet) {
     position: static !important;
     inset: auto !important;
-    display: contents !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.roamlet-roadbook-printing .roamlet-dialog:has(.roadbook-print-sheet) {
+    display: block !important;
     width: auto !important;
     max-width: none !important;
     max-height: none !important;
     transform: none !important;
+    translate: none !important;
     border: 0 !important;
     border-radius: 0 !important;
     padding: 0 !important;

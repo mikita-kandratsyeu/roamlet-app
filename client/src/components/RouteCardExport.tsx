@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Check, Copy, Download, Image, LoaderCircle, Share2, X } from 'lucide-react';
+import { Notification } from './Notification';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -244,9 +245,12 @@ export function RouteCardExport({
             )}
           </p>
           {storageFailed && (
-            <p role="alert">
-              {t('Export settings could not be saved. You can still export this image.')}
-            </p>
+            <Notification
+              title={t('Notification')}
+              variant="error"
+              message={t('Export settings could not be saved. You can still export this image.')}
+              onDismiss={() => setStorageFailed(false)}
+            />
           )}
         </div>
         <div className="route-card-field">
@@ -538,9 +542,11 @@ export function RouteCardExport({
           </div>
         </div>
         {preview.status === 'error' && (
-          <p className="route-card-error" role="alert">
-            {translateMessage(preview.message)}
-          </p>
+          <Notification
+            title={t('Notification')}
+            variant="error"
+            message={translateMessage(preview.message)}
+          />
         )}
         <p className={preview.status === 'error' ? 'sr-only' : 'muted export-copy'} role="status">
           {preview.status === 'generating'
@@ -591,15 +597,30 @@ export function RouteCardExport({
             )}
             {t(copyState === 'copying' ? 'Copying…' : 'Copy caption')}
           </Button>
-          {copyState === 'copied' && <p role="status">{t('Caption copied.')}</p>}
+          {copyState === 'copied' && (
+            <Notification
+              title={t('Notification')}
+              variant="success"
+              message={t('Caption copied.')}
+              onDismiss={() => setCopyStatus(null)}
+            />
+          )}
           {copyState === 'error' && (
-            <p role="alert">
-              {t('Copying failed. Select the preview and copy it manually, or try again.')}
-            </p>
+            <Notification
+              title={t('Notification')}
+              variant="error"
+              message={t('Copying failed. Select the preview and copy it manually, or try again.')}
+              onDismiss={() => setCopyStatus(null)}
+            />
           )}
         </div>
         {notice?.request === request && (
-          <p role={notice.error ? 'alert' : 'status'}>{translateMessage(notice.message)}</p>
+          <Notification
+            title={t('Notification')}
+            variant={notice.error ? 'error' : 'success'}
+            message={translateMessage(notice.message)}
+            onDismiss={() => setNotice(null)}
+          />
         )}
       </div>
       {placeActions(
@@ -622,23 +643,21 @@ export function RouteCardExport({
               {t(preview.status === 'ready' ? 'Regenerate preview' : 'Create preview')}
             </Button>
           )}
-          {preview.status === 'ready' && (
-            <>
-              <Button onClick={download}>
-                <Download size={17} aria-hidden="true" />
-                {t('Download PNG')}
-              </Button>
-              {canShare && (
-                <Button variant="outline" onClick={() => void share()} disabled={sharing !== null}>
-                  {sharing !== null ? (
-                    <LoaderCircle size={17} className="spin" aria-hidden="true" />
-                  ) : (
-                    <Share2 size={17} aria-hidden="true" />
-                  )}
-                  {t('Share image')}
-                </Button>
+          {preview.status === 'ready' && canShare && (
+            <Button variant="outline" onClick={() => void share()} disabled={sharing !== null}>
+              {sharing !== null ? (
+                <LoaderCircle size={17} className="spin" aria-hidden="true" />
+              ) : (
+                <Share2 size={17} aria-hidden="true" />
               )}
-            </>
+              {t('Share image')}
+            </Button>
+          )}
+          {preview.status === 'ready' && (
+            <Button onClick={download}>
+              <Download size={17} aria-hidden="true" />
+              {t('Download PNG')}
+            </Button>
           )}
         </div>,
       )}

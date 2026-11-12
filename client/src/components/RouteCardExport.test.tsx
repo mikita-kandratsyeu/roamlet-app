@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { RouteCardExport } from './RouteCardExport';
+import { Toaster } from './ui/sonner';
 import { generateRouteCard } from '../services/routeCard';
 import type { PlannedRoute } from '../domain/types';
 import i18n from '../i18n';
@@ -28,6 +29,7 @@ const route: PlannedRoute = {
 const blob = new Blob(['png'], { type: 'image/png' });
 const revoke = vi.fn();
 beforeEach(async () => {
+  render(<Toaster />);
   localStorage.removeItem(PREFERENCES_KEY);
   await i18n.changeLanguage('en');
   vi.mocked(generateRouteCard).mockReset().mockResolvedValue(blob);

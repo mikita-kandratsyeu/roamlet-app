@@ -230,7 +230,7 @@ test('roadbook print media shows only the A4 route sheet', async ({ page }) => {
   await expect(sheet).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Print roadbook' })).toBeHidden();
   await expect(dialog.locator('.dialog-header')).toBeHidden();
-  await expect(sheet).toHaveCSS('color', 'rgb(17, 17, 17)');
+  await expect(sheet).toHaveCSS('color', 'rgb(23, 59, 48)');
   await page.emulateMedia({ media: 'screen' });
 });
 
