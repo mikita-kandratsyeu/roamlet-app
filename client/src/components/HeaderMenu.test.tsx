@@ -22,7 +22,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function setup() {
+function setup(pwaInstalled = false) {
   const actions = {
     onNewRoute: vi.fn(),
     onLibrary: vi.fn(),
@@ -32,7 +32,7 @@ function setup() {
   };
   render(
     <ThemeProvider>
-      <HeaderMenu {...actions} />
+      <HeaderMenu {...actions} pwaInstalled={pwaInstalled} />
     </ThemeProvider>,
   );
   return {
@@ -41,6 +41,13 @@ function setup() {
     trigger: screen.getByRole('button', { name: 'Menu' }),
   };
 }
+
+it('hides the app information menu item when Roamlet is installed', async () => {
+  const { user, trigger } = setup(true);
+  await user.click(trigger);
+  expect(screen.queryByRole('menuitem', { name: 'App on this device' })).not.toBeInTheDocument();
+  expect(screen.getByRole('menuitem', { name: 'Connections' })).toBeVisible();
+});
 
 it('groups the direct route action and menu trigger, and focuses the first menu action', async () => {
   const { user, trigger } = setup();
@@ -178,6 +185,7 @@ it.each([false, true])(
           onHelp={vi.fn()}
           onConnections={vi.fn()}
           onPwa={vi.fn()}
+          pwaInstalled={false}
         />
         <button disabled>Disabled control</button>
         <button hidden>Hidden control</button>
@@ -295,6 +303,7 @@ it('does not steal focus from a dialog opened by a menu action and restores its 
           onHelp={() => setOpen(true)}
           onConnections={() => setOpen(true)}
           onPwa={() => setOpen(true)}
+          pwaInstalled={false}
         />
         {open && (
           <Dialog title="Routes" onClose={() => setOpen(false)} initialFocusRef={input}>

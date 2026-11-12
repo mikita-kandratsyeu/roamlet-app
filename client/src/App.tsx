@@ -1138,6 +1138,7 @@ export default function App() {
               onConnections={openConnections}
               onHelp={() => setHelpOpen(true)}
               onPwa={() => setPwaOpen(true)}
+              pwaInstalled={pwa.installed}
             />
           </nav>
         </header>

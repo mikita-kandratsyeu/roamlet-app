@@ -35,9 +35,17 @@ interface Props {
   onHelp: () => void;
   onConnections: () => void;
   onPwa: () => void;
+  pwaInstalled: boolean;
 }
 
-export function HeaderMenu({ onNewRoute, onLibrary, onHelp, onConnections, onPwa }: Props) {
+export function HeaderMenu({
+  onNewRoute,
+  onLibrary,
+  onHelp,
+  onConnections,
+  onPwa,
+  pwaInstalled,
+}: Props) {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
@@ -223,10 +231,12 @@ export function HeaderMenu({ onNewRoute, onLibrary, onHelp, onConnections, onPwa
             <Plug size={18} aria-hidden="true" />
             <span>{t('Connections')}</span>
           </DropdownMenuItem>
-          <DropdownMenuItem className="header-menu-item" onSelect={() => activate(onPwa)}>
-            <Download size={18} aria-hidden="true" />
-            <span>{t('App on this device')}</span>
-          </DropdownMenuItem>
+          {!pwaInstalled && (
+            <DropdownMenuItem className="header-menu-item" onSelect={() => activate(onPwa)}>
+              <Download size={18} aria-hidden="true" />
+              <span>{t('App on this device')}</span>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator className="header-menu-separator" />
           <DropdownMenuLabel className="header-menu-label">
             {t('Language / LANGUAGE')}
