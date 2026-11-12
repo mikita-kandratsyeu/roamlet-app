@@ -10,6 +10,8 @@
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px #14251b0a;
 }
 .route-card-settings {
   display: grid;
@@ -61,6 +63,18 @@
   box-shadow: none;
   white-space: normal;
 }
+.export-mode [data-slot='toggle-group-item'] {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 6px;
+  font-size: var(--font-size-helper);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  text-align: center;
+}
 .route-card-settings [data-slot='toggle-group-item'] {
   flex-direction: column;
   align-items: center;
@@ -88,7 +102,7 @@
 .export-mode [data-state='on'] {
   background: var(--surface);
   color: var(--primary);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--foreground) 8%, transparent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 10%, transparent);
 }
 .route-card-options [data-slot='toggle-group-item'] span {
   font-size: var(--font-size-helper);

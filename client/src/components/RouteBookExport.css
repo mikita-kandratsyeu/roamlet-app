@@ -1,37 +1,24 @@
 .roadbook-export {
   display: grid;
-  gap: 12px;
+  gap: 16px;
+}
+
+.roadbook-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
 }
 
 .roadbook-print-help,
 .roadbook-elevation-note,
-.roadbook-unavailable {
-  margin: 0;
-  color: var(--muted-foreground);
-  font-size: var(--font-size-helper);
-  line-height: 1.5;
-}
-
-.roadbook-print-action {
-  width: 100%;
-  min-height: 44px;
-}
-
-.roadbook-print-sheet {
-  display: grid;
-  gap: 20px;
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--foreground);
-}
-
-.roadbook-header {
-  display: grid;
-  gap: 12px;
-}
-
+.roadbook-unavailable,
+.roadbook-footer p,
+.roadbook-activity,
 .roadbook-kicker,
 .roadbook-header h1,
 .roadbook-section h2,
@@ -42,135 +29,350 @@
   margin: 0;
 }
 
-.roadbook-kicker,
-.roadbook-stop-role {
+.roadbook-print-help,
+.roadbook-elevation-note,
+.roadbook-unavailable {
   color: var(--muted-foreground);
   font-size: var(--font-size-helper);
-  font-weight: 600;
+  line-height: 1.5;
+}
+
+.roadbook-print-action {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+
+.roadbook-stage {
+  padding: 28px 20px;
+  border-radius: 18px;
+  background:
+    radial-gradient(
+      ellipse at 50% 0%,
+      color-mix(in srgb, var(--primary) 14%, transparent),
+      transparent 58%
+    ),
+    var(--muted);
+}
+
+.roadbook-print-sheet {
+  --sheet-ink: #173b30;
+  --sheet-muted: #5d6b63;
+  --sheet-line: #e3e8e4;
+  --sheet-green: #286046;
+  display: grid;
+  gap: 22px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 28px 20px;
+  border-radius: 4px 4px 2px 2px;
+  background:
+    linear-gradient(#173b30, #173b30) top / 100% 7px no-repeat,
+    #fff;
+  color: var(--sheet-ink);
+  box-shadow:
+    0 18px 50px #14251b24,
+    0 2px 6px #14251b10;
+}
+
+.roadbook-header,
+.roadbook-title-row,
+.roadbook-section,
+.roadbook-stop-content,
+.roadbook-footer {
+  display: grid;
+  min-width: 0;
+}
+
+.roadbook-header {
+  gap: 16px;
+}
+
+.roadbook-brandbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--sheet-line);
+}
+
+.roadbook-mark {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+}
+
+.roadbook-wordmark {
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.roadbook-kicker {
+  margin-left: auto;
+  color: var(--sheet-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.roadbook-title-row {
+  gap: 10px;
 }
 
 .roadbook-header h1 {
-  font-size: 24px;
-  line-height: 1.2;
+  font-size: 32px;
+  font-weight: 750;
+  letter-spacing: -0.045em;
+  line-height: 1.12;
   overflow-wrap: anywhere;
+}
+
+.roadbook-activity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  background: #e7f1eb;
+  color: var(--sheet-green);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .roadbook-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1px;
   margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--sheet-line);
+  border-radius: 12px;
+  background: var(--sheet-line);
 }
 
 .roadbook-metrics > div {
   min-width: 0;
+  padding: 12px 14px;
+  background: #f7f8f6;
+}
+
+.roadbook-metrics dt,
+.roadbook-stop-role,
+.roadbook-stop-coordinates,
+.roadbook-stop-pause,
+.roadbook-footer p {
+  color: var(--sheet-muted);
 }
 
 .roadbook-metrics dt {
-  color: var(--muted-foreground);
-  font-size: var(--font-size-helper);
-  line-height: 1.4;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
 }
 
 .roadbook-metrics dd {
   margin: 4px 0 0;
-  font-size: var(--font-size-body);
-  font-weight: 650;
+  font-size: 18px;
+  font-weight: 720;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
 .roadbook-section {
-  display: grid;
   gap: 10px;
-  min-width: 0;
 }
 
 .roadbook-section h2 {
-  font-size: 16px;
-  font-weight: 650;
-  line-height: 1.35;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
 }
 
 .roadbook-print-sheet .export-route-map {
-  height: 230px;
-  border-color: var(--border);
-  background: #fff;
+  height: 280px;
+  border: 0;
+  border-radius: 12px;
+  background: #eef2ee;
+  box-shadow: inset 0 0 0 1px var(--sheet-line);
 }
 
 .roadbook-elevation-chart {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 180px;
+  max-height: 190px;
   overflow: visible;
-  color: var(--foreground);
+  padding: 8px 4px 0;
+  border: 1px solid var(--sheet-line);
+  border-radius: 12px;
+  background: #f7f8f6;
+  color: var(--sheet-ink);
 }
 
 .roadbook-elevation-chart text {
-  fill: currentColor;
+  fill: var(--sheet-muted);
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.roadbook-chart-grid {
+  stroke: #e6ebe7;
+  stroke-width: 1;
 }
 
 .roadbook-chart-axis {
-  stroke: var(--border);
+  stroke: #c9d2cc;
   stroke-width: 1;
 }
 
 .roadbook-chart-line {
-  stroke: var(--primary);
-  stroke-width: 3;
+  stroke: var(--sheet-green);
+  stroke-width: 2.5;
   vector-effect: non-scaling-stroke;
 }
 
 .roadbook-stops ol {
   display: grid;
-  gap: 0;
   margin: 0;
-  padding: 0;
+  padding: 4px 0 0;
   list-style: none;
 }
 
 .roadbook-stops li {
+  position: relative;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 12px;
-  padding: 12px 0;
-  border-top: 1px solid var(--border);
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 14px;
+  padding-bottom: 16px;
   break-inside: avoid;
 }
 
+.roadbook-stops li:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 32px;
+  bottom: 0;
+  left: 15px;
+  width: 2px;
+  background: #d7e3db;
+}
+
 .roadbook-stop-marker {
+  position: relative;
+  z-index: 1;
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   place-items: center;
-  border: 1px solid var(--border);
+  border: 1.5px solid #c9d2cc;
   border-radius: 50%;
-  font-size: var(--font-size-helper);
-  font-weight: 700;
+  background: #fff;
+  color: var(--sheet-ink);
+  font-size: 12px;
+  font-weight: 750;
   font-variant-numeric: tabular-nums;
 }
 
+.roadbook-stop-marker.is-start {
+  border-color: var(--sheet-green);
+  background: var(--sheet-green);
+  color: #fff;
+}
+
+.roadbook-stop-marker.is-finish {
+  border-color: #c75146;
+  background: #c75146;
+  color: #fff;
+}
+
 .roadbook-stop-content {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
+  gap: 2px;
+  padding-top: 4px;
+}
+
+.roadbook-stop-role {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  line-height: 1.3;
+  text-transform: uppercase;
 }
 
 .roadbook-stop-content h3 {
-  font-size: var(--font-size-body);
-  font-weight: 650;
-  line-height: 1.4;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .roadbook-stop-coordinates,
-.roadbook-stop-pause {
-  color: var(--muted-foreground);
-  font-size: var(--font-size-helper);
+.roadbook-stop-pause,
+.roadbook-footer p {
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   line-height: 1.45;
+}
+
+.roadbook-footer {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sheet-line);
+}
+
+.roadbook-footer p {
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .roadbook-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .roadbook-print-action {
+    width: 100%;
+  }
+
+  .roadbook-stage {
+    padding: 16px 10px;
+  }
+
+  .roadbook-print-sheet {
+    padding: 22px 16px 16px;
+  }
+
+  .roadbook-header h1 {
+    font-size: 26px;
+  }
+
+  .roadbook-kicker,
+  .roadbook-footer {
+    text-align: left;
+  }
+
+  .roadbook-footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .roadbook-footer p {
+    text-align: left;
+  }
 }
 
 @page {
@@ -182,7 +384,7 @@
   body.roamlet-roadbook-printing {
     min-width: 0 !important;
     background: #fff !important;
-    color: #111 !important;
+    color: #173b30 !important;
     overflow: visible !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
@@ -228,27 +430,41 @@
     visibility: visible !important;
   }
 
+  body.roamlet-roadbook-printing .roadbook-stage,
   body.roamlet-roadbook-printing .roadbook-print-sheet {
     display: block !important;
     width: 100% !important;
+    max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
     background: #fff !important;
-    color: #111 !important;
     box-shadow: none !important;
-    font-family: Arial, sans-serif !important;
-    font-size: 10pt !important;
-    line-height: 1.35 !important;
     overflow: visible !important;
   }
 
-  body.roamlet-roadbook-printing .roadbook-header,
-  body.roamlet-roadbook-printing .roadbook-section {
-    margin-bottom: 7mm !important;
+  body.roamlet-roadbook-printing .roadbook-print-sheet {
+    color: #173b30 !important;
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
   }
 
+  body.roamlet-roadbook-printing .roadbook-print-sheet::before {
+    content: '';
+    display: block;
+    height: 3.5mm;
+    margin-bottom: 5mm;
+    background: #173b30;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-header,
+  body.roamlet-roadbook-printing .roadbook-section,
+  body.roamlet-roadbook-printing .roadbook-footer {
+    margin-bottom: 6mm !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-toolbar,
   body.roamlet-roadbook-printing .roadbook-print-action,
   body.roamlet-roadbook-printing .roadbook-print-help {
     display: none !important;
@@ -270,46 +486,54 @@
   body.roamlet-roadbook-printing .roadbook-stop-coordinates,
   body.roamlet-roadbook-printing .roadbook-stop-pause,
   body.roamlet-roadbook-printing .roadbook-elevation-note,
-  body.roamlet-roadbook-printing .roadbook-unavailable {
-    color: #444 !important;
+  body.roamlet-roadbook-printing .roadbook-unavailable,
+  body.roamlet-roadbook-printing .roadbook-footer p,
+  body.roamlet-roadbook-printing .roadbook-elevation-chart text {
+    color: #5d6b63 !important;
+    fill: #5d6b63 !important;
   }
 
   body.roamlet-roadbook-printing .roadbook-section h2 {
-    font-size: 13pt !important;
+    font-size: 11pt !important;
   }
 
   body.roamlet-roadbook-printing .roadbook-print-sheet .export-route-map {
-    height: 68mm !important;
-    border: 1px solid #bbb !important;
-    border-radius: 0 !important;
+    height: 72mm !important;
+    border: 0 !important;
+    border-radius: 2mm !important;
+    box-shadow: inset 0 0 0 0.3mm #e3e8e4 !important;
     break-inside: avoid;
   }
 
   body.roamlet-roadbook-printing .export-route-map figcaption {
-    color: #444 !important;
+    color: #5d6b63 !important;
   }
 
   body.roamlet-roadbook-printing .roadbook-elevation-chart {
-    max-height: 42mm !important;
+    max-height: 46mm !important;
+    background: #f7f8f6 !important;
   }
 
   body.roamlet-roadbook-printing .roadbook-chart-axis {
-    stroke: #777 !important;
+    stroke: #c9d2cc !important;
   }
 
   body.roamlet-roadbook-printing .roadbook-chart-line {
-    stroke: #111 !important;
+    stroke: #286046 !important;
   }
 
-  body.roamlet-roadbook-printing .roadbook-elevation-chart text {
-    fill: #111 !important;
+  body.roamlet-roadbook-printing .roadbook-activity {
+    background: #e7f1eb !important;
+    color: #286046 !important;
   }
 
-  body.roamlet-roadbook-printing .roadbook-stops li {
-    border-color: #bbb !important;
+  body.roamlet-roadbook-printing .roadbook-stop-marker.is-start {
+    background: #286046 !important;
+    color: #fff !important;
   }
 
-  body.roamlet-roadbook-printing .roadbook-stop-marker {
-    border-color: #555 !important;
+  body.roamlet-roadbook-printing .roadbook-stop-marker.is-finish {
+    background: #c75146 !important;
+    color: #fff !important;
   }
 }

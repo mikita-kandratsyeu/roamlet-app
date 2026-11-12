@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, ExternalLink } from 'lucide-react';
+import { BookOpen, Download, ExternalLink, Image, Route, Sparkles } from 'lucide-react';
 import { Dialog } from './Dialog';
 import { ExportRouteMap } from './ExportRouteMap';
 import { RouteCardExport } from './RouteCardExport';
@@ -55,16 +55,20 @@ export function ExportDialog({
   );
   const showElevation =
     (route.source === 'gpx' || route.elevationSource === 'openrouteservice') &&
-    trackPoints > 1 && completeHeights &&
-    Number.isFinite(route.stats.ascent) && Number.isFinite(route.stats.descent);
+    trackPoints > 1 &&
+    completeHeights &&
+    Number.isFinite(route.stats.ascent) &&
+    Number.isFinite(route.stats.descent);
   const details = [
     [t('Activity'), t(route.activity === 'cycling' ? 'Cycling' : 'Hiking')],
     [t('Distance'), formatDistance(route.stats.distance)],
     [t('Original time estimate'), formatDuration(route.stats.duration)],
-    ...(showElevation ? [
-      [t('Elevation gain'), `${formatNumber(Math.round(route.stats.ascent!))} ${t('m')}`],
-      [t('Elevation loss'), `${formatNumber(Math.round(route.stats.descent!))} ${t('m')}`],
-    ] : []),
+    ...(showElevation
+      ? [
+          [t('Elevation gain'), `${formatNumber(Math.round(route.stats.ascent!))} ${t('m')}`],
+          [t('Elevation loss'), `${formatNumber(Math.round(route.stats.descent!))} ${t('m')}`],
+        ]
+      : []),
     [t('Track points'), formatNumber(trackPoints)],
     [t('GPX segments'), formatNumber(route.segments.length)],
     [t('Waypoints'), formatNumber(route.waypoints.length)],
@@ -90,119 +94,152 @@ export function ExportDialog({
             }
           }}
         >
-          <ToggleGroupItem value="gpx">GPX</ToggleGroupItem>
-          <ToggleGroupItem value="image">{t('For social media')}</ToggleGroupItem>
-          <ToggleGroupItem value="ai">{t('For AI')}</ToggleGroupItem>
-          <ToggleGroupItem value="roadbook">{t('Roadbook')}</ToggleGroupItem>
+          <ToggleGroupItem value="gpx">
+            <Route size={16} aria-hidden="true" />
+            GPX
+          </ToggleGroupItem>
+          <ToggleGroupItem value="image">
+            <Image size={16} aria-hidden="true" />
+            {t('For social media')}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="ai">
+            <Sparkles size={16} aria-hidden="true" />
+            {t('For AI')}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="roadbook">
+            <BookOpen size={16} aria-hidden="true" />
+            {t('Roadbook')}
+          </ToggleGroupItem>
         </ToggleGroup>
       }
       footer={mode === 'image' ? <div ref={setActionsContainer} /> : undefined}
     >
-      {mode === 'ai' ? <AiRouteExport route={route} personalTime={personalTime} /> : mode === 'image' ? <RouteCardExport route={route} elevationGain={showElevation ? route.stats.ascent : undefined} actionsContainer={actionsContainer} /> : mode === 'roadbook' ? (
-        <RouteBookExport route={route} onPrint={() => window.print()} />
-      ) : <>
-      <section className="export-route-overview" aria-label={t('Route details')}>
-        <p className="export-route-summary">
-          <strong>{route.name || t('Untitled adventure')}</strong>
-        </p>
-        <ExportRouteMap segments={route.segments} />
-        <dl className="export-route-details">
-          {details.map(([label, value]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!filename.trim()) return;
-          setError(null);
-          try {
-            onDownload(route, gpxFilename(filename));
-          } catch (error) {
-            setError(
-              error instanceof Error ? error.message : 'Something went wrong. Please try again.',
-            );
-          }
-        }}
-      >
-        <Label htmlFor="export-filename">{t('File name')}</Label>
-        <Input
-          id="export-filename"
-          ref={filenameInput}
-          required
-          maxLength={120}
-          value={filename}
-          aria-describedby="export-filename-hint"
-          onChange={(event) => setFilename(event.target.value)}
+      {mode === 'ai' ? (
+        <AiRouteExport route={route} personalTime={personalTime} />
+      ) : mode === 'image' ? (
+        <RouteCardExport
+          route={route}
+          elevationGain={showElevation ? route.stats.ascent : undefined}
+          actionsContainer={actionsContainer}
         />
-        <p id="export-filename-hint" className="muted export-copy">
-          {t('Saved as {{filename}}', { filename: gpxFilename(filename) })}
-        </p>
-        <div className="export-format">
-          <strong>{t('GPX for GPS devices and apps')}</strong>
-          <p className="muted export-copy">
-            {t('Includes track geometry, elevations when available, and waypoints.')}
-          </p>
-        </div>
-        {error && (
-          <Notification
-            title={t('Notification')}
-            variant="error"
-            message={translateMessage(error)}
-            onDismiss={() => setError(null)}
-          />
-        )}
-        <Button type="submit" className="primary export-download" disabled={!filename.trim()}>
-          <Download size={17} aria-hidden="true" />
-          {t('Download GPX')}
-        </Button>
-      </form>
-      <details className="export-guide">
-        <summary>{t('How to import into Komoot')}</summary>
-        <p className="muted export-copy">
-          {t('Import the downloaded file yourself. Roamlet does not send routes to Komoot.')}
-        </p>
-        <ol>
-          <li>{t('Download the GPX file above.')}</li>
-          <li>{t('In Komoot, open Profile → Saved routes → Import a GPS file.')}</li>
-          <li>{t('Choose the downloaded file, import it as a planned route, and save.')}</li>
-        </ol>
-        <a
-          href="https://support.komoot.com/hc/en-us/articles/10115477099674-Export-and-import-Routes-and-Activities"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {t('Komoot import instructions')}
-          <ExternalLink size={14} aria-hidden="true" />
-        </a>
-      </details>
-      <details className="export-guide">
-        <summary>{t('How to import into Strava')}</summary>
-        <p className="muted export-copy">
-          {t('Import the downloaded file yourself. Roamlet does not send routes to Strava.')}
-        </p>
-        <ol>
-          <li>{t('Download the GPX file above.')}</li>
-          <li>{t('On the Strava website, open Dashboard → My Routes → Create New Route.')}</li>
-          <li>{t('Use the upload button to choose the GPX file, review the route, and save.')}</li>
-        </ol>
-        <p className="muted export-copy">
-          {t('These steps create a route, not a recorded activity. Strava may require a subscription for route creation.')}
-        </p>
-        <a
-          href="https://support.strava.com/en-us/articles/15402061-how-do-i-create-a-route-from-a-gpx-file"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {t('Strava import instructions')}
-          <ExternalLink size={14} aria-hidden="true" />
-        </a>
-      </details>
-      </>}
+      ) : mode === 'roadbook' ? (
+        <RouteBookExport route={route} onPrint={() => window.print()} />
+      ) : (
+        <>
+          <section className="export-route-overview" aria-label={t('Route details')}>
+            <ExportRouteMap segments={route.segments} />
+            <div className="export-route-heading">
+              <p className="export-route-kicker">
+                {t(route.activity === 'cycling' ? 'Cycling' : 'Hiking')}
+              </p>
+              <h3>{route.name || t('Untitled adventure')}</h3>
+            </div>
+            <dl className="export-route-details">
+              {details.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!filename.trim()) return;
+              setError(null);
+              try {
+                onDownload(route, gpxFilename(filename));
+              } catch (error) {
+                setError(
+                  error instanceof Error
+                    ? error.message
+                    : 'Something went wrong. Please try again.',
+                );
+              }
+            }}
+          >
+            <div className="export-file">
+              <Label htmlFor="export-filename">{t('File name')}</Label>
+              <Input
+                id="export-filename"
+                ref={filenameInput}
+                required
+                maxLength={120}
+                value={filename}
+                aria-describedby="export-filename-hint"
+                onChange={(event) => setFilename(event.target.value)}
+              />
+              <p id="export-filename-hint" className="muted export-copy">
+                {t('Saved as {{filename}}', { filename: gpxFilename(filename) })}
+              </p>
+            </div>
+            <div className="export-format">
+              <strong>{t('GPX for GPS devices and apps')}</strong>
+              <p className="muted export-copy">
+                {t('Includes track geometry, elevations when available, and waypoints.')}
+              </p>
+            </div>
+            {error && (
+              <Notification
+                title={t('Notification')}
+                variant="error"
+                message={translateMessage(error)}
+                onDismiss={() => setError(null)}
+              />
+            )}
+            <Button type="submit" className="primary export-download" disabled={!filename.trim()}>
+              <Download size={17} aria-hidden="true" />
+              {t('Download GPX')}
+            </Button>
+          </form>
+          <details className="export-guide">
+            <summary>{t('How to import into Komoot')}</summary>
+            <p className="muted export-copy">
+              {t('Import the downloaded file yourself. Roamlet does not send routes to Komoot.')}
+            </p>
+            <ol>
+              <li>{t('Download the GPX file above.')}</li>
+              <li>{t('In Komoot, open Profile → Saved routes → Import a GPS file.')}</li>
+              <li>{t('Choose the downloaded file, import it as a planned route, and save.')}</li>
+            </ol>
+            <a
+              href="https://support.komoot.com/hc/en-us/articles/10115477099674-Export-and-import-Routes-and-Activities"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t('Komoot import instructions')}
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
+          </details>
+          <details className="export-guide">
+            <summary>{t('How to import into Strava')}</summary>
+            <p className="muted export-copy">
+              {t('Import the downloaded file yourself. Roamlet does not send routes to Strava.')}
+            </p>
+            <ol>
+              <li>{t('Download the GPX file above.')}</li>
+              <li>{t('On the Strava website, open Dashboard → My Routes → Create New Route.')}</li>
+              <li>
+                {t('Use the upload button to choose the GPX file, review the route, and save.')}
+              </li>
+            </ol>
+            <p className="muted export-copy">
+              {t(
+                'These steps create a route, not a recorded activity. Strava may require a subscription for route creation.',
+              )}
+            </p>
+            <a
+              href="https://support.strava.com/en-us/articles/15402061-how-do-i-create-a-route-from-a-gpx-file"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t('Strava import instructions')}
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
+          </details>
+        </>
+      )}
     </Dialog>
   );
 }

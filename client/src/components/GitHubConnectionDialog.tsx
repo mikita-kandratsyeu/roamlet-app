@@ -91,13 +91,6 @@ export function GitHubConnectionDialog({
                   </Button>
                 </li>
               </ol>
-              {github.session?.available === false && (
-                <p role="status">
-                  {t(
-                    'GitHub connection is not configured on this deployment. Local routes remain available.',
-                  )}
-                </p>
-              )}
             </>
           ) : (
             <>

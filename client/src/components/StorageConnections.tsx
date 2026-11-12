@@ -257,13 +257,6 @@ export function StorageConnections({ open, onClose }: { open: boolean; onClose: 
               <GoogleCalendarConnection google={calendar} />
             </div>
           </section>
-          {available === false && !problem && (
-            <p className="connector-note">
-              {t(
-                'GitHub connection is not configured on this deployment. Local routes remain available.',
-              )}
-            </p>
-          )}
         </div>
       </div>
       {errorMessage && (
