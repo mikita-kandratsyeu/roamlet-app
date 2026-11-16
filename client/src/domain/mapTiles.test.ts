@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_MAP_STYLE, mapTiles } from './mapTiles';
+import { BRIGHT_MAP_STYLE, DEFAULT_MAP_STYLE, exportBasemapStyle, mapTiles } from './mapTiles';
 import standardStyle from '../../public/osm-standard.json';
 
 describe('MapLibre map configuration', () => {
+  it('uses the Light basemap style for export previews', () => {
+    expect(exportBasemapStyle({})).toBe(BRIGHT_MAP_STYLE);
+    expect(exportBasemapStyle({ VITE_MAP_STYLE: DEFAULT_MAP_STYLE })).toBe(BRIGHT_MAP_STYLE);
+  });
+
   it('uses the local OpenStreetMap raster style without credentials by default', () => {
     expect(mapTiles({})).toEqual({ style: DEFAULT_MAP_STYLE });
     expect(DEFAULT_MAP_STYLE).toBe('/osm-standard.json');

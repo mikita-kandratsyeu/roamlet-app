@@ -95,12 +95,56 @@ describe('ExportDialog', () => {
     expect(screen.getByText('Trailhead')).toBeVisible();
     expect(screen.getByText('Shelter')).toBeVisible();
     expect(screen.getByText('Pause: 10 min')).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Notes' })).toHaveTextContent('Original description');
+    expect(screen.getAllByText('From start').length).toBeGreaterThan(0);
+    expect(screen.getByText('To the next stop')).toBeVisible();
+    expect(screen.getByText('Climb 1')).toBeVisible();
+    expect(
+      screen.getByText('Pace from original time', { selector: 'dt' }).nextElementSibling,
+    ).toHaveTextContent('74.4 km/h');
+    expect(screen.getByText('Total pauses', { selector: 'dt' }).nextElementSibling).toHaveTextContent(
+      '10 min',
+    );
+    expect(screen.getByText('Set a local departure time to print arrivals.')).toBeVisible();
     expect(document.body).toHaveClass('roamlet-roadbook-printing');
     await user.click(screen.getByRole('button', { name: 'Print roadbook' }));
     expect(print).toHaveBeenCalledOnce();
     expect(onDownload).not.toHaveBeenCalled();
     await user.click(screen.getByRole('radio', { name: 'GPX' }));
     expect(document.body).not.toHaveClass('roamlet-roadbook-printing');
+  });
+
+  it('prints local arrivals from the original moving estimate when a departure is set', async () => {
+    const user = userEvent.setup();
+    render(
+      <ExportDialog
+        route={{
+          ...route,
+          departureLocal: '2026-06-01T08:00',
+          stats: { ...route.stats, ascent: 30, descent: 0 },
+          waypoints: [
+            { id: 'start', name: 'Trailhead', coordinate: [11.4, 47.2], pauseMinutes: 10 },
+            { id: 'finish', name: 'Shelter', coordinate: [11.5, 47.3] },
+          ],
+        }}
+        onDownload={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole('radio', { name: 'Roadbook' }));
+    const timeFor = (label: string) =>
+      screen.getByText(label, { selector: 'dt' }).nextElementSibling?.querySelector('time');
+    expect(timeFor('Departure')).toHaveAttribute('datetime', '2026-06-01T08:00');
+    expect(timeFor('Finish')).toHaveAttribute('datetime', '2026-06-01T08:20');
+    expect(screen.getAllByRole('time').map((item) => item.getAttribute('datetime'))).toEqual([
+      '2026-06-01T08:00',
+      '2026-06-01T08:20',
+      '2026-06-01T08:00',
+      '2026-06-01T08:10',
+      '2026-06-01T08:20',
+    ]);
+    expect(screen.queryByText('Set a local departure time to print arrivals.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Your moving time')).not.toBeInTheDocument();
   });
 
   it('does not fabricate an elevation profile or control points', async () => {
@@ -152,11 +196,8 @@ describe('ExportDialog', () => {
     await user.click(screen.getByRole('radio', { name: 'Roadbook' }));
     expect(screen.getByText('Known elevation sections only')).toBeVisible();
     expect(
-      screen.getByText('Known elevation gain', { selector: 'dt' }).nextElementSibling,
-    ).toHaveTextContent('30 m');
-    expect(
-      screen.getByText('Known elevation loss', { selector: 'dt' }).nextElementSibling,
-    ).toHaveTextContent('0 m');
+      screen.getByText('Known elevation', { selector: 'dt' }).nextElementSibling,
+    ).toHaveTextContent('+30 m−0 m');
   });
   it('shows route details and a collapsed guide without downloading', () => {
     const onDownload = vi.fn();

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, ExternalLink } from 'lucide-react';
+import { BookOpen, Download, ExternalLink, FileDown, Image, Sparkles } from 'lucide-react';
 import { Dialog } from './Dialog';
 import { ExportRouteMap } from './ExportRouteMap';
 import { RouteCardExport } from './RouteCardExport';
@@ -81,24 +81,56 @@ export function ExportDialog({
       onClose={onClose}
       wide={mode === 'image' || mode === 'roadbook'}
       navigation={
-        <ToggleGroup
-          ref={exportModes}
-          type="single"
-          value={mode}
-          variant="outline"
-          className="export-mode"
-          aria-label={t('Export format')}
-          onValueChange={(value) => {
-            if (value === 'gpx' || value === 'image' || value === 'ai' || value === 'roadbook') {
-              setMode(value);
-            }
-          }}
-        >
-          <ToggleGroupItem value="gpx">GPX</ToggleGroupItem>
-          <ToggleGroupItem value="roadbook">{t('Roadbook')}</ToggleGroupItem>
-          <ToggleGroupItem value="image">{t('For social media')}</ToggleGroupItem>
-          <ToggleGroupItem value="ai">{t('For AI')}</ToggleGroupItem>
-        </ToggleGroup>
+        <div className="export-mode-nav">
+          <ToggleGroup
+            ref={exportModes}
+            type="single"
+            value={mode}
+            variant="outline"
+            spacing={0}
+            className="export-mode"
+            aria-label={t('Export format')}
+            aria-describedby="export-mode-hint"
+            onValueChange={(value) => {
+              if (value === 'gpx' || value === 'image' || value === 'ai' || value === 'roadbook') {
+                setMode(value);
+              }
+            }}
+          >
+            <ToggleGroupItem value="gpx" className="export-mode-item" aria-label="GPX">
+              <FileDown aria-hidden="true" />
+              <span className="export-mode-label">GPX</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="roadbook" className="export-mode-item" aria-label={t('Roadbook')}>
+              <BookOpen aria-hidden="true" />
+              <span className="export-mode-label export-mode-label--full">{t('Roadbook')}</span>
+              <span className="export-mode-label export-mode-label--short">{t('Roadbook, short')}</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="image"
+              className="export-mode-item"
+              aria-label={t('For social media')}
+            >
+              <Image aria-hidden="true" />
+              <span className="export-mode-label export-mode-label--full">{t('For social media')}</span>
+              <span className="export-mode-label export-mode-label--short">{t('For social media, short')}</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="ai" className="export-mode-item" aria-label={t('For AI')}>
+              <Sparkles aria-hidden="true" />
+              <span className="export-mode-label export-mode-label--full">{t('For AI')}</span>
+              <span className="export-mode-label export-mode-label--short">{t('For AI, short')}</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <p id="export-mode-hint" className="export-mode-hint">
+            {mode === 'gpx'
+              ? t('A GPX file for a GPS device or another app. Roamlet does not upload the route.')
+              : mode === 'roadbook'
+                ? t('An A4 sheet with the map, profile, stops and times. Nothing is uploaded.')
+                : mode === 'image'
+                  ? t('A picture for a post, story or square, made on this device.')
+                  : t('A summary you copy and paste into an AI chat yourself.')}
+          </p>
+        </div>
       }
       footer={mode === 'image' ? <div ref={setActionsContainer} /> : undefined}
     >
@@ -111,7 +143,11 @@ export function ExportDialog({
           actionsContainer={actionsContainer}
         />
       ) : mode === 'roadbook' ? (
-        <RouteBookExport route={route} onPrint={() => window.print()} />
+        <RouteBookExport
+          route={route}
+          personalTime={personalTime}
+          onPrint={() => window.print()}
+        />
       ) : (
         <>
           <section className="export-route-overview" aria-label={t('Route details')}>
@@ -149,23 +185,23 @@ export function ExportDialog({
           >
             <div className="export-file">
               <Label htmlFor="export-filename">{t('File name')}</Label>
-              <Input
-                id="export-filename"
-                ref={filenameInput}
-                required
-                maxLength={120}
-                value={filename}
-                aria-describedby="export-filename-hint"
-                onChange={(event) => setFilename(event.target.value)}
-              />
+              <div className="export-file-actions">
+                <Input
+                  id="export-filename"
+                  ref={filenameInput}
+                  required
+                  maxLength={120}
+                  value={filename}
+                  aria-describedby="export-filename-hint"
+                  onChange={(event) => setFilename(event.target.value)}
+                />
+                <Button type="submit" className="primary export-download" disabled={!filename.trim()}>
+                  <Download size={17} aria-hidden="true" />
+                  {t('Download GPX')}
+                </Button>
+              </div>
               <p id="export-filename-hint" className="muted export-copy">
                 {t('Saved as {{filename}}', { filename: gpxFilename(filename) })}
-              </p>
-            </div>
-            <div className="export-format">
-              <strong>{t('GPX for GPS devices and apps')}</strong>
-              <p className="muted export-copy">
-                {t('Includes track geometry, elevations when available, and waypoints.')}
               </p>
             </div>
             {error && (
@@ -176,10 +212,6 @@ export function ExportDialog({
                 onDismiss={() => setError(null)}
               />
             )}
-            <Button type="submit" className="primary export-download" disabled={!filename.trim()}>
-              <Download size={17} aria-hidden="true" />
-              {t('Download GPX')}
-            </Button>
           </form>
           <details className="export-guide">
             <summary>{t('How to import into Komoot')}</summary>

@@ -26,3 +26,9 @@ export function mapTiles(environment: MapEnvironment) {
   }
   return { style };
 }
+
+/** Export previews use the planner’s Light map (the second style option). */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function exportBasemapStyle(_environment: MapEnvironment = {}) {
+  return BRIGHT_MAP_STYLE;
+}

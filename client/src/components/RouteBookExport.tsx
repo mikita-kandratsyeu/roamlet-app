@@ -1,8 +1,16 @@
 import { Bike, Footprints, Printer } from 'lucide-react';
-import { useId, useMemo } from 'react';
+import { useId, useMemo, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { analyzeClimbs } from '../domain/climbs';
 import { analyzeRouteElevation } from '../domain/routeElevation';
 import { formatDistance, formatDuration } from '../domain/format';
+import {
+  estimateRouteSchedule,
+  prepareRouteSchedule,
+  validDepartureLocal,
+  validPauseMinutes,
+} from '../domain/schedule';
+import { estimatePersonalTime, type PersonalTimeOptions } from '../domain/time';
 import type { PlannedRoute } from '../domain/types';
 import { formatNumber } from '../i18n';
 import { Button } from './ui/button';
@@ -74,8 +82,16 @@ function elevationPaths(
   return { lines, areas };
 }
 
-export function RouteBookExport({ route, onPrint }: { route: PlannedRoute; onPrint: () => void }) {
-  const { t } = useTranslation();
+export function RouteBookExport({
+  route,
+  personalTime,
+  onPrint,
+}: {
+  route: PlannedRoute;
+  personalTime?: PersonalTimeOptions;
+  onPrint: () => void;
+}) {
+  const { t, i18n } = useTranslation();
   const chartId = useId().replace(/:/g, '');
   const elevationAllowed =
     route.source === 'gpx' ||
@@ -107,6 +123,61 @@ export function RouteBookExport({ route, onPrint }: { route: PlannedRoute; onPri
     ? (route.stats.descent ?? elevation.descent)
     : elevation?.descent;
   const hasElevation = Boolean(elevation?.available);
+  const description = route.description.trim();
+  const tags = (route.tags ?? []).map((tag) => tag.trim()).filter(Boolean);
+  const personal = useMemo(
+    () => (personalTime ? estimatePersonalTime(route, personalTime) : null),
+    [personalTime, route],
+  );
+  const movingSeconds =
+    personal?.moving ??
+    (Number.isFinite(route.stats.duration) && route.stats.duration >= 0
+      ? route.stats.duration
+      : null);
+  const positions = useMemo(
+    () =>
+      prepareRouteSchedule(
+        route.segments,
+        route.waypoints.map((waypoint) => waypoint.coordinate),
+      )?.matches ?? route.waypoints.map(() => null),
+    [route.segments, route.waypoints],
+  );
+  const schedule = useMemo(
+    () =>
+      movingSeconds === null || !route.waypoints.length
+        ? null
+        : estimateRouteSchedule(
+            {
+              segments: route.segments,
+              waypoints: route.waypoints,
+              departureLocal: route.departureLocal,
+            },
+            movingSeconds,
+          ),
+    [movingSeconds, route.departureLocal, route.segments, route.waypoints],
+  );
+  const climbs = useMemo(() => {
+    const analysis = analyzeClimbs(route);
+    return analysis.available ? analysis.climbs : [];
+  }, [route]);
+  const pauseMinutes = route.waypoints.reduce((sum, waypoint) => {
+    const pause = waypoint.pauseMinutes ?? 0;
+    return sum + (validPauseMinutes(pause) ? pause : 0);
+  }, 0);
+  const pace =
+    route.stats.duration > 0 && Number.isFinite(route.stats.distance) && route.stats.distance >= 0
+      ? (route.stats.distance / 1000 / route.stats.duration) * 3600
+      : null;
+  const timesReady = Boolean(schedule && !schedule.unavailable);
+  const clock = useMemo(
+    () =>
+      new Intl.DateTimeFormat(i18n.resolvedLanguage || 'en', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'UTC',
+      }),
+    [i18n.resolvedLanguage],
+  );
 
   function coordinates(coordinate: PlannedRoute['waypoints'][number]['coordinate']) {
     return `${formatNumber(coordinate[1], { maximumFractionDigits: 5 })}, ${formatNumber(
@@ -114,6 +185,103 @@ export function RouteBookExport({ route, onPrint }: { route: PlannedRoute; onPri
       { maximumFractionDigits: 5 },
     )}`;
   }
+
+  function clockTime(value: string | null | undefined) {
+    if (!value) return null;
+    return <time dateTime={value}>{clock.format(new Date(`${value}:00Z`))}</time>;
+  }
+
+  const heroMetrics = useMemo(() => {
+    const items: Array<{ key: string; label: string; value: ReactNode }> = [
+      { key: 'distance', label: t('Distance'), value: formatDistance(route.stats.distance) },
+      {
+        key: 'original-time',
+        label: t('Original time estimate'),
+        value: formatDuration(route.stats.duration),
+      },
+    ];
+    if (personal) {
+      items.push({
+        key: 'personal-time',
+        label: t('Your moving time'),
+        value: formatDuration(personal.moving),
+      });
+    }
+    if (pace !== null && Number.isFinite(pace)) {
+      items.push({
+        key: 'pace',
+        label: t('Pace from original time'),
+        value: `${formatNumber(pace, { maximumFractionDigits: 1 })} ${t('km/h')}`,
+      });
+    }
+    return items;
+  }, [pace, personal, route.stats.distance, route.stats.duration, t]);
+
+  const detailMetrics = useMemo(() => {
+    const items: Array<{ key: string; label: string; value: ReactNode }> = [];
+    const showAscent = hasElevation && typeof ascent === 'number' && Number.isFinite(ascent);
+    const showDescent = hasElevation && typeof descent === 'number' && Number.isFinite(descent);
+    if (showAscent && showDescent) {
+      items.push({
+        key: 'elevation',
+        label: elevation?.complete ? t('Elevation') : t('Known elevation'),
+        value: (
+          <span className="roadbook-elevation-pair">
+            <span className="roadbook-elevation-up">
+              +{formatNumber(Math.round(ascent!))} {t('m')}
+            </span>
+            <span className="roadbook-elevation-down">
+              −{formatNumber(Math.round(descent!))} {t('m')}
+            </span>
+          </span>
+        ),
+      });
+    } else if (showAscent) {
+      items.push({
+        key: 'elevation-gain',
+        label: t(elevation?.complete ? 'Elevation gain' : 'Known elevation gain'),
+        value: `${formatNumber(Math.round(ascent!))} ${t('m')}`,
+      });
+    } else if (showDescent) {
+      items.push({
+        key: 'elevation-loss',
+        label: t(elevation?.complete ? 'Elevation loss' : 'Known elevation loss'),
+        value: `${formatNumber(Math.round(descent!))} ${t('m')}`,
+      });
+    }
+    if (pauseMinutes > 0) {
+      items.push({
+        key: 'pauses',
+        label: t('Total pauses'),
+        value: formatDuration(pauseMinutes * 60),
+      });
+    }
+    if (validDepartureLocal(route.departureLocal)) {
+      items.push({
+        key: 'departure',
+        label: t('Departure'),
+        value: clockTime(route.departureLocal),
+      });
+    }
+    if (timesReady && schedule?.finishLocal) {
+      items.push({
+        key: 'finish',
+        label: t('Finish'),
+        value: clockTime(schedule.finishLocal),
+      });
+    }
+    return items;
+  }, [
+    ascent,
+    descent,
+    elevation?.complete,
+    hasElevation,
+    pauseMinutes,
+    route.departureLocal,
+    schedule?.finishLocal,
+    timesReady,
+    t,
+  ]);
 
   return (
     <div className="roadbook-export">
@@ -135,7 +303,16 @@ export function RouteBookExport({ route, onPrint }: { route: PlannedRoute; onPri
               <p className="roadbook-kicker">{t('Route roadbook')}</p>
             </div>
             <div className="roadbook-title-row">
-              <h1>{route.name.trim() || t('Untitled adventure')}</h1>
+              <div className="roadbook-title-copy">
+                <h1>{route.name.trim() || t('Untitled adventure')}</h1>
+                {!!tags.length && (
+                  <ul className="roadbook-tags">
+                    {tags.map((tag, index) => (
+                      <li key={`${tag}-${index}`}>{tag}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <p className="roadbook-activity">
                 {route.activity === 'cycling' ? (
                   <Bike size={15} aria-hidden="true" />
@@ -145,33 +322,37 @@ export function RouteBookExport({ route, onPrint }: { route: PlannedRoute; onPri
                 {t(route.activity === 'cycling' ? 'Cycling' : 'Hiking')}
               </p>
             </div>
-            <dl className="roadbook-metrics">
-              <div>
-                <dt>{t('Distance')}</dt>
-                <dd>{formatDistance(route.stats.distance)}</dd>
-              </div>
-              <div>
-                <dt>{t('Original time estimate')}</dt>
-                <dd>{formatDuration(route.stats.duration)}</dd>
-              </div>
-              {hasElevation && typeof ascent === 'number' && Number.isFinite(ascent) && (
-                <div>
-                  <dt>{t(elevation?.complete ? 'Elevation gain' : 'Known elevation gain')}</dt>
-                  <dd>
-                    {formatNumber(Math.round(ascent))} {t('m')}
-                  </dd>
-                </div>
+            <div className="roadbook-metrics-board">
+              <dl
+                className="roadbook-metrics roadbook-metrics-hero"
+                style={{ '--roadbook-hero-cols': heroMetrics.length } as CSSProperties}
+              >
+                {heroMetrics.map((metric) => (
+                  <div key={metric.key}>
+                    <dt>{metric.label}</dt>
+                    <dd>{metric.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              {!!detailMetrics.length && (
+                <dl className="roadbook-metrics roadbook-metrics-detail">
+                  {detailMetrics.map((metric) => (
+                    <div key={metric.key}>
+                      <dt>{metric.label}</dt>
+                      <dd>{metric.value}</dd>
+                    </div>
+                  ))}
+                </dl>
               )}
-              {hasElevation && typeof descent === 'number' && Number.isFinite(descent) && (
-                <div>
-                  <dt>{t(elevation?.complete ? 'Elevation loss' : 'Known elevation loss')}</dt>
-                  <dd>
-                    {formatNumber(Math.round(descent))} {t('m')}
-                  </dd>
-                </div>
-              )}
-            </dl>
+            </div>
           </header>
+
+          {description && (
+            <section className="roadbook-section roadbook-notes" aria-label={t('Notes')}>
+              <h2>{t('Notes')}</h2>
+              <p>{description}</p>
+            </section>
+          )}
 
           <section className="roadbook-section" aria-label={t('Route map')}>
             <h2>{t('Route map')}</h2>
@@ -244,14 +425,77 @@ export function RouteBookExport({ route, onPrint }: { route: PlannedRoute; onPri
             )}
           </section>
 
+          {!!climbs.length && (
+            <section className="roadbook-section roadbook-climbs" aria-label={t('Climb analysis')}>
+              <h2>{t('Climb analysis')}</h2>
+              <ol>
+                {climbs.map((climb, index) => (
+                  <li key={`${climb.segmentIndex}-${climb.startDistanceMeters}`}>
+                    <strong>{t('Climb {{number}}', { number: formatNumber(index + 1) })}</strong>
+                    <span>
+                      {formatDistance(climb.startDistanceMeters)} – {formatDistance(climb.endDistanceMeters)}
+                    </span>
+                    <span className="roadbook-climb-meta">
+                      {formatDistance(climb.lengthMeters)} · {formatNumber(Math.round(climb.ascentMeters))}{' '}
+                      {t('m')} · {formatNumber(climb.averageGradePercent, { maximumFractionDigits: 1 })}%
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
           <section
             className="roadbook-section roadbook-stops"
             aria-label={t('Control points and pauses')}
           >
             <h2>{t('Control points and pauses')}</h2>
+            {route.waypoints.length > 0 && !validDepartureLocal(route.departureLocal) && (
+              <p className="roadbook-elevation-note">
+                {t('Set a local departure time to print arrivals.')}
+              </p>
+            )}
+            {route.waypoints.length > 0 &&
+              validDepartureLocal(route.departureLocal) &&
+              schedule?.unavailable &&
+              schedule.unavailable !== 'departure' && (
+                <p className="roadbook-elevation-note">
+                  {schedule.unavailable === 'moving-time'
+                    ? t('A valid moving-time estimate is needed for the schedule.')
+                    : schedule.unavailable === 'geometry'
+                      ? t('Usable route geometry is needed for the schedule.')
+                      : schedule.unavailable === 'waypoints'
+                        ? t('At least two ordered waypoints must match the route to show arrivals.')
+                        : schedule.unavailable === 'unmatched-waypoint'
+                          ? t('This waypoint does not match the route; later arrivals are unavailable.')
+                          : schedule.unavailable === 'disconnected'
+                            ? t('This track has a gap; arrival times across it are unavailable.')
+                            : schedule.unavailable === 'pause'
+                              ? t('Enter whole pause minutes from 0 to 10080.')
+                              : t('The arrival date is outside the supported calendar range.')}
+                </p>
+              )}
+            {timesReady && (
+              <p className="roadbook-elevation-note">
+                {personal
+                  ? t(
+                      'Arrival times follow your moving pace and the pauses saved on stops. Local clock only. Daylight-saving changes are not applied.',
+                    )
+                  : t(
+                      'Arrival times follow the original moving estimate and the pauses saved on stops. Local clock only. Daylight-saving changes are not applied.',
+                    )}
+              </p>
+            )}
             {route.waypoints.length ? (
               <ol>
                 {route.waypoints.map((waypoint, index) => {
+                  const position = positions[index];
+                  const next = positions[index + 1];
+                  const legMetres =
+                    position && next && next.along >= position.along
+                      ? next.along - position.along
+                      : null;
+                  const timed = timesReady ? schedule?.rows[index] : null;
                   const role =
                     route.waypoints.length === 1
                       ? t('Start and finish')
@@ -283,6 +527,52 @@ export function RouteBookExport({ route, onPrint }: { route: PlannedRoute; onPri
                           <p className="roadbook-stop-coordinates">
                             {coordinates(waypoint.coordinate)}
                           </p>
+                        )}
+                        {(position || legMetres !== null || timed?.arrivalLocal || waypoint.legMode === 'direct') && (
+                          <dl className="roadbook-stop-facts">
+                            {position && (
+                              <div>
+                                <dt>{t('From start')}</dt>
+                                <dd>{formatDistance(position.along)}</dd>
+                              </div>
+                            )}
+                            {legMetres !== null && (
+                              <div>
+                                <dt>{t('To the next stop')}</dt>
+                                <dd>
+                                  {formatDistance(legMetres)}
+                                  {waypoint.legMode === 'direct' ? ` · ${t('Straight line')}` : ''}
+                                </dd>
+                              </div>
+                            )}
+                            {legMetres === null &&
+                              waypoint.legMode === 'direct' &&
+                              index < route.waypoints.length - 1 && (
+                                <div>
+                                  <dt>{t('To the next stop')}</dt>
+                                  <dd>{t('Straight line')}</dd>
+                                </div>
+                              )}
+                            {timed?.arrivalLocal && (
+                              <div>
+                                <dt>{t('Arrival')}</dt>
+                                <dd>
+                                  {clockTime(timed.arrivalLocal)}
+                                  {timed.dayOffset !== null && timed.dayOffset > 0 && (
+                                    <span className="roadbook-stop-day">
+                                      {t('Day +{{count}}', { count: timed.dayOffset })}
+                                    </span>
+                                  )}
+                                </dd>
+                              </div>
+                            )}
+                            {timed?.departureLocal && !!waypoint.pauseMinutes && (
+                              <div>
+                                <dt>{t('Departure after pause')}</dt>
+                                <dd>{clockTime(timed.departureLocal)}</dd>
+                              </div>
+                            )}
+                          </dl>
                         )}
                         {!!waypoint.pauseMinutes && (
                           <p className="roadbook-stop-pause">

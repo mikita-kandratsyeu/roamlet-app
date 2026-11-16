@@ -2,11 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { mapTiles } from '../domain/mapTiles';
+import { exportBasemapStyle } from '../domain/mapTiles';
 import { lineFeatures } from '../domain/mapAnnotations';
 import type { Coordinate } from '../domain/types';
 
-export function ExportRouteMap({ segments }: { segments: Coordinate[][] }) {
+export function ExportRouteMap({
+  segments,
+  variant = 'basemap',
+}: {
+  segments: Coordinate[][];
+  /** Basemap uses the Light map style, with an outline fallback when tiles are unavailable. */
+  variant?: 'outline' | 'basemap';
+}) {
   const { t } = useTranslation();
   const container = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
@@ -47,7 +54,7 @@ export function ExportRouteMap({ segments }: { segments: Coordinate[][] }) {
 
   useEffect(() => {
     setReady(false);
-    if (!container.current || !geometry) return;
+    if (variant === 'outline' || !container.current || !geometry) return;
     let map: maplibregl.Map | undefined;
     let disposed = false;
     let observer: ResizeObserver | undefined;
@@ -60,14 +67,13 @@ export function ExportRouteMap({ segments }: { segments: Coordinate[][] }) {
     try {
       map = new maplibregl.Map({
         container: container.current,
-        style: mapTiles({ VITE_MAP_STYLE: import.meta.env.VITE_MAP_STYLE }).style,
+        style: exportBasemapStyle({ VITE_MAP_STYLE: import.meta.env.VITE_MAP_STYLE }),
         center: [geometry.points[0][0], geometry.points[0][1]],
         zoom: 12,
         interactive: false,
         attributionControl: false,
       });
       map.getCanvas().removeAttribute('tabindex');
-      map.addControl(new maplibregl.AttributionControl({ compact: false }));
       const fit = () => map?.fitBounds(geometry.bounds, { padding: 32, maxZoom: 15, duration: 0 });
       fit();
       map.on('load', () => {
@@ -98,20 +104,68 @@ export function ExportRouteMap({ segments }: { segments: Coordinate[][] }) {
       dispose();
     }
     return dispose;
-  }, [geometry]);
+  }, [geometry, variant]);
 
   if (!geometry) return null;
+  const outlineOnly = variant === 'outline';
+  const showOutline = outlineOnly || !ready;
   return (
-    <figure className="export-route-map" aria-label={t('Route map preview')}>
-      {!ready && <svg viewBox="0 0 600 200" role="img" aria-label={t('Route outline')}>
-        {geometry.preview.map((segment, index) => <polyline key={index}
-          points={segment.map((point) => point.join(',')).join(' ')} fill="none"
-          stroke="var(--primary)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
-        {geometry.endpoints.map(([x, y], index) => <circle key={index} cx={x} cy={y} r="6"
-          fill={index ? '#c75146' : '#26745b'} stroke="white" strokeWidth="2" />)}
-      </svg>}
-      <div ref={container} className={`export-route-map-canvas${ready ? ' is-ready' : ''}`} />
-      {!ready && <figcaption>{t('Route outline · basemap unavailable offline')}</figcaption>}
+    <figure
+      className={`export-route-map${outlineOnly ? ' export-route-map--outline' : ''}`}
+      aria-label={t('Route map preview')}
+    >
+      {showOutline && (
+        <svg viewBox="0 0 600 200" role="img" aria-label={t('Route outline')}>
+          <g className="export-route-map-grid" aria-hidden="true">
+            {[0, 1, 2, 3, 4].map((index) => (
+              <line
+                key={`v-${index}`}
+                x1={index * 150}
+                y1="0"
+                x2={index * 150}
+                y2="200"
+              />
+            ))}
+            {[0, 1, 2, 3].map((index) => (
+              <line
+                key={`h-${index}`}
+                x1="0"
+                y1={index * 50}
+                x2="600"
+                y2={index * 50}
+              />
+            ))}
+          </g>
+          {geometry.preview.map((segment, index) => (
+            <polyline
+              key={index}
+              points={segment.map((point) => point.join(',')).join(' ')}
+              fill="none"
+              stroke="var(--primary)"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ))}
+          {geometry.endpoints.map(([x, y], index) => (
+            <circle
+              key={index}
+              cx={x}
+              cy={y}
+              r="6"
+              fill={index ? '#c75146' : '#26745b'}
+              stroke="white"
+              strokeWidth="2"
+            />
+          ))}
+        </svg>
+      )}
+      {!outlineOnly && (
+        <div ref={container} className={`export-route-map-canvas${ready ? ' is-ready' : ''}`} />
+      )}
+      {!outlineOnly && !ready && (
+        <figcaption>{t('Route outline · basemap unavailable offline')}</figcaption>
+      )}
     </figure>
   );
 }
