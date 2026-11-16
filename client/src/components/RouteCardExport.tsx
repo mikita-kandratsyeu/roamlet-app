@@ -667,7 +667,7 @@ export function RouteCardExport({
         )}
       </div>
       {placeActions(
-        <div className="export-mode-actions route-card-actions">
+        <>
           {preview.status === 'generating' ? (
             <Button variant="outline" onClick={cancel}>
               <X size={17} aria-hidden="true" />
@@ -702,7 +702,7 @@ export function RouteCardExport({
               {t('Download PNG')}
             </Button>
           )}
-        </div>,
+        </>,
       )}
     </section>
   );

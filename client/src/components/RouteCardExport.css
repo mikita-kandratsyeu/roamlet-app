@@ -235,27 +235,6 @@
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
-.dialog-footer .route-card-actions {
-  border-top: 0;
-  padding-top: 0;
-  justify-content: flex-end;
-}
-.dialog-footer .route-card-actions button {
-  flex: 0 0 auto;
-  min-width: min(100%, 10rem);
-}
-@media (max-width: 560px) {
-  .dialog-footer .route-card-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .dialog-footer .route-card-actions button {
-    width: 100%;
-    min-width: 0;
-  }
-}
 .route-card-actions button {
   flex: 1 1 160px;
 }

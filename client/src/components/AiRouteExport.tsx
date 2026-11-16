@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Check, Copy, FileDown, LoaderCircle } from 'lucide-react';
@@ -77,12 +77,27 @@ export function AiRouteExport({
     }
   };
 
-  const placeActions = (actions: ReactNode) =>
-    actionsContainer === undefined
-      ? actions
-      : actionsContainer
-        ? createPortal(actions, actionsContainer)
-        : null;
+  const actionButtons = (
+    <>
+      <Button type="button" variant="outline" className="export-ai-download" onClick={downloadMarkdown}>
+        <FileDown size={17} aria-hidden="true" />
+        {t('Download Markdown')}
+      </Button>
+      <Button
+        type="button"
+        className="export-download primary"
+        disabled={state === 'copying'}
+        onClick={() => void copy()}
+      >
+        {state === 'copying' ? (
+          <LoaderCircle size={17} className="spin" aria-hidden="true" />
+        ) : (
+          <Copy size={17} aria-hidden="true" />
+        )}
+        {t(state === 'copying' ? 'Copying…' : 'Copy for AI')}
+      </Button>
+    </>
+  );
 
   return (
     <section className="ai-route-export" aria-label={t('For AI')}>
@@ -158,33 +173,12 @@ export function AiRouteExport({
           </p>
         </div>
       </div>
-      {placeActions(
-        <div
-          className={`export-mode-actions${actionsContainer === undefined ? ' export-mode-actions--inline' : ''}`}
-        >
-          <Button
-            type="button"
-            variant="outline"
-            className="export-ai-download"
-            onClick={downloadMarkdown}
-          >
-            <FileDown size={17} aria-hidden="true" />
-            {t('Download Markdown')}
-          </Button>
-          <Button
-            type="button"
-            className="export-download primary"
-            disabled={state === 'copying'}
-            onClick={() => void copy()}
-          >
-            {state === 'copying' ? (
-              <LoaderCircle size={17} className="spin" aria-hidden="true" />
-            ) : (
-              <Copy size={17} aria-hidden="true" />
-            )}
-            {t(state === 'copying' ? 'Copying…' : 'Copy for AI')}
-          </Button>
-        </div>,
+      {actionsContainer === undefined ? (
+        <div className="export-dialog-footer__actions export-dialog-footer__actions--inline">
+          {actionButtons}
+        </div>
+      ) : (
+        actionsContainer && createPortal(actionButtons, actionsContainer)
       )}
       {(state === 'copied' || state === 'error') && (
         <Notification

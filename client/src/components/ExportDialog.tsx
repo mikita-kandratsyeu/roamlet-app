@@ -44,6 +44,13 @@ const MODE_CARD_HINT: Record<ExportMode, string> = {
   ai: 'Copy into AI chat',
 };
 
+const EXPORT_FOOTER_HINT: Record<ExportMode, string> = {
+  gpx: 'Choose Download to save the file. Roamlet does not upload the route.',
+  roadbook: 'A4 portrait. Choose Print to open your browser’s print dialog.',
+  image: 'Generate a preview first. The image and caption stay on this device.',
+  ai: 'Copy or download the request, then paste it into your AI chat.',
+};
+
 function useRouteExportFacts(route: PlannedRoute) {
   const { t } = useTranslation();
   const trackPoints = useMemo(
@@ -136,19 +143,27 @@ export function ExportDialog({
       onClose={onClose}
       wide
       footer={
-        mode === 'image' || mode === 'ai' ? (
-          <div ref={setActionsContainer} className="export-mode-footer" />
-        ) : mode === 'roadbook' ? (
-          <div className="export-roadbook-footer">
-            <p className="export-roadbook-footer__help muted">
-              {t('A4 portrait. Choose Print to open your browser’s print dialog.')}
-            </p>
-            <Button type="button" className="export-roadbook-print primary" onClick={printRoadbook}>
-              <Printer size={17} aria-hidden="true" />
-              {t('Print roadbook')}
-            </Button>
+        <div className="export-dialog-footer">
+          <p className="export-dialog-footer__hint muted">{t(EXPORT_FOOTER_HINT[mode])}</p>
+          <div className="export-dialog-footer__actions" ref={setActionsContainer}>
+            {mode === 'gpx' ? (
+              <Button
+                type="submit"
+                form="export-gpx-form"
+                className="primary export-download"
+                disabled={!filename.trim()}
+              >
+                <Download size={17} aria-hidden="true" />
+                {t('Download GPX')}
+              </Button>
+            ) : mode === 'roadbook' ? (
+              <Button type="button" className="primary" onClick={printRoadbook}>
+                <Printer size={17} aria-hidden="true" />
+                {t('Print roadbook')}
+              </Button>
+            ) : null}
           </div>
-        ) : undefined
+        </div>
       }
     >
       <div className={`export-shell export-shell--${mode}`}>
@@ -240,6 +255,7 @@ export function ExportDialog({
                 </section>
                 <div className="export-gpx-actions">
                   <form
+                    id="export-gpx-form"
                     className="export-gpx-form"
                     onSubmit={(event) => {
                       event.preventDefault();
@@ -270,14 +286,6 @@ export function ExportDialog({
                       <p id="export-filename-hint" className="muted export-copy">
                         {t('Saved as {{filename}}', { filename: gpxFilename(filename) })}
                       </p>
-                      <Button
-                        type="submit"
-                        className="primary export-download"
-                        disabled={!filename.trim()}
-                      >
-                        <Download size={17} aria-hidden="true" />
-                        {t('Download GPX')}
-                      </Button>
                     </div>
                     {error && (
                       <Notification

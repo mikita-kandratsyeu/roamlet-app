@@ -372,7 +372,7 @@ test('social export layout and shared scrollbars work in both languages and them
       await dialog.getByRole('radio', { name: /^(For social media|Для соцсетей)$/ }).click();
       const body = dialog.locator('.dialog-body');
       await expect(body.locator('.route-card-actions')).toHaveCount(0);
-      await expect(dialog.locator('.dialog-footer .route-card-actions')).toBeVisible();
+      await expect(dialog.locator('.dialog-footer .export-dialog-footer__actions')).toBeVisible();
       await expect(dialog).toHaveClass(/wide/);
       await expect(dialog).toHaveCSS('opacity', '1');
       await expect(dialog).toHaveCSS('scale', '1');

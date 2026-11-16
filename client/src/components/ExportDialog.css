@@ -97,62 +97,112 @@
   font-variant-numeric: tabular-nums;
 }
 
-.export-mode-footer:empty {
-  display: none;
+.roamlet-dialog.wide:has(.export-dialog-footer) {
+  --export-footer-pad-x: 28px;
+  --export-footer-pad-y: 12px;
+  --export-footer-pad-bottom: calc(var(--export-footer-pad-y) + env(safe-area-inset-bottom, 0px));
 }
 
-.dialog-footer .export-mode-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 10px;
+.export-dialog-footer {
+  display: grid;
+  gap: 8px;
   width: 100%;
 }
 
-.dialog-footer .export-mode-actions button {
+.export-dialog-footer__hint {
+  margin: 0;
+  font-size: var(--font-size-helper);
+  line-height: 1.45;
+}
+
+.export-dialog-footer__actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-dialog-footer__actions--inline {
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.dialog-footer .export-dialog-footer__actions button {
   flex: 0 0 auto;
   min-height: 44px;
 }
 
-.export-mode-actions--inline {
-  justify-content: flex-end;
-  padding-top: 4px;
+@media (min-width: 561px) {
+  .export-dialog-footer__actions {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .export-dialog-footer__actions button {
+    width: auto;
+    padding-inline: 14px;
+  }
 }
 
-.roamlet-dialog.wide:has(.export-mode-footer:not(:empty)) .dialog-footer {
-  margin-inline: -28px;
-  padding: 10px 28px calc(10px + env(safe-area-inset-bottom, 0px));
+@media (min-width: 720px) {
+  .export-dialog-footer {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: center;
+    gap: 8px 16px;
+  }
+
+  .export-dialog-footer__actions {
+    justify-self: end;
+    justify-content: flex-end;
+  }
+}
+
+.roamlet-dialog.wide:has(.export-dialog-footer) .dialog-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-inline: calc(-1 * var(--export-footer-pad-x));
+  padding: var(--export-footer-pad-y) var(--export-footer-pad-x) var(--export-footer-pad-bottom);
   border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(8px);
 }
 
-.roamlet-dialog.wide:has(.export-shell--ai) .dialog-body,
-.roamlet-dialog.wide:has(.export-shell--image) .dialog-body {
-  padding-bottom: 4px;
+.roamlet-dialog.wide:has(.export-shell) .dialog-body {
+  padding-bottom: 0;
 }
 
 @media (max-width: 560px) {
-  .roamlet-dialog.wide:has(.export-mode-footer:not(:empty)) .dialog-footer {
+  .roamlet-dialog.wide:has(.export-dialog-footer) {
+    --export-footer-pad-x: 20px;
+    --export-footer-pad-y: 10px;
+  }
+
+  .roamlet-dialog.wide:has(.export-dialog-footer) .dialog-footer {
+    position: static;
     margin-inline: 0;
-    padding: 8px 20px calc(8px + env(safe-area-inset-bottom, 0px));
   }
 
-  .roamlet-dialog.wide:has(.export-shell--ai) .dialog-body,
-  .roamlet-dialog.wide:has(.export-shell--image) .dialog-body {
-    padding-bottom: 0;
+  .export-dialog-footer {
+    gap: 8px;
   }
 
-  .dialog-footer .export-mode-actions {
+  .export-dialog-footer__actions {
     flex-direction: column;
+    flex-wrap: wrap;
     align-items: stretch;
     gap: 8px;
   }
 
-  .dialog-footer .export-mode-actions button {
+  .export-dialog-footer__actions button {
     width: 100%;
     justify-content: center;
   }
 }
+
 .roamlet-dialog .dialog-body .ai-export-privacy {
   display: flex;
   flex-direction: row;
@@ -498,72 +548,6 @@
   }
 }
 
-.export-roadbook-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 12px 20px;
-  width: 100%;
-}
-
-.export-roadbook-footer__help {
-  flex: 1 1 12rem;
-  min-width: 0;
-  margin: 0;
-  font-size: var(--font-size-helper);
-  line-height: 1.45;
-}
-
-@media (min-width: 720px) {
-  .export-roadbook-footer {
-    justify-content: space-between;
-  }
-}
-
-.export-roadbook-print {
-  flex: 0 0 auto;
-  min-height: 44px;
-  white-space: nowrap;
-}
-
-.roamlet-dialog.wide:has(.export-roadbook-footer) .dialog-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  margin-inline: -28px;
-  padding: 12px 28px calc(10px + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  backdrop-filter: blur(8px);
-}
-
-.roamlet-dialog.wide:has(.export-shell--roadbook) .dialog-body {
-  padding-bottom: 4px;
-}
-
-@media (max-width: 560px) {
-  .roamlet-dialog.wide:has(.export-roadbook-footer) .dialog-body {
-    padding-bottom: 0;
-  }
-
-  .roamlet-dialog.wide:has(.export-roadbook-footer) .dialog-footer {
-    position: static;
-    margin-inline: 0;
-    padding: 10px 20px calc(8px + env(safe-area-inset-bottom, 0px));
-  }
-
-  .export-roadbook-footer {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .export-roadbook-footer__help {
-    flex: 0 0 auto;
-  }
-}
-
 .export-gpx-layout {
   display: grid;
   gap: 18px;
@@ -622,11 +606,6 @@
 }
 
 @media (max-width: 640px) {
-  .export-roadbook-print {
-    width: 100%;
-    margin: 0;
-  }
-
   .export-format-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
