@@ -6,7 +6,7 @@
 
 .ai-export-layout {
   display: grid;
-  gap: 18px;
+  gap: 16px;
   min-width: 0;
 }
 
@@ -14,13 +14,13 @@
   .ai-export-layout {
     grid-template-columns: minmax(280px, 0.92fr) minmax(0, 1.08fr);
     align-items: start;
-    gap: 20px;
+    gap: 16px;
   }
 }
 
 .ai-export-controls {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -47,7 +47,7 @@
 }
 
 .ai-export-chips li {
-  padding: 6px 10px;
+  padding: 4px 12px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--muted);
@@ -99,13 +99,13 @@
 
 .roamlet-dialog.wide:has(.export-dialog-footer) {
   --export-footer-pad-x: 28px;
-  --export-footer-pad-y: 12px;
+  --export-footer-pad-y: 16px;
   --export-footer-pad-bottom: calc(var(--export-footer-pad-y) + env(safe-area-inset-bottom, 0px));
 }
 
 .export-dialog-footer {
   display: grid;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
 }
 
@@ -125,13 +125,34 @@
 
 .export-dialog-footer__actions--inline {
   justify-content: flex-end;
-  padding-top: 8px;
+  padding-top: 12px;
   border-top: 1px solid var(--border);
+}
+
+.export-dialog-footer__actions [data-slot='button'],
+.route-card-caption [data-slot='button'],
+.roadbook-print-action {
+  height: auto;
+  min-height: 44px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: var(--font-size-control);
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0;
+  white-space: normal;
+}
+
+.export-dialog-footer__actions [data-slot='button'] svg,
+.route-card-caption [data-slot='button'] svg,
+.roadbook-print-action svg {
+  width: 16px;
+  height: 16px;
 }
 
 .dialog-footer .export-dialog-footer__actions button {
   flex: 0 0 auto;
-  min-height: 44px;
 }
 
 @media (min-width: 561px) {
@@ -143,7 +164,6 @@
 
   .export-dialog-footer__actions button {
     width: auto;
-    padding-inline: 14px;
   }
 }
 
@@ -151,7 +171,7 @@
   .export-dialog-footer {
     grid-template-columns: minmax(0, 1fr) max-content;
     align-items: center;
-    gap: 8px 16px;
+    gap: 12px 16px;
   }
 
   .export-dialog-footer__actions {
@@ -178,7 +198,7 @@
 @media (max-width: 560px) {
   .roamlet-dialog.wide:has(.export-dialog-footer) {
     --export-footer-pad-x: 20px;
-    --export-footer-pad-y: 10px;
+    --export-footer-pad-y: 16px;
   }
 
   .roamlet-dialog.wide:has(.export-dialog-footer) .dialog-footer {
@@ -187,7 +207,7 @@
   }
 
   .export-dialog-footer {
-    gap: 8px;
+    gap: 12px;
   }
 
   .export-dialog-footer__actions {
@@ -209,9 +229,9 @@
   align-items: flex-start;
   gap: 12px;
   min-height: 44px;
-  padding: 16px;
+  padding: 12px 16px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface);
   cursor: pointer;
 }
@@ -330,9 +350,9 @@
   grid-template-columns: auto minmax(0, 1fr);
   gap: 12px;
   align-items: center;
-  padding: 12px 14px;
+  padding: 12px 16px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 12px;
   background:
     linear-gradient(
       135deg,
@@ -442,18 +462,23 @@
 .export-format-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
 }
 
 .export-format-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 12px;
   align-items: center;
-  min-height: 56px;
-  padding: 10px 12px;
+  min-height: 64px;
+  padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: var(--font-size-control);
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0;
   background: var(--surface);
   color: var(--foreground);
   text-align: left;
@@ -487,7 +512,7 @@
   width: 36px;
   height: 36px;
   place-items: center;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--muted);
   color: var(--muted-foreground);
 }
@@ -504,14 +529,14 @@
 }
 
 .export-format-card__text strong {
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
 }
 
 .export-format-card__hint {
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: var(--font-size-helper);
   font-weight: 500;
   line-height: 1.35;
 }
@@ -520,7 +545,7 @@
   min-width: 0;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--surface);
   box-shadow: inset 0 1px 0 #ffffff7a;
 }
@@ -550,13 +575,13 @@
 
 .export-gpx-layout {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 @media (min-width: 880px) {
   .export-gpx-layout {
     grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr);
-    gap: 20px;
+    gap: 16px;
     align-items: start;
   }
 }
@@ -577,8 +602,8 @@
 .export-gpx-hero-stats > div,
 .export-gpx-technical > div {
   min-width: 0;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 12px;
+  border-radius: 8px;
   background: var(--muted);
 }
 
@@ -595,9 +620,10 @@
   min-width: 0;
 }
 
-.export-gpx-form {
+.roamlet-dialog .dialog-body .export-gpx-form {
   display: grid;
   gap: 12px;
+  margin-top: 0;
 }
 
 .export-guide-stack {
@@ -694,22 +720,17 @@
 
 .export-file {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--primary) 4%, var(--surface));
 }
 
-.export-download {
-  width: 100%;
-  min-height: 44px;
-}
-
 .export-guide {
-  padding: 4px 14px 10px;
+  padding: 4px 16px 12px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--surface);
 }
 
@@ -720,7 +741,9 @@
   gap: 12px;
   min-height: 44px;
   cursor: pointer;
-  font-weight: 650;
+  font-size: var(--font-size-control);
+  font-weight: 600;
+  line-height: 1.45;
   list-style: none;
 }
 

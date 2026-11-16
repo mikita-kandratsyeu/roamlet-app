@@ -80,7 +80,7 @@ export function AiRouteExport({
   const actionButtons = (
     <>
       <Button type="button" variant="outline" className="export-ai-download" onClick={downloadMarkdown}>
-        <FileDown size={17} aria-hidden="true" />
+        <FileDown size={16} aria-hidden="true" />
         {t('Download Markdown')}
       </Button>
       <Button
@@ -90,9 +90,9 @@ export function AiRouteExport({
         onClick={() => void copy()}
       >
         {state === 'copying' ? (
-          <LoaderCircle size={17} className="spin" aria-hidden="true" />
+          <LoaderCircle size={16} className="spin" aria-hidden="true" />
         ) : (
-          <Copy size={17} aria-hidden="true" />
+          <Copy size={16} aria-hidden="true" />
         )}
         {t(state === 'copying' ? 'Copying…' : 'Copy for AI')}
       </Button>

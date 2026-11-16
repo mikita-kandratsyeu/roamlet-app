@@ -634,9 +634,9 @@ export function RouteCardExport({
             disabled={copyState === 'copying'}
           >
             {copyState === 'copying' ? (
-              <LoaderCircle className="spin" size={17} aria-hidden="true" />
+              <LoaderCircle className="spin" size={16} aria-hidden="true" />
             ) : (
-              <Copy size={17} aria-hidden="true" />
+              <Copy size={16} aria-hidden="true" />
             )}
             {t(copyState === 'copying' ? 'Copying…' : 'Copy caption')}
           </Button>
@@ -670,7 +670,7 @@ export function RouteCardExport({
         <>
           {preview.status === 'generating' ? (
             <Button variant="outline" onClick={cancel}>
-              <X size={17} aria-hidden="true" />
+              <X size={16} aria-hidden="true" />
               {t('Cancel generation')}
             </Button>
           ) : (
@@ -682,23 +682,23 @@ export function RouteCardExport({
               }}
               disabled={!validRadius}
             >
-              <Image size={17} aria-hidden="true" />
+              <Image size={16} aria-hidden="true" />
               {previewActionLabel}
             </Button>
           )}
           {preview.status === 'ready' && canShare && (
             <Button variant="outline" onClick={() => void share()} disabled={sharing !== null}>
               {sharing !== null ? (
-                <LoaderCircle size={17} className="spin" aria-hidden="true" />
+                <LoaderCircle size={16} className="spin" aria-hidden="true" />
               ) : (
-                <Share2 size={17} aria-hidden="true" />
+                <Share2 size={16} aria-hidden="true" />
               )}
               {t('Share image')}
             </Button>
           )}
           {preview.status === 'ready' && (
             <Button onClick={download}>
-              <Download size={17} aria-hidden="true" />
+              <Download size={16} aria-hidden="true" />
               {t('Download PNG')}
             </Button>
           )}

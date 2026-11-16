@@ -153,12 +153,12 @@ export function ExportDialog({
                 className="primary export-download"
                 disabled={!filename.trim()}
               >
-                <Download size={17} aria-hidden="true" />
+                <Download size={16} aria-hidden="true" />
                 {t('Download GPX')}
               </Button>
             ) : mode === 'roadbook' ? (
               <Button type="button" className="primary" onClick={printRoadbook}>
-                <Printer size={17} aria-hidden="true" />
+                <Printer size={16} aria-hidden="true" />
                 {t('Print roadbook')}
               </Button>
             ) : null}

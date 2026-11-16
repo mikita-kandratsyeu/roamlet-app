@@ -293,7 +293,7 @@ export function RouteBookExport({
             {t('A4 portrait. Choose Print to open your browser’s print dialog.')}
           </p>
           <Button type="button" className="roadbook-print-action" onClick={onPrint}>
-            <Printer size={17} aria-hidden="true" />
+            <Printer size={16} aria-hidden="true" />
             {t('Print roadbook')}
           </Button>
         </div>
