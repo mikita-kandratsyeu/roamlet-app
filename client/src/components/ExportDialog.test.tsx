@@ -119,6 +119,35 @@ describe('ExportDialog', () => {
     expect(document.body).not.toHaveClass('roamlet-roadbook-printing');
   });
 
+  it('prints the roadbook in a browser window when the installed app cannot print', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(display-mode: standalone)',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    const print = vi.fn();
+    const popup = {
+      document: { open: vi.fn(), write: vi.fn(), close: vi.fn() },
+      focus: vi.fn(),
+      print,
+      addEventListener: vi.fn(),
+      setTimeout: (callback: () => void) => {
+        callback();
+        return 0;
+      },
+    };
+    vi.stubGlobal('open', vi.fn(() => popup));
+    render(<ExportDialog route={route} onDownload={vi.fn()} onClose={vi.fn()} />);
+    await chooseExportFormat(user, 'Roadbook');
+    await user.click(screen.getByRole('button', { name: 'Print roadbook' }));
+    expect(print).toHaveBeenCalledOnce();
+    expect(popup.document.write).toHaveBeenCalledWith(
+      expect.stringContaining('class="roamlet-roadbook-printing"'),
+    );
+    vi.unstubAllGlobals();
+  });
+
   it('prints local arrivals from the original moving estimate when a departure is set', async () => {
     const user = userEvent.setup();
     render(

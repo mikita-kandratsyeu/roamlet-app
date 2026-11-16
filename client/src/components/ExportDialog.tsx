@@ -28,6 +28,15 @@ import './ExportDialog.css';
 
 type ExportMode = 'gpx' | 'image' | 'ai' | 'roadbook';
 
+function installedApp() {
+  const nav = navigator as Navigator & { standalone?: boolean };
+  return (
+    window.matchMedia?.('(display-mode: standalone)').matches === true ||
+    window.matchMedia?.('(display-mode: fullscreen)').matches === true ||
+    nav.standalone === true
+  );
+}
+
 function useRouteExportFacts(route: PlannedRoute) {
   const { t } = useTranslation();
   const trackPoints = useMemo(
@@ -111,7 +120,36 @@ export function ExportDialog({
     [],
   );
 
-  const printRoadbook = () => window.print();
+  const printRoadbook = () => {
+    if (!installedApp()) {
+      window.print();
+      return;
+    }
+    const sheet = shell.current?.querySelector('.roadbook-print-sheet');
+    const popup = sheet ? window.open('', '_blank') : null;
+    if (!sheet || !popup) {
+      setError('Allow pop-ups to print from the installed app.');
+      return;
+    }
+    setError(null);
+    const styles = [...document.querySelectorAll('link[rel="stylesheet"], style')]
+      .map((node) => node.outerHTML)
+      .join('');
+    popup.document.open();
+    popup.document.write(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><base href="${location.href}"><title>Roamlet</title>${styles}<style>.export-route-map-capture{display:none!important}</style></head><body class="roamlet-roadbook-printing">${sheet.outerHTML}</body></html>`,
+    );
+    popup.document.close();
+    let started = false;
+    const startPrint = () => {
+      if (started) return;
+      started = true;
+      popup.focus();
+      popup.print();
+    };
+    popup.addEventListener('load', () => popup.setTimeout(startPrint, 300), { once: true });
+    popup.setTimeout(startPrint, 300);
+  };
 
   return (
     <Dialog
