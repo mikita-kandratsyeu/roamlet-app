@@ -252,15 +252,23 @@ export function exportGpx(route: PlannedRoute): string {
   return result;
 }
 
-export function gpxFilename(name: string): string {
+function exportBasename(name: string): string {
   const safe =
     name
       .normalize('NFKC')
       // eslint-disable-next-line no-control-regex -- Intentionally sanitize control characters in filenames.
       .replace(/[<>:"/\\|?*\u0000-\u001F\u007F]/g, '-')
-      .replace(/\.gpx$/i, '')
+      .replace(/\.(?:gpx|png|md)$/i, '')
       .replace(/^[.\s]+|[.\s]+$/g, '')
       .slice(0, 100)
       .replace(/[.\s]+$/g, '') || 'route';
-  return `${/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(safe) ? `route-${safe}` : safe}.gpx`;
+  return /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(safe) ? `route-${safe}` : safe;
+}
+
+export function gpxFilename(name: string): string {
+  return `${exportBasename(name)}.gpx`;
+}
+
+export function exportRouteBasename(name: string): string {
+  return exportBasename(name);
 }

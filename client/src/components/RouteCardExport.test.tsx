@@ -122,7 +122,7 @@ it('generates on button press, downloads the same PNG, and preserves the route',
   );
   await user.click(screen.getByRole('button', { name: 'Download PNG' }));
   const click = vi.mocked(HTMLAnchorElement.prototype.click);
-  expect(click.mock.instances[0]).toHaveAttribute('download', 'roamlet-route-post.png');
+  expect(click.mock.instances[0]).toHaveAttribute('download', 'Forest walk-post.png');
   expect(click.mock.instances[0]).toHaveAttribute('href', 'blob:card');
   expect(generateRouteCard).toHaveBeenCalledOnce();
   expect(JSON.stringify(route)).toBe(original);
@@ -145,7 +145,7 @@ it('invalidates the preview after settings change, validates privacy and localiz
   await act(async () => {
     await i18n.changeLanguage('ru');
   });
-  await user.click(screen.getByRole('button', { name: 'Создать предпросмотр' }));
+  await user.click(screen.getByRole('button', { name: 'Обновить превью' }));
   await screen.findByRole('img');
   expect(generateRouteCard).toHaveBeenLastCalledWith(
     expect.objectContaining({
@@ -160,7 +160,7 @@ it('invalidates the preview after settings change, validates privacy and localiz
   const radius = screen.getByRole('spinbutton');
   for (const value of ['', '-1', '10001', '1.5']) {
     fireEvent.change(radius, { target: { value } });
-    expect(screen.getByRole('button', { name: 'Создать предпросмотр' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Обновить превью' })).toBeDisabled();
     expect(screen.getByRole('alert')).toHaveTextContent('от 0 до 10000');
   }
 });

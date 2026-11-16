@@ -20,16 +20,20 @@ import { buildSocialCaption, type SocialExportPreferences } from '../domain/soci
 import { loadPreferences, savePreferences } from '../domain/preferences';
 import { Textarea } from './ui/textarea';
 import type { PlannedRoute } from '../domain/types';
+import { exportRouteBasename } from '../domain/gpx';
 import { formatDistance, formatDuration } from '../domain/format';
+import { estimatePersonalTime, type PersonalTimeOptions } from '../domain/time';
 import { formatNumber, translateMessage } from '../i18n';
 import './RouteCardExport.css';
 
 export function RouteCardExport({
   route,
+  personalTime,
   elevationGain,
   actionsContainer,
 }: {
   route: PlannedRoute;
+  personalTime?: PersonalTimeOptions;
   elevationGain?: number;
   actionsContainer?: HTMLElement | null;
 }) {
@@ -45,8 +49,14 @@ export function RouteCardExport({
   const [duration, setDuration] = useState(initial.duration);
   const [elevation, setElevation] = useState(initial.elevation);
   const [showSafeZones, setShowSafeZones] = useState(false);
+  const [personalMoving, setPersonalMoving] = useState(false);
   const [storageFailed, setStorageFailed] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false);
   const lastSaved = useRef(initial);
+  const personal = useMemo(
+    () => (personalTime ? estimatePersonalTime(route, personalTime) : null),
+    [route, personalTime],
+  );
   const hasProfile =
     elevationGain !== undefined &&
     Number.isFinite(elevationGain) &&
@@ -107,6 +117,9 @@ export function RouteCardExport({
               },
             ]
           : []),
+        ...(personalMoving && personal
+          ? [{ label: t('Personal moving time'), value: formatDuration(personal.moving) }]
+          : []),
       ],
     }),
     [
@@ -124,11 +137,21 @@ export function RouteCardExport({
       duration,
       elevation,
       elevationGain,
+      personalMoving,
+      personal,
       t,
     ],
   );
   const { preview, generate, cancel } = useRouteCard(request, validRadius);
-  const caption = useMemo(() => buildSocialCaption(request), [request]);
+  const builtCaption = useMemo(() => buildSocialCaption(request), [request]);
+  const [captionDraft, setCaptionDraft] = useState(builtCaption);
+  const [captionEdited, setCaptionEdited] = useState(false);
+  useEffect(() => {
+    if (!captionEdited) setCaptionDraft(builtCaption);
+  }, [builtCaption, captionEdited]);
+  useEffect(() => {
+    if (preview.status === 'ready') setHasGenerated(true);
+  }, [preview.status]);
   const [copyStatus, setCopyStatus] = useState<{
     text: string;
     state: 'copying' | 'copied' | 'error';
@@ -140,18 +163,18 @@ export function RouteCardExport({
     return () => {
       current.generation++;
     };
-  }, [caption]);
-  const copyState = copyStatus?.text === caption ? copyStatus.state : null;
+  }, [builtCaption]);
+  const copyState = copyStatus?.text === captionDraft ? copyStatus.state : null;
   const copyCaption = async () => {
     const token = ++copyGeneration.current.generation;
-    setCopyStatus({ text: caption, state: 'copying' });
+    setCopyStatus({ text: captionDraft, state: 'copying' });
     try {
-      await navigator.clipboard.writeText(caption);
+      await navigator.clipboard.writeText(captionDraft);
       if (token === copyGeneration.current.generation)
-        setCopyStatus({ text: caption, state: 'copied' });
+        setCopyStatus({ text: captionDraft, state: 'copied' });
     } catch {
       if (token === copyGeneration.current.generation)
-        setCopyStatus({ text: caption, state: 'error' });
+        setCopyStatus({ text: captionDraft, state: 'error' });
     }
   };
   const [sharing, setSharing] = useState<RouteCardRequest | null>(null);
@@ -167,7 +190,12 @@ export function RouteCardExport({
       mounted.current = false;
     };
   }, []);
-  const filename = `roamlet-route-${format}.png`;
+  const filename = `${exportRouteBasename(title.trim() || route.name)}-${format}.png`;
+  const previewActionLabel = (() => {
+    if (preview.status === 'generating') return t('Cancel generation');
+    if (preview.status === 'ready') return t('Regenerate preview');
+    return hasGenerated ? t('Update preview') : t('Create preview');
+  })();
   const file = useMemo(
     () =>
       preview.status === 'ready' ? new File([preview.blob], filename, { type: 'image/png' }) : null,
@@ -434,6 +462,16 @@ export function RouteCardExport({
               {t('Elevation gain')}
             </label>
           )}
+          {personal && (
+            <label>
+              <input
+                type="checkbox"
+                checked={personalMoving}
+                onChange={(event) => setPersonalMoving(event.target.checked)}
+              />
+              {t('Personal moving time')}
+            </label>
+          )}
         </fieldset>
         <div className="route-card-field">
           <Label htmlFor="route-card-privacy">{t('Hide around start and finish (metres)')}</Label>
@@ -553,9 +591,11 @@ export function RouteCardExport({
             ? t('Generating image…')
             : preview.status === 'ready'
               ? t('Preview ready. Check it before sharing.')
-              : preview.status === 'idle'
-                ? t('The preview is generated only when you press the button.')
-                : ''}
+              : preview.status === 'idle' && hasGenerated
+                ? t('Preview is out of date. Press Update preview.')
+                : preview.status === 'idle'
+                  ? t('The preview is generated only when you press the button.')
+                  : ''}
         </p>
         {format === 'story' && (
           <p className="muted export-copy">
@@ -575,14 +615,17 @@ export function RouteCardExport({
           <Label htmlFor="route-card-caption">{t('Publication caption')}</Label>
           <Textarea
             id="route-card-caption"
-            readOnly
-            value={caption}
+            value={captionDraft}
             spellCheck={false}
             aria-describedby="route-card-caption-hint"
+            onChange={(event) => {
+              setCaptionEdited(true);
+              setCaptionDraft(event.target.value);
+            }}
           />
           <p id="route-card-caption-hint" className="muted export-copy">
             {t(
-              'Uses the title and selected statistics, not coordinates. You can select and copy it manually.',
+              'Built from the title and selected statistics. Edit before copying; coordinates are not included.',
             )}
           </p>
           <Button
@@ -624,7 +667,7 @@ export function RouteCardExport({
         )}
       </div>
       {placeActions(
-        <div className="route-card-actions">
+        <div className="export-mode-actions route-card-actions">
           {preview.status === 'generating' ? (
             <Button variant="outline" onClick={cancel}>
               <X size={17} aria-hidden="true" />
@@ -640,7 +683,7 @@ export function RouteCardExport({
               disabled={!validRadius}
             >
               <Image size={17} aria-hidden="true" />
-              {t(preview.status === 'ready' ? 'Regenerate preview' : 'Create preview')}
+              {previewActionLabel}
             </Button>
           )}
           {preview.status === 'ready' && canShare && (

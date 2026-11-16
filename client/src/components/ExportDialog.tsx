@@ -136,8 +136,8 @@ export function ExportDialog({
       onClose={onClose}
       wide
       footer={
-        mode === 'image' ? (
-          <div ref={setActionsContainer} />
+        mode === 'image' || mode === 'ai' ? (
+          <div ref={setActionsContainer} className="export-mode-footer" />
         ) : mode === 'roadbook' ? (
           <div className="export-roadbook-footer">
             <p className="export-roadbook-footer__help muted">
@@ -152,7 +152,7 @@ export function ExportDialog({
       }
     >
       <div className={`export-shell export-shell--${mode}`}>
-        {mode !== 'roadbook' && mode !== 'image' && (
+        {mode !== 'roadbook' && (
           <header className="export-route-bar" aria-label={t('Route summary')}>
           <div className="export-route-bar__icon" aria-hidden="true">
             {route.activity === 'cycling' ? <Bike size={18} /> : <Footprints size={18} />}
@@ -205,10 +205,15 @@ export function ExportDialog({
 
         <div className="export-panel">
           {mode === 'ai' ? (
-            <AiRouteExport route={route} personalTime={personalTime} />
+            <AiRouteExport
+              route={route}
+              personalTime={personalTime}
+              actionsContainer={actionsContainer}
+            />
           ) : mode === 'image' ? (
             <RouteCardExport
               route={route}
+              personalTime={personalTime}
               elevationGain={showElevation ? route.stats.ascent : undefined}
               actionsContainer={actionsContainer}
             />

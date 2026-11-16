@@ -3,11 +3,155 @@
   gap: 16px;
   min-width: 0;
 }
-.ai-route-export > .export-copy {
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--primary) 6%, var(--surface));
+
+.ai-export-layout {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+@media (min-width: 880px) {
+  .ai-export-layout {
+    grid-template-columns: minmax(280px, 0.92fr) minmax(0, 1.08fr);
+    align-items: start;
+    gap: 20px;
+  }
+}
+
+.ai-export-controls {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ai-export-contents {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ai-export-contents legend {
+  margin-bottom: 8px;
+  font-size: var(--font-size-label);
+  font-weight: 650;
+}
+
+.ai-export-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-export-chips li {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--muted);
+  font-size: var(--font-size-helper);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ai-export-privacy-details {
+  padding: 0 2px;
+  font-size: var(--font-size-helper);
+}
+
+.ai-export-privacy-details summary {
+  cursor: pointer;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.ai-export-privacy-details .ai-export-disclaimer {
+  margin-top: 10px;
+  border-left-width: 3px;
+}
+
+.ai-export-disclaimer h3.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ai-export-preview-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.ai-export-size {
+  font-size: var(--font-size-helper);
+  font-variant-numeric: tabular-nums;
+}
+
+.export-mode-footer:empty {
+  display: none;
+}
+
+.dialog-footer .export-mode-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.dialog-footer .export-mode-actions button {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+
+.export-mode-actions--inline {
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.roamlet-dialog.wide:has(.export-mode-footer:not(:empty)) .dialog-footer {
+  margin-inline: -28px;
+  padding: 10px 28px calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+}
+
+.roamlet-dialog.wide:has(.export-shell--ai) .dialog-body,
+.roamlet-dialog.wide:has(.export-shell--image) .dialog-body {
+  padding-bottom: 4px;
+}
+
+@media (max-width: 560px) {
+  .roamlet-dialog.wide:has(.export-mode-footer:not(:empty)) .dialog-footer {
+    margin-inline: 0;
+    padding: 8px 20px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .roamlet-dialog.wide:has(.export-shell--ai) .dialog-body,
+  .roamlet-dialog.wide:has(.export-shell--image) .dialog-body {
+    padding-bottom: 0;
+  }
+
+  .dialog-footer .export-mode-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .dialog-footer .export-mode-actions button {
+    width: 100%;
+    justify-content: center;
+  }
 }
 .roamlet-dialog .dialog-body .ai-export-privacy {
   display: flex;
@@ -76,30 +220,13 @@
   font-weight: 400;
 }
 .ai-export-disclaimer {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
   border-left: 3px solid var(--primary);
   border-radius: 12px;
   background: var(--muted);
-}
-.ai-export-disclaimer > svg {
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: var(--muted-foreground);
-}
-.ai-export-disclaimer > div {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-}
-.ai-export-disclaimer h3 {
-  margin: 0;
-  font-size: var(--font-size-label);
-  font-weight: 600;
-  line-height: 1.45;
 }
 @media (forced-colors: active) {
   .roamlet-dialog .dialog-body .ai-export-checkbox input {
@@ -220,7 +347,8 @@
 
 @media (min-width: 641px) {
   .export-shell--gpx .export-route-bar,
-  .export-shell--ai .export-route-bar {
+  .export-shell--ai .export-route-bar,
+  .export-shell--image .export-route-bar {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
@@ -348,13 +476,26 @@
 }
 
 .export-shell--image .export-panel,
-.export-shell--roadbook .export-panel,
+.export-shell--roadbook .export-panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .export-shell--ai .export-panel {
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+
+@media (min-width: 880px) {
+  .export-shell--ai .export-panel {
+    padding: 2px 0 0;
+  }
 }
 
 .export-roadbook-footer {
@@ -391,20 +532,25 @@
   bottom: 0;
   z-index: 2;
   margin-inline: -28px;
-  padding: 14px 28px max(16px, env(safe-area-inset-bottom));
+  padding: 12px 28px calc(10px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   backdrop-filter: blur(8px);
 }
 
 .roamlet-dialog.wide:has(.export-shell--roadbook) .dialog-body {
-  padding-bottom: 8px;
+  padding-bottom: 4px;
 }
 
 @media (max-width: 560px) {
+  .roamlet-dialog.wide:has(.export-roadbook-footer) .dialog-body {
+    padding-bottom: 0;
+  }
+
   .roamlet-dialog.wide:has(.export-roadbook-footer) .dialog-footer {
+    position: static;
     margin-inline: 0;
-    padding: 12px 20px max(20px, env(safe-area-inset-bottom));
+    padding: 10px 20px calc(8px + env(safe-area-inset-bottom, 0px));
   }
 
   .export-roadbook-footer {

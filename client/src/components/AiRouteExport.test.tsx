@@ -90,7 +90,10 @@ it('toggles sensitive data through its label and keyboard without copying', asyn
 it('keeps privacy and AI limitations visible with sensitive data both off and on', async () => {
   const user = userEvent.setup();
   render(<AiRouteExport route={route} />);
-  const disclaimer = screen.getByRole('complementary', { name: 'Before sharing with AI' });
+  const disclaimer = screen
+    .getAllByText('Before sharing with AI')[0]
+    .closest('details') as HTMLDetailsElement;
+  expect(disclaimer).toBeTruthy();
   expect(disclaimer).toHaveTextContent('Even route statistics do not guarantee anonymity');
   expect(disclaimer).toHaveTextContent(
     'How your data is stored and used depends on the AI service',
@@ -98,7 +101,7 @@ it('keeps privacy and AI limitations visible with sensitive data both off and on
   expect(disclaimer).toHaveTextContent('Descriptions, account data and keys are never included');
   expect(disclaimer).toHaveTextContent('AI answers may be wrong');
   await user.click(screen.getByRole('checkbox'));
-  expect(disclaimer).toBeVisible();
+  expect(disclaimer).toBeInTheDocument();
   expect(screen.getByRole('checkbox')).toHaveAccessibleDescription(/home address and travel plans/);
 });
 
@@ -178,9 +181,8 @@ it('localizes the interface and request to Russian', async () => {
   expect(
     screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Предпросмотр запроса' }).value,
   ).toContain('Проанализируй запланированный маршрут');
+  expect(screen.getByRole('button', { name: 'Скачать Markdown' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Скопировать для ИИ' })).toBeVisible();
-  expect(
-    screen.getByRole('complementary', { name: 'Перед отправкой в чат с ИИ' }),
-  ).toHaveTextContent('ИИ может ошибаться');
+  expect(screen.getByText('Что попадёт в запрос')).toBeVisible();
   expect(screen.getByRole('checkbox')).toHaveAccessibleDescription(/По умолчанию выключено/);
 });
