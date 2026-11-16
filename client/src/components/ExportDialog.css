@@ -361,16 +361,23 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px 16px;
+  justify-content: flex-start;
+  gap: 12px 20px;
   width: 100%;
 }
 
 .export-roadbook-footer__help {
-  flex: 1 1 220px;
+  flex: 1 1 12rem;
+  min-width: 0;
   margin: 0;
   font-size: var(--font-size-helper);
   line-height: 1.45;
+}
+
+@media (min-width: 720px) {
+  .export-roadbook-footer {
+    justify-content: space-between;
+  }
 }
 
 .export-roadbook-print {
@@ -384,10 +391,31 @@
   bottom: 0;
   z-index: 2;
   margin-inline: -28px;
-  padding: 12px 28px max(12px, env(safe-area-inset-bottom));
+  padding: 14px 28px max(16px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   backdrop-filter: blur(8px);
+}
+
+.roamlet-dialog.wide:has(.export-shell--roadbook) .dialog-body {
+  padding-bottom: 8px;
+}
+
+@media (max-width: 560px) {
+  .roamlet-dialog.wide:has(.export-roadbook-footer) .dialog-footer {
+    margin-inline: 0;
+    padding: 12px 20px max(20px, env(safe-area-inset-bottom));
+  }
+
+  .export-roadbook-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .export-roadbook-footer__help {
+    flex: 0 0 auto;
+  }
 }
 
 .export-gpx-layout {
@@ -450,6 +478,7 @@
 @media (max-width: 640px) {
   .export-roadbook-print {
     width: 100%;
+    margin: 0;
   }
 
   .export-format-grid {
