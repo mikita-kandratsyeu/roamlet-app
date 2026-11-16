@@ -88,7 +88,9 @@ export function PlannerPanel({
           }}
         >
           <span className="sheet-identity">
-            <strong id="planner-sheet-title">{title}</strong>
+            <strong id="planner-sheet-title" title={title}>
+              {title}
+            </strong>
             {summary && <small id="planner-sheet-summary">{summary}</small>}
           </span>
           <span className="mobile-sheet-collapse-icon" aria-hidden="true">

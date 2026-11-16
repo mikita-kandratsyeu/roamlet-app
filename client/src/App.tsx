@@ -1243,7 +1243,7 @@ export default function App() {
           >
             <div className="planner-heading">
               <div>
-                <h1>{name || t('New route')}</h1>
+                <h1 title={name || t('New route')}>{name || t('New route')}</h1>
               </div>
               <div className="planner-heading-actions">
                 {canUseRoute && (

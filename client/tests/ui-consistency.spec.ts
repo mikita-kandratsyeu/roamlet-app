@@ -894,10 +894,11 @@ test('help and export keep headers visible while their content scrolls', async (
         const before = (await header.boundingBox())!;
         const navigation = kind === 'export' ? dialog.locator('.dialog-navigation') : null;
         const firstContentBox = (await (navigation ?? body).boundingBox())!;
-        expect(firstContentBox.y - before.y - before.height).toBeCloseTo(mobile ? 0 : 8, 1);
+        const sectionGap = mobile ? 0 : kind === 'export' ? 16 : 8;
+        expect(firstContentBox.y - before.y - before.height).toBeCloseTo(sectionGap, 1);
         if (navigation) {
           const bodyBox = (await body.boundingBox())!;
-          expect(bodyBox.y - firstContentBox.y - firstContentBox.height).toBeCloseTo(mobile ? 0 : 8, 1);
+          expect(bodyBox.y - firstContentBox.y - firstContentBox.height).toBeCloseTo(sectionGap, 1);
         }
         await expect(body).toHaveCSS('overflow-y', 'auto');
         await body.evaluate((element) => {

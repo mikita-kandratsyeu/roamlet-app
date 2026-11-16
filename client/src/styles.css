@@ -1367,7 +1367,7 @@ textarea::placeholder {
     padding: 10px 16px;
     flex-shrink: 0;
   }
-  .mobile-sheet-toggle span {
+  .mobile-sheet-toggle > span:not(.sheet-identity) {
     text-align: left;
     overflow: hidden;
     text-overflow: ellipsis;

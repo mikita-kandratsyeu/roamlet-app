@@ -27,16 +27,6 @@ import './ExportDialog.css';
 
 type ExportMode = 'gpx' | 'image' | 'ai' | 'roadbook';
 
-const EXPORT_DESCRIPTION =
-  'Nothing is uploaded. The file stays on this device until you download or share it.';
-
-const EXPORT_FOOTER_HINT: Record<ExportMode, string> = {
-  gpx: 'Choose Download to save the file. Roamlet does not upload the route.',
-  roadbook: 'A4 portrait. Choose Print to open your browser’s print dialog.',
-  image: 'Generate a preview first. The image and caption stay on this device.',
-  ai: 'Copy or download the request, then paste it into your AI chat.',
-};
-
 function useRouteExportFacts(route: PlannedRoute) {
   const { t } = useTranslation();
   const trackPoints = useMemo(
@@ -124,12 +114,20 @@ export function ExportDialog({
   return (
     <Dialog
       title={t('Export route')}
-      description={t(EXPORT_DESCRIPTION)}
       initialFocusRef={mode === 'gpx' ? filenameInput : undefined}
       onClose={onClose}
       wide
       navigation={
-        <div className="export-format-nav">
+        <div className="export-format-nav" aria-label={t('Route summary')}>
+          <div className="export-route-bar__icon" aria-hidden="true">
+            {route.activity === 'cycling' ? <Bike size={18} /> : <Footprints size={18} />}
+          </div>
+          <div className="export-route-bar__copy">
+            <p className="export-route-bar__kicker">
+              {t(route.activity === 'cycling' ? 'Cycling' : 'Hiking')}
+            </p>
+            <h3 className="export-route-bar__title">{route.name || t('Untitled adventure')}</h3>
+          </div>
           <PlannerChoice
             label={t('Export format')}
             value={mode}
@@ -140,7 +138,6 @@ export function ExportDialog({
       }
       footer={
         <div className="export-dialog-footer">
-          <p className="export-dialog-footer__hint muted">{t(EXPORT_FOOTER_HINT[mode])}</p>
           <div className="export-dialog-footer__actions" ref={setActionsContainer}>
             {mode === 'gpx' ? (
               <Button
@@ -163,18 +160,6 @@ export function ExportDialog({
       }
     >
       <div ref={shell} className={`export-shell export-shell--${mode}`}>
-        <header className="export-route-bar" aria-label={t('Route summary')}>
-          <div className="export-route-bar__icon" aria-hidden="true">
-            {route.activity === 'cycling' ? <Bike size={18} /> : <Footprints size={18} />}
-          </div>
-          <div className="export-route-bar__copy">
-            <p className="export-route-bar__kicker">
-              {t(route.activity === 'cycling' ? 'Cycling' : 'Hiking')}
-            </p>
-            <h3 className="export-route-bar__title">{route.name || t('Untitled adventure')}</h3>
-          </div>
-        </header>
-
         <div className="export-panel">
           {mode === 'ai' ? (
             <AiRouteExport
