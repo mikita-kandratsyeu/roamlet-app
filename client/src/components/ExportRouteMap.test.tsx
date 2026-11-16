@@ -5,7 +5,7 @@ import { ExportRouteMap } from './ExportRouteMap';
 const mocks = vi.hoisted(() => ({
   options: vi.fn(), source: vi.fn(), layer: vi.fn(), fit: vi.fn(), remove: vi.fn(),
   control: vi.fn(), fail: false,
-  handlers: new Map<string, () => void>(),
+  handlers: new Map<string, Array<() => void>>(),
 }));
 vi.mock('maplibre-gl', () => ({
   Map: class {
@@ -19,7 +19,11 @@ vi.mock('maplibre-gl', () => ({
     addSource = mocks.source;
     addLayer = mocks.layer;
     remove = mocks.remove;
-    on(event: string, handler: () => void) { mocks.handlers.set(event, handler); }
+    on(event: string, handler: () => void) {
+      const list = mocks.handlers.get(event) ?? [];
+      list.push(handler);
+      mocks.handlers.set(event, list);
+    }
   },
   AttributionControl: class {},
   LngLatBounds: class {
@@ -29,6 +33,10 @@ vi.mock('maplibre-gl', () => ({
 }));
 
 beforeEach(() => { vi.clearAllMocks(); mocks.handlers.clear(); mocks.fail = false; });
+
+function emit(event: string) {
+  for (const handler of mocks.handlers.get(event) ?? []) handler();
+}
 afterEach(cleanup);
 
 it('renders an outline fallback while the Light basemap is loading', () => {
@@ -50,16 +58,16 @@ it('fits the complete exported track and preserves gaps between segments', () =>
     }),
   );
   expect(mocks.fit).toHaveBeenCalledWith(expect.objectContaining({ points: segments.flat() }), { padding: 32, maxZoom: 15, duration: 0 });
-  act(() => mocks.handlers.get('load')!());
+  act(() => emit('load'));
   const data = mocks.source.mock.calls.find(([id]) => id === 'export-route')![1].data;
   expect(data.features.map((feature: { geometry: { coordinates: unknown } }) => feature.geometry.coordinates))
     .toEqual([segments[0], segments[2]]);
   expect(mocks.control).not.toHaveBeenCalled();
-  act(() => mocks.handlers.get('idle')!());
+  act(() => emit('idle'));
   expect(container.querySelector('.export-route-map-canvas')).toHaveClass('is-ready');
   expect(screen.queryByRole('img')).not.toBeInTheDocument();
   unmount();
-  expect(mocks.remove).toHaveBeenCalledOnce();
+  expect(mocks.remove).toHaveBeenCalledTimes(2);
 });
 
 it('keeps an outline when WebGL or the basemap is unavailable', () => {
@@ -75,13 +83,13 @@ it('returns to the outline after a map error and releases the map only once', ()
   const { unmount } = render(
     <ExportRouteMap segments={[[[11, 47], [12, 48]]]} variant="basemap" />,
   );
-  act(() => { mocks.handlers.get('load')!(); mocks.handlers.get('idle')!(); });
-  act(() => mocks.handlers.get('error')!());
+  act(() => { emit('load'); emit('idle'); });
+  act(() => emit('error'));
   expect(screen.getByRole('img', { name: 'Route outline' })).toBeVisible();
-  act(() => mocks.handlers.get('idle')!());
+  act(() => emit('idle'));
   expect(screen.getByRole('img')).toBeVisible();
   unmount();
-  expect(mocks.remove).toHaveBeenCalledOnce();
+  expect(mocks.remove).toHaveBeenCalledTimes(2);
 });
 
 it('shows a single-point route without invalid SVG coordinates', () => {
@@ -93,7 +101,7 @@ it('shows a single-point route without invalid SVG coordinates', () => {
 
 it('uses the short arc for routes across the date line', () => {
   render(<ExportRouteMap segments={[[[179.9, 47], [-179.9, 47]]]} variant="basemap" />);
-  act(() => mocks.handlers.get('load')!());
+  act(() => emit('load'));
   const data = mocks.source.mock.calls.find(([id]) => id === 'export-route')![1].data;
   expect(data.features[0].geometry.coordinates).toEqual([[179.9, 47], [180.1, 47]]);
 });

@@ -868,10 +868,13 @@
     visibility: visible !important;
   }
 
+  body.roamlet-roadbook-printing .export-route-map-capture {
+    display: none !important;
+  }
+
   body.roamlet-roadbook-printing .export-route-map-print.is-captured {
     z-index: 1;
-    object-fit: contain;
-    background: #eef2ee;
+    object-fit: fill;
   }
 
   body.roamlet-roadbook-printing .export-route-map:has(.export-route-map-print.is-captured) .export-route-map-canvas {

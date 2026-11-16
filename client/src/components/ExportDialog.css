@@ -640,6 +640,13 @@
 .export-route-map-print {
   display: none;
 }
+.export-route-map-capture {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
 .export-route-map figcaption {
   position: absolute;
   inset: auto 8px 6px;
