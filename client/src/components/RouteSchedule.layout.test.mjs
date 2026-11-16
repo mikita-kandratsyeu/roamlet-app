@@ -18,7 +18,7 @@ for (const [browserType, device] of [
   [chromium, devices['Pixel 7']],
   [webkit, devices['iPhone 13']],
 ]) {
-  test(`native departure input fits narrow fields and remains editable on ${device.defaultBrowserType}, mobile=${device.isMobile}`, async () => {
+  test(`departure picker fits narrow fields and remains editable on ${device.defaultBrowserType}, mobile=${device.isMobile}`, async () => {
     const browser = await browserType.launch({ headless: true });
     try {
       const context = await browser.newContext(device);
@@ -28,7 +28,7 @@ for (const [browserType, device] of [
           for (const width of [230, 288, 320]) {
             for (const value of ['', '2026-11-02T16:23', '9999-12-31T23:59']) {
               await page.setContent(`<style>${css}
-                input { padding: 4px 12px; border: 1px solid; border-radius: 6px; }
+                input, button { padding: 4px 12px; border: 1px solid; border-radius: 6px; }
               </style><div class="${theme}" lang="${language}">
                 <section class="route-schedule" style="width: ${width}px">
                   <div class="route-schedule-departure personal-time-field">
@@ -37,14 +37,19 @@ for (const [browserType, device] of [
                         ? 'Местные дата и время отправления'
                         : 'Local departure date and time'
                     }</label>
-                    <input id="departure" type="datetime-local" value="${value}"
-                      min="0001-01-01T00:00" max="9999-12-31T23:59" step="60">
+                    <div class="route-schedule-departure-fields">
+                      <input id="departure" class="route-schedule-departure-value" type="text" value="${value}">
+                      <div class="route-schedule-departure-controls">
+                        <button type="button" class="route-schedule-departure-date">Nov 2, 2026</button>
+                        <input class="route-schedule-departure-time" type="time" value="16:23">
+                      </div>
+                    </div>
                   </div>
                 </section>
               </div>`);
               const metrics = await page.locator('#departure').evaluate((input) => {
                 const bounds = input.getBoundingClientRect();
-                const field = input.parentElement.getBoundingClientRect();
+                const field = input.parentElement.parentElement.getBoundingClientRect();
                 return {
                   width: bounds.width,
                   height: bounds.height,

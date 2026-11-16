@@ -12,24 +12,70 @@
   grid-template-rows: none;
 }
 .route-schedule input { min-width: 0; max-width: 100%; }
-.route-schedule-departure input {
-  display: block;
-  box-sizing: border-box;
+.route-schedule-departure-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.route-schedule-picker {
   width: 100%;
-  appearance: none;
+  min-height: 44px;
+  height: auto;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  font-weight: 500;
   text-align: left;
+  white-space: nowrap;
 }
-/* Safari's native date editor has its own intrinsic sizing and alignment. */
-.route-schedule-departure input::-webkit-date-and-time-value {
+.route-schedule-picker-value,
+.route-schedule-picker-placeholder {
   min-width: 0;
-  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
 }
-.route-schedule-departure input::-webkit-datetime-edit {
-  min-width: 0;
+.route-schedule-picker-placeholder { color: var(--muted-foreground); font-weight: 400; }
+.route-schedule-picker-chevron { margin-left: auto; color: var(--muted-foreground); }
+.route-schedule-picker-popover {
+  width: max-content;
+  max-width: calc(100vw - 24px);
   padding: 0;
 }
+.route-schedule-picker-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  width: 0;
+  min-width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--border);
+}
+.route-schedule-picker-time-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.route-schedule-picker-time {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  font-variant-numeric: tabular-nums;
+}
+.route-schedule-picker-action { height: 36px; padding-inline: 8px; }
 @media (pointer: coarse) {
-  .route-schedule-departure.personal-time-field > input { font-size: 16px; }
+  .route-schedule-picker,
+  .route-schedule-picker-time { font-size: 16px; }
 }
 .route-schedule [role="alert"] {
   margin: 0;

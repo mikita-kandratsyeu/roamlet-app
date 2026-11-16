@@ -23,9 +23,9 @@ async function prepare(page: Page) {
   await expect(page.getByRole('button', { name: 'Save route', exact: true })).toBeEnabled();
   await page.locator('.planner-details > summary').filter({ hasText: 'Route schedule' }).click();
   const schedule = page.getByRole('region', { name: 'Route schedule', exact: true });
-  await expect(schedule.getByLabel('Local departure date and time')).toHaveCount(1);
-  await schedule.getByLabel('Local departure date and time').fill('2026-11-07T10:00');
-  await schedule.getByLabel('Local departure date and time').press('Enter');
+  await expect(schedule.getByRole('button', { name: 'Local departure date and time' })).toHaveCount(1);
+  await schedule.getByTestId('departure-local').fill('2026-11-07T10:00', { force: true });
+  await schedule.getByTestId('departure-local').press('Enter');
   await schedule
     .getByLabel(/^Pause \(minutes\):/)
     .first()
@@ -159,8 +159,8 @@ test('publishes a previewed saved route, updates the same event manually and fit
   expect(publications).toHaveLength(1);
   expect(publications[0]).toMatchObject({ summary: 'Calendar ride', reminderMinutes: 30 });
   const schedule = page.getByRole('region', { name: 'Route schedule', exact: true });
-  await schedule.getByLabel('Local departure date and time').fill('2026-11-07T11:00');
-  await schedule.getByLabel('Local departure date and time').press('Enter');
+  await schedule.getByTestId('departure-local').fill('2026-11-07T11:00', { force: true });
+  await schedule.getByTestId('departure-local').press('Enter');
   const changedNotice = page
     .locator('[data-sonner-toast]')
     .filter({ hasText: 'Route or event settings changed. Update the calendar event manually.' });

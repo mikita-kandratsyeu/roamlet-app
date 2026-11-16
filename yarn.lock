@@ -315,6 +315,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@date-fns/tz@npm:^1.4.1":
+  version: 1.5.0
+  resolution: "@date-fns/tz@npm:1.5.0"
+  checksum: 10c0/4ef25eedd55924938fa81b23b949a3425201597e2007f5323db54d50fc19283eca5e2a7963c3d82c99b3adf273e9ea9bc7adfd1c9076e15badd99c593a984ffa
+  languageName: node
+  linkType: hard
+
 "@emnapi/core@npm:^1.11.1":
   version: 1.11.3
   resolution: "@emnapi/core@npm:1.11.3"
@@ -2237,6 +2244,7 @@ __metadata:
     "@vitejs/plugin-react": "npm:^5.1.0"
     class-variance-authority: "npm:^0.7.1"
     clsx: "npm:^2.1.1"
+    date-fns: "npm:^4.4.0"
     dexie: "npm:^4.2.0"
     eslint: "npm:^10.14.0"
     eslint-plugin-react-hooks: "npm:^7.1.1"
@@ -2249,6 +2257,7 @@ __metadata:
     maplibre-gl: "npm:^6.4.1"
     radix-ui: "npm:^1.8.1"
     react: "npm:^19.2.0"
+    react-day-picker: "npm:^10.0.2"
     react-dom: "npm:^19.2.0"
     react-i18next: "npm:^16.0.0"
     react-is: "npm:^19.3.1"
@@ -3611,6 +3620,13 @@ __metadata:
     whatwg-mimetype: "npm:^4.0.0"
     whatwg-url: "npm:^14.0.0"
   checksum: 10c0/1b894d7d41c861f3a4ed2ae9b1c3f0909d4575ada02e36d3d3bc584bdd84278e20709070c79c3b3bff7ac98598cb191eb3e86a89a79ea4ee1ef360e1694f92ad
+  languageName: node
+  linkType: hard
+
+"date-fns@npm:^4.1.0, date-fns@npm:^4.4.0":
+  version: 4.4.0
+  resolution: "date-fns@npm:4.4.0"
+  checksum: 10c0/988f0a13db183f5dfc85c36bbb6847a9c135a9225888bbea4005876ec15539a8613c21a07370a4e7ea543918d5a1cafb423c528b42cdbbde5fdfddb178126b21
   languageName: node
   linkType: hard
 
@@ -5209,6 +5225,22 @@ __metadata:
     "@types/react-dom":
       optional: true
   checksum: 10c0/837cfbc0b6c025cbd53951228f7b1f523f6f8d8312b01ad07a481d214b0a5ea1a626c1e25589335e0a32f451a753e380dd0fd9036fb5ceb6230298ac65d75a8f
+  languageName: node
+  linkType: hard
+
+"react-day-picker@npm:^10.0.2":
+  version: 10.0.2
+  resolution: "react-day-picker@npm:10.0.2"
+  dependencies:
+    "@date-fns/tz": "npm:^1.4.1"
+    date-fns: "npm:^4.1.0"
+  peerDependencies:
+    "@types/react": ">=16.8.0"
+    react: ">=16.8.0"
+  peerDependenciesMeta:
+    "@types/react":
+      optional: true
+  checksum: 10c0/3baa75fa21625357656b15425384b21729796c0ae5b2e638d4e7a08f01c3d31db051a1fb21da784f87862ce917383fddfe713164718b3899cc7b47314e46f4ec
   languageName: node
   linkType: hard
 

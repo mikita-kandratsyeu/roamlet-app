@@ -25,12 +25,12 @@ it('keeps one departure field with calendar actions across edits and route switc
   const { rerender } = render(<RouteSchedule {...callbacks} contextKey={route.id} calendar={calendar} departureLocal={undefined} />);
   for (const departureLocal of ['2026-10-13T18:25', undefined, '2026-10-31T18:25', '2026-11-01T18:25']) {
     rerender(<RouteSchedule {...callbacks} contextKey={route.id} calendar={calendar} departureLocal={departureLocal} />);
-    expect(screen.getAllByLabelText('Local departure date and time')).toHaveLength(1);
-    expect(screen.getByLabelText('Local departure date and time')).toHaveValue(departureLocal ?? '');
+    expect(screen.getAllByRole('button', { name: 'Local departure date and time' })).toHaveLength(1);
+    expect(screen.getByTestId('departure-local')).toHaveValue(departureLocal ?? '');
     expect(screen.getAllByRole('button', { name: 'Add to calendar' })).toHaveLength(1);
   }
   rerender(<RouteSchedule {...callbacks} contextKey="another-route" calendar={{ ...calendar, routeId: 'another-route' }} />);
-  expect(screen.getAllByLabelText('Local departure date and time')).toHaveLength(1);
+  expect(screen.getAllByRole('button', { name: 'Local departure date and time' })).toHaveLength(1);
   await act(async () => {});
   expect(consoleError.mock.calls.filter((args) => args.some((arg) => typeof arg === 'string' && arg.includes('same key')))).toEqual([]);
   consoleError.mockRestore();
@@ -89,7 +89,10 @@ it('renders all arrival/departure rows with actual dates, next-day markers, and 
   expect(details).not.toHaveAttribute('open');
   expect(screen.getByText(/daylight-saving changes are not applied/)).not.toBeVisible();
   expect(screen.getByLabelText('Pause (minutes): Start')).toHaveValue('5');
-  expect(screen.getByLabelText('Local departure date and time')).toHaveAttribute('type', 'datetime-local');
+  const picker = screen.getByRole('button', { name: 'Local departure date and time' });
+  expect(picker).toHaveAttribute('aria-haspopup', 'dialog');
+  expect(picker).toHaveTextContent('2026');
+  expect(picker).not.toHaveTextContent('2026-10-29T23:30');
 });
 it('commits valid local departure and pause changes only on blur or Enter and supports clearing departure', () => {
   const callbacks = props();
@@ -104,7 +107,7 @@ it('commits valid local departure and pause changes only on blur or Enter and su
       }} />;
   }
   render(<Controlled />);
-  const departure = screen.getByLabelText('Local departure date and time');
+  const departure = screen.getByTestId('departure-local');
   fireEvent.change(departure, { target: { value: '2026-12-31T23:30' } });
   expect(callbacks.onDepartureLocal).not.toHaveBeenCalled();
   fireEvent.keyDown(departure, { key: 'Enter' });
@@ -146,14 +149,13 @@ it.each(['', '-1', '1.5', 'Infinity', '10081'])('keeps invalid pause %s out of p
 it('rejects invalid calendar dates and native incomplete date input without committing a cleared departure', () => {
   const callbacks = props();
   const { rerender } = render(<RouteSchedule {...callbacks} departureLocal="2026-02-30T12:00" />);
-  let departure = screen.getByLabelText('Local departure date and time');
+  let departure = screen.getByTestId('departure-local');
   fireEvent.blur(departure);
   expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid local date and time.');
   expect(callbacks.onDepartureLocal).not.toHaveBeenCalled();
   rerender(<RouteSchedule {...callbacks} contextKey="new" />);
-  departure = screen.getByLabelText('Local departure date and time');
-  fireEvent.change(departure, { target: { value: '' } });
-  Object.defineProperty(departure, 'validity', { configurable: true, value: { badInput: true } });
+  departure = screen.getByTestId('departure-local');
+  fireEvent.change(departure, { target: { value: '2026-02-30T12:00' } });
   fireEvent.blur(departure);
   expect(departure).toHaveAttribute('aria-invalid', 'true');
   expect(callbacks.onDepartureLocal).not.toHaveBeenCalled();
@@ -165,11 +167,11 @@ it('discards unfinished input on route switches and follows external undo values
   fireEvent.change(screen.getByLabelText('Pause (minutes): Start'), { target: { value: '999' } });
   rerender(<RouteSchedule {...callbacks} contextKey="two" departureLocal="2026-10-30T08:00" />);
   expect(screen.getByLabelText('Pause (minutes): Start')).toHaveValue('5');
-  expect(screen.getByLabelText('Local departure date and time')).toHaveValue('2026-10-30T08:00');
+  expect(screen.getByTestId('departure-local')).toHaveValue('2026-10-30T08:00');
   rerender(<RouteSchedule {...callbacks} contextKey="two" departureLocal="2026-10-31T08:00"
     waypoints={callbacks.waypoints.map((point) => ({ ...point, pauseMinutes: 0 }))} />);
   expect(screen.getByLabelText('Pause (minutes): Start')).toHaveValue('0');
-  expect(screen.getByLabelText('Local departure date and time')).toHaveValue('2026-10-31T08:00');
+  expect(screen.getByTestId('departure-local')).toHaveValue('2026-10-31T08:00');
 });
 it('does not show stale geometry arrivals, but still lets the user edit timing', () => {
   render(<RouteSchedule {...props()} geometryCurrent={false} />);

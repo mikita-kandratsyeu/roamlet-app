@@ -131,8 +131,8 @@ test('schedule edits persist and do not reroute; arrivals cross midnight', async
   });
   await page.locator('.planner-details > summary').filter({ hasText: 'Route schedule' }).click();
   const schedule = page.getByRole('region', { name: 'Route schedule', exact: true });
-  const departure = schedule.getByLabel('Local departure date and time', { exact: true });
-  await departure.fill('2026-10-29T23:59');
+  const departure = schedule.getByTestId('departure-local');
+  await departure.fill('2026-10-29T23:59', { force: true });
   await departure.press('Enter');
   const pause = schedule.getByLabel(/^Pause \(minutes\):/).first();
   await pause.fill('10');
@@ -614,8 +614,8 @@ test('weather is opt-in, local-time based, responsive and available from cache o
   const weather = page.getByRole('region', { name: 'Weather at start', exact: true });
   await expect(weather.getByRole('button', { name: 'Load forecast' })).toBeDisabled();
   await page.locator('.planner-details > summary').filter({ hasText: 'Route schedule' }).click();
-  const departure = page.getByLabel('Local departure date and time', { exact: true });
-  await departure.fill('2026-11-02T08:30');
+  const departure = page.getByTestId('departure-local');
+  await departure.fill('2026-11-02T08:30', { force: true });
   await departure.press('Enter');
   expect(weatherRequests).toBe(0);
   await weather.getByRole('button', { name: 'Load forecast' }).click();

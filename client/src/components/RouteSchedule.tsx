@@ -1,8 +1,12 @@
 import { useId, useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Clock3 } from 'lucide-react';
+import { enUS, ru as ruLocale } from 'date-fns/locale';
+import { CalendarDays, ChevronDown, Clock3 } from 'lucide-react';
+import { Button } from './ui/button';
+import { Calendar } from './ui/calendar';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { useDecimalField } from '../hooks/useDecimalField';
 import {
   estimateRouteSchedule, prepareRouteSchedule, validDepartureLocal, validPauseMinutes,
@@ -11,9 +15,10 @@ import {
 import type { Coordinate, PlannedRoute, Waypoint } from '../domain/types';
 import { RouteCalendarActions, type RouteCalendarInput } from './RouteCalendarActions';
 
-const emptySegments: Coordinate[][] = [];
 import './RouteSchedule.css';
 import './disclosures.css';
+
+const emptySegments: Coordinate[][] = [];
 
 export interface RouteScheduleProps {
   route: PlannedRoute | null;
@@ -40,32 +45,156 @@ const reasons: Record<ScheduleUnavailable, string> = {
   pause: 'Enter whole pause minutes from 0 to 10080.',
   'date-overflow': 'The arrival date is outside the supported calendar range.',
 };
+
+function departureTimePart(buffer: string): string {
+  return /^\d{4}-\d{2}-\d{2}T(\d{2}:\d{2})$/.test(buffer) ? buffer.slice(11, 16) : '';
+}
+
+function departureCalendarDate(buffer: string): Date | undefined {
+  if (!validDepartureLocal(buffer)) return undefined;
+  const [year, month, day] = buffer.slice(0, 10).split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function replaceDepartureDate(buffer: string, selected: Date): string {
+  const year = selected.getFullYear();
+  const month = String(selected.getMonth() + 1).padStart(2, '0');
+  const day = String(selected.getDate()).padStart(2, '0');
+  const time = departureTimePart(buffer) || '09:00';
+  return `${year}-${month}-${day}T${time}`;
+}
+
+function localNowDeparture(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function replaceDepartureTime(buffer: string, time: string): string {
+  const date = validDepartureLocal(buffer)
+    ? buffer.slice(0, 10)
+    : new Date().toISOString().slice(0, 10);
+  return `${date}T${time}`;
+}
+
 function DepartureField({ value, onCommit }: {
   value?: string; onCommit: RouteScheduleProps['onDepartureLocal'];
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const id = useId();
+  const language = i18n.resolvedLanguage || 'en';
   const [buffer, setBuffer] = useState(value ?? '');
   const [invalid, setInvalid] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [month, setMonth] = useState<Date>(() => departureCalendarDate(value ?? '') ?? new Date());
   const input = useRef<HTMLInputElement>(null);
-  useEffect(() => { setBuffer(value ?? ''); setInvalid(false); }, [value]);
-  function commit() {
-    if (input.current?.validity.badInput || (buffer && !validDepartureLocal(buffer))) {
+  useEffect(() => {
+    setBuffer(value ?? '');
+    setInvalid(false);
+    const selected = departureCalendarDate(value ?? '');
+    if (selected) setMonth(selected);
+  }, [value]);
+  const calendarLocale = language.startsWith('ru') ? ruLocale : enUS;
+  const dateTimeFormatter = useMemo(() => new Intl.DateTimeFormat(language, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+  }), [language]);
+  const selectedDate = departureCalendarDate(buffer);
+  function commit(next = buffer) {
+    if (next && !validDepartureLocal(next)) {
       setInvalid(true);
       return;
     }
     setInvalid(false);
-    if (buffer !== (value ?? '')) onCommit(buffer || undefined);
+    if (next !== (value ?? '')) onCommit(next || undefined);
   }
+  function apply(next: string) {
+    setBuffer(next);
+    setInvalid(false);
+    if (validDepartureLocal(next) && next !== (value ?? '')) onCommit(next);
+  }
+  const formatted = selectedDate
+    ? dateTimeFormatter.format(new Date(`${buffer}:00.000Z`))
+    : '';
   return <div className="route-schedule-departure personal-time-field">
-    <Label htmlFor={id}>{t('Local departure date and time')}</Label>
-    <Input ref={input} id={id} type="datetime-local" min="0001-01-01T00:00" max="9999-12-31T23:59"
-      step={60} value={buffer} aria-invalid={invalid || undefined}
+    <Label id={`${id}-label`} onClick={() => setCalendarOpen(true)}>{t('Local departure date and time')}</Label>
+    <input ref={input} data-testid="departure-local" tabIndex={-1} aria-hidden="true"
+      className="route-schedule-departure-input"
+      value={buffer} aria-invalid={invalid || undefined}
       aria-describedby={invalid ? `${id}-error` : undefined}
       onChange={(event) => { setBuffer(event.target.value); setInvalid(false); }}
-      onBlur={commit} onKeyDown={(event) => {
-        if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); commit(); }
+      onBlur={() => commit()} onKeyDown={(event) => {
+        if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+          event.preventDefault();
+          commit();
+        }
       }} />
+    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="route-schedule-picker"
+          aria-labelledby={`${id}-label`}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? `${id}-error` : undefined}
+          aria-haspopup="dialog"
+          title={formatted || t('Choose a date and time')}>
+          <CalendarDays size={16} aria-hidden="true" />
+          <span className={formatted ? 'route-schedule-picker-value' : 'route-schedule-picker-placeholder'}>
+            {formatted || t('Choose a date and time')}
+          </span>
+          <ChevronDown size={16} aria-hidden="true" className="route-schedule-picker-chevron" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="route-schedule-picker-popover w-auto p-0" align="start" sideOffset={6}>
+        <Calendar
+          mode="single"
+          locale={calendarLocale}
+          captionLayout="label"
+          className="p-2"
+          classNames={{
+            months: 'relative flex flex-col gap-2',
+            month: 'flex w-full flex-col gap-2',
+            week: 'mt-1 flex w-full',
+          }}
+          month={month}
+          onMonthChange={setMonth}
+          selected={selectedDate}
+          onSelect={(selected) => {
+            if (!selected) return;
+            apply(replaceDepartureDate(buffer, selected));
+            setMonth(selected);
+          }}
+          disabled={(date) => date.getFullYear() < 1 || date.getFullYear() > 9999}
+        />
+        <div className="route-schedule-picker-footer">
+          <Label htmlFor={`${id}-time`} className="route-schedule-picker-time-label">
+            {t('Departure time')}
+          </Label>
+          <Input id={`${id}-time`} className="route-schedule-picker-time" type="time" step={60}
+            aria-label={t('Departure time')}
+            value={departureTimePart(buffer)}
+            onChange={(event) => {
+              if (!event.target.value) return;
+              apply(replaceDepartureTime(buffer, event.target.value));
+            }} />
+          <Button type="button" variant="ghost" className="route-schedule-picker-action"
+            onClick={() => apply(localNowDeparture())}>
+            {t('Now')}
+          </Button>
+          <Button type="button" variant="ghost" className="route-schedule-picker-action"
+            onClick={() => { setBuffer(''); setInvalid(false); if (value) onCommit(undefined); setCalendarOpen(false); }}>
+            {t('Clear')}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
     {invalid && <p id={`${id}-error`} role="alert">{t('Enter a valid local date and time.')}</p>}
   </div>;
 }
@@ -118,8 +247,7 @@ export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds,
         <dl className="route-schedule-times">
           <div><dt>{t('Arrival')}</dt><dd>{time(row.arrivalLocal)}
             {row.dayOffset !== null && row.dayOffset > 0 &&
-              <span className="route-schedule-day">{t('Day +{{count}}', { count: row.dayOffset })}</span>}
-          </dd></div>
+              <span className="route-schedule-day">{t('Day +{{count}}', { count: row.dayOffset })}</span>}</dd></div>
           <div><dt>{t('Departure after pause')}</dt><dd>{time(row.departureLocal)}</dd></div>
         </dl>
         <PauseField waypoint={row.waypoint} onCommit={onWaypointPause} />
