@@ -31,6 +31,11 @@ const route: PlannedRoute = {
   source: 'gpx',
 };
 
+async function chooseExportFormat(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(screen.getByRole('button', { name: 'Export format' }));
+  await user.click(screen.getByRole('menuitemradio', { name }));
+}
+
 beforeEach(() => render(<Toaster />));
 afterEach(() => {
   cleanup();
@@ -43,11 +48,11 @@ describe('ExportDialog', () => {
     const user = userEvent.setup();
     const onDownload = vi.fn();
     render(<ExportDialog route={route} onDownload={onDownload} onClose={vi.fn()} />);
-    await user.click(screen.getByRole('radio', { name: 'For AI' }));
+    await chooseExportFormat(user, 'For AI');
     expect(screen.getByRole('textbox', { name: 'Request preview' })).toBeVisible();
     expect(screen.queryByRole('figure', { name: 'Route map preview' })).not.toBeInTheDocument();
     expect(onDownload).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('radio', { name: 'GPX' }));
+    await chooseExportFormat(user, 'GPX');
     expect(screen.getByRole('textbox', { name: 'File name' })).toHaveValue('Forest walk.gpx');
     expect(screen.getByRole('button', { name: 'Download GPX' })).toBeVisible();
   });
@@ -55,14 +60,14 @@ describe('ExportDialog', () => {
     const user = userEvent.setup();
     const onDownload = vi.fn();
     render(<ExportDialog route={route} onDownload={onDownload} onClose={vi.fn()} />);
-    await user.click(screen.getByRole('radio', { name: 'For social media' }));
+    await chooseExportFormat(user, 'For social media');
     expect(screen.getByRole('region', { name: 'Image for social media' })).toBeVisible();
     expect(screen.getByRole('dialog')).toHaveClass('wide');
     expect(screen.queryByRole('figure', { name: 'Route map preview' })).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Elevation gain' })).not.toBeInTheDocument();
     expect(generateRouteCard).not.toHaveBeenCalled();
     expect(onDownload).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('radio', { name: 'GPX' }));
+    await chooseExportFormat(user, 'GPX');
     expect(screen.getByRole('dialog')).toHaveClass('wide');
     expect(screen.getByRole('textbox', { name: 'File name' })).toHaveValue('Forest walk.gpx');
     expect(screen.getByRole('button', { name: 'Download GPX' })).toBeVisible();
@@ -87,7 +92,7 @@ describe('ExportDialog', () => {
     };
     const onDownload = vi.fn();
     render(<ExportDialog route={snapshot} onDownload={onDownload} onClose={vi.fn()} />);
-    await user.click(screen.getByRole('radio', { name: 'Roadbook' }));
+    await chooseExportFormat(user, 'Roadbook');
     expect(screen.getByRole('article')).toBeVisible();
     expect(within(screen.getByRole('article')).getByRole('heading', { name: 'Forest walk' })).toBeVisible();
     expect(screen.getByRole('figure', { name: 'Route map preview' })).toBeVisible();
@@ -110,7 +115,7 @@ describe('ExportDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Print roadbook' }));
     expect(print).toHaveBeenCalledOnce();
     expect(onDownload).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('radio', { name: 'GPX' }));
+    await chooseExportFormat(user, 'GPX');
     expect(document.body).not.toHaveClass('roamlet-roadbook-printing');
   });
 
@@ -131,7 +136,7 @@ describe('ExportDialog', () => {
         onClose={vi.fn()}
       />,
     );
-    await user.click(screen.getByRole('radio', { name: 'Roadbook' }));
+    await chooseExportFormat(user, 'Roadbook');
     const timeFor = (label: string) =>
       screen.getByText(label, { selector: 'dt' }).nextElementSibling?.querySelector('time');
     expect(timeFor('Departure')).toHaveAttribute('datetime', '2026-06-01T08:00');
@@ -167,7 +172,7 @@ describe('ExportDialog', () => {
         onClose={vi.fn()}
       />,
     );
-    await user.click(screen.getByRole('radio', { name: 'Roadbook' }));
+    await chooseExportFormat(user, 'Roadbook');
     expect(screen.getByText('Elevation data is unavailable for this route.')).toBeVisible();
     expect(screen.getByText('No saved route points.')).toBeVisible();
     expect(screen.queryByRole('img', { name: /Elevation profile from/ })).not.toBeInTheDocument();
@@ -193,7 +198,7 @@ describe('ExportDialog', () => {
         onClose={vi.fn()}
       />,
     );
-    await user.click(screen.getByRole('radio', { name: 'Roadbook' }));
+    await chooseExportFormat(user, 'Roadbook');
     expect(screen.getByText('Known elevation sections only')).toBeVisible();
     expect(
       screen.getByText('Known elevation', { selector: 'dt' }).nextElementSibling,

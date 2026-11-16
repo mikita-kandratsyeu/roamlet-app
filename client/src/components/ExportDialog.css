@@ -196,6 +196,14 @@
 }
 
 @media (max-width: 560px) {
+  .roamlet-dialog .dialog-navigation:has(.export-format-nav) {
+    padding: 12px 20px;
+  }
+
+  .export-format-nav {
+    width: 100%;
+  }
+
   .roamlet-dialog.wide:has(.export-dialog-footer) {
     --export-footer-pad-x: 20px;
     --export-footer-pad-y: 16px;
@@ -459,86 +467,40 @@
   line-height: 1.2;
 }
 
-.export-format-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+.roamlet-dialog .dialog-navigation:has(.export-format-nav) {
+  padding-block: 12px;
 }
 
-.export-format-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
+.export-format-nav {
+  width: min(100%, 320px);
+}
+
+.roamlet-dialog .export-format-nav .planner-choice {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  min-height: 64px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-family: inherit;
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--background);
   font-size: var(--font-size-control);
   font-weight: 600;
   line-height: 1.45;
-  letter-spacing: 0;
-  background: var(--surface);
-  color: var(--foreground);
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    background 0.15s ease;
 }
 
-.export-format-card:hover {
-  border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
-  background: color-mix(in srgb, var(--primary) 4%, var(--surface));
-}
-
-.export-format-card.is-active {
-  border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
-  box-shadow:
-    0 1px 2px #14251b14,
-    inset 0 0 0 1px color-mix(in srgb, var(--primary) 15%, transparent);
-}
-
-.export-format-card:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-.export-format-card__icon {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border-radius: 8px;
-  background: var(--muted);
-  color: var(--muted-foreground);
-}
-
-.export-format-card.is-active .export-format-card__icon {
-  background: color-mix(in srgb, var(--primary) 14%, var(--surface));
-  color: var(--primary);
-}
-
-.export-format-card__text {
-  display: grid;
-  gap: 2px;
+.roamlet-dialog .export-format-nav .planner-choice > span {
+  flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.export-format-card__text strong {
-  font-size: inherit;
-  font-weight: inherit;
-  line-height: inherit;
-}
-
-.export-format-card__hint {
-  color: var(--muted-foreground);
-  font-size: var(--font-size-helper);
-  font-weight: 500;
-  line-height: 1.35;
+.export-format-nav .planner-choice-menu {
+  width: var(--radix-dropdown-menu-trigger-width);
 }
 
 .export-panel {
@@ -631,23 +593,6 @@
   gap: 8px;
 }
 
-@media (max-width: 640px) {
-  .export-format-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .export-format-card {
-    grid-template-columns: 1fr;
-    justify-items: start;
-    min-height: 68px;
-    padding: 10px;
-  }
-
-  .export-format-card__icon {
-    width: 32px;
-    height: 32px;
-  }
-}
 .export-route-map {
   position: relative;
   height: min(42dvh, 280px);

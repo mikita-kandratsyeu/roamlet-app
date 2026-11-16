@@ -504,7 +504,8 @@ test('production shell keeps saved routes and GPX export available offline, with
   await expect(page.getByRole('heading', { name: 'Offline escape' })).toBeVisible();
   await page.getByRole('button', { name: 'Export' }).click();
   const exportDialog = page.getByRole('dialog', { name: 'Export route', exact: true });
-  await exportDialog.getByRole('radio', { name: 'For social media' }).click();
+  await exportDialog.getByRole('button', { name: 'Export format', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'For social media' }).click();
   await expect(exportDialog.getByRole('img', { name: 'Generated route image' })).toHaveCount(0);
   await exportDialog.getByRole('button', { name: 'Create preview' }).click();
   const image = exportDialog.getByRole('img', { name: 'Generated route image' });
@@ -516,7 +517,8 @@ test('production shell keeps saved routes and GPX export available offline, with
   await exportDialog.getByRole('button', { name: 'Download PNG' }).click();
   const png = await readFile((await (await pngDownload).path())!);
   expect(png.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-  await exportDialog.getByRole('radio', { name: 'GPX', exact: true }).click();
+  await exportDialog.getByRole('button', { name: 'Export format', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'GPX', exact: true }).click();
   const downloaded = page.waitForEvent('download');
   await exportDialog.getByRole('button', { name: 'Download GPX', exact: true }).click();
   const text = await readFile((await (await downloaded).path())!, 'utf8');

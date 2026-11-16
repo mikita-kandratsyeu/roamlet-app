@@ -216,7 +216,8 @@ test('roadbook print media shows only the A4 route sheet', async ({ page }) => {
   const exportButton = page.getByRole('button', { name: 'Export', exact: true });
   await exportButton.click();
   const dialog = page.getByRole('dialog', { name: 'Export route', exact: true });
-  await dialog.getByRole('radio', { name: 'Roadbook', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Export format', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Roadbook', exact: true }).click();
   const sheet = page.locator('.roadbook-print-sheet');
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole('heading', { name: 'Mountain morning' })).toBeVisible();

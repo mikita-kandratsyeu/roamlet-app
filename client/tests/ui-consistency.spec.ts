@@ -907,7 +907,9 @@ test('help and export keep headers visible while their content scrolls', async (
         const after = (await header.boundingBox())!;
         if (navigation) {
           expect((await navigation.boundingBox())!.y).toBeCloseTo(firstContentBox.y, 1);
-          await expect(navigation.getByRole('radio', { name: 'GPX', exact: true })).toBeInViewport();
+          await expect(
+            navigation.getByRole('button', { name: /^(Export format|Формат экспорта)$/ }),
+          ).toBeInViewport();
         }
         expect(after.y).toBeCloseTo(before.y, 1);
         expect(after.height).toBeCloseTo(before.height, 1);

@@ -676,7 +676,8 @@
   body.roamlet-roadbook-printing .roadbook-print-action,
   body.roamlet-roadbook-printing .roadbook-print-help,
   body.roamlet-roadbook-printing .export-dialog-footer,
-  body.roamlet-roadbook-printing .export-format-grid {
+  body.roamlet-roadbook-printing .export-format-grid,
+  body.roamlet-roadbook-printing .export-route-bar {
     display: none !important;
   }
 

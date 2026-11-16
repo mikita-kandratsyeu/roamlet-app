@@ -2,17 +2,14 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Bike,
-  BookOpen,
   ChevronDown,
   Download,
   ExternalLink,
-  FileDown,
   Footprints,
-  Image,
   Printer,
-  Sparkles,
 } from 'lucide-react';
 import { Dialog } from './Dialog';
+import { PlannerChoice } from './PlannerChoice';
 import { ExportRouteMap } from './ExportRouteMap';
 import { RouteCardExport } from './RouteCardExport';
 import { AiRouteExport } from './AiRouteExport';
@@ -30,19 +27,8 @@ import './ExportDialog.css';
 
 type ExportMode = 'gpx' | 'image' | 'ai' | 'roadbook';
 
-const MODE_HINT: Record<ExportMode, string> = {
-  gpx: 'A GPX file for a GPS device or another app. Roamlet does not upload the route.',
-  roadbook: 'An A4 sheet with the map, profile, stops and times. Nothing is uploaded.',
-  image: 'A picture for a post, story or square, made on this device.',
-  ai: 'A summary you copy and paste into an AI chat yourself.',
-};
-
-const MODE_CARD_HINT: Record<ExportMode, string> = {
-  gpx: 'For GPS and apps',
-  roadbook: 'Printable A4 sheet',
-  image: 'Post, story or square',
-  ai: 'Copy into AI chat',
-};
+const EXPORT_DESCRIPTION =
+  'Nothing is uploaded. The file stays on this device until you download or share it.';
 
 const EXPORT_FOOTER_HINT: Record<ExportMode, string> = {
   gpx: 'Choose Download to save the file. Roamlet does not upload the route.',
@@ -108,7 +94,7 @@ export function ExportDialog({
   const [filename, setFilename] = useState(() => gpxFilename(route.name));
   const [error, setError] = useState<string | null>(null);
   const filenameInput = useRef<HTMLInputElement>(null);
-  const formatGrid = useRef<HTMLDivElement>(null);
+  const shell = useRef<HTMLDivElement>(null);
   const { showElevation, heroDetails, technicalDetails } = useRouteExportFacts(route);
 
   useEffect(() => {
@@ -118,19 +104,19 @@ export function ExportDialog({
   }, [mode]);
 
   useLayoutEffect(() => {
-    const body = formatGrid.current?.closest('.roamlet-dialog')?.querySelector('.dialog-body');
+    const body = shell.current?.closest('.roamlet-dialog')?.querySelector('.dialog-body');
     if (body) body.scrollTop = 0;
   }, [mode, actionsContainer]);
 
   const modes = useMemo(
-  () =>
-    [
-      { value: 'gpx' as const, icon: FileDown, label: 'GPX', aria: 'GPX' },
-      { value: 'roadbook' as const, icon: BookOpen, label: t('Roadbook'), aria: t('Roadbook') },
-      { value: 'image' as const, icon: Image, label: t('For social media'), aria: t('For social media') },
-      { value: 'ai' as const, icon: Sparkles, label: t('For AI'), aria: t('For AI') },
-    ],
-    [t],
+    () =>
+      [
+        { value: 'gpx' as const, label: 'GPX' },
+        { value: 'roadbook' as const, label: 'Roadbook' },
+        { value: 'image' as const, label: 'For social media' },
+        { value: 'ai' as const, label: 'For AI' },
+      ],
+    [],
   );
 
   const printRoadbook = () => window.print();
@@ -138,10 +124,20 @@ export function ExportDialog({
   return (
     <Dialog
       title={t('Export route')}
-      description={t(MODE_HINT[mode])}
+      description={t(EXPORT_DESCRIPTION)}
       initialFocusRef={mode === 'gpx' ? filenameInput : undefined}
       onClose={onClose}
       wide
+      navigation={
+        <div className="export-format-nav">
+          <PlannerChoice
+            label={t('Export format')}
+            value={mode}
+            options={modes}
+            onChange={setMode}
+          />
+        </div>
+      }
       footer={
         <div className="export-dialog-footer">
           <p className="export-dialog-footer__hint muted">{t(EXPORT_FOOTER_HINT[mode])}</p>
@@ -166,9 +162,8 @@ export function ExportDialog({
         </div>
       }
     >
-      <div className={`export-shell export-shell--${mode}`}>
-        {mode !== 'roadbook' && (
-          <header className="export-route-bar" aria-label={t('Route summary')}>
+      <div ref={shell} className={`export-shell export-shell--${mode}`}>
+        <header className="export-route-bar" aria-label={t('Route summary')}>
           <div className="export-route-bar__icon" aria-hidden="true">
             {route.activity === 'cycling' ? <Bike size={18} /> : <Footprints size={18} />}
           </div>
@@ -178,45 +173,7 @@ export function ExportDialog({
             </p>
             <h3 className="export-route-bar__title">{route.name || t('Untitled adventure')}</h3>
           </div>
-          {mode !== 'gpx' && (
-            <dl className="export-route-bar__stats">
-              {heroDetails.slice(0, 3).map(([label, value]) => (
-                <div key={label}>
-                  <dt>{label}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-          </header>
-        )}
-
-        <div
-          ref={formatGrid}
-          className="export-format-grid"
-          role="radiogroup"
-          aria-label={t('Export format')}
-        >
-          {modes.map(({ value, icon: Icon, label, aria }) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={mode === value}
-              aria-label={aria}
-              className={`export-format-card${mode === value ? ' is-active' : ''}`}
-              onClick={() => setMode(value)}
-            >
-              <span className="export-format-card__icon">
-                <Icon size={18} aria-hidden="true" />
-              </span>
-              <span className="export-format-card__text">
-                <strong>{label}</strong>
-                <span className="export-format-card__hint">{t(MODE_CARD_HINT[value])}</span>
-              </span>
-            </button>
-          ))}
-        </div>
+        </header>
 
         <div className="export-panel">
           {mode === 'ai' ? (

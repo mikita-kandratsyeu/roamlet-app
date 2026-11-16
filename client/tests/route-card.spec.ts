@@ -34,7 +34,8 @@ test('AI export preview stays private and usable in both languages and themes', 
       await page.locator('.header-menu-theme-option').nth(theme === 'dark' ? 1 : 0).click();
       await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
       const dialog = page.getByRole('dialog', { name: /^(Export route|Экспорт маршрута)$/ });
-      await dialog.getByRole('radio', { name: /^(For AI|Для ИИ)$/ }).click();
+      await dialog.getByRole('button', { name: /^(Export format|Формат экспорта)$/ }).click();
+      await page.getByRole('menuitemradio', { name: /^(For AI|Для ИИ)$/ }).click();
       const preview = dialog.getByRole('textbox', { name: /^(Request preview|Предпросмотр запроса)$/ });
       await expect(preview).toBeVisible();
       expect(await preview.inputValue()).not.toContain('Forest escape');
@@ -91,7 +92,8 @@ test('AI export preview stays private and usable in both languages and themes', 
       await expect(dialog).toBeVisible();
       await dialog.getByRole('checkbox').check();
       expect(await preview.inputValue()).toContain('Forest escape');
-      await dialog.getByRole('radio', { name: 'GPX', exact: true }).click();
+      await dialog.getByRole('button', { name: /^(Export format|Формат экспорта)$/ }).click();
+      await page.getByRole('menuitemradio', { name: 'GPX', exact: true }).click();
       await expect(dialog.getByRole('button', { name: /^(Download GPX|Скачать GPX)$/ })).toBeVisible();
       await dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }).click();
     }
@@ -108,7 +110,8 @@ test('planned-route badge text is vertically centered in both languages and them
       .click();
     await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
     const dialog = page.getByRole('dialog', { name: /^(Export route|Экспорт маршрута)$/ });
-    await dialog.getByRole('radio', { name: /^(For social media|Для соцсетей)$/ }).click();
+    await dialog.getByRole('button', { name: /^(Export format|Формат экспорта)$/ }).click();
+    await page.getByRole('menuitemradio', { name: /^(For social media|Для соцсетей)$/ }).click();
     for (const theme of ['Light', 'Dark']) {
       const themeLabel = language === 'en' ? theme : theme === 'Light' ? 'Светлая' : 'Тёмная';
       await dialog.getByRole('radio', { name: themeLabel, exact: true }).click();
@@ -155,7 +158,8 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
   page.on('worker', (worker) => workers.push(worker.url()));
   await page.getByRole('button', { name: 'Export', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Export route', exact: true });
-  await dialog.getByRole('radio', { name: 'For social media' }).click();
+  await dialog.getByRole('button', { name: 'Export format', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'For social media' }).click();
   await expect(dialog.getByRole('img', { name: 'Generated route image' })).toHaveCount(0);
   expect(workers).toEqual([]);
   for (const format of ['Post', 'Story']) {
@@ -308,7 +312,8 @@ test('route image is generated on demand with real PNG sizes, privacy and preser
   await expect(dialog.getByRole('img')).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Create preview', exact: true }).click();
   await expect(dialog.getByRole('alert')).toContainText('No route remains visible');
-  await dialog.getByRole('radio', { name: 'GPX', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Export format', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'GPX', exact: true }).click();
   const pending = page.waitForEvent('download');
   await dialog.getByRole('button', { name: 'Download GPX' }).click();
   const xml = await readFile((await (await pending).path())!, 'utf8');
@@ -326,7 +331,8 @@ test('image export works with a yielded Canvas fallback when workers are unavail
   });
   await page.getByRole('button', { name: 'Export', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Export route', exact: true });
-  await dialog.getByRole('radio', { name: 'For social media' }).click();
+  await dialog.getByRole('button', { name: 'Export format', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'For social media' }).click();
   await dialog.getByRole('button', { name: 'Create preview' }).click();
   await expect(dialog.getByRole('img', { name: 'Generated route image' })).toBeVisible();
   await expect
@@ -369,7 +375,8 @@ test('social export layout and shared scrollbars work in both languages and them
         .click();
       await page.getByRole('button', { name: /^(Export|Экспорт)$/ }).click();
       const dialog = page.getByRole('dialog');
-      await dialog.getByRole('radio', { name: /^(For social media|Для соцсетей)$/ }).click();
+      await dialog.getByRole('button', { name: /^(Export format|Формат экспорта)$/ }).click();
+    await page.getByRole('menuitemradio', { name: /^(For social media|Для соцсетей)$/ }).click();
       const body = dialog.locator('.dialog-body');
       await expect(body.locator('.route-card-actions')).toHaveCount(0);
       await expect(dialog.locator('.dialog-footer .export-dialog-footer__actions')).toBeVisible();
@@ -470,7 +477,9 @@ test('social export layout and shared scrollbars work in both languages and them
       await expect(
         dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }),
       ).toBeInViewport();
-      await expect(dialog.getByRole('radio', { name: 'GPX', exact: true })).toBeInViewport();
+      await expect(
+        dialog.getByRole('button', { name: /^(Export format|Формат экспорта)$/ }),
+      ).toBeInViewport();
       await expect(
         dialog.getByRole('button', { name: /^(Create preview|Создать предпросмотр)$/ }),
       ).toBeInViewport();
@@ -497,7 +506,8 @@ for (const language of ['en', 'ru']) {
     }
     await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByRole('radio', { name: /^(For social media|Для соцсетей)$/ }).click();
+    await dialog.getByRole('button', { name: /^(Export format|Формат экспорта)$/ }).click();
+    await page.getByRole('menuitemradio', { name: /^(For social media|Для соцсетей)$/ }).click();
     await dialog
       .getByRole('radio', { name: language === 'en' ? 'Light' : 'Тёмная', exact: true })
       .click();
@@ -564,7 +574,8 @@ for (const language of ['en', 'ru']) {
     await page.screenshot({ path: testInfo.outputPath(`social-story-safe-${language}.png`) });
     await dialog.getByRole('button', { name: /^(Close dialog|Закрыть диалог)$/ }).click();
     await page.getByRole('button', { name: /^(Export|Экспорт)$/, exact: true }).click();
-    await dialog.getByRole('radio', { name: /^(For social media|Для соцсетей)$/ }).click();
+    await dialog.getByRole('button', { name: /^(Export format|Формат экспорта)$/ }).click();
+    await page.getByRole('menuitemradio', { name: /^(For social media|Для соцсетей)$/ }).click();
     await expect(dialog.getByRole('radio', { name: /^(Lake blue|Озёрный синий)$/ })).toBeChecked();
     await expect(dialog.getByRole('spinbutton')).toHaveValue('200');
     await expect(dialog.getByRole('radio', { name: /^(Story|История)/ })).toBeChecked();

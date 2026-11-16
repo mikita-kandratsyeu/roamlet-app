@@ -328,6 +328,7 @@
   "Image preview": "Предпросмотр изображения",
   "Decorative contours, not a terrain map.": "Декоративные линии, а не карта рельефа.",
   "Export format": "Формат экспорта",
+  "Nothing is uploaded. The file stays on this device until you download or share it.": "Ничего не отправляется. Файл остаётся на этом устройстве, пока вы сами его не скачаете или не поделитесь.",
   "A GPX file for a GPS device or another app. Roamlet does not upload the route.": "Файл GPX для GPS-устройства или другого приложения. Roamlet не отправляет маршрут.",
   "An A4 sheet with the map, profile, stops and times. Nothing is uploaded.": "Лист A4 с картой, профилем, точками и временем. Ничего не отправляется.",
   "A picture for a post, story or square, made on this device.": "Картинка для поста, истории или квадрата. Создаётся на этом устройстве.",
