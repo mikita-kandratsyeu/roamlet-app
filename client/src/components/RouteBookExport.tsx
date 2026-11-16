@@ -86,10 +86,12 @@ export function RouteBookExport({
   route,
   personalTime,
   onPrint,
+  showToolbar = true,
 }: {
   route: PlannedRoute;
   personalTime?: PersonalTimeOptions;
   onPrint: () => void;
+  showToolbar?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const chartId = useId().replace(/:/g, '');
@@ -284,16 +286,18 @@ export function RouteBookExport({
   ]);
 
   return (
-    <div className="roadbook-export">
-      <div className="roadbook-toolbar">
-        <p className="roadbook-print-help">
-          {t('A4 portrait. Choose Print to open your browser’s print dialog.')}
-        </p>
-        <Button type="button" className="roadbook-print-action" onClick={onPrint}>
-          <Printer size={17} aria-hidden="true" />
-          {t('Print roadbook')}
-        </Button>
-      </div>
+    <div className={`roadbook-export${showToolbar ? '' : ' roadbook-export--embedded'}`}>
+      {showToolbar && (
+        <div className="roadbook-toolbar">
+          <p className="roadbook-print-help">
+            {t('A4 portrait. Choose Print to open your browser’s print dialog.')}
+          </p>
+          <Button type="button" className="roadbook-print-action" onClick={onPrint}>
+            <Printer size={17} aria-hidden="true" />
+            {t('Print roadbook')}
+          </Button>
+        </div>
+      )}
       <div className="roadbook-stage">
         <article className="roadbook-print-sheet">
           <header className="roadbook-header">

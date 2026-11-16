@@ -63,7 +63,7 @@ describe('ExportDialog', () => {
     expect(generateRouteCard).not.toHaveBeenCalled();
     expect(onDownload).not.toHaveBeenCalled();
     await user.click(screen.getByRole('radio', { name: 'GPX' }));
-    expect(screen.getByRole('dialog')).not.toHaveClass('wide');
+    expect(screen.getByRole('dialog')).toHaveClass('wide');
     expect(screen.getByRole('textbox', { name: 'File name' })).toHaveValue('Forest walk.gpx');
     expect(screen.getByRole('button', { name: 'Download GPX' })).toBeVisible();
   });
@@ -89,7 +89,7 @@ describe('ExportDialog', () => {
     render(<ExportDialog route={snapshot} onDownload={onDownload} onClose={vi.fn()} />);
     await user.click(screen.getByRole('radio', { name: 'Roadbook' }));
     expect(screen.getByRole('article')).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Forest walk' })).toBeVisible();
+    expect(within(screen.getByRole('article')).getByRole('heading', { name: 'Forest walk' })).toBeVisible();
     expect(screen.getByRole('figure', { name: 'Route map preview' })).toBeVisible();
     expect(screen.getByRole('img', { name: 'Elevation profile from 600 to 630 m' })).toBeVisible();
     expect(screen.getByText('Trailhead')).toBeVisible();
@@ -203,9 +203,9 @@ describe('ExportDialog', () => {
     const onDownload = vi.fn();
     render(<ExportDialog route={route} onDownload={onDownload} onClose={vi.fn()} />);
     expect(screen.getByRole('dialog', { name: 'Export route' })).toBeVisible();
-    expect(screen.getByText('Forest walk')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Forest walk', level: 3 })).toBeVisible();
     expect(screen.getByRole('figure', { name: 'Route map preview' })).toBeVisible();
-    expect(screen.getByText('12.4 km')).toBeVisible();
+    expect(within(screen.getByLabelText('Route preview')).getByText('12.4 km')).toBeVisible();
     expect(screen.getByRole('textbox', { name: 'File name' })).toHaveValue('Forest walk.gpx');
     expect(screen.getByRole('textbox', { name: 'File name' })).toHaveFocus();
     expect(screen.getByText('How to import into Komoot').closest('details')).not.toHaveAttribute(
@@ -223,15 +223,20 @@ describe('ExportDialog', () => {
       waypoints: [{ id: 'stop', name: 'Meeting point', coordinate: [11, 47] }],
     };
     render(<ExportDialog route={snapshot} onDownload={vi.fn()} onClose={vi.fn()} />);
-    const summary = screen.getByRole('region', { name: 'Route details' });
-    const value = (label: string) => within(summary).getByText(label, { selector: 'dt' }).nextElementSibling;
-    expect(value('Activity')).toHaveTextContent('Cycling');
-    expect(value('Distance')).toHaveTextContent('12.4 km');
-    expect(value(i18n.t('Original time estimate'))).toHaveTextContent('10 min');
+    expect(screen.getByLabelText('Route summary')).toHaveTextContent('Cycling');
+    const preview = screen.getByLabelText('Route preview');
+    const hero = preview.querySelector('.export-gpx-hero-stats') as HTMLElement;
+    const heroValue = (label: string) =>
+      within(hero).getByText(label, { selector: 'dt' }).nextElementSibling;
+    expect(heroValue('Distance')).toHaveTextContent('12.4 km');
+    expect(heroValue(i18n.t('Original time estimate'))).toHaveTextContent('10 min');
+    const summary = screen.getByLabelText('Route details');
+    const value = (label: string) =>
+      within(summary).getByText(label, { selector: 'dt' }).nextElementSibling;
     expect(value('Track points')).toHaveTextContent('3');
     expect(value('GPX segments')).toHaveTextContent('3');
     expect(value('Waypoints')).toHaveTextContent('1');
-    expect(within(summary).queryByText('Elevation gain')).not.toBeInTheDocument();
+    expect(within(hero).queryByText('Elevation gain')).not.toBeInTheDocument();
   });
 
   it.each(['gpx', 'openrouteservice'] as const)('shows available heights, including zero, for %s', (source) => {
@@ -242,8 +247,10 @@ describe('ExportDialog', () => {
       stats: { ...route.stats, ascent: 30, descent: 0 },
     };
     render(<ExportDialog route={snapshot} onDownload={vi.fn()} onClose={vi.fn()} />);
-    expect(screen.getByText('Elevation gain', { selector: 'dt' }).nextElementSibling).toHaveTextContent('30 m');
-    expect(screen.getByText('Elevation loss', { selector: 'dt' }).nextElementSibling).toHaveTextContent('0 m');
+    const hero = screen.getByLabelText('Route preview').querySelector('.export-gpx-hero-stats');
+    expect(hero).toBeTruthy();
+    expect(within(hero as HTMLElement).getByText('Elevation gain', { selector: 'dt' }).nextElementSibling).toHaveTextContent('30 m');
+    expect(within(hero as HTMLElement).getByText('Elevation loss', { selector: 'dt' }).nextElementSibling).toHaveTextContent('0 m');
   });
 
   it.each(['missing', 'partial', 'manual', 'legacy-mapbox'] as const)(
@@ -258,7 +265,7 @@ describe('ExportDialog', () => {
         ...(kind === 'legacy-mapbox' ? { source: 'mapbox' } : {}),
       };
       render(<ExportDialog route={snapshot} onDownload={vi.fn()} onClose={vi.fn()} />);
-      const summary = screen.getByRole('region', { name: 'Route details' });
+      const summary = screen.getByLabelText('Route details');
       expect(within(summary).queryByText('Elevation gain')).not.toBeInTheDocument();
       expect(within(summary).queryByText('Elevation loss')).not.toBeInTheDocument();
     },
@@ -374,8 +381,8 @@ describe('ExportDialog', () => {
     expect(within(dialog).getByRole('button', { name: 'Скачать GPX' })).toBeEnabled();
     expect(within(dialog).getByText('Как импортировать в Komoot')).toBeVisible();
     expect(within(dialog).getByText('Как импортировать в Strava')).toBeVisible();
-    const details = within(dialog).getByRole('region', { name: 'Данные маршрута' });
+    const details = within(dialog).getByLabelText('Данные маршрута');
     expect(within(details).getByText('Точки трека', { selector: 'dt' }).nextElementSibling).toHaveTextContent('2');
-    expect(within(details).getByText('12,4 км')).toBeVisible();
+    expect(within(dialog).getByText('12,4 км')).toBeVisible();
   });
 });

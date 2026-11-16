@@ -135,118 +135,342 @@
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
-.export-mode-nav {
+@media (min-width: 720px) {
+  .dialog.roamlet-dialog.wide:has(.export-shell) {
+    width: min(1040px, calc(100vw - 48px));
+    min-width: min(1040px, calc(100vw - 48px));
+  }
+}
+
+.export-shell {
   display: grid;
-  gap: 10px;
+  gap: 16px;
   min-width: 0;
 }
 
-.roamlet-dialog .dialog-navigation .export-mode {
-  display: flex;
-  width: 100%;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--muted);
-  box-shadow: inset 0 1px 0 #ffffff52;
-}
-
-.roamlet-dialog .export-mode [data-slot='toggle-group-item'] {
-  flex: 1 1 0;
-  display: inline-flex;
-  flex-direction: row;
-  justify-content: center;
+.export-route-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
-  gap: 6px;
-  width: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--primary) 8%, var(--surface)),
+      var(--surface)
+    );
+  box-shadow: 0 1px 2px #14251b0a;
+}
+
+.export-route-bar__icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+  color: var(--primary);
+}
+
+.export-route-bar__copy,
+.export-route-bar__stats {
   min-width: 0;
-  min-height: 44px;
-  padding: 8px 10px;
+}
+
+.export-route-bar__copy {
+  grid-column: 2;
+  display: grid;
+  gap: 2px;
+}
+
+.export-route-bar__kicker,
+.export-route-bar__title {
+  margin: 0;
+}
+
+.export-route-bar__kicker {
+  color: var(--primary);
+  font-size: var(--font-size-helper);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.export-route-bar__title {
+  font-size: 18px;
+  font-weight: 720;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.export-route-bar__stats {
+  display: none;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 4px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+@media (min-width: 641px) {
+  .export-shell--gpx .export-route-bar,
+  .export-shell--ai .export-route-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .export-route-bar__stats {
+    display: grid;
+    grid-column: auto;
+    grid-template-columns: auto;
+    grid-auto-flow: column;
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .export-route-bar__stats > div {
+    min-width: 0;
+    padding-left: 14px;
+    border-left: 1px solid var(--border);
+  }
+
+  .export-route-bar__stats > div:first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+.export-route-bar__stats dt {
+  color: var(--muted-foreground);
+  font-size: var(--font-size-helper);
+  line-height: 1.35;
+}
+
+.export-route-bar__stats dd {
+  margin: 1px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.export-format-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.export-format-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.export-format-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+  background: color-mix(in srgb, var(--primary) 4%, var(--surface));
+}
+
+.export-format-card.is-active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+  box-shadow:
+    0 1px 2px #14251b14,
+    inset 0 0 0 1px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.export-format-card:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.export-format-card__icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.export-format-card.is-active .export-format-card__icon {
+  background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+  color: var(--primary);
+}
+
+.export-format-card__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.export-format-card__text strong {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.export-format-card__hint {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.export-panel {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: inset 0 1px 0 #ffffff7a;
+}
+
+.export-shell--image .export-panel,
+.export-shell--roadbook .export-panel,
+.export-shell--ai .export-panel {
+  padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: var(--muted-foreground);
-  font-size: 13px;
-  font-weight: 650;
-  line-height: 1.2;
-  white-space: nowrap;
 }
 
-.roamlet-dialog .export-mode [data-slot='toggle-group-item']:first-child {
-  border-radius: 11px 0 0 11px;
+.export-roadbook-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  width: 100%;
 }
 
-.roamlet-dialog .export-mode [data-slot='toggle-group-item']:last-child {
-  border-radius: 0 11px 11px 0;
-}
-
-.roamlet-dialog .export-mode [data-slot='toggle-group-item'] svg {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-}
-
-.roamlet-dialog .export-mode [data-slot='toggle-group-item']:hover {
-  background: color-mix(in srgb, var(--surface) 55%, transparent);
-  color: var(--foreground);
-}
-
-.roamlet-dialog .export-mode [data-slot='toggle-group-item'][data-state='on'] {
-  z-index: 1;
-  background: var(--surface);
-  color: var(--foreground);
-  box-shadow:
-    0 1px 2px #14251b12,
-    inset 0 0 0 1px color-mix(in srgb, var(--border) 80%, transparent);
-}
-
-.roamlet-dialog .export-mode [data-slot='toggle-group-item']:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: -2px;
-}
-
-.export-mode-label--short {
-  display: none;
-}
-
-.export-mode-hint {
+.export-roadbook-footer__help {
+  flex: 1 1 220px;
   margin: 0;
-  color: var(--muted-foreground);
   font-size: var(--font-size-helper);
   line-height: 1.45;
 }
 
-@media (max-width: 640px) {
-  .export-mode-label--full {
-    display: none;
-  }
+.export-roadbook-print {
+  flex: 0 0 auto;
+  min-height: 44px;
+  white-space: nowrap;
+}
 
-  .export-mode-label--short {
-    display: inline;
-  }
+.roamlet-dialog.wide:has(.export-roadbook-footer) .dialog-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-inline: -28px;
+  padding: 12px 28px max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(8px);
+}
 
-  .roamlet-dialog .export-mode [data-slot='toggle-group-item'] {
-    flex-direction: column;
-    gap: 2px;
-    padding: 6px 4px;
-    font-size: 11px;
+.export-gpx-layout {
+  display: grid;
+  gap: 18px;
+}
+
+@media (min-width: 880px) {
+  .export-gpx-layout {
+    grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr);
+    gap: 20px;
+    align-items: start;
   }
 }
 
-.export-route-overview {
+.export-gpx-preview {
   display: grid;
-  gap: 16px;
-  margin-bottom: 8px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--surface);
-  box-shadow: 0 1px 2px #14251b0a;
+  gap: 12px;
+  min-width: 0;
+}
+
+.export-gpx-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.export-gpx-hero-stats > div,
+.export-gpx-technical > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--muted);
+}
+
+.export-gpx-technical {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.export-gpx-actions {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.export-gpx-form {
+  display: grid;
+  gap: 12px;
+}
+
+.export-guide-stack {
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .export-roadbook-print {
+    width: 100%;
+  }
+
+  .export-format-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .export-format-card {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    min-height: 68px;
+    padding: 10px;
+  }
+
+  .export-format-card__icon {
+    width: 32px;
+    height: 32px;
+  }
 }
 .export-route-map {
   position: relative;
-  height: 220px;
+  height: min(42dvh, 280px);
   margin: 0;
   overflow: hidden;
   border: 0;
@@ -286,47 +510,19 @@
 .export-route-map .maplibregl-ctrl-attrib {
   font-size: 10px;
 }
-.export-route-heading {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-.export-route-kicker,
-.export-route-heading h3 {
-  margin: 0;
-}
-.export-route-kicker {
-  color: var(--primary);
-  font-size: var(--font-size-helper);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1.3;
-  text-transform: uppercase;
-}
-.export-route-heading h3 {
-  font-size: 22px;
-  font-weight: 720;
-  letter-spacing: -0.03em;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-.export-route-details {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
-}
-.export-route-details > div {
-  min-width: 0;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--muted);
-}
-.export-route-details dt {
+.export-gpx-hero-stats dt,
+.export-gpx-technical dt,
+.export-route-details dt,
+.export-route-bar__stats dt {
   color: var(--muted-foreground);
   font-size: var(--font-size-helper);
   line-height: 1.4;
+  white-space: nowrap;
+  hyphens: none;
 }
+
+.export-gpx-hero-stats dd,
+.export-gpx-technical dd,
 .export-route-details dd {
   margin: 2px 0 0;
   font-size: 15px;
@@ -334,22 +530,6 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   overflow-wrap: anywhere;
-}
-@media (max-width: 480px) {
-  .export-route-overview {
-    padding: 10px;
-    gap: 12px;
-  }
-  .export-route-map {
-    height: 180px;
-  }
-  .export-route-heading h3 {
-    font-size: 20px;
-  }
-  .export-route-details {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
 }
 
 .export-copy {
@@ -360,48 +540,38 @@
 
 .export-file {
   display: grid;
-  gap: 6px;
+  gap: 10px;
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--surface);
-}
-
-.export-file-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
+  background: color-mix(in srgb, var(--primary) 4%, var(--surface));
 }
 
 .export-download {
+  width: 100%;
   min-height: 44px;
-  white-space: nowrap;
-}
-
-@media (max-width: 560px) {
-  .export-file-actions {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .export-download {
-    width: 100%;
-  }
 }
 
 .export-guide {
-  margin-top: 12px;
-  padding: 4px 16px 8px;
+  padding: 4px 14px 10px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
 }
 
 .export-guide summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   min-height: 44px;
-  align-content: center;
   cursor: pointer;
   font-weight: 650;
+  list-style: none;
+}
+
+.export-guide summary::-webkit-details-marker {
+  display: none;
 }
 
 .export-guide summary:focus-visible {
