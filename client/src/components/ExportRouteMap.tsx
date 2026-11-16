@@ -16,6 +16,7 @@ export function ExportRouteMap({
 }) {
   const { t } = useTranslation();
   const container = useRef<HTMLDivElement>(null);
+  const printImage = useRef<HTMLImageElement>(null);
   const [ready, setReady] = useState(false);
   const geometry = useMemo(() => {
     let previousLongitude: number | undefined;
@@ -58,6 +59,7 @@ export function ExportRouteMap({
     let map: maplibregl.Map | undefined;
     let disposed = false;
     let observer: ResizeObserver | undefined;
+    let onBeforePrint = () => {};
     const dispose = () => {
       if (disposed) return;
       disposed = true;
@@ -72,9 +74,34 @@ export function ExportRouteMap({
         zoom: 12,
         interactive: false,
         attributionControl: false,
+        fadeDuration: 0,
+        // A cleared WebGL buffer prints as a blank map. Keep the frame for print capture.
+        canvasContextAttributes: { preserveDrawingBuffer: true },
       });
       map.getCanvas().removeAttribute('tabindex');
-      const fit = () => map?.fitBounds(geometry.bounds, { padding: 32, maxZoom: 15, duration: 0 });
+      const fit = () => {
+        if (!map) return;
+        const frame = map.getContainer?.();
+        const width = frame?.clientWidth ?? 0;
+        const height = frame?.clientHeight ?? 0;
+        // Fixed padding on a short phone map is larger than the frame and clips the route.
+        const pad = width >= 80 && height >= 80
+          ? Math.min(32, Math.floor(Math.min(width, height) * 0.08))
+          : 32;
+        map.resize?.();
+        map.fitBounds(geometry.bounds, { padding: pad, maxZoom: 15, duration: 0 });
+      };
+      const captureForPrint = () => {
+        if (disposed || !map || !printImage.current) return;
+        try {
+          const url = map.getCanvas().toDataURL('image/jpeg', 0.92);
+          if (!url) return;
+          printImage.current.src = url;
+          printImage.current.classList.add('is-captured');
+        } catch {
+          // Cross-origin tiles can taint the canvas. The outline underneath still prints.
+        }
+      };
       fit();
       map.on('load', () => {
         if (disposed || !map) return;
@@ -93,17 +120,33 @@ export function ExportRouteMap({
         map.addLayer({ id: 'export-endpoints', type: 'circle', source: 'export-endpoints',
           paint: { 'circle-radius': 5, 'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff',
             'circle-color': ['case', ['get', 'finish'], '#c75146', '#26745b'] } });
+        map.resize?.();
+        fit();
       });
-      map.on('idle', () => { if (!disposed) setReady(true); });
+      map.on('idle', () => {
+        if (disposed) return;
+        setReady(true);
+        captureForPrint();
+      });
       map.on('error', () => { if (!disposed) { setReady(false); dispose(); } });
+      onBeforePrint = () => {
+        if (disposed || !map) return;
+        map.resize();
+        fit();
+        map.once('idle', captureForPrint);
+      };
+      window.addEventListener('beforeprint', onBeforePrint);
       if (typeof ResizeObserver !== 'undefined') {
-        observer = new ResizeObserver(() => { if (!disposed) { map?.resize(); fit(); } });
-        observer.observe(container.current);
+        observer = new ResizeObserver(() => { if (!disposed) fit(); });
+        observer.observe(container.current.parentElement ?? container.current);
       }
     } catch {
       dispose();
     }
-    return dispose;
+    return () => {
+      window.removeEventListener('beforeprint', onBeforePrint);
+      dispose();
+    };
   }, [geometry, variant]);
 
   if (!geometry) return null;
@@ -114,8 +157,13 @@ export function ExportRouteMap({
       className={`export-route-map${outlineOnly ? ' export-route-map--outline' : ''}`}
       aria-label={t('Route map preview')}
     >
-      {showOutline && (
-        <svg viewBox="0 0 600 200" role="img" aria-label={t('Route outline')}>
+      {(showOutline || !outlineOnly) && (
+        <svg
+          viewBox="0 0 600 200"
+          role="img"
+          aria-hidden={showOutline ? undefined : true}
+          aria-label={showOutline ? t('Route outline') : undefined}
+        >
           <g className="export-route-map-grid" aria-hidden="true">
             {[0, 1, 2, 3, 4].map((index) => (
               <line
@@ -162,6 +210,9 @@ export function ExportRouteMap({
       )}
       {!outlineOnly && (
         <div ref={container} className={`export-route-map-canvas${ready ? ' is-ready' : ''}`} />
+      )}
+      {!outlineOnly && (
+        <img ref={printImage} className="export-route-map-print" alt="" />
       )}
       {!outlineOnly && !ready && (
         <figcaption>{t('Route outline · basemap unavailable offline')}</figcaption>
