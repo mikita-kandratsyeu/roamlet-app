@@ -226,20 +226,7 @@
 }
 
 .roadbook-metrics-detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  border: 0;
-  background: transparent;
-  overflow: visible;
-}
-
-.roadbook-metrics-detail > div {
-  flex: 1 1 calc(25% - 6px);
-  min-width: 148px;
-  border: 1px solid var(--sheet-line);
-  border-radius: 10px;
-  background: #f7f8f6;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
 }
 
 .roadbook-metrics-hero > div {
@@ -698,21 +685,29 @@
   }
 
   body.roamlet-roadbook-printing .roadbook-metrics {
+    gap: 0.25mm !important;
     border-radius: 2.5mm !important;
     border-color: #d9e0dc !important;
+    background: #d9e0dc !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-metrics-hero > div,
+  body.roamlet-roadbook-printing .roadbook-metrics-detail > div {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #f7f8f6 !important;
   }
 
   body.roamlet-roadbook-printing .roadbook-metrics-hero > div {
     padding: 3mm 4mm !important;
-    background: #f7f8f6 !important;
+  }
+
+  body.roamlet-roadbook-printing .roadbook-metrics-detail {
+    grid-template-columns: repeat(auto-fit, minmax(36mm, 1fr)) !important;
   }
 
   body.roamlet-roadbook-printing .roadbook-metrics-detail > div {
-    min-width: 36mm !important;
     padding: 2.5mm 3.5mm !important;
-    border-color: #d9e0dc !important;
-    border-radius: 2mm !important;
-    background: #f7f8f6 !important;
   }
 
   body.roamlet-roadbook-printing .roadbook-metrics-hero dd {
