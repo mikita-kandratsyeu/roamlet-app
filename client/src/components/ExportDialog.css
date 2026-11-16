@@ -681,7 +681,7 @@
 }
 
 .export-guide {
-  padding: 4px 16px 12px;
+  padding-inline: 16px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
@@ -692,12 +692,36 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 44px;
+  margin: 0;
+  padding-block: 14px;
+  min-height: 48px;
   cursor: pointer;
   font-size: var(--font-size-control);
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.35;
   list-style: none;
+}
+
+.export-guide summary span {
+  min-width: 0;
+}
+
+.export-guide summary svg {
+  flex: 0 0 auto;
+  color: var(--muted-foreground);
+  transition: transform 160ms ease;
+}
+
+.export-guide[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.export-guide[open] {
+  padding-bottom: 2px;
+}
+
+.export-guide summary::marker {
+  content: '';
 }
 
 .export-guide summary::-webkit-details-marker {
