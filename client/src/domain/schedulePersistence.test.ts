@@ -92,8 +92,9 @@ it('keeps aggregate stops and estimates intact, adding only waypoint pauses to t
   const estimate = estimatePersonalTime(route, options)!;
   const schedule = estimateRouteSchedule(route, estimate.moving);
   expect(estimate.total - estimate.moving).toBe(5400);
+  expect(estimate.moving).toBe(estimate.movingRange.upper);
   expect(schedule.pauseMinutes).toBe(15);
-  expect(schedule.finishLocal).toBe('2026-10-29T23:58');
+  expect(schedule.finishLocal).toBe('2026-10-30T00:03');
   expect(options.stopsMinutes).toBe(90);
   expect(estimatePersonalTime(route, options)).toEqual(estimate);
 });

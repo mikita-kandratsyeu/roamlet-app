@@ -34,9 +34,11 @@ export function formatTimeRange(range: TimeRange) {
 const warningLabels: Record<TimeWarning, string> = {
   'unknown-surface': 'Surface is unknown: no surface penalty applied; the range is wider.',
   'missing-elevation':
-    'Complete GPX heights unavailable: climbing is not included; the range is wider.',
-  'manual-distance': 'Manual straight-line distance may underestimate the actual path.',
-  'cycling-climb': 'Cycling climb allowance is a rough heuristic, not Naismith’s walking rule.',
+    'Complete heights unavailable: climbing is not included. A single time estimate uses the top of the range.',
+  'manual-distance':
+    'Direct sections are lengthened by 20% because a straight line is shorter than the path. The range stays wider.',
+  'cycling-climb':
+    'Steep cycling climbs use vertical speed instead of flat speed. Gentler climbs stay at flat speed.',
 };
 export { formatDistance, formatDuration } from '../domain/format';
 export function Statistics({
@@ -96,8 +98,8 @@ export function Statistics({
   );
   const showElevation = elevation?.available ?? false;
   const partialElevation = showElevation && !elevation?.complete;
-  const ascent = elevation?.complete ? route?.stats.ascent ?? elevation.ascent : elevation?.ascent;
-  const descent = elevation?.complete ? route?.stats.descent ?? elevation.descent : elevation?.descent;
+  const ascent = showElevation ? elevation?.ascent : undefined;
+  const descent = showElevation ? elevation?.descent : undefined;
   const { minimum, maximum } = useMemo(() => ({
     minimum: samples.length ? samples.reduce((min, s) => Math.min(min, s.elevation), Infinity) : 0,
     maximum: samples.length ? samples.reduce((max, s) => Math.max(max, s.elevation), -Infinity) : 0,
@@ -222,6 +224,9 @@ export function Statistics({
             {t('Missing heights leave gaps. Gain and loss cover only sections with known heights.')}
           </p>
         )}
+        <p className="fine-print">
+          {t('Gain and loss ignore reversals smaller than 3 m.')}
+        </p>
         <p className="fine-print">
           {t(
             route?.elevationSource === 'openrouteservice'
@@ -382,10 +387,15 @@ export function Statistics({
             </dl>
             {personal.ascentMetres !== null && (
               <p className="fine-print">
-                {t(
-                  'Climbing uses {{ascent}} m ascent after 3 m noise filtering. Descents do not reduce time.',
-                  { ascent: formatNumber(Math.round(personal.ascentMetres)) },
-                )}
+                {route.activity === 'cycling'
+                  ? t(
+                      'Cycling time follows flat speed except on climbs of at least 4%, which use vertical speed. {{ascent}} m is filtered ascent. Descents do not reduce time.',
+                      { ascent: formatNumber(Math.round(personal.ascentMetres)) },
+                    )
+                  : t(
+                      'Climbing uses {{ascent}} m ascent after 3 m noise filtering. Descents do not reduce time.',
+                      { ascent: formatNumber(Math.round(personal.ascentMetres)) },
+                    )}
               </p>
             )}
             {provider && (

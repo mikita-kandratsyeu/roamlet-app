@@ -64,7 +64,7 @@ describe('ExportDialog', () => {
     expect(screen.getByRole('region', { name: 'Image for social media' })).toBeVisible();
     expect(screen.getByRole('dialog')).toHaveClass('wide');
     expect(screen.queryByRole('figure', { name: 'Route map preview' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: 'Elevation gain' })).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Elevation gain' })).toBeInTheDocument();
     expect(generateRouteCard).not.toHaveBeenCalled();
     expect(onDownload).not.toHaveBeenCalled();
     await chooseExportFormat(user, 'GPX');
@@ -241,7 +241,8 @@ describe('ExportDialog', () => {
     expect(value('Track points')).toHaveTextContent('3');
     expect(value('GPX segments')).toHaveTextContent('3');
     expect(value('Waypoints')).toHaveTextContent('1');
-    expect(within(hero).queryByText('Elevation gain')).not.toBeInTheDocument();
+    expect(heroValue('Elevation gain')).toHaveTextContent('30 m');
+    expect(heroValue('Elevation loss')).toHaveTextContent('0 m');
   });
 
   it.each(['gpx', 'openrouteservice'] as const)('shows available heights, including zero, for %s', (source) => {

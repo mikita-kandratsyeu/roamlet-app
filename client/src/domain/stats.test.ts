@@ -62,6 +62,33 @@ describe('route statistics', () => {
       ).distance,
     ).toBeCloseTo(2223.9, 0);
   });
+  it('ignores reversals under 3 m and stationary height jumps', () => {
+    expect(
+      calculateStats(
+        [
+          [
+            [0, 0, 100],
+            [0, 0.001, 102],
+            [0, 0.002, 100],
+            [0, 0.003, 130],
+          ],
+        ],
+        'hiking',
+      ).ascent,
+    ).toBe(30);
+    const jumped = calculateStats(
+      [
+        [
+          [0, 0, 0],
+          [0, 0, 50],
+          [0, 0.001, 50],
+        ],
+      ],
+      'hiking',
+    );
+    expect(jumped.ascent).toBe(0);
+    expect(jumped.descent).toBe(0);
+  });
   it('rejects nonfinite and out-of-bounds coordinates', () => {
     expect(() => calculateStats([[[NaN, 0]]], 'hiking')).toThrow(/coordinate/);
     expect(() => calculateStats([[[0, 91]]], 'hiking')).toThrow(/coordinate/);

@@ -159,7 +159,9 @@ it('shows personal movement and total while retaining the original duration esti
   ).toBeInTheDocument();
   expect(
     screen.getByText(
-      i18n.t('Complete GPX heights unavailable: climbing is not included; the range is wider.'),
+      i18n.t(
+        'Complete heights unavailable: climbing is not included. A single time estimate uses the top of the range.',
+      ),
     ),
   ).toBeInTheDocument();
   expect(snapshot.stats.duration).toBe(1800);
@@ -294,11 +296,15 @@ it('states manual straight-distance and missing-height limitations without chang
   const original = structuredClone(snapshot);
   render(<Statistics route={snapshot} speedKmh={18} />);
   expect(
-    screen.getByText('Manual straight-line distance may underestimate the actual path.'),
+    screen.getByText(
+      'Direct sections are lengthened by 20% because a straight line is shorter than the path. The range stays wider.',
+    ),
   ).toBeInTheDocument();
   expect(
     screen.getByText(
-      i18n.t('Complete GPX heights unavailable: climbing is not included; the range is wider.'),
+      i18n.t(
+        'Complete heights unavailable: climbing is not included. A single time estimate uses the top of the range.',
+      ),
     ),
   ).toBeInTheDocument();
   expect(snapshot).toEqual(original);

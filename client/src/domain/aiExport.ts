@@ -1,4 +1,5 @@
 import { analyzeClimbs, CLIMB_THRESHOLDS } from './climbs';
+import { measureElevation } from './stats';
 import { estimateRouteSchedule, validPauseMinutes } from './schedule';
 import { estimatePersonalTime, type PersonalTimeOptions } from './time';
 import type { PlannedRoute } from './types';
@@ -61,6 +62,7 @@ export function buildAiExport(
   },
 ): string {
   const analysis = analyzeClimbs(route);
+  const measured = analysis.available ? measureElevation(route.segments) : null;
   const personal = options.personalTime ? estimatePersonalTime(route, options.personalTime) : null;
   const schedule = estimateRouteSchedule(route, personal?.moving ?? NaN);
   const offsetMinutes = (value: string | null) =>
@@ -75,8 +77,8 @@ export function buildAiExport(
     originalDurationSeconds: metric(route.stats.duration),
     elevation: {
       source: analysis.available ? analysis.elevationSource : null,
-      ascentMetres: analysis.available ? metric(route.stats.ascent) : null,
-      descentMetres: analysis.available ? metric(route.stats.descent) : null,
+      ascentMetres: measured ? measured.ascent : null,
+      descentMetres: measured ? measured.descent : null,
     },
     segmentCount: route.segments.length,
     trackPointCount: route.segments.reduce((sum, segment) => sum + segment.length, 0),

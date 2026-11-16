@@ -20,6 +20,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { gpxFilename } from '../domain/gpx';
+import { measureElevation } from '../domain/stats';
 import { formatDistance, formatDuration } from '../domain/format';
 import type { PlannedRoute } from '../domain/types';
 import { formatNumber, translateMessage } from '../i18n';
@@ -33,28 +34,23 @@ function useRouteExportFacts(route: PlannedRoute) {
     () => route.segments.reduce((sum, segment) => sum + segment.length, 0),
     [route.segments],
   );
-  const completeHeights = useMemo(
-    () => route.segments.every((segment) => segment.every((point) => Number.isFinite(point[2]))),
-    [route.segments],
-  );
-  const showElevation =
-    (route.source === 'gpx' || route.elevationSource === 'openrouteservice') &&
-    trackPoints > 1 &&
-    completeHeights &&
-    Number.isFinite(route.stats.ascent) &&
-    Number.isFinite(route.stats.descent);
+  const measuredElevation = useMemo(() => {
+    if (route.source !== 'gpx' && route.elevationSource !== 'openrouteservice') return null;
+    return measureElevation(route.segments);
+  }, [route.elevationSource, route.segments, route.source]);
+  const showElevation = measuredElevation !== null;
   const heroDetails = useMemo(
     () => [
       [t('Distance'), formatDistance(route.stats.distance)],
       [t('Original time estimate'), formatDuration(route.stats.duration)],
-      ...(showElevation
+      ...(measuredElevation
         ? [
-            [t('Elevation gain'), `${formatNumber(Math.round(route.stats.ascent!))} ${t('m')}`],
-            [t('Elevation loss'), `${formatNumber(Math.round(route.stats.descent!))} ${t('m')}`],
+            [t('Elevation gain'), `${formatNumber(Math.round(measuredElevation.ascent))} ${t('m')}`],
+            [t('Elevation loss'), `${formatNumber(Math.round(measuredElevation.descent))} ${t('m')}`],
           ]
         : []),
     ],
-    [route.stats, showElevation, t],
+    [measuredElevation, route.stats.distance, route.stats.duration, t],
   );
   const technicalDetails = useMemo(
     () => [
@@ -64,7 +60,13 @@ function useRouteExportFacts(route: PlannedRoute) {
     ],
     [route.segments.length, route.waypoints.length, trackPoints, t],
   );
-  return { showElevation, heroDetails, technicalDetails, trackPoints };
+  return {
+    showElevation,
+    heroDetails,
+    technicalDetails,
+    trackPoints,
+    elevationGain: measuredElevation?.ascent,
+  };
 }
 
 export function ExportDialog({
@@ -85,7 +87,7 @@ export function ExportDialog({
   const [error, setError] = useState<string | null>(null);
   const filenameInput = useRef<HTMLInputElement>(null);
   const shell = useRef<HTMLDivElement>(null);
-  const { showElevation, heroDetails, technicalDetails } = useRouteExportFacts(route);
+  const { showElevation, heroDetails, technicalDetails, elevationGain } = useRouteExportFacts(route);
 
   useEffect(() => {
     if (mode !== 'roadbook') return;
@@ -171,7 +173,7 @@ export function ExportDialog({
             <RouteCardExport
               route={route}
               personalTime={personalTime}
-              elevationGain={showElevation ? route.stats.ascent : undefined}
+              elevationGain={showElevation ? elevationGain : undefined}
               actionsContainer={actionsContainer}
             />
           ) : mode === 'roadbook' ? (

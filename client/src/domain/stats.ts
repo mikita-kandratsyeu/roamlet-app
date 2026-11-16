@@ -24,12 +24,126 @@ function distanceBetween(a: Coordinate, b: Coordinate): number {
   return 2 * EARTH_RADIUS * Math.asin(Math.sqrt(Math.min(1, Math.max(0, h))));
 }
 
-/** Distances are metres; duration is seconds. Segment gaps never contribute. */
+/** A reversal smaller than this is GPS noise, not gain or loss. */
+export const ELEVATION_REVERSAL_METERS = 3;
+
+export interface FilteredElevation {
+  ascent: number;
+  descent: number;
+  /** Horizontal metres of climbs at or above the requested grade. */
+  steepAscent: number;
+  steepHorizontal: number;
+  /** Horizontal metres of every non-stationary edge. */
+  horizontal: number;
+}
+
+function profileIsComplete(segments: Coordinate[][]): boolean {
+  return (
+    Array.isArray(segments) &&
+    segments.length > 0 &&
+    segments.every((segment) => Array.isArray(segment)) &&
+    segments.some((segment) => segment.length > 1) &&
+    segments.every((segment) =>
+      segment.every((point) => Array.isArray(point) && Number.isFinite(point[2])),
+    )
+  );
+}
+
+/**
+ * Noise-filtered ascent. `sign` -1 measures descent with the same 3 m hysteresis.
+ * A stationary edge closes the current run and adds nothing: a height jump at one
+ * coordinate is not gain. Segment gaps never connect.
+ */
+function filteredChange(
+  segments: Coordinate[][],
+  sign: 1 | -1,
+  steepGrade: number,
+): Pick<FilteredElevation, 'ascent' | 'steepAscent' | 'steepHorizontal' | 'horizontal'> | null {
+  if (!profileIsComplete(segments)) return null;
+  let ascent = 0;
+  let steepAscent = 0;
+  let steepHorizontal = 0;
+  let horizontal = 0;
+  for (const segment of segments) {
+    if (!segment.length) continue;
+    let along = 0;
+    let valley = sign * segment[0][2]!;
+    let valleyAt = 0;
+    let peak = valley;
+    let peakAt = 0;
+    let climbing = false;
+    const close = () => {
+      if (!climbing) return;
+      const gain = peak - valley;
+      const length = peakAt - valleyAt;
+      ascent += gain;
+      if (length > 0 && gain / length >= steepGrade) {
+        steepAscent += gain;
+        steepHorizontal += length;
+      }
+      climbing = false;
+    };
+    for (let index = 1; index < segment.length; index++) {
+      const edge = distanceBetween(segment[index - 1], segment[index]);
+      const height = sign * segment[index][2]!;
+      if (!(edge > 0)) {
+        close();
+        valley = peak = height;
+        valleyAt = peakAt = along;
+        continue;
+      }
+      along += edge;
+      horizontal += edge;
+      if (!climbing) {
+        if (height < valley) {
+          valley = height;
+          valleyAt = along;
+        }
+        if (height - valley >= ELEVATION_REVERSAL_METERS) {
+          peak = height;
+          peakAt = along;
+          climbing = true;
+        }
+      } else if (height > peak) {
+        peak = height;
+        peakAt = along;
+      } else if (peak - height >= ELEVATION_REVERSAL_METERS) {
+        close();
+        valley = peak = height;
+        valleyAt = peakAt = along;
+      }
+    }
+    close();
+  }
+  return { ascent, steepAscent, steepHorizontal, horizontal };
+}
+
+/**
+ * One elevation total for statistics and time. Steep fields use `steepGrade`
+ * (rise over horizontal run). The default keeps those fields at zero.
+ */
+export function measureElevation(
+  segments: Coordinate[][],
+  steepGrade = Number.POSITIVE_INFINITY,
+): FilteredElevation | null {
+  const ascent = filteredChange(segments, 1, steepGrade);
+  const descent = filteredChange(segments, -1, Number.POSITIVE_INFINITY);
+  if (!ascent || !descent) return null;
+  return {
+    ascent: ascent.ascent,
+    descent: descent.ascent,
+    steepAscent: ascent.steepAscent,
+    steepHorizontal: ascent.steepHorizontal,
+    horizontal: ascent.horizontal,
+  };
+}
+
+/** Distances are metres; duration is seconds. Segment gaps never contribute.
+ * Ascent and descent use the shared 3 m filter, so they match the time estimate.
+ */
 export function calculateStats(segments: Coordinate[][], activity: Activity): RouteStats {
   if (activity !== 'cycling' && activity !== 'hiking') throw new Error('Unsupported activity.');
   let distance = 0;
-  let ascent = 0;
-  let descent = 0;
   let count = 0;
   let complete = true;
   for (const segment of segments) {
@@ -39,20 +153,18 @@ export function calculateStats(segments: Coordinate[][], activity: Activity): Ro
       count++;
       complete &&= point.length === 3;
       if (index === 0) continue;
-      const previous = segment[index - 1];
-      distance += distanceBetween(previous, point);
-      if (point.length === 3 && previous.length === 3) {
-        const change = point[2] - previous[2];
-        ascent += Math.max(0, change);
-        descent += Math.max(0, -change);
-      }
+      distance += distanceBetween(segment[index - 1], point);
     }
   }
   const result: RouteStats = {
     distance,
     duration: distance / ((activity === 'cycling' ? 18 : 5) / 3.6),
   };
-  if (complete && count > 0) Object.assign(result, { ascent, descent });
+  if (complete && count > 0) {
+    const measured = measureElevation(segments);
+    result.ascent = measured?.ascent ?? 0;
+    result.descent = measured?.descent ?? 0;
+  }
   return result;
 }
 

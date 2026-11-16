@@ -1,3 +1,4 @@
+import { calculateStats, measureElevation } from './stats';
 import type { Coordinate, PlannedRoute } from './types';
 
 export type Fitness = 'beginner' | 'regular' | 'trained';
@@ -40,45 +41,33 @@ export interface TimeRange {
 export type TimeWarning =
   'unknown-surface' | 'missing-elevation' | 'manual-distance' | 'cycling-climb';
 
-// A 3 m reversal threshold suppresses small GPS oscillations; segments never connect.
+/** Straight-line legs are shorter than a path. Applied to the point estimate only. */
+export const DIRECT_DISTANCE_FACTOR = 1.2;
+/** Below this grade, cycling keeps flat speed. At or above it, vertical speed replaces that speed. */
+export const CYCLING_STEEP_GRADE = 0.04;
+
+/** Filtered ascent shared with route statistics. Stationary jumps and gaps add nothing. */
 export function reliableAscent(segments: Coordinate[][]): number | null {
-  if (
-    !Array.isArray(segments) ||
-    !segments.length ||
-    segments.some((segment) => !Array.isArray(segment)) ||
-    !segments.some((segment) => segment.length > 1)
-  )
+  const measured = measureElevation(segments);
+  return measured && Number.isFinite(measured.ascent) ? measured.ascent : null;
+}
+
+function geometryDistance(segments: Coordinate[][] | undefined): number | null {
+  if (!segments?.length) return null;
+  try {
+    return calculateStats(segments, 'hiking').distance;
+  } catch {
     return null;
-  if (
-    segments.some((segment) =>
-      segment.some((point) => !Array.isArray(point) || !Number.isFinite(point[2])),
-    )
-  )
-    return null;
-  let ascent = 0;
-  for (const segment of segments) {
-    if (!segment.length) continue;
-    let valley = segment[0][2]!;
-    let peak = valley;
-    let climbing = false;
-    for (const point of segment.slice(1)) {
-      const height = point[2]!;
-      if (!climbing) {
-        valley = Math.min(valley, height);
-        if (height - valley >= 3) {
-          peak = height;
-          climbing = true;
-        }
-      } else if (height > peak) peak = height;
-      else if (peak - height >= 3) {
-        ascent += peak - valley;
-        valley = height;
-        climbing = false;
-      }
-    }
-    if (climbing) ascent += peak - valley;
   }
-  return Number.isFinite(ascent) ? ascent : null;
+}
+
+function directDistanceFactor(route: PlannedRoute): number {
+  if (route.source === 'manual') return DIRECT_DISTANCE_FACTOR;
+  if (!route.directSegments?.length) return 1;
+  const direct = geometryDistance(route.directSegments);
+  const total = geometryDistance(route.segments);
+  if (direct === null || total === null || !(total > 0)) return DIRECT_DISTANCE_FACTOR;
+  return 1 + (DIRECT_DISTANCE_FACTOR - 1) * Math.min(1, direct / total);
 }
 
 export function planningReferenceTime(
@@ -114,17 +103,27 @@ export function estimatePersonalTime(route: PlannedRoute, options: PersonalTimeO
     cycling: { unknown: 1, paved: 1, mixed: 1.2, rough: 1.5 },
   };
   const surfaceFactor = surfaceFactors[route.activity][options.surface];
-  const ascentMetres =
-    route.source === 'gpx' || route.elevationSource === 'openrouteservice'
-      ? reliableAscent(route.segments)
-      : null;
+  const trustedElevation =
+    route.source === 'gpx' || route.elevationSource === 'openrouteservice';
+  const measured = trustedElevation
+    ? measureElevation(route.segments, CYCLING_STEEP_GRADE)
+    : null;
+  const ascentMetres = measured?.ascent ?? null;
+  const pace = route.stats.distance > 0 ? base.moving / route.stats.distance : 0;
+  const effectiveDistance = route.stats.distance * directDistanceFactor(route);
+  const steepShare =
+    route.activity === 'cycling' && measured && measured.horizontal > 0
+      ? Math.min(1, measured.steepHorizontal / measured.horizontal)
+      : 0;
+  const flatDistance = effectiveDistance * (1 - steepShare);
   const climbSeconds =
-    ascentMetres === null
+    measured === null
       ? 0
       : route.activity === 'hiking'
-        ? ascentMetres * 6 * { beginner: 1.3, regular: 1, trained: 0.9 }[options.fitness]
-        : (ascentMetres / { beginner: 300, regular: 450, trained: 600 }[options.fitness]) * 3600;
-  const moving = base.moving * surfaceFactor + climbSeconds;
+        ? measured.ascent * 6 * { beginner: 1.3, regular: 1, trained: 0.9 }[options.fitness]
+        : (measured.steepAscent / { beginner: 300, regular: 450, trained: 600 }[options.fitness]) *
+          3600;
+  let moving = flatDistance * pace * surfaceFactor + climbSeconds;
   const stops = options.stopsMinutes * 60;
   const warnings: TimeWarning[] = [];
   if (options.surface === 'unknown') warnings.push('unknown-surface');
@@ -139,6 +138,8 @@ export function estimatePersonalTime(route: PlannedRoute, options: PersonalTimeO
   const upperSpread = lowerSpread + (ascentMetres === null ? 0.2 : 0) + (hasDirectLegs ? 0.3 : 0);
   const movingRange = { lower: moving * (1 - lowerSpread), upper: moving * (1 + upperSpread) };
   const totalRange = { lower: movingRange.lower + stops, upper: movingRange.upper + stops };
+  // Without heights the centre would ignore every climb. Use the top of the unchanged range.
+  if (ascentMetres === null) moving = movingRange.upper;
   const total = moving + stops;
   const automatic =
     route.source === 'openrouteservice' || route.source === 'mapbox' || route.source === 'mixed';

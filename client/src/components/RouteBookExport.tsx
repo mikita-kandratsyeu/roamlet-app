@@ -120,11 +120,9 @@ export function RouteBookExport({
   const chart = elevation
     ? elevationPaths(elevationSamples, elevation.distance, minimum, maximum)
     : { lines: [], areas: [] };
-  const ascent = elevation?.complete ? (route.stats.ascent ?? elevation.ascent) : elevation?.ascent;
-  const descent = elevation?.complete
-    ? (route.stats.descent ?? elevation.descent)
-    : elevation?.descent;
   const hasElevation = Boolean(elevation?.available);
+  const ascent = hasElevation ? elevation?.ascent : undefined;
+  const descent = hasElevation ? elevation?.descent : undefined;
   const description = route.description.trim();
   const tags = (route.tags ?? []).map((tag) => tag.trim()).filter(Boolean);
   const personal = useMemo(

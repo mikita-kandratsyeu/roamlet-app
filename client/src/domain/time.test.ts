@@ -90,16 +90,34 @@ it.each([
 ] as const)('applies explicit %s %s factor only to flat time', (activity, surface, factor) => {
   const result = estimatePersonalTime(route({ activity }), { ...options, surface })!;
   expect(result.surfaceFactor).toBe(factor);
-  expect(result.moving).toBeCloseTo(3600 * factor + result.climbSeconds);
+  if (activity === 'hiking') expect(result.moving).toBeCloseTo(3600 * factor + result.climbSeconds);
+  else expect(result.moving).toBeCloseTo(result.climbSeconds);
 });
 it.each([
   ['beginner', 7200],
   ['regular', 4800],
   ['trained', 3600],
-] as const)('uses explicit rough cycling climb allowance for %s', (fitness, seconds) => {
+] as const)('replaces flat cycling time with vertical speed on a steep climb for %s', (fitness, seconds) => {
   const result = estimatePersonalTime(route({ activity: 'cycling' }), { ...options, fitness })!;
   expect(result.climbSeconds).toBe(seconds);
+  expect(result.moving).toBe(seconds);
   expect(result.warnings).toContain('cycling-climb');
+});
+it('keeps gentle cycling climbs at flat speed', () => {
+  const gentle = route({
+    activity: 'cycling',
+    segments: [
+      [
+        [0, 0, 0],
+        [0.02, 0, 20],
+      ],
+    ],
+  });
+  const result = estimatePersonalTime(gentle, options)!;
+  expect(result.ascentMetres).toBe(20);
+  expect(result.climbSeconds).toBe(0);
+  expect(result.moving).toBe(3600);
+  expect(result.warnings).not.toContain('cycling-climb');
 });
 it('filters sub-threshold GPS oscillations, keeps sustained climbs, and never joins segment gaps', () => {
   const segments: Coordinate[][] = [
@@ -121,6 +139,15 @@ it('filters sub-threshold GPS oscillations, keeps sustained climbs, and never jo
   ];
   const original = structuredClone(segments);
   expect(reliableAscent(segments)).toBe(9);
+  expect(
+    reliableAscent([
+      [
+        [0, 0, 0],
+        [0, 0, 80],
+        [0.01, 0, 80],
+      ],
+    ]),
+  ).toBe(0);
   expect(segments).toEqual(original);
   expect(
     reliableAscent([
@@ -180,7 +207,10 @@ it.each(['openrouteservice', 'mapbox', 'manual'] as const)(
     const snapshot = route({ source }),
       original = structuredClone(snapshot);
     const result = estimatePersonalTime(snapshot, options)!;
-    expect(result.moving).toBe(3600);
+    const lengthened = source === 'manual' ? 3600 * 1.2 : 3600;
+    expect(result.moving).toBeCloseTo(lengthened * 1.4 + (source === 'manual' ? lengthened * 0.3 : 0));
+    expect(result.moving).toBe(result.movingRange.upper);
+    expect(result.total).toBe(result.totalRange.upper);
     expect(result.ascentMetres).toBeNull();
     expect(snapshot).toEqual(original);
     expect(result.warnings.includes('manual-distance')).toBe(source === 'manual');
@@ -238,11 +268,11 @@ it.each(['openrouteservice', 'mapbox'] as const)(
     const snapshot = route({ source, stats: { distance: 1344, duration: 3600 } });
     const original = structuredClone(snapshot);
     const faster = estimatePersonalTime(snapshot, { ...options, speedKmh: 18, stopsMinutes: 15 })!;
-    expect(faster.moving).toBeCloseTo(268.8);
+    expect(faster.moving).toBeCloseTo(268.8 * 1.4);
     expect(faster.planningReference).toBe(4500);
     const slower = estimatePersonalTime(snapshot, { ...options, speedKmh: 1, stopsMinutes: 15 })!;
-    expect(slower.moving).toBeCloseTo(4838.4);
-    expect(slower.planningReference).toBeCloseTo(5738.4);
+    expect(slower.moving).toBeCloseTo(4838.4 * 1.4);
+    expect(slower.planningReference).toBeCloseTo(4838.4 * 1.4 + 900);
     expect(snapshot).toEqual(original);
   },
 );

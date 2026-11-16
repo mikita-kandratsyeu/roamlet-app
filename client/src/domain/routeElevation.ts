@@ -1,4 +1,4 @@
-import { calculateStats } from './stats';
+import { calculateStats, measureElevation } from './stats';
 import type { Coordinate } from './types';
 
 export interface RouteElevationSample {
@@ -43,8 +43,6 @@ export function analyzeRouteElevation(segments: Coordinate[][]): RouteElevationA
   const samples: RouteElevationSample[] = [];
   const runs: Coordinate[][] = [];
   let distance = 0;
-  let ascent = 0;
-  let descent = 0;
   for (const segment of segments) {
     if (!segment.length) continue;
     if (samples.length) samples.push({ distance, elevation: null });
@@ -62,9 +60,6 @@ export function analyzeRouteElevation(segments: Coordinate[][]): RouteElevationA
             runs.push(run);
           }
           run.push(point);
-          const change = point[2] - previous[2];
-          ascent += Math.max(0, change);
-          descent += Math.max(0, -change);
         } else {
           run = undefined;
         }
@@ -76,12 +71,13 @@ export function analyzeRouteElevation(segments: Coordinate[][]): RouteElevationA
       );
     }
   }
+  const measured = runs.length ? measureElevation(runs) : null;
   return {
     available: runs.length > 0,
     complete: stats.ascent !== undefined,
     distance: stats.distance,
-    ascent,
-    descent,
+    ascent: measured?.ascent ?? 0,
+    descent: measured?.descent ?? 0,
     samples,
     runs,
   };
