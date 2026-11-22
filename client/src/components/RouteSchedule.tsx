@@ -29,6 +29,8 @@ export interface RouteScheduleProps {
   departureLocal?: string;
   /** Moving-only seconds (e.g. estimatePersonalTime(...).moving), NEVER total including stops. */
   movingSeconds: number | null;
+  /** True when that moving estimate is the top of the personal range because heights are incomplete. */
+  movingAtRangeTop?: boolean;
   geometryCurrent?: boolean;
   /** Change on route/session switches to discard unfinished input buffers. */
   contextKey?: string;
@@ -215,7 +217,7 @@ function PauseField({ waypoint, onCommit }: {
     </p>}
   </div>;
 }
-export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds,
+export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds, movingAtRangeTop = false,
   geometryCurrent = true, contextKey, showHeading = true, calendar, onDepartureLocal, onWaypointPause }: RouteScheduleProps) {
   const { t, i18n } = useTranslation();
   const segments = geometryCurrent ? route?.segments ?? emptySegments : emptySegments;
@@ -273,7 +275,9 @@ export function RouteSchedule({ route, waypoints, departureLocal, movingSeconds,
       <div className="route-schedule-explanation-body">
         <p className="fine-print">{t('Local clock times; timezone and daylight-saving changes are not applied.')}</p>
         <p className="fine-print">{t('Waypoint pauses apply after arrival and replace aggregate stops for this schedule only.')}</p>
+        <p className="fine-print">{t('Arrivals use the personal moving estimate and pauses on stops, not the time range or aggregate stops.')}</p>
         <p className="fine-print">{t('Moving time is distributed by distance along the route; local terrain and speed may vary.')}</p>
+        {movingAtRangeTop && <p className="fine-print">{t('Complete heights unavailable: climbing is not included. A single time estimate uses the top of the range.')}</p>}
       </div>
     </details>
   </section>;

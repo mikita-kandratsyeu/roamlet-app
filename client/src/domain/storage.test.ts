@@ -174,7 +174,9 @@ it('isolates malformed records while returning valid snapshots and retaining eve
     { ...fixture(), id: 'unindexed', updatedAt: undefined } as unknown as PlannedRoute,
   ]);
   const diagnostic = vi.fn();
-  expect(await listRoutes(diagnostic)).toEqual([{ ...fixture(), favorite: false, tags: [] }]);
+  expect(await listRoutes(diagnostic)).toEqual([
+    { ...fixture(), favorite: false, tags: [], surface: 'unknown' },
+  ]);
   expect(diagnostic).toHaveBeenCalledWith(2);
   expect(await routeDb.routes.count()).toBe(3);
 });

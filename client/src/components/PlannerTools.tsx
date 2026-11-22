@@ -91,12 +91,13 @@ export function PlannerTools({
     contextKey,
   );
   return (
-    <details className="personal-time-section planner-disclosure" open={open}
-      onToggle={(event) => setOpen(event.currentTarget.open)}>
+    <details
+      className="personal-time-section planner-disclosure"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
       <summary className="section-heading personal-time-heading">
-        <span>
-          {t('Personal time')}
-        </span>
+        <span>{t('Personal time')}</span>
         <span className="disclosure-toggle" aria-hidden="true">
           <ChevronDown size={18} />
         </span>
@@ -177,8 +178,8 @@ export function PlannerTools({
       <p className="personal-time-help">
         {t(
           surface === 'unknown'
-            ? 'Unknown surface widens the range; terrain is not detected.'
-            : 'Surface is your choice, not detected from the route.',
+            ? 'Unknown surface widens the range and is saved with this route. Terrain is not detected.'
+            : 'This surface is saved with the route. It is your choice, not detected from the map.',
         )}
       </p>
     </details>

@@ -45,7 +45,7 @@ describe('versioned library backup', () => {
     expect(data.version).toBe(1);
     expect(data.routes).toEqual([original]);
     expect(await importBackup(data)).toEqual({ imported: 1, skipped: 0, copied: 0, replaced: 0 });
-    expect(await routeDb.routes.get(original.id)).toEqual(original);
+    expect(await routeDb.routes.get(original.id)).toEqual({ ...original, surface: 'unknown' });
   });
   it.each(['skip', 'replace', 'copy'] as const)(
     'handles %s conflicts without changing the supplied snapshots',
@@ -61,7 +61,7 @@ describe('versioned library backup', () => {
         expect(result.skipped).toBe(1);
       }
       if (mode === 'replace') {
-        expect(rows).toEqual([route()]);
+        expect(rows).toEqual([{ ...route(), surface: 'unknown' }]);
         expect(result.replaced).toBe(1);
       }
       if (mode === 'copy') {
@@ -113,6 +113,7 @@ describe('versioned library backup', () => {
     { stats: { distance: -1, duration: 1 } },
     { stats: { distance: 1, duration: Infinity } },
     { favorite: 'yes' },
+    { surface: 'gravel' },
     { tags: ['ok', 1] },
     { waypoints: [{ id: 'a', name: 'A', coordinate: null }] },
   ])('validates unknown route fields safely', (patch) => {

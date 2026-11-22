@@ -1,3 +1,5 @@
+import type { Surface } from './time';
+
 export type Activity = 'cycling' | 'hiking';
 export type Coordinate = [number, number] | [number, number, number];
 export type LegMode = 'automatic' | 'direct';
@@ -35,6 +37,8 @@ export interface PlannedRoute {
   activity: Activity;
   /** Floating local calendar time YYYY-MM-DDTHH:mm, without timezone/DST conversion. */
   departureLocal?: string;
+  /** Explicit route surface. Missing on older routes and means unknown. */
+  surface?: Surface;
   segments: Coordinate[][];
   waypoints: Waypoint[];
   stats: RouteStats;

@@ -435,11 +435,13 @@ export function RouteBookExport({
                   <li key={`${climb.segmentIndex}-${climb.startDistanceMeters}`}>
                     <strong>{t('Climb {{number}}', { number: formatNumber(index + 1) })}</strong>
                     <span>
-                      {formatDistance(climb.startDistanceMeters)} – {formatDistance(climb.endDistanceMeters)}
+                      {formatDistance(climb.startDistanceMeters)} –{' '}
+                      {formatDistance(climb.endDistanceMeters)}
                     </span>
                     <span className="roadbook-climb-meta">
-                      {formatDistance(climb.lengthMeters)} · {formatNumber(Math.round(climb.ascentMeters))}{' '}
-                      {t('m')} · {formatNumber(climb.averageGradePercent, { maximumFractionDigits: 1 })}%
+                      {formatDistance(climb.lengthMeters)} ·{' '}
+                      {formatNumber(Math.round(climb.ascentMeters))} {t('m')} ·{' '}
+                      {formatNumber(climb.averageGradePercent, { maximumFractionDigits: 1 })}%
                     </span>
                   </li>
                 ))}
@@ -469,7 +471,9 @@ export function RouteBookExport({
                       : schedule.unavailable === 'waypoints'
                         ? t('At least two ordered waypoints must match the route to show arrivals.')
                         : schedule.unavailable === 'unmatched-waypoint'
-                          ? t('This waypoint does not match the route; later arrivals are unavailable.')
+                          ? t(
+                              'This waypoint does not match the route; later arrivals are unavailable.',
+                            )
                           : schedule.unavailable === 'disconnected'
                             ? t('This track has a gap; arrival times across it are unavailable.')
                             : schedule.unavailable === 'pause'
@@ -481,11 +485,18 @@ export function RouteBookExport({
               <p className="roadbook-elevation-note">
                 {personal
                   ? t(
-                      'Arrival times follow your moving pace and the pauses saved on stops. Local clock only. Daylight-saving changes are not applied.',
+                      'Arrival times follow the personal moving estimate and the pauses saved on stops. Local clock only. Daylight-saving changes are not applied.',
                     )
                   : t(
                       'Arrival times follow the original moving estimate and the pauses saved on stops. Local clock only. Daylight-saving changes are not applied.',
                     )}
+              </p>
+            )}
+            {timesReady && personal?.warnings.includes('missing-elevation') && (
+              <p className="roadbook-elevation-note">
+                {t(
+                  'Complete heights unavailable: climbing is not included. A single time estimate uses the top of the range.',
+                )}
               </p>
             )}
             {route.waypoints.length ? (
@@ -530,7 +541,10 @@ export function RouteBookExport({
                             {coordinates(waypoint.coordinate)}
                           </p>
                         )}
-                        {(position || legMetres !== null || timed?.arrivalLocal || waypoint.legMode === 'direct') && (
+                        {(position ||
+                          legMetres !== null ||
+                          timed?.arrivalLocal ||
+                          waypoint.legMode === 'direct') && (
                           <dl className="roadbook-stop-facts">
                             {position && (
                               <div>

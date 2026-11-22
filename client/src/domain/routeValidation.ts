@@ -2,6 +2,7 @@ import type { PlannedRoute } from './types';
 import { validRoutingOptions } from './routingOptions';
 import { validLegMode } from './waypointLegs';
 import { validDepartureLocal, validPauseMinutes } from './schedule';
+import { isSurface } from './time';
 
 const record = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -52,6 +53,7 @@ export function validateRoute(value: unknown): asserts value is PlannedRoute {
     !validTimestamp(value.createdAt) ||
     !validTimestamp(value.updatedAt) ||
     (value.departureLocal !== undefined && !validDepartureLocal(value.departureLocal)) ||
+    (value.surface !== undefined && !isSurface(value.surface)) ||
     (value.routingOptions !== undefined && !validRoutingOptions(value.routingOptions)) ||
     (value.routingInputKey !== undefined && !text(value.routingInputKey)) ||
     (value.elevationSource !== undefined && value.elevationSource !== 'openrouteservice') ||
@@ -120,5 +122,10 @@ export function validateRoute(value: unknown): asserts value is PlannedRoute {
 }
 
 export function withRouteDefaults(route: PlannedRoute): PlannedRoute {
-  return { ...route, favorite: route.favorite ?? false, tags: route.tags ?? [] };
+  return {
+    ...route,
+    favorite: route.favorite ?? false,
+    tags: route.tags ?? [],
+    surface: route.surface ?? 'unknown',
+  };
 }

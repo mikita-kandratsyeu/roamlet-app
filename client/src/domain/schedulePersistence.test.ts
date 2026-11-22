@@ -98,3 +98,18 @@ it('keeps aggregate stops and estimates intact, adding only waypoint pauses to t
   expect(options.stopsMinutes).toBe(90);
   expect(estimatePersonalTime(route, options)).toEqual(estimate);
 });
+it('stores the surface choice with the route and reads older routes as unknown', async () => {
+  const route = { ...fixture(), surface: 'rough' as const };
+  await saveRoute(route);
+  const saved = (await listRoutes()).find((value) => value.id === route.id)!;
+  expect(saved.surface).toBe('rough');
+  expect((await duplicateRoute(saved)).surface).toBe('rough');
+  expect(parseBackup(exportBackup([saved])).routes[0].surface).toBe('rough');
+  await importBackup(parseBackup(exportBackup([saved])), 'replace');
+  expect((await listRoutes()).find((value) => value.id === route.id)?.surface).toBe('rough');
+  const legacy = { ...fixture(), id: 'legacy' };
+  delete legacy.surface;
+  await saveRoute(legacy);
+  expect((await listRoutes()).find((value) => value.id === 'legacy')?.surface).toBe('unknown');
+  expect(() => validateRoute({ ...route, surface: 'gravel' })).toThrow();
+});

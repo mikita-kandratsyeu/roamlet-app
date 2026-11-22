@@ -755,7 +755,7 @@ export default function App() {
     setDraft(null);
     editor.reset({
       ...editor.snapshot,
-      surface: 'unknown',
+      surface: route.surface ?? 'unknown',
       identity: { id: route.id, createdAt: route.createdAt },
       savedRouteId: route.id,
       routeMetadata: { favorite: route.favorite, tags: route.tags },
@@ -789,6 +789,7 @@ export default function App() {
           name: name.trim() || i18n.t('Untitled adventure'),
           description: description.trim(),
           activity,
+          surface,
           updatedAt: new Date().toISOString(),
         }
       : null;
@@ -1921,6 +1922,7 @@ export default function App() {
                     waypoints={editor.scheduleWaypoints}
                     departureLocal={editor.departureLocal}
                     movingSeconds={personalTime?.moving ?? null}
+                    movingAtRangeTop={personalTime?.warnings.includes('missing-elevation') ?? false}
                     geometryCurrent={canUseRoute}
                     contextKey={editor.identity.id}
                     onDepartureLocal={(value) => {

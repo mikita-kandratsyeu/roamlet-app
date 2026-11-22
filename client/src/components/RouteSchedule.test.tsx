@@ -84,6 +84,8 @@ it('renders all arrival/departure rows with actual dates, next-day markers, and 
   fireEvent.click(summary);
   expect(details).toHaveAttribute('open');
   expect(screen.getByText(/replace aggregate stops for this schedule only/)).toBeVisible();
+  expect(screen.getByText(/personal moving estimate and pauses on stops/)).toBeVisible();
+  expect(screen.queryByText(/top of the range/)).not.toBeInTheDocument();
   expect(screen.getByText(/daylight-saving changes are not applied/)).toBeVisible();
   fireEvent.click(summary);
   expect(details).not.toHaveAttribute('open');
@@ -195,4 +197,10 @@ it('shows unavailable instead of guessed times for absent pins, off-route pins a
   expect(screen.getByText(i18n.t('This track has a gap; arrival times across it are unavailable.'))).toBeVisible();
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
   expect(screen.getAllByRole('listitem')[1].querySelector('time')).toBeNull();
+});
+it('names the top of the personal range only when heights are incomplete', () => {
+  render(<RouteSchedule {...props()} movingAtRangeTop />);
+  fireEvent.click(screen.getByText('How arrival times are estimated'));
+  expect(screen.getByText(/single time estimate uses the top of the range/)).toBeVisible();
+  expect(screen.getByText(/personal moving estimate and pauses on stops/)).toBeVisible();
 });
