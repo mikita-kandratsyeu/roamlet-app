@@ -227,6 +227,11 @@ describe('weather interaction', () => {
       'https://open-meteo.com/',
     );
     expect(screen.getAllByRole('listitem')).toHaveLength(6);
+    expect(document.querySelectorAll('.route-weather-meter')).toHaveLength(7);
+    expect(document.querySelector('.route-weather-compass svg')).toHaveStyle({
+      transform: 'rotate(270deg)',
+    });
+    expect(document.querySelectorAll('.route-weather-hours li[data-tone="mild"]')).toHaveLength(6);
     expect(fetch).toHaveBeenCalledOnce();
     expect(readWeatherCache(weatherLocationKey(coordinate))).not.toBeNull();
   });

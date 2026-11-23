@@ -1,3 +1,4 @@
+import { CloudRain, Droplets, Navigation, Wind } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWeather } from '../hooks/useWeather';
 import { weatherHours, WEATHER_FRESH_MS } from '../domain/weather';
@@ -6,6 +7,30 @@ import { formatNumber } from '../i18n';
 import { Button } from './ui/button';
 import './RouteWeather.css';
 
+function temperatureTone(temperature: number | null) {
+  if (temperature === null) return 'unknown';
+  if (temperature <= 0) return 'cold';
+  if (temperature < 10) return 'cool';
+  if (temperature < 22) return 'mild';
+  return 'warm';
+}
+function Meter({ value }: { value: number | null }) {
+  if (value === null) return null;
+  const width = `${Math.min(100, Math.max(0, value))}%`;
+  return (
+    <span className="route-weather-meter" aria-hidden="true">
+      <span style={{ width }} />
+    </span>
+  );
+}
+function WindCompass({ direction }: { direction: number | null }) {
+  if (direction === null) return null;
+  return (
+    <span className="route-weather-compass" aria-hidden="true">
+      <Navigation size={14} style={{ transform: `rotate(${direction}deg)` }} />
+    </span>
+  );
+}
 export function RouteWeather({
   coordinate,
   departureLocal,
@@ -25,12 +50,11 @@ export function RouteWeather({
     number === null
       ? t('Unavailable')
       : `${formatNumber(number, { maximumFractionDigits: 1 })} ${unit}`;
-  function localTime(time: string) {
-    return new Intl.DateTimeFormat(language, {
-      timeZone: 'UTC',
-      dateStyle: 'short',
-      timeStyle: 'short',
-    }).format(new Date(`${time}:00Z`));
+  function localTime(time: string, clock = false) {
+    const options: Intl.DateTimeFormatOptions = clock
+      ? { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }
+      : { timeZone: 'UTC', dateStyle: 'short', timeStyle: 'short' };
+    return new Intl.DateTimeFormat(language, options).format(new Date(`${time}:00Z`));
   }
   const outdated = forecast && Date.now() - forecast.fetchedAt >= WEATHER_FRESH_MS;
   return (
@@ -71,25 +95,27 @@ export function RouteWeather({
       </Button>
       {forecast && (
         <>
-          <p className="fine-print">
-            {t('Timezone at start: {{timezone}}', { timezone: forecast.timezone })}
-          </p>
-          <p className="fine-print">
-            {t('Loaded: {{time}}', {
-              time: new Intl.DateTimeFormat(language, {
-                dateStyle: 'short',
-                timeStyle: 'short',
-                timeZone: forecast.timezone,
-              }).format(new Date(forecast.fetchedAt)),
-            })}
-          </p>
-          {(weather.cached || outdated) && (
-            <p role="status">
-              {outdated
-                ? t('This cached forecast is over 30 minutes old. Refresh when online.')
-                : t('Showing a cached forecast.')}
+          <div className="route-weather-meta">
+            <p className="fine-print">
+              {t('Timezone at start: {{timezone}}', { timezone: forecast.timezone })}
             </p>
-          )}
+            <p className="fine-print">
+              {t('Loaded: {{time}}', {
+                time: new Intl.DateTimeFormat(language, {
+                  dateStyle: 'short',
+                  timeStyle: 'short',
+                  timeZone: forecast.timezone,
+                }).format(new Date(forecast.fetchedAt)),
+              })}
+            </p>
+            {(weather.cached || outdated) && (
+              <p role="status">
+                {outdated
+                  ? t('This cached forecast is over 30 minutes old. Refresh when online.')
+                  : t('Showing a cached forecast.')}
+              </p>
+            )}
+          </div>
           {!first ? (
             <p role="status">
               {t(
@@ -99,57 +125,80 @@ export function RouteWeather({
           ) : (
             <>
               <h3>{t('Forecast near departure')}</h3>
-              <div className="route-weather-summary">
-                <time dateTime={first.time}>{localTime(first.time)}</time>
-                <dl className="route-weather-highlight">
+              <div className="route-weather-board">
+                <div className="route-weather-hero">
+                  <time dateTime={first.time}>{localTime(first.time)}</time>
+                  <dl className="route-weather-highlight">
+                    <div>
+                      <dt>{t('Temperature')}</dt>
+                      <dd>{value(first.temperature, '°C')}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('Feels like')}</dt>
+                      <dd>{value(first.apparent, '°C')}</dd>
+                    </div>
+                  </dl>
+                </div>
+                <dl className="route-weather-metrics">
                   <div>
-                    <dt>{t('Temperature')}</dt>
-                    <dd>{value(first.temperature, '°C')}</dd>
+                    <dt>
+                      <Droplets size={14} aria-hidden="true" />
+                      {t('Precipitation probability')}
+                    </dt>
+                    <dd>
+                      {value(first.probability, '%')}
+                      <Meter value={first.probability} />
+                    </dd>
                   </div>
                   <div>
-                    <dt>{t('Feels like')}</dt>
-                    <dd>{value(first.apparent, '°C')}</dd>
+                    <dt>
+                      <CloudRain size={14} aria-hidden="true" />
+                      {t('Precipitation')}
+                    </dt>
+                    <dd>{value(first.precipitation, t('mm'))}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <Wind size={14} aria-hidden="true" />
+                      {t('Wind')}
+                    </dt>
+                    <dd>{value(first.wind, t('km/h'))}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <Wind size={14} aria-hidden="true" />
+                      {t('Wind gusts')}
+                    </dt>
+                    <dd>{value(first.gusts, t('km/h'))}</dd>
+                  </div>
+                  <div className="route-weather-direction">
+                    <dt>{t('Wind from')}</dt>
+                    <dd>
+                      <span>{value(first.direction, '°')}</span>
+                      <WindCompass direction={first.direction} />
+                    </dd>
                   </div>
                 </dl>
               </div>
-              <dl className="route-weather-metrics">
-                <div>
-                  <dt>{t('Precipitation probability')}</dt>
-                  <dd>{value(first.probability, '%')}</dd>
-                </div>
-                <div>
-                  <dt>{t('Precipitation')}</dt>
-                  <dd>{value(first.precipitation, t('mm'))}</dd>
-                </div>
-                <div>
-                  <dt>{t('Wind')}</dt>
-                  <dd>{value(first.wind, t('km/h'))}</dd>
-                </div>
-                <div>
-                  <dt>{t('Wind gusts')}</dt>
-                  <dd>{value(first.gusts, t('km/h'))}</dd>
-                </div>
-                <div>
-                  <dt>{t('Wind from')}</dt>
-                  <dd>{value(first.direction, '°')}</dd>
-                </div>
-              </dl>
               <h3>{t('Hourly forecast at start')}</h3>
               <ol className="route-weather-hours">
                 {hours.map((hour) => (
-                  <li key={hour.time}>
-                    <time dateTime={hour.time}>{localTime(hour.time)}</time>
+                  <li key={hour.time} data-tone={temperatureTone(hour.temperature)}>
+                    <time dateTime={hour.time}>{localTime(hour.time, true)}</time>
                     <dl>
                       <div>
-                        <dt>{t('Temperature')}</dt>
+                        <dt className="sr-only">{t('Temperature')}</dt>
                         <dd>{value(hour.temperature, '°C')}</dd>
                       </div>
                       <div>
-                        <dt>{t('Precipitation probability')}</dt>
-                        <dd>{value(hour.probability, '%')}</dd>
+                        <dt className="sr-only">{t('Precipitation probability')}</dt>
+                        <dd>
+                          {value(hour.probability, '%')}
+                          <Meter value={hour.probability} />
+                        </dd>
                       </div>
                       <div>
-                        <dt>{t('Wind')}</dt>
+                        <dt className="sr-only">{t('Wind')}</dt>
                         <dd>{value(hour.wind, t('km/h'))}</dd>
                       </div>
                     </dl>
