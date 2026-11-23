@@ -82,7 +82,9 @@ function RouteCardDetails({ route }: { route: PlannedRoute }) {
           <span className="library-activity">
             {route.activity === 'cycling' ? t('Cycling') : t('Hiking')}
           </span>
-          <span aria-hidden="true"> · </span>
+          <span className="library-meta-separator" aria-hidden="true">
+            {' · '}
+          </span>
           <span className="library-distance">{formatDistance(route.stats.distance)}</span>
         </span>
         <time
@@ -939,16 +941,6 @@ export function Library({
                       </Button>
                     </>
                   )}
-                  <Button
-                    variant="outline"
-                    className="library-open-action"
-                    aria-label={t('Open {{name}}', { name: route.name })}
-                    disabled={busy}
-                    onClick={() => onOpen(route)}
-                  >
-                    <ArrowUpRight size={18} aria-hidden="true" />
-                    <span className="library-open-label">{t('Open')}</span>
-                  </Button>
                   <div
                     className="library-actions"
                     role="group"
@@ -1048,6 +1040,16 @@ export function Library({
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    <Button
+                      variant="outline"
+                      className="library-open-action"
+                      aria-label={t('Open {{name}}', { name: route.name })}
+                      disabled={busy}
+                      onClick={() => onOpen(route)}
+                    >
+                      <ArrowUpRight size={18} aria-hidden="true" />
+                      <span className="library-open-label">{t('Open')}</span>
+                    </Button>
                   </div>
                 </li>
               ))}
