@@ -71,6 +71,22 @@
     }
   }
 
+  html[data-look='vice'] .brand-wordmark {
+    animation: vice-wordmark-glow 3.2s ease-in-out infinite alternate;
+  }
+
+  html[data-look='vice'] .header-menu-vice-item svg {
+    animation: vice-mark-pulse 600ms var(--motion-ease) both;
+  }
+
+  @media (hover: hover) {
+    html[data-look='vice'] button[data-slot='button'].bg-primary:hover:not(:disabled) {
+      box-shadow:
+        0 0 0 1px var(--primary),
+        0 8px 22px color-mix(in srgb, var(--primary) 28%, transparent);
+    }
+  }
+
   @media (max-width: 700px) {
     .planner {
       transition:
@@ -122,5 +138,30 @@
   to {
     opacity: 0;
     scale: 0.985;
+  }
+}
+
+@keyframes vice-mark-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+  45% {
+    opacity: 1;
+    filter: brightness(1.35) drop-shadow(0 0 4px var(--ring));
+  }
+}
+
+@keyframes vice-wordmark-glow {
+  from {
+    text-shadow:
+      0 0 12px color-mix(in srgb, var(--primary) 35%, transparent),
+      0 0 24px color-mix(in srgb, var(--accent-foreground) 18%, transparent);
+  }
+  to {
+    text-shadow:
+      0 0 18px color-mix(in srgb, var(--primary) 55%, transparent),
+      0 0 32px color-mix(in srgb, var(--accent-foreground) 28%, transparent);
   }
 }

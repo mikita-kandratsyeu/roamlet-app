@@ -16,6 +16,7 @@ import {
 import { Button } from './ui/button';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -25,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { isTheme, useTheme } from '../theme';
+import { ViceMark } from './ViceMark';
 import { Dialog } from './Dialog';
 import { Notification } from './Notification';
 import { loadPreferences, resetPreferences, PREFERENCES_ERROR_EVENT } from '../domain/preferences';
@@ -47,7 +49,7 @@ export function HeaderMenu({
   pwaInstalled,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const { theme, setTheme } = useTheme();
+  const { theme, look, setTheme, setLook } = useTheme();
   const [open, setOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [preferencesError, setPreferencesError] = useState(false);
@@ -305,6 +307,23 @@ export function HeaderMenu({
           </div>
           <p className="header-menu-note">
             {t('System theme follows OS settings. Language and theme are saved locally.')}
+          </p>
+          <DropdownMenuCheckboxItem
+            className="header-menu-item header-menu-vice-item"
+            checked={look === 'vice'}
+            onSelect={(event) => event.preventDefault()}
+            onCheckedChange={(checked) =>
+              activate(() => setLook(checked ? 'vice' : 'default'))
+            }
+          >
+            <ViceMark active={look === 'vice'} />
+            <span>{t('Vice look')}</span>
+            {look === 'vice' && (
+              <Check className="preference-check" size={18} aria-hidden="true" />
+            )}
+          </DropdownMenuCheckboxItem>
+          <p className="header-menu-note">
+            {t('Keeps your light or dark theme and swaps the color palette.')}
           </p>
           <DropdownMenuSeparator className="header-menu-separator" />
           <DropdownMenuItem

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { HeaderMenu } from './HeaderMenu';
 import { Toaster } from './ui/sonner';
 import userEvent from '@testing-library/user-event';
-import { ThemeProvider, THEME_STORAGE_KEY } from '../theme';
+import { LOOK_STORAGE_KEY, ThemeProvider, THEME_STORAGE_KEY } from '../theme';
 import { useRef, useState } from 'react';
 import { Dialog } from './Dialog';
 import { savePreferences, loadPreferences, PREFERENCES_KEY } from '../domain/preferences';
@@ -130,12 +130,30 @@ it('uses labeled icon choices with horizontal keyboard navigation without changi
   expect(light).toHaveAttribute('aria-checked', 'false');
   await user.keyboard('{ArrowDown}');
   await waitFor(() =>
-    expect(screen.getByRole('menuitem', { name: 'Help and data sources' })).toHaveFocus(),
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Welcome to Vice City' })).toHaveFocus(),
   );
   await user.keyboard('d');
   expect(dark).toHaveFocus();
   await user.keyboard('{Enter}');
   expect(document.documentElement).toHaveClass('dark');
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  expect(trigger).toHaveFocus();
+});
+
+it('toggles vice look from the menu without changing the theme row', async () => {
+  const { user, trigger } = setup();
+  await user.click(trigger);
+  const vice = screen.getByRole('menuitemcheckbox', { name: 'Welcome to Vice City' });
+  expect(vice).toHaveAttribute('aria-checked', 'false');
+  expect(
+    screen
+      .getAllByRole('menuitemradio')
+      .filter((item) => item.classList.contains('header-menu-theme-option'))
+      .map((item) => item.getAttribute('aria-label')),
+  ).toEqual(['Light', 'Dark', 'System']);
+  await user.click(vice);
+  expect(localStorage.getItem(LOOK_STORAGE_KEY)).toBe('vice');
+  expect(document.documentElement).toHaveAttribute('data-look', 'vice');
   expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   expect(trigger).toHaveFocus();
 });

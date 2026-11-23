@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import html from '../index.html?raw';
-import { THEME_STORAGE_KEY, ThemeProvider, useTheme } from './theme';
+import { LOOK_STORAGE_KEY, THEME_STORAGE_KEY, ThemeProvider, useTheme } from './theme';
 
 let dark = false;
 let listeners: Set<() => void>;
@@ -35,18 +35,21 @@ afterEach(() => {
   vi.unstubAllGlobals();
   document.documentElement.classList.remove('dark');
   document.documentElement.style.removeProperty('color-scheme');
+  document.documentElement.removeAttribute('data-look');
 });
 
 function Consumer() {
-  const { theme, resolvedTheme, setTheme } = useTheme();
+  const { theme, resolvedTheme, look, setTheme, setLook } = useTheme();
   return (
     <>
       <output>
-        {theme}:{resolvedTheme}
+        {theme}:{resolvedTheme}:{look}
       </output>
       <button onClick={() => setTheme('light')}>Light</button>
       <button onClick={() => setTheme('dark')}>Dark</button>
       <button onClick={() => setTheme('system')}>System</button>
+      <button onClick={() => setLook('vice')}>Vice on</button>
+      <button onClick={() => setLook('default')}>Vice off</button>
     </>
   );
 }
@@ -68,10 +71,10 @@ function changeOS(value: boolean) {
 
 it('defaults to system and tracks OS changes, including color-scheme', () => {
   setup();
-  expect(screen.getByRole('status')).toHaveTextContent('system:light');
+  expect(screen.getByRole('status')).toHaveTextContent('system:light:default');
   expect(document.documentElement.style.colorScheme).toBe('light');
   changeOS(true);
-  expect(screen.getByRole('status')).toHaveTextContent('system:dark');
+  expect(screen.getByRole('status')).toHaveTextContent('system:dark:default');
   expect(document.documentElement).toHaveClass('dark');
   expect(document.documentElement.style.colorScheme).toBe('dark');
   changeOS(false);
@@ -83,10 +86,10 @@ it.each(['light', 'dark'] as const)(
   (theme) => {
     storage.set(THEME_STORAGE_KEY, theme);
     setup();
-    expect(screen.getByRole('status')).toHaveTextContent(`${theme}:${theme}`);
+    expect(screen.getByRole('status')).toHaveTextContent(`${theme}:${theme}:default`);
     changeOS(true);
     changeOS(false);
-    expect(screen.getByRole('status')).toHaveTextContent(`${theme}:${theme}`);
+    expect(screen.getByRole('status')).toHaveTextContent(`${theme}:${theme}:default`);
   },
 );
 
@@ -100,25 +103,25 @@ it('persists selections and returns to the current OS preference', () => {
   expect(document.documentElement).not.toHaveClass('dark');
   fireEvent.click(screen.getByRole('button', { name: 'System' }));
   expect(storage.get(THEME_STORAGE_KEY)).toBe('system');
-  expect(screen.getByRole('status')).toHaveTextContent('system:dark');
+  expect(screen.getByRole('status')).toHaveTextContent('system:dark:default');
 });
 
 it('ignores invalid stored values and syncs changes and deletion from other tabs', () => {
   storage.set(THEME_STORAGE_KEY, 'invalid');
   setup();
-  expect(screen.getByRole('status')).toHaveTextContent('system:light');
+  expect(screen.getByRole('status')).toHaveTextContent('system:light:default');
   act(() =>
     window.dispatchEvent(new StorageEvent('storage', { key: THEME_STORAGE_KEY, newValue: 'dark' })),
   );
-  expect(screen.getByRole('status')).toHaveTextContent('dark:dark');
+  expect(screen.getByRole('status')).toHaveTextContent('dark:dark:default');
   act(() =>
     window.dispatchEvent(new StorageEvent('storage', { key: 'unrelated', newValue: 'light' })),
   );
-  expect(screen.getByRole('status')).toHaveTextContent('dark:dark');
+  expect(screen.getByRole('status')).toHaveTextContent('dark:dark:default');
   act(() =>
     window.dispatchEvent(new StorageEvent('storage', { key: THEME_STORAGE_KEY, newValue: null })),
   );
-  expect(screen.getByRole('status')).toHaveTextContent('system:light');
+  expect(screen.getByRole('status')).toHaveTextContent('system:light:default');
 });
 
 it('remains usable when storage access or persistence throws', () => {
@@ -130,19 +133,19 @@ it('remains usable when storage access or persistence throws', () => {
   });
   setup();
   fireEvent.click(screen.getByRole('button', { name: 'Dark' }));
-  expect(screen.getByRole('status')).toHaveTextContent('dark:dark');
+  expect(screen.getByRole('status')).toHaveTextContent('dark:dark:default');
   expect(document.documentElement).toHaveClass('dark');
 });
 
 it('handles a missing matchMedia and supplies a safe standalone consumer fallback', () => {
   vi.stubGlobal('matchMedia', undefined);
   const view = setup();
-  expect(screen.getByRole('status')).toHaveTextContent('system:light');
+  expect(screen.getByRole('status')).toHaveTextContent('system:light:default');
   view.unmount();
   render(<Consumer />);
-  expect(screen.getByRole('status')).toHaveTextContent('system:light');
+  expect(screen.getByRole('status')).toHaveTextContent('system:light:default');
   fireEvent.click(screen.getByRole('button', { name: 'Dark' }));
-  expect(screen.getByRole('status')).toHaveTextContent('system:light');
+  expect(screen.getByRole('status')).toHaveTextContent('system:light:default');
 });
 
 it('cleans up subscriptions under StrictMode', () => {
@@ -200,12 +203,41 @@ it('bootstrap uses the OS when localStorage is denied', () => {
 it('applies same-tab preference changes and reset without recreating the removed theme key', () => {
   storage.set(THEME_STORAGE_KEY, 'dark');
   setup();
-  expect(screen.getByRole('status')).toHaveTextContent('dark:dark');
+  expect(screen.getByRole('status')).toHaveTextContent('dark:dark:default');
   storage.set(THEME_STORAGE_KEY, 'light');
   act(() => window.dispatchEvent(new Event('roamlet-preferences-change')));
-  expect(screen.getByRole('status')).toHaveTextContent('light:light');
+  expect(screen.getByRole('status')).toHaveTextContent('light:light:default');
   storage.delete(THEME_STORAGE_KEY);
   act(() => window.dispatchEvent(new Event('roamlet-preferences-change')));
-  expect(screen.getByRole('status')).toHaveTextContent('system:light');
+  expect(screen.getByRole('status')).toHaveTextContent('system:light:default');
   expect(storage.has(THEME_STORAGE_KEY)).toBe(false);
+});
+
+it('defaults look to default, persists vice and keeps dark class independent', () => {
+  setup();
+  expect(document.documentElement).not.toHaveAttribute('data-look');
+  fireEvent.click(screen.getByRole('button', { name: 'Vice on' }));
+  expect(storage.get(LOOK_STORAGE_KEY)).toBe('vice');
+  expect(document.documentElement).toHaveAttribute('data-look', 'vice');
+  fireEvent.click(screen.getByRole('button', { name: 'Dark' }));
+  expect(document.documentElement).toHaveClass('dark');
+  expect(document.documentElement).toHaveAttribute('data-look', 'vice');
+  fireEvent.click(screen.getByRole('button', { name: 'Vice off' }));
+  expect(document.documentElement).not.toHaveAttribute('data-look');
+});
+
+it('ignores invalid stored look values and syncs look changes from other tabs', () => {
+  storage.set(LOOK_STORAGE_KEY, 'invalid');
+  setup();
+  expect(screen.getByRole('status')).toHaveTextContent('system:light:default');
+  act(() =>
+    window.dispatchEvent(new StorageEvent('storage', { key: LOOK_STORAGE_KEY, newValue: 'vice' })),
+  );
+  expect(screen.getByRole('status')).toHaveTextContent('system:light:vice');
+  expect(document.documentElement).toHaveAttribute('data-look', 'vice');
+  act(() =>
+    window.dispatchEvent(new StorageEvent('storage', { key: LOOK_STORAGE_KEY, newValue: null })),
+  );
+  expect(screen.getByRole('status')).toHaveTextContent('system:light:default');
+  expect(document.documentElement).not.toHaveAttribute('data-look');
 });

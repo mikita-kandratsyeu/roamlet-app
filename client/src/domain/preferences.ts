@@ -1,6 +1,17 @@
 import { detectLanguage, LANGUAGE_KEY, saveLanguage } from '../i18n';
 import { isFitness, type Fitness } from './time';
-import { isTheme, saveTheme, storedTheme, THEME_STORAGE_KEY, type Theme } from '../theme';
+import {
+  isLook,
+  isTheme,
+  LOOK_STORAGE_KEY,
+  saveLook,
+  saveTheme,
+  storedLook,
+  storedTheme,
+  THEME_STORAGE_KEY,
+  type Look,
+  type Theme,
+} from '../theme';
 import { initialMapView, MAP_VIEW_KEY, saveMapView, validMapView, type MapView } from './mapView';
 
 import type { RoutingOptions } from './types';
@@ -34,6 +45,7 @@ export interface Preferences {
   };
   style: MapStyle;
   theme: Theme;
+  look: Look;
   language: 'en' | 'ru';
   camera: MapView;
 }
@@ -62,10 +74,11 @@ export const DEFAULT_PREFERENCES: Preferences = {
   },
   style: 'standard',
   theme: 'system',
+  look: 'default',
   language: 'en',
   camera: { center: [10, 20], zoom: 2, bearing: 0, pitch: 0 },
 };
-const keys = [PREFERENCES_KEY, THEME_STORAGE_KEY, LANGUAGE_KEY, MAP_VIEW_KEY];
+const keys = [PREFERENCES_KEY, THEME_STORAGE_KEY, LOOK_STORAGE_KEY, LANGUAGE_KEY, MAP_VIEW_KEY];
 const fields = [
   'activity',
   'planningMode',
@@ -125,6 +138,7 @@ function valid(value: Preferences): boolean {
     distanceFilter(library.maxKm) &&
     ['standard', 'bright', 'custom'].includes(value.style) &&
     isTheme(value.theme) &&
+    isLook(value.look) &&
     ['en', 'ru'].includes(value.language) &&
     validMapView(value.camera)
   );
@@ -132,14 +146,17 @@ function valid(value: Preferences): boolean {
 export function loadPreferences(): Preferences {
   const defaults = structuredClone(DEFAULT_PREFERENCES);
   defaults.theme = storedTheme();
+  defaults.look = storedLook();
   defaults.language = detectLanguage();
   defaults.camera = initialMapView();
   try {
     const theme = localStorage.getItem(THEME_STORAGE_KEY);
+    const look = localStorage.getItem(LOOK_STORAGE_KEY);
     const language = localStorage.getItem(LANGUAGE_KEY);
     const camera = localStorage.getItem(MAP_VIEW_KEY);
     if (
       (theme !== null && !isTheme(theme)) ||
+      (look !== null && !isLook(look)) ||
       (language !== null && language !== 'en' && language !== 'ru') ||
       (camera !== null && !validMapView(JSON.parse(camera)))
     )
@@ -170,6 +187,7 @@ export function loadPreferences(): Preferences {
       ...defaults,
       ...stored,
       theme: defaults.theme,
+      look: defaults.look,
       language: defaults.language,
       camera: defaults.camera,
     };
@@ -213,13 +231,15 @@ export function savePreferences(patch: Partial<Preferences>): boolean {
   return transaction(
     () => {
       // Theme, language and camera keep their existing single source of truth.
-      const { theme, language, camera } = merged;
+      const { theme, look, language, camera } = merged;
       localStorage.setItem(
         PREFERENCES_KEY,
         JSON.stringify({ version: 1, preferences: persistentFields(merged) }),
       );
       if (patch.theme !== undefined && !saveTheme(theme))
         throw new Error('Theme storage unavailable');
+      if (patch.look !== undefined && !saveLook(look))
+        throw new Error('Look storage unavailable');
       if (patch.language !== undefined && !saveLanguage(language))
         throw new Error('Language storage unavailable');
       if (patch.camera !== undefined && !saveMapView(camera))

@@ -55,10 +55,11 @@ const mocks = vi.hoisted(() => ({
   ease: vi.fn(),
   scale: vi.fn(),
   theme: 'light',
+  look: 'default' as 'default' | 'vice',
 }));
 vi.mock('../theme', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../theme')>()),
-  useTheme: () => ({ resolvedTheme: mocks.theme }),
+  useTheme: () => ({ resolvedTheme: mocks.theme, look: mocks.look }),
 }));
 vi.mock('maplibre-gl', () => ({
     Map: class {
@@ -815,6 +816,24 @@ it('updates route colors without touching the vector basemap or recreating or re
   expect(mocks.options).toHaveBeenCalledTimes(1);
   expect(mocks.fit).toHaveBeenCalledTimes(fitCalls);
   expect(mocks.remove).not.toHaveBeenCalled();
+});
+
+it('uses vice route colors when the vice look is enabled', () => {
+  const { rerender } = render(<RouteMap {...props} />);
+  act(() => mocks.handlers.get('load')!());
+  mocks.look = 'vice';
+  mocks.theme = 'light';
+  rerender(<RouteMap {...props} />);
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#e0127a');
+  expect(mocks.paint).toHaveBeenCalledWith('route-casing', 'line-color', '#fff8f4');
+  mocks.theme = 'dark';
+  rerender(<RouteMap {...props} />);
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#ff4fd8');
+  expect(mocks.paint).toHaveBeenCalledWith('route-casing', 'line-color', '#120814');
+  mocks.look = 'default';
+  mocks.theme = 'light';
+  rerender(<RouteMap {...props} />);
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#286046');
 });
 
 it('does not duplicate the planner GPX import action on the map', () => {

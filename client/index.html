@@ -21,6 +21,10 @@
         }
         document.documentElement.classList.toggle('dark', dark);
         document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        try {
+          const look = localStorage.getItem('roamlet-look');
+          if (look === 'vice') document.documentElement.setAttribute('data-look', 'vice');
+        } catch {}
       })();
     </script>
     <meta

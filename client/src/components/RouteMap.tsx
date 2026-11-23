@@ -47,7 +47,7 @@ import {
   Mountain,
 } from 'lucide-react';
 import { waypointKind } from './waypointStyle';
-import { useTheme } from '../theme';
+import { routeLineColors, useTheme } from '../theme';
 import { Notification } from './Notification';
 import { MapLoader } from './MapLoader';
 import { MapLoadingIndicator } from './MapLoadingIndicator';
@@ -124,7 +124,7 @@ export function RouteMap(props: Props) {
   const { t } = useTranslation();
   const accuracyId = useId();
   const slopeDescriptionId = useId();
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme, look } = useTheme();
   const { manualDrawing, editable, onUndo, onRedo, canUndo, canRedo, online = true } = props;
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -764,10 +764,10 @@ export function RouteMap(props: Props) {
   }, [mapAttempt, styleUrl, online]);
   useEffect(() => {
     if (!ready || !map.current) return;
-    const dark = resolvedTheme === 'dark';
-    map.current.setPaintProperty('route-casing', 'line-color', dark ? '#151b18' : '#ffffff');
-    map.current.setPaintProperty('route-line', 'line-color', dark ? '#9bc5a7' : '#286046');
-  }, [ready, resolvedTheme]);
+    const colors = routeLineColors(resolvedTheme, look);
+    map.current.setPaintProperty('route-casing', 'line-color', colors.casing);
+    map.current.setPaintProperty('route-line', 'line-color', colors.line);
+  }, [ready, resolvedTheme, look]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const source = map.current.getSource('route') as maplibregl.GeoJSONSource | undefined;

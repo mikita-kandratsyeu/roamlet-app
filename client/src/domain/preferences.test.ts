@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import i18n, { LANGUAGE_KEY } from '../i18n';
-import { THEME_STORAGE_KEY } from '../theme';
+import { LOOK_STORAGE_KEY, THEME_STORAGE_KEY } from '../theme';
 import { MAP_VIEW_KEY } from './mapView';
 import {
   DEFAULT_PREFERENCES,
@@ -83,6 +83,13 @@ it('delegates theme/language/camera saves to their existing keys and syncs curre
   expect(JSON.parse(storage.get(MAP_VIEW_KEY)!)).toEqual(camera);
   expect(i18n.language).toBe('ru');
 });
+it('delegates look saves to its legacy key without storing look in the preferences envelope', () => {
+  expect(savePreferences({ look: 'vice' })).toBe(true);
+  expect(storage.get(LOOK_STORAGE_KEY)).toBe('vice');
+  const record = JSON.parse(storage.get(PREFERENCES_KEY)!);
+  expect(record.preferences).not.toHaveProperty('look');
+  expect(loadPreferences().look).toBe('vice');
+});
 it.each([
   { targetKm: 0 },
   { targetKm: Infinity },
@@ -115,9 +122,10 @@ it.each([
 });
 it('reports invalid legacy values without overwriting them', () => {
   storage.set(THEME_STORAGE_KEY, 'unknown');
+  storage.set(LOOK_STORAGE_KEY, 'neon');
   storage.set(LANGUAGE_KEY, 'xx');
   storage.set(MAP_VIEW_KEY, '{');
-  expect(loadPreferences()).toMatchObject({ theme: 'system', language: 'en' });
+  expect(loadPreferences()).toMatchObject({ theme: 'system', look: 'default', language: 'en' });
   expect(failed).toHaveBeenCalled();
   expect(storage.get(MAP_VIEW_KEY)).toBe('{');
 });
