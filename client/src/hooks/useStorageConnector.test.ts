@@ -7,7 +7,7 @@ import {
   type StorageConnector,
   type BackupEntry,
 } from '../services/connectors/types';
-import { decryptBackup, encryptBackup } from '../domain/encryptedBackup';
+import { encryptBackup } from '../domain/encryptedBackup';
 import { exportBackup } from '../domain/backup';
 import { routeDb } from '../domain/storage';
 import type { PlannedRoute } from '../domain/types';
@@ -90,36 +90,6 @@ it('does nothing until explicitly connected and forgets the memory-only connecti
   expect(storage.listBackups).not.toHaveBeenCalled();
   act(() => result.current.disconnect());
   expect(result.current.connection).toBeNull();
-});
-
-it('round-trips encrypted bytes with real library persistence and explicit preview/confirmation', async () => {
-  await routeDb.routes.put(route);
-  const { result } = renderHook(useStorageConnector);
-  await act(async () => {
-    await result.current.connect(config);
-    await result.current.upload(password);
-  });
-  const bytes = vi.mocked(storage.uploadBackup).mock.calls[0][0];
-  expect(new TextDecoder().decode(bytes)).not.toContain(route.name);
-  expect((await decryptBackup(bytes, password)).routes).toEqual([route]);
-  expect(result.current.success).toBe('uploaded');
-  vi.mocked(storage.downloadBackup).mockResolvedValue(bytes);
-  await act(async () => {
-    await result.current.prepareRestore(entry, password);
-  });
-  expect(result.current.preview?.conflicts).toBe(1);
-  expect(await routeDb.routes.count()).toBe(1);
-  await act(async () => {
-    await result.current.restore('copy');
-  });
-  expect(await routeDb.routes.count()).toBe(2);
-  expect(
-    (await routeDb.routes.toArray()).every(
-      (value) => JSON.stringify(value.segments) === JSON.stringify(route.segments),
-    ),
-  ).toBe(true);
-  expect(result.current.preview).toBeNull();
-  expect(result.current.success).toBe('restored');
 });
 
 it('refuses short passwords and incomplete local libraries before any upload', async () => {

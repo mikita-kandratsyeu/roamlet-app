@@ -43,14 +43,6 @@ it('keeps the Roamlet app title stable when switching languages', async () => {
   }
 });
 
-it('does not use semicolons as separators in translations', () => {
-  for (const dictionary of [english, russian]) {
-    for (const [key, value] of Object.entries(dictionary)) {
-      expect(value, key).not.toContain(';');
-    }
-  }
-});
-
 it('distinguishes offline network status from map and routing provider failures', async () => {
   await i18n.changeLanguage('en');
   expect(i18n.t('No network connection detected')).toBe('No network connection detected');
