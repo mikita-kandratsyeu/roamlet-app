@@ -1,4 +1,4 @@
-import { CloudRain, Droplets, Navigation, Wind } from 'lucide-react';
+import { CloudRain, Droplets, Wind } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWeather } from '../hooks/useWeather';
 import { weatherHours, WEATHER_FRESH_MS } from '../domain/weather';
@@ -27,7 +27,11 @@ function WindCompass({ direction }: { direction: number | null }) {
   if (direction === null) return null;
   return (
     <span className="route-weather-compass" aria-hidden="true">
-      <Navigation size={14} style={{ transform: `rotate(${direction}deg)` }} />
+      <span className="route-weather-compass-n">N</span>
+      <svg viewBox="0 0 24 24" style={{ transform: `rotate(${direction}deg)` }}>
+        <path d="M12 1.5 15.2 13.2 12 11.4 8.8 13.2Z" />
+        <path d="M12 22.5 8.8 13.2 12 15 15.2 13.2Z" opacity="0.35" />
+      </svg>
     </span>
   );
 }
