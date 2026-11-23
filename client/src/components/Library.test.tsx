@@ -375,19 +375,24 @@ it('keeps failed edits available with an error and returns focus to the name fie
 it('names the filter widget and length group and disables reset only when every filter and sort are empty', async () => {
   const user = userEvent.setup();
   await openLibrary();
+  expect(screen.queryByRole('region', { name: 'Filter routes' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Filter routes' }));
   const filters = screen.getByRole('region', { name: 'Filter routes' });
   expect(within(filters).getByRole('heading', { level: 2, name: 'Filter routes' })).toBeVisible();
   const length = within(filters).getByRole('group', { name: 'Route length (km)' });
   expect(within(length).getByRole('spinbutton', { name: 'Minimum length (km)' })).toHaveValue(null);
   expect(within(length).getByRole('spinbutton', { name: 'Maximum length (km)' })).toHaveValue(null);
-  const reset = within(filters).getByRole('button', { name: 'Reset filters' });
-  expect(reset).toBeDisabled();
-  expect(within(filters).getByRole('button', { name: 'Favorites only' })).toHaveAttribute(
+  expect(within(filters).getByRole('button', { name: 'Reset filters' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Favorites only' })).toHaveAttribute(
     'aria-pressed',
     'false',
   );
   await user.click(screen.getByRole('button', { name: /Sort routes:/ }));
   await user.click(screen.getByRole('menuitemradio', { name: 'Name (A–Z)' }));
+  if (!screen.queryByRole('button', { name: 'Reset filters' })) {
+    await user.click(screen.getByRole('button', { name: 'Filter routes' }));
+  }
+  const reset = screen.getByRole('button', { name: 'Reset filters' });
   expect(reset).toBeEnabled();
   await user.click(reset);
   expect(reset).toBeDisabled();
@@ -395,10 +400,10 @@ it('names the filter widget and length group and disables reset only when every 
   fireEvent.change(screen.getByRole('textbox', { name: 'Search saved routes' }), {
     target: { value: 'no matching route' },
   });
-  expect(reset).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Reset filters' })).toBeEnabled();
   expect(screen.getByRole('button', { name: 'Reset search and filters' })).toBeEnabled();
-  await user.click(reset);
-  expect(reset).toBeDisabled();
+  await user.click(screen.getByRole('button', { name: 'Reset filters' }));
+  expect(screen.getByRole('button', { name: 'Reset filters' })).toBeDisabled();
   expect(routeNames()).toHaveLength(2);
 });
 
@@ -409,6 +414,7 @@ it('combines activity, favorite, tag, distance, search and sort filters and rese
     { ...woodland, tags: ['forest'] },
   ]);
   await openLibrary();
+  await user.click(screen.getByRole('button', { name: 'Filter routes' }));
   await user.click(screen.getByRole('button', { name: 'Activity' }));
   await user.click(screen.getByRole('menuitemradio', { name: 'Cycling' }));
   fireEvent.click(screen.getByRole('button', { name: 'Favorites only' }));
@@ -719,12 +725,14 @@ it('uses a hidden file picker behind the styled Import library button and cohesi
   expect(favorites).toHaveAttribute('aria-pressed', 'true');
   await user.click(favorites);
   expect(favorites).toHaveAttribute('aria-pressed', 'false');
+  await user.click(screen.getByRole('button', { name: 'Filter routes' }));
   expect(screen.getByRole('region', { name: 'Filter routes' })).toHaveClass('library-filters');
 });
 
 it('keeps named keyboard-operated filter menus and groups the star with route actions', async () => {
   const user = userEvent.setup();
   await openLibrary();
+  await user.click(screen.getByRole('button', { name: 'Filter routes' }));
   const activity = screen.getByRole('button', { name: 'Activity' });
   await user.click(activity);
   expect(screen.getByRole('menuitemradio', { name: 'All activities' })).toHaveAttribute(
@@ -936,15 +944,15 @@ it('selects 2–5 routes using keyboard-accessible checkboxes and enforces the m
   vi.mocked(listRoutes).mockResolvedValue([alpine, woodland, third, fourth, fifth, sixth]);
   const onCompare = vi.fn();
   const { onOpen } = await openLibrary(onCompare);
-  const compare = screen.getByRole('button', { name: 'Compare routes' });
-  expect(screen.getByRole('heading', { name: 'Route comparison' })).toBeVisible();
-  expect(screen.getByText('Choose 2–5 routes to compare on the map.')).toBeVisible();
-  expect(compare).toBeDisabled();
+  expect(screen.queryByRole('heading', { name: 'Route comparison' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Compare routes' })).not.toBeInTheDocument();
   const select = (name: string) => screen.getByRole('checkbox', { name: `Select ${name} for comparison` });
   select(alpine.name).focus();
   await user.keyboard(' ');
   expect(select(alpine.name)).toBeChecked();
+  expect(screen.getByRole('heading', { name: 'Route comparison' })).toBeVisible();
   expect(screen.getByText('1 route selected. Choose one more to compare.')).toBeVisible();
+  const compare = screen.getByRole('button', { name: 'Compare routes' });
   expect(compare).toBeDisabled();
   await user.click(screen.getByText('Woodland walk', { selector: '.library-route-title' }));
   expect(select(woodland.name)).toBeChecked();

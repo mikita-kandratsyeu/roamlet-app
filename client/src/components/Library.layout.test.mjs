@@ -59,11 +59,15 @@ for (const [width, columns] of [
             <label class="library-search">${icon}<input placeholder="${t('Find a saved route…')}"></label>
             <button class="library-sort">${icon}${t('Most recently updated')}${icon}</button>
           </div>
-          <div class="library-backup-tools library-backup-actions">
-            <details class="library-backup-disclosure"><summary>${t('Library backup')}</summary>
-              <p>${t('Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.')} ${t('JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.')}</p>
-            </details>
-            <button>${icon}${t('Download backup')}</button><button>${icon}${t('Restore from backup')}</button>
+          <div class="library-tools">
+            <button class="library-filter-trigger">${icon}${t('Filter routes')}</button>
+            <button class="library-favorite-filter" aria-pressed="false">${icon}${t('Favorites only')}</button>
+            <div class="library-backup-tools library-backup-actions">
+              <details class="library-backup-disclosure"><summary>${icon}<span class="library-backup-label">${t('Library backup')}</span></summary>
+                <p>${t('Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.')} ${t('JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.')}</p>
+              </details>
+              <button>${icon}<span class="library-backup-label">${t('Download backup')}</span></button><button>${icon}<span class="library-backup-label">${t('Restore from backup')}</span></button>
+            </div>
           </div>
           <section class="library-comparison">
             <div class="library-comparison-summary"><div class="library-comparison-heading">${icon}<h2>${t('Route comparison')}</h2></div></div>
@@ -75,7 +79,6 @@ for (const [width, columns] of [
               <div class="library-filter-field"><span class="library-field-label">${t('Activity')}</span><button class="library-choice"><span>${t('All activities')}</span>${icon}</button></div>
               <div class="library-filter-field"><span class="library-field-label">${t('Filter by tag')}</span><button class="library-choice"><span>${'Long tag '.repeat(12)}</span>${icon}</button></div>
               <div class="library-filter-field library-length-field" role="group" aria-label="${t('Route length (km)')}"><span class="library-field-label">${t('Route length (km)')}</span><div class="library-length-range"><input type="number" min="0" aria-label="${t('Minimum length (km)')}" placeholder="${t('Min')}"><span>–</span><input type="number" min="0" aria-label="${t('Maximum length (km)')}" placeholder="${t('Max')}"></div></div>
-              <button class="library-favorite-filter" aria-pressed="false">${icon}${t('Favorites only')}</button>
             </div>
           </section>
           <ul class="library-list">${card.repeat(8)}</ul>
@@ -89,7 +92,7 @@ for (const [width, columns] of [
         const cards = [...list.children].map((element) => element.getBoundingClientRect());
         const controls = [
           ...document.querySelectorAll(
-            '.library-backup-actions > button, .library-choice, .library-length-range input, .library-favorite-filter, .library-actions button, .library-open-action',
+            '.library-filter-trigger, .library-backup-actions > button, .library-choice, .library-length-range input, .library-favorite-filter, .library-actions button, .library-open-action',
           ),
         ];
         return {
@@ -113,7 +116,7 @@ for (const [width, columns] of [
           ),
           overflow: [
             ...document.querySelectorAll(
-              '.library-screen, .library-screen-scroll, .route-library, .library-backup-tools, .library-filters, .library-filter-grid, .library-length-range, .library-route',
+              '.library-screen, .library-screen-scroll, .route-library, .library-tools, .library-backup-tools, .library-filters, .library-filter-grid, .library-length-range, .library-route',
             ),
           ].some((element) => element.scrollWidth > element.clientWidth + 1),
           skeletonColumns: getComputedStyle(document.querySelector('.library-skeleton-list'))
@@ -122,7 +125,11 @@ for (const [width, columns] of [
           emptyBackground: getComputedStyle(document.querySelector('.library-empty'))
             .backgroundColor,
           surface: getComputedStyle(document.querySelector('.library-filters')).backgroundColor,
-          widgets: ['.library-filters', '.library-backup-tools', '.library-comparison'].map(
+          backupChrome: (() => {
+            const style = getComputedStyle(document.querySelector('.library-backup-tools'));
+            return { padding: style.padding, border: style.borderTopWidth, margin: style.marginBottom };
+          })(),
+          widgets: ['.library-filters', '.library-comparison'].map(
             (selector) => {
               const style = getComputedStyle(document.querySelector(selector));
               return {
@@ -169,8 +176,10 @@ for (const [width, columns] of [
       assert.equal(metrics.overflow, false);
       assert.equal(metrics.skeletonColumns, metrics.routeColumns);
       assert.equal(metrics.emptyBackground, metrics.surface);
+      assert.equal(metrics.backupChrome.padding, '0px');
+      assert.equal(metrics.backupChrome.border, '0px');
+      assert.equal(metrics.backupChrome.margin, '0px');
       assert.deepEqual(metrics.widgets[0], metrics.widgets[1]);
-      assert.deepEqual(metrics.widgets[0], metrics.widgets[2]);
       assert.equal(metrics.widgets[0].padding, width <= 700 ? '14px' : '16px');
       assert.equal(metrics.widgets[0].radius, '12px');
       assert.equal(metrics.widgets[0].margin, '20px');
@@ -179,22 +188,18 @@ for (const [width, columns] of [
       assert.equal(metrics.filterIconColor, metrics.comparisonIconColor);
       assert.equal(metrics.headerGap, 16);
       assert.equal(metrics.lengthGap, '6px');
-      const [activity, tag, minimum, maximum, favorites] = metrics.filterControls;
+      const [favorites, activity, tag, minimum, maximum] = metrics.filterControls;
       assert.equal(activity.top, tag.top);
       assert.equal(minimum.top, maximum.top);
       assert.ok(Math.abs(minimum.width - maximum.width) < 1);
       assert.ok(metrics.filterControls.every((control) => control.height === 44));
+      assert.ok(favorites.top < activity.top);
       if (width <= 560) {
-        assert.ok(metrics.backupButtons[1].top >= metrics.backupButtons[0].bottom + 7);
-        assert.ok(Math.abs(metrics.backupButtons[0].width - metrics.backupButtons[1].width) < 1);
-        assert.ok(metrics.backupButtons.every((button) => button.height === 44));
+        assert.equal(metrics.backupButtons[0].top, metrics.backupButtons[1].top);
+        assert.ok(metrics.backupButtons.every((button) => button.width === 44 && button.height === 44));
         assert.ok(minimum.top > activity.bottom);
-        assert.ok(favorites.top > maximum.bottom);
-      } else {
-        assert.equal(minimum.top, favorites.top);
-        if (width > 1040) assert.equal(activity.top, minimum.top);
-        else assert.ok(minimum.top > activity.bottom);
-      }
+      } else if (width > 1040) assert.equal(activity.top, minimum.top);
+      else assert.ok(minimum.top > activity.bottom);
       if (width >= 1024)
         assert.ok(metrics.cardWidths.every((cardWidth) => cardWidth >= 300 && cardWidth <= 520));
 

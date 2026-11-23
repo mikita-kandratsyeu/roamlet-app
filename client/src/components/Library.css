@@ -544,27 +544,67 @@
   }
 }
 
+.route-library .library-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.route-library .library-filter-trigger {
+  min-height: 44px;
+  height: auto;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: var(--font-size-control);
+  font-weight: 600;
+}
+.route-library .library-filter-trigger [data-slot='badge'] {
+  min-width: 1.25rem;
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.library-filter-popover.route-library {
+  color: var(--foreground);
+}
+.library-filter-popover .library-filters {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
 .route-library .library-backup-tools.library-backup-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: start;
-  gap: 8px 12px;
-  margin: 0 0 20px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 320px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .route-library .library-backup-disclosure {
   min-width: 0;
 }
 .route-library .library-backup-disclosure summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   min-height: 44px;
-  align-content: center;
   color: var(--foreground);
-  font-size: 16px;
-  font-weight: 650;
+  font-size: var(--font-size-control);
+  font-weight: 600;
   cursor: pointer;
+  list-style: none;
+}
+.route-library .library-backup-disclosure summary::-webkit-details-marker {
+  display: none;
 }
 .route-library .library-backup-disclosure summary:focus-visible {
   outline: 2px solid var(--ring, var(--primary));
@@ -591,7 +631,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 12px 0 16px;
+  margin: 0;
 }
 .route-library .library-backup-actions button {
   min-height: 44px;
@@ -647,7 +687,7 @@
 }
 .route-library .library-filter-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr);
   gap: 12px;
   align-items: end;
 }
@@ -789,10 +829,15 @@
 }
 
 @media (max-width: 700px) {
-  .route-library .library-filters,
-  .route-library .library-backup-tools.library-backup-actions {
+  .route-library .library-filters {
     padding: 14px;
   }
+}
+.library-filter-popover .library-filters {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 @media (max-width: 1040px) {
   .route-library .library-filter-grid {
@@ -801,8 +846,30 @@
 }
 @media (max-width: 560px) {
   .route-library .library-backup-tools.library-backup-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    display: flex;
+    flex: 0 0 auto;
+    flex-basis: auto;
+    align-items: center;
+    width: auto;
+  }
+  .route-library .library-backup-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .route-library .library-backup-disclosure summary,
+  .route-library .library-backup-actions > button {
+    position: relative;
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    justify-content: center;
   }
   .route-library .library-backup-actions button {
     min-width: 0;

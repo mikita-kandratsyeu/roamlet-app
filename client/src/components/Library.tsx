@@ -15,6 +15,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from './ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useId, useRef, useState } from 'react';
 import {
@@ -33,6 +34,7 @@ import {
   SlidersHorizontal,
   ArrowLeft,
   ArrowLeftRight,
+  Info,
   X,
 } from 'lucide-react';
 
@@ -247,6 +249,7 @@ export function Library({
     minKm ||
     maxKm
   );
+  const advancedFilterCount = [activity !== 'all', !!tag, !!minKm, !!maxKm].filter(Boolean).length;
   const editTitleId = useId();
   const deleteTitleId = useId();
   const screenDescriptionId = useId();
@@ -511,160 +514,117 @@ export function Library({
               </DropdownMenu>
             )}
           </div>
-          <div
-            className="library-backup-tools library-backup-actions"
-            role="group"
-            aria-label={t('Library backup')}
-            aria-describedby="library-backup-help"
-          >
-            <details className="library-backup-disclosure">
-              <summary>{t('Library backup')}</summary>
-              <p className="fine-print" id="library-backup-help">
-                {t(
-                  'Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.',
-                )}{' '}
-                {t(
-                  'JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.',
-                )}
-              </p>
-            </details>
-            <Button
-              variant="outline"
-              disabled={loading || busy || loadFailed || !routes.length}
-              onClick={() =>
-                void mutate(async () => {
-                  const blob = new Blob([exportBackup(routes)], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const link = document.createElement('a');
-                  try {
-                    link.href = url;
-                    link.download = 'roamlet-library.json';
-                    document.body.append(link);
-                    link.click();
-                  } finally {
-                    link.remove();
-                    setTimeout(() => URL.revokeObjectURL(url), 0);
-                  }
-                }, 'export')
-              }
-            >
-              <Download size={16} aria-hidden="true" />
-              {t('Download backup')}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={loading || busy || loadFailed}
-              onClick={(event) => {
-                actionTrigger.current = event.currentTarget;
-                restoreFocus.current = false;
-                importInput.current?.click();
-              }}
-            >
-              <Upload size={16} aria-hidden="true" />
-              {t('Restore from backup')}
-            </Button>
-            <input
-              ref={importInput}
-              hidden
-              type="file"
-              accept="application/json,.json"
-              aria-label={t('Import library file')}
-              disabled={loading || busy || loadFailed}
-              onChange={async (event) => {
-                const file = event.target.files?.[0];
-                event.target.value = '';
-                if (!file || actionLocked.current) return;
-                actionLocked.current = true;
-                setBusy(true);
-                setError('');
-                setBackup(null);
-                try {
-                  setBackup(await readBackupFile(file));
-                  setConflictMode('copy');
-                } catch (error) {
-                  setError(error instanceof Error ? error.message : 'Invalid library backup.');
-                } finally {
-                  actionLocked.current = false;
-                  setBusy(false);
-                }
-              }}
-            />
-          </div>
-          {routes.length > 0 && (
-            <section className="library-filters" aria-labelledby={filterTitleId}>
-              <div className="library-filter-heading">
-                <div className="library-filter-title">
-                  <SlidersHorizontal size={20} aria-hidden="true" />
-                  <h2 id={filterTitleId}>{t('Filter routes')}</h2>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy || loading || (!hasFilters && sort === 'updated')}
-                  onClick={resetFilters}
-                >
-                  {t('Reset filters')}
-                </Button>
-              </div>
-              <div className="library-filter-grid">
-                <LibraryChoice
-                  label={t('Activity')}
-                  value={activity}
-                  disabled={busy || loading}
-                  onChange={(value) => updateFilters({ activity: value as typeof activity })}
-                  options={[
-                    { value: 'all', label: t('All activities') },
-                    { value: 'cycling', label: t('Cycling') },
-                    { value: 'hiking', label: t('Hiking') },
-                  ]}
-                />
-                <LibraryChoice
-                  label={t('Filter by tag')}
-                  value={tag}
-                  disabled={busy || loading}
-                  onChange={(tag) => updateFilters({ tag })}
-                  options={[
-                    { value: '', label: t('All tags') },
-                    ...[
-                      ...new Set([
-                        ...routes.flatMap((route) => route.tags ?? []),
-                        ...(tag ? [tag] : []),
-                      ]),
-                    ]
-                      .sort()
-                      .map((tag) => ({ value: tag, label: tag })),
-                  ]}
-                />
-                <div
-                  className="library-filter-field library-length-field"
-                  role="group"
-                  aria-label={t('Route length (km)')}
-                >
-                  <span className="library-field-label">{t('Route length (km)')}</span>
-                  <div className="library-length-range">
-                    <Input
-                      type="number"
-                      min="0"
-                      step="any"
-                      placeholder={t('Min')}
-                      aria-label={t('Minimum length (km)')}
+          <div className="library-tools">
+            {routes.length > 0 && (
+              <>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="library-filter-trigger"
+                      aria-label={t('Filter routes')}
                       disabled={busy || loading}
-                      value={minKm}
-                      onChange={(event) => updateFilters({ minKm: event.target.value })}
-                    />
-                    <span aria-hidden="true">–</span>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="any"
-                      placeholder={t('Max')}
-                      aria-label={t('Maximum length (km)')}
-                      disabled={busy || loading}
-                      value={maxKm}
-                      onChange={(event) => updateFilters({ maxKm: event.target.value })}
-                    />
-                  </div>
-                </div>
+                    >
+                      <SlidersHorizontal size={16} aria-hidden="true" />
+                      {t('Filter routes')}
+                      {advancedFilterCount > 0 && (
+                        <Badge variant="secondary" aria-hidden="true">
+                          {advancedFilterCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    className="route-library library-filter-popover w-[min(560px,calc(100vw-24px))] p-3"
+                    onInteractOutside={(event) => {
+                      const target = event.target;
+                      if (
+                        target instanceof Element &&
+                        target.closest('[role="menu"], [data-slot="dropdown-menu-content"]')
+                      ) {
+                        event.preventDefault();
+                      }
+                    }}
+                  >
+                    <section className="library-filters" aria-labelledby={filterTitleId}>
+                      <div className="library-filter-heading">
+                        <div className="library-filter-title">
+                          <SlidersHorizontal size={20} aria-hidden="true" />
+                          <h2 id={filterTitleId}>{t('Filter routes')}</h2>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy || loading || (!hasFilters && sort === 'updated')}
+                          onClick={resetFilters}
+                        >
+                          {t('Reset filters')}
+                        </Button>
+                      </div>
+                      <div className="library-filter-grid">
+                        <LibraryChoice
+                          label={t('Activity')}
+                          value={activity}
+                          disabled={busy || loading}
+                          onChange={(value) => updateFilters({ activity: value as typeof activity })}
+                          options={[
+                            { value: 'all', label: t('All activities') },
+                            { value: 'cycling', label: t('Cycling') },
+                            { value: 'hiking', label: t('Hiking') },
+                          ]}
+                        />
+                        <LibraryChoice
+                          label={t('Filter by tag')}
+                          value={tag}
+                          disabled={busy || loading}
+                          onChange={(tag) => updateFilters({ tag })}
+                          options={[
+                            { value: '', label: t('All tags') },
+                            ...[
+                              ...new Set([
+                                ...routes.flatMap((route) => route.tags ?? []),
+                                ...(tag ? [tag] : []),
+                              ]),
+                            ]
+                              .sort()
+                              .map((tag) => ({ value: tag, label: tag })),
+                          ]}
+                        />
+                        <div
+                          className="library-filter-field library-length-field"
+                          role="group"
+                          aria-label={t('Route length (km)')}
+                        >
+                          <span className="library-field-label">{t('Route length (km)')}</span>
+                          <div className="library-length-range">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="any"
+                              placeholder={t('Min')}
+                              aria-label={t('Minimum length (km)')}
+                              disabled={busy || loading}
+                              value={minKm}
+                              onChange={(event) => updateFilters({ minKm: event.target.value })}
+                            />
+                            <span aria-hidden="true">–</span>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="any"
+                              placeholder={t('Max')}
+                              aria-label={t('Maximum length (km)')}
+                              disabled={busy || loading}
+                              value={maxKm}
+                              onChange={(event) => updateFilters({ maxKm: event.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  </PopoverContent>
+                </Popover>
                 <Button
                   variant="outline"
                   className="library-favorite-filter"
@@ -675,9 +635,91 @@ export function Library({
                   <Star size={16} aria-hidden="true" />
                   {t('Favorites only')}
                 </Button>
-              </div>
-            </section>
-          )}
+              </>
+            )}
+            <div
+              className="library-backup-tools library-backup-actions"
+              role="group"
+              aria-label={t('Library backup')}
+              aria-describedby="library-backup-help"
+            >
+              <details className="library-backup-disclosure">
+                <summary>
+                  <Info size={16} aria-hidden="true" />
+                  <span className="library-backup-label">{t('Library backup')}</span>
+                </summary>
+                <p className="fine-print" id="library-backup-help">
+                  {t(
+                    'Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.',
+                  )}{' '}
+                  {t(
+                    'JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.',
+                  )}
+                </p>
+              </details>
+              <Button
+                variant="outline"
+                disabled={loading || busy || loadFailed || !routes.length}
+                onClick={() =>
+                  void mutate(async () => {
+                    const blob = new Blob([exportBackup(routes)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    try {
+                      link.href = url;
+                      link.download = 'roamlet-library.json';
+                      document.body.append(link);
+                      link.click();
+                    } finally {
+                      link.remove();
+                      setTimeout(() => URL.revokeObjectURL(url), 0);
+                    }
+                  }, 'export')
+                }
+              >
+                <Download size={16} aria-hidden="true" />
+                <span className="library-backup-label">{t('Download backup')}</span>
+              </Button>
+              <Button
+                variant="outline"
+                disabled={loading || busy || loadFailed}
+                onClick={(event) => {
+                  actionTrigger.current = event.currentTarget;
+                  restoreFocus.current = false;
+                  importInput.current?.click();
+                }}
+              >
+                <Upload size={16} aria-hidden="true" />
+                <span className="library-backup-label">{t('Restore from backup')}</span>
+              </Button>
+              <input
+                ref={importInput}
+                hidden
+                type="file"
+                accept="application/json,.json"
+                aria-label={t('Import library file')}
+                disabled={loading || busy || loadFailed}
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  if (!file || actionLocked.current) return;
+                  actionLocked.current = true;
+                  setBusy(true);
+                  setError('');
+                  setBackup(null);
+                  try {
+                    setBackup(await readBackupFile(file));
+                    setConflictMode('copy');
+                  } catch (error) {
+                    setError(error instanceof Error ? error.message : 'Invalid library backup.');
+                  } finally {
+                    actionLocked.current = false;
+                    setBusy(false);
+                  }
+                }}
+              />
+            </div>
+          </div>
           {backup && (
             <Dialog
               title={t('Library import preview')}
@@ -761,7 +803,7 @@ export function Library({
               onDismiss={() => setError('')}
             />
           )}
-          {onCompare && !loading && !loadFailed && routes.length > 0 && (
+          {onCompare && !loading && !loadFailed && comparisonRoutes.length > 0 && (
             <section
               className="library-comparison"
               aria-label={t('Compare saved routes')}

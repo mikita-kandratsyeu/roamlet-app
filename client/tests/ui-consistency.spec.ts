@@ -1336,10 +1336,9 @@ test('manual discovery and backup guidance share the existing design in both lan
         expect(backupBox!.height).toBeGreaterThanOrEqual(44);
       }
       if (testInfo.project.name === 'mobile') {
-        expect(backupBoxes[1]!.y).toBeGreaterThanOrEqual(
-          backupBoxes[0]!.y + backupBoxes[0]!.height,
-        );
-        expect(backupBoxes[1]!.width).toBeCloseTo(backupBoxes[0]!.width, 1);
+        expect(backupBoxes[0]!.y).toBeCloseTo(backupBoxes[1]!.y, 0);
+        expect(backupBoxes[0]!.width).toBeCloseTo(44, 0);
+        expect(backupBoxes[1]!.width).toBeCloseTo(44, 0);
       }
       expect(
         await page.locator('.library-screen').evaluate((el) => el.scrollWidth <= el.clientWidth),

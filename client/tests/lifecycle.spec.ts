@@ -171,6 +171,7 @@ test('favorites, tags and combined library filters survive reload and backup', a
   await page.getByLabel('Tags', { exact: true }).fill('ridge, weekend');
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await page.getByRole('button', { name: 'Favorites only', exact: true }).click();
+  await page.getByRole('button', { name: 'Filter routes', exact: true }).click();
   await page.getByRole('button', { name: 'Filter by tag', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'ridge', exact: true }).click();
   await page.getByLabel('Minimum length (km)', { exact: true }).fill('0');
@@ -186,6 +187,7 @@ test('favorites, tags and combined library filters survive reload and backup', a
     'aria-pressed',
     'true',
   );
+  await page.getByRole('button', { name: 'Filter routes', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Filter by tag', exact: true })).toContainText(
     'ridge',
   );
