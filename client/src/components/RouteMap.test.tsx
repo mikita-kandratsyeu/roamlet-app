@@ -55,7 +55,7 @@ const mocks = vi.hoisted(() => ({
   ease: vi.fn(),
   scale: vi.fn(),
   theme: 'light',
-  look: 'default' as 'default' | 'vice',
+  look: 'default' as 'default' | 'newyear' | 'vice',
 }));
 vi.mock('../theme', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../theme')>()),
@@ -830,6 +830,13 @@ it('uses vice route colors when the vice look is enabled', () => {
   rerender(<RouteMap {...props} />);
   expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#ff4fd8');
   expect(mocks.paint).toHaveBeenCalledWith('route-casing', 'line-color', '#120814');
+  mocks.look = 'newyear';
+  mocks.theme = 'light';
+  rerender(<RouteMap {...props} />);
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#c41e3a');
+  mocks.theme = 'dark';
+  rerender(<RouteMap {...props} />);
+  expect(mocks.paint).toHaveBeenCalledWith('route-line', 'line-color', '#f5d76e');
   mocks.look = 'default';
   mocks.theme = 'light';
   rerender(<RouteMap {...props} />);

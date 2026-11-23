@@ -1,5 +1,5 @@
 import { Bike, Footprints, Printer } from 'lucide-react';
-import { useId, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useId, useMemo, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { analyzeClimbs } from '../domain/climbs';
 import { analyzeRouteElevation } from '../domain/routeElevation';
@@ -186,10 +186,10 @@ export function RouteBookExport({
     )}`;
   }
 
-  function clockTime(value: string | null | undefined) {
+  const clockTime = useCallback((value: string | null | undefined) => {
     if (!value) return null;
     return <time dateTime={value}>{clock.format(new Date(`${value}:00Z`))}</time>;
-  }
+  }, [clock]);
 
   const heroMetrics = useMemo(() => {
     const items: Array<{ key: string; label: string; value: ReactNode }> = [
@@ -277,6 +277,7 @@ export function RouteBookExport({
     elevation?.complete,
     hasElevation,
     pauseMinutes,
+    clockTime,
     route.departureLocal,
     schedule?.finishLocal,
     timesReady,

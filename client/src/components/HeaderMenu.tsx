@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { isTheme, useTheme } from '../theme';
+import { NewYearMark } from './NewYearMark';
 import { ViceMark } from './ViceMark';
 import { Dialog } from './Dialog';
 import { Notification } from './Notification';
@@ -309,12 +310,26 @@ export function HeaderMenu({
             {t('System theme follows OS settings. Language and theme are saved locally.')}
           </p>
           <DropdownMenuCheckboxItem
-            className="header-menu-item header-menu-vice-item"
+            className="header-menu-item header-menu-look-item header-menu-newyear-item"
+            checked={look === 'newyear'}
+            onSelect={(event) => {
+              event.preventDefault();
+              activate(() => setLook(look === 'newyear' ? 'default' : 'newyear'));
+            }}
+          >
+            <NewYearMark active={look === 'newyear'} />
+            <span>{t('New Year look')}</span>
+            {look === 'newyear' && (
+              <Check className="preference-check" size={18} aria-hidden="true" />
+            )}
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            className="header-menu-item header-menu-look-item header-menu-vice-item"
             checked={look === 'vice'}
-            onSelect={(event) => event.preventDefault()}
-            onCheckedChange={(checked) =>
-              activate(() => setLook(checked ? 'vice' : 'default'))
-            }
+            onSelect={(event) => {
+              event.preventDefault();
+              activate(() => setLook(look === 'vice' ? 'default' : 'vice'));
+            }}
           >
             <ViceMark active={look === 'vice'} />
             <span>{t('Vice look')}</span>

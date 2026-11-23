@@ -75,6 +75,26 @@
     animation: vice-wordmark-glow 3.2s ease-in-out infinite alternate;
   }
 
+  html[data-look='newyear'] .brand-wordmark {
+    animation: newyear-wordmark-twinkle 3.6s ease-in-out infinite alternate;
+  }
+
+  html[data-look='newyear'] .app-header {
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--ring) 28%, transparent);
+  }
+
+  @media (hover: hover) {
+    html[data-look='newyear'] button[data-slot='button'].bg-primary:hover:not(:disabled) {
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--ring) 50%, transparent),
+        0 8px 22px color-mix(in srgb, var(--primary) 30%, transparent);
+    }
+  }
+
+  html[data-look='newyear'] .header-menu-newyear-item svg {
+    animation: newyear-mark-twinkle 800ms var(--motion-ease) both;
+  }
+
   html[data-look='vice'] .header-menu-vice-item svg {
     animation: vice-mark-pulse 600ms var(--motion-ease) both;
   }
@@ -138,6 +158,30 @@
   to {
     opacity: 0;
     scale: 0.985;
+  }
+}
+
+@keyframes newyear-mark-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+    rotate: 0deg;
+  }
+  50% {
+    opacity: 1;
+    rotate: 18deg;
+    filter: drop-shadow(0 0 4px var(--ring));
+  }
+}
+
+@keyframes newyear-wordmark-twinkle {
+  from {
+    text-shadow: 0 0 10px color-mix(in srgb, var(--ring) 40%, transparent);
+  }
+  to {
+    text-shadow:
+      0 0 16px color-mix(in srgb, var(--ring) 55%, transparent),
+      0 0 28px color-mix(in srgb, var(--primary) 25%, transparent);
   }
 }
 

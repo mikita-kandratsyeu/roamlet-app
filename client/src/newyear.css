@@ -1,0 +1,64 @@
+/* Festive new-year look: palette accents + global snow (pointer-events-none). */
+
+html[data-look='newyear'] body {
+  background:
+    radial-gradient(ellipse 120% 80% at 50% -20%, color-mix(in srgb, var(--ring) 22%, transparent), transparent),
+    linear-gradient(
+      168deg,
+      var(--background) 0%,
+      color-mix(in srgb, var(--accent) 55%, var(--background)) 48%,
+      var(--background) 100%
+    );
+  background-attachment: fixed;
+}
+
+.newyear-snow {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.newyear-snowflake {
+  position: absolute;
+  top: -16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffffff 0%, rgba(255, 255, 255, 0.15) 72%);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+  opacity: var(--snow-opacity, 0.7);
+  animation: newyear-snow-fall linear infinite;
+  will-change: transform;
+}
+
+.newyear-snowflake.is-star {
+  border-radius: 2px;
+  background: none;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  line-height: 1;
+  width: auto !important;
+  height: auto !important;
+}
+
+.newyear-snowflake.is-star::before {
+  content: '❄';
+  display: block;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--ring) 50%, white);
+}
+
+@keyframes newyear-snow-fall {
+  from {
+    transform: translate3d(0, -5vh, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(var(--snow-drift, 24px), 105vh, 0) rotate(320deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .newyear-snow {
+    display: none;
+  }
+}

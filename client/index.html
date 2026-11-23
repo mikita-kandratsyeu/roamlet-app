@@ -23,7 +23,8 @@
         document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
         try {
           const look = localStorage.getItem('roamlet-look');
-          if (look === 'vice') document.documentElement.setAttribute('data-look', 'vice');
+          if (look === 'vice' || look === 'newyear')
+            document.documentElement.setAttribute('data-look', look);
         } catch {}
       })();
     </script>

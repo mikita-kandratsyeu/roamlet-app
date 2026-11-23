@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { NewYearSnow } from './components/NewYearSnow';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
-export type Look = 'default' | 'vice';
+export type Look = 'default' | 'newyear' | 'vice';
 export const THEME_STORAGE_KEY = 'roamlet-theme';
 export const LOOK_STORAGE_KEY = 'roamlet-look';
 const DARK_QUERY = '(prefers-color-scheme: dark)';
@@ -12,7 +13,7 @@ export function isTheme(value: unknown): value is Theme {
 }
 
 export function isLook(value: unknown): value is Look {
-  return value === 'default' || value === 'vice';
+  return value === 'default' || value === 'newyear' || value === 'vice';
 }
 
 function systemTheme(): ResolvedTheme {
@@ -67,8 +68,8 @@ function applyTheme(theme: ResolvedTheme) {
 }
 
 function applyLook(look: Look) {
-  if (look === 'vice') document.documentElement.setAttribute('data-look', 'vice');
-  else document.documentElement.removeAttribute('data-look');
+  if (look === 'default') document.documentElement.removeAttribute('data-look');
+  else document.documentElement.setAttribute('data-look', look);
 }
 
 const ThemeContext = createContext<{
@@ -149,11 +150,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <ThemeContext.Provider value={{ theme, resolvedTheme, look, setTheme, setLook }}>
       {children}
+      <NewYearSnow />
     </ThemeContext.Provider>
   );
 }
 
 export function routeLineColors(resolvedTheme: ResolvedTheme, look: Look) {
+  if (look === 'newyear') {
+    return resolvedTheme === 'dark'
+      ? { line: '#f5d76e', casing: '#101e2e' }
+      : { line: '#c41e3a', casing: '#fffaf5' };
+  }
   if (look === 'vice') {
     return resolvedTheme === 'dark'
       ? { line: '#ff4fd8', casing: '#120814' }

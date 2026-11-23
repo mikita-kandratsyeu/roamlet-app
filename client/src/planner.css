@@ -99,13 +99,13 @@
   box-shadow: inset 0 0 0 1px var(--primary);
   color: var(--primary);
 }
-.header-menu-panel .header-menu-vice-item {
+.header-menu-panel .header-menu-look-item {
   padding-left: 8px;
 }
-.header-menu-panel .header-menu-vice-item > span:first-child {
+.header-menu-panel .header-menu-look-item > span:first-child {
   display: none;
 }
-.header-menu-panel .header-menu-vice-item .preference-check {
+.header-menu-panel .header-menu-look-item .preference-check {
   margin-left: auto;
   color: var(--primary);
 }
@@ -310,6 +310,16 @@
   border-color: #66502c;
   background: #372b18;
   color: #f2ce83;
+}
+:root[data-look='newyear'] .planner-unsaved-badge {
+  border-color: #e8c878;
+  background: #fff6de;
+  color: #9a3a1f;
+}
+.dark[data-look='newyear'] .planner-unsaved-badge {
+  border-color: #6a5230;
+  background: #1c2a38;
+  color: #f5d76e;
 }
 :root[data-look='vice'] .planner-unsaved-badge {
   border-color: #f0c878;
@@ -1557,6 +1567,14 @@
 .dark {
   --offline-surface: #302a1e;
   --offline-foreground: #e6c68e;
+}
+:root[data-look='newyear'] {
+  --offline-surface: #fdf2f4;
+  --offline-foreground: #9f1239;
+}
+.dark[data-look='newyear'] {
+  --offline-surface: #1a2838;
+  --offline-foreground: #f5d76e;
 }
 :root[data-look='vice'] {
   --offline-surface: #fff0e8;

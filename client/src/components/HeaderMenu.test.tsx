@@ -130,7 +130,7 @@ it('uses labeled icon choices with horizontal keyboard navigation without changi
   expect(light).toHaveAttribute('aria-checked', 'false');
   await user.keyboard('{ArrowDown}');
   await waitFor(() =>
-    expect(screen.getByRole('menuitemcheckbox', { name: 'Welcome to Vice City' })).toHaveFocus(),
+    expect(screen.getByRole('menuitemcheckbox', { name: 'New Year' })).toHaveFocus(),
   );
   await user.keyboard('d');
   expect(dark).toHaveFocus();
@@ -140,10 +140,12 @@ it('uses labeled icon choices with horizontal keyboard navigation without changi
   expect(trigger).toHaveFocus();
 });
 
-it('toggles vice look from the menu without changing the theme row', async () => {
+it('toggles new year and vice looks exclusively from the menu', async () => {
   const { user, trigger } = setup();
   await user.click(trigger);
+  const newYear = screen.getByRole('menuitemcheckbox', { name: 'New Year' });
   const vice = screen.getByRole('menuitemcheckbox', { name: 'Welcome to Vice City' });
+  expect(newYear).toHaveAttribute('aria-checked', 'false');
   expect(vice).toHaveAttribute('aria-checked', 'false');
   expect(
     screen
@@ -151,7 +153,13 @@ it('toggles vice look from the menu without changing the theme row', async () =>
       .filter((item) => item.classList.contains('header-menu-theme-option'))
       .map((item) => item.getAttribute('aria-label')),
   ).toEqual(['Light', 'Dark', 'System']);
-  await user.click(vice);
+  await user.click(newYear);
+  expect(localStorage.getItem(LOOK_STORAGE_KEY)).toBe('newyear');
+  expect(document.documentElement).toHaveAttribute('data-look', 'newyear');
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  await user.click(trigger);
+  await waitFor(() => expect(screen.getByRole('menu')).toBeInTheDocument());
+  await user.click(screen.getByRole('menuitemcheckbox', { name: 'Welcome to Vice City' }));
   expect(localStorage.getItem(LOOK_STORAGE_KEY)).toBe('vice');
   expect(document.documentElement).toHaveAttribute('data-look', 'vice');
   expect(screen.queryByRole('menu')).not.toBeInTheDocument();
