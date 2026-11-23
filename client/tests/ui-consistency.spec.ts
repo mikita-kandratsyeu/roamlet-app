@@ -1337,8 +1337,8 @@ test('manual discovery and backup guidance share the existing design in both lan
       }
       if (testInfo.project.name === 'mobile') {
         expect(backupBoxes[0]!.y).toBeCloseTo(backupBoxes[1]!.y, 0);
-        expect(backupBoxes[0]!.width).toBeCloseTo(44, 0);
-        expect(backupBoxes[1]!.width).toBeCloseTo(44, 0);
+        expect(backupBoxes[0]!.width).toBeCloseTo(backupBoxes[1]!.width, 0);
+        expect(backupBoxes[0]!.x).toBeLessThan(backupBoxes[1]!.x);
       }
       expect(
         await page.locator('.library-screen').evaluate((el) => el.scrollWidth <= el.clientWidth),

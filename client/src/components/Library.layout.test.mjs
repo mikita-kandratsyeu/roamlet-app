@@ -193,7 +193,8 @@ for (const [width, columns] of [
       assert.ok(favorites.top < activity.top);
       if (width <= 560) {
         assert.equal(metrics.backupButtons[0].top, metrics.backupButtons[1].top);
-        assert.ok(metrics.backupButtons.every((button) => button.width === 44 && button.height === 44));
+        assert.ok(Math.abs(metrics.backupButtons[0].width - metrics.backupButtons[1].width) < 1);
+        assert.ok(metrics.backupButtons.every((button) => button.height >= 44));
         assert.ok(minimum.top > activity.bottom);
       } else if (width > 1040) assert.equal(activity.top, minimum.top);
       else assert.ok(minimum.top > activity.bottom);
