@@ -673,6 +673,8 @@
   "A fresh road/path route will be calculated between the track’s start and finish. This replaces original GPX geometry; export or save the original first. Disconnected tracks may not be routable.": "A new route will be calculated along roads and trails between the track’s start and finish, replacing the original GPX track. Save or export the original first to keep all its points and segments. Disconnected tracks may not have a connecting route.",
   "Your saved waypoints will be routed again. Current map data may produce a different route.": "The route between your saved stops will be recalculated. Updated map data may change its path.",
   "Something went wrong. Please try again.": "Could not complete this action. Try again.",
+  "The app could not be displayed. Your saved routes remain in this browser.": "The app could not be displayed. Your saved routes remain in this browser.",
+  "Reload app": "Reload app",
   "A route supports up to 50 stops. Remove a stop before adding another.": "A route can have up to 50 stops. Remove one to add another.",
   "Route saved on this device. Your next adventure is ready.": "Route saved in this browser on this device.",
   "Route calculated.": "Route calculated.",

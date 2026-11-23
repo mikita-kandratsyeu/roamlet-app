@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { setWorkerUrl } from 'maplibre-gl';
 import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import App from './App';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { applyWaitingUpdateOnStartup } from './domain/appUpdate';
 import { capturePwaInstallPrompt } from './hooks/usePwa';
 import { ThemeProvider } from './theme';
@@ -24,7 +25,9 @@ async function start() {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <ThemeProvider>
-        <App />
+        <AppErrorBoundary>
+          <App />
+        </AppErrorBoundary>
       </ThemeProvider>
     </React.StrictMode>,
   );

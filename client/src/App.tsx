@@ -1,5 +1,6 @@
 import { version as appVersion } from '../../package.json';
 import { Button } from './components/ui/button';
+import { GlobalErrorHandlers } from './components/GlobalErrorHandlers';
 import { Toaster } from './components/ui/sonner';
 import { Notification } from './components/Notification';
 import { toast } from 'sonner';
@@ -1088,6 +1089,7 @@ export default function App() {
       }}
     >
       <Toaster />
+      <GlobalErrorHandlers />
       {notice && notice.kind !== 'routing' && (
         <Notification
           title={t(notice.kind === 'map' ? 'Map error' : 'Notification')}

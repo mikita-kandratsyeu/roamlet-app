@@ -673,6 +673,8 @@
   "A fresh road/path route will be calculated between the track’s start and finish. This replaces original GPX geometry; export or save the original first. Disconnected tracks may not be routable.": "Между началом и концом трека будет рассчитан новый маршрут по дорогам и тропам. Он заменит исходный трек GPX. Сначала сохраните или экспортируйте оригинал, чтобы оставить все его точки и сегменты. Между разрозненными треками может не быть маршрута.",
   "Your saved waypoints will be routed again. Current map data may produce a different route.": "Маршрут между сохранёнными точками будет пересчитан. Обновлённые данные карты могут изменить его путь.",
   "Something went wrong. Please try again.": "Не удалось выполнить действие. Попробуйте ещё раз.",
+  "The app could not be displayed. Your saved routes remain in this browser.": "Не удалось отобразить приложение. Сохранённые маршруты остаются в этом браузере.",
+  "Reload app": "Перезагрузить приложение",
   "A route supports up to 50 stops. Remove a stop before adding another.": "В маршруте может быть до 50 точек. Удалите одну, чтобы добавить новую.",
   "Route saved on this device. Your next adventure is ready.": "Маршрут сохранён в этом браузере на этом устройстве.",
   "Route calculated.": "Маршрут рассчитан.",
