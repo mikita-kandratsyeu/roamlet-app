@@ -11,14 +11,13 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from './ui/dropdown-menu';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useId, useRef, useState } from 'react';
 import {
-  Bike,
-  Footprints,
   Search,
   Copy,
   Trash2,
@@ -26,6 +25,7 @@ import {
   FolderHeart,
   ArrowDownWideNarrow,
   ChevronDown,
+  MoreHorizontal,
   ArrowUpRight,
   Upload,
   Download,
@@ -54,6 +54,81 @@ import { ROUTE_COMPARISON_COLORS } from './RouteComparison';
 import { locale, translateMessage } from '../i18n';
 
 const MAX_VISIBLE_ROUTE_TAGS = 3;
+
+function RouteThumbnail({ route }: { route: PlannedRoute }) {
+  return (
+    <span className="library-activity-icon">
+      <svg className="library-thumbnail" viewBox="0 0 64 64" aria-hidden="true">
+        {thumbnailPaths(route.segments).map((path, index) => (
+          <path key={index} d={path} />
+        ))}
+      </svg>
+    </span>
+  );
+}
+
+function RouteCardDetails({ route }: { route: PlannedRoute }) {
+  const { t } = useTranslation();
+  const tags = route.tags ?? [];
+  const updated = new Date(route.updatedAt);
+  const description = route.description.trim();
+  return (
+    <>
+      <strong className="library-route-title" title={route.name}>
+        {route.name}
+      </strong>
+      <span className="library-route-facts">
+        <span className="library-route-meta">
+          <span className="library-activity">
+            {route.activity === 'cycling' ? t('Cycling') : t('Hiking')}
+          </span>
+          <span aria-hidden="true"> · </span>
+          <span className="library-distance">{formatDistance(route.stats.distance)}</span>
+        </span>
+        <time
+          className="library-updated"
+          dateTime={route.updatedAt}
+          title={t('Updated {{date}}', {
+            date: updated.toLocaleDateString(locale()),
+          })}
+        >
+          {updated.toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}
+        </time>
+      </span>
+      {tags.length > 0 && (
+        <span className="library-route-tags" title={tags.join(' · ')}>
+          <span className="library-route-tags-accessible">{tags.join(', ')}</span>
+          {tags.slice(0, MAX_VISIBLE_ROUTE_TAGS).map((tag, index) => (
+            <Badge
+              key={`${index}:${tag}`}
+              variant="secondary"
+              className="library-route-tag"
+              title={tag}
+              aria-hidden="true"
+            >
+              <span className="library-route-tag-label">{tag}</span>
+            </Badge>
+          ))}
+          {tags.length > MAX_VISIBLE_ROUTE_TAGS && (
+            <Badge
+              variant="secondary"
+              className="library-route-tag library-route-tag-overflow"
+              title={tags.slice(MAX_VISIBLE_ROUTE_TAGS).join(', ')}
+              aria-hidden="true"
+            >
+              +{tags.length - MAX_VISIBLE_ROUTE_TAGS}
+            </Badge>
+          )}
+        </span>
+      )}
+      {description && (
+        <span className="route-description" title={route.description}>
+          {route.description}
+        </span>
+      )}
+    </>
+  );
+}
 
 type RouteSort = 'updated' | 'name' | 'distance';
 const sortLabels: Record<RouteSort, string> = {
@@ -193,6 +268,7 @@ export function Library({
   const keepButton = useRef<HTMLButtonElement>(null);
   const actionTrigger = useRef<HTMLButtonElement | null>(null);
   const restoreFocus = useRef(false);
+  const suppressMenuFocus = useRef(false);
   useEffect(() => {
     const previous = previousFocus.current;
     return () => {
@@ -829,10 +905,11 @@ export function Library({
                   data-comparable={!!onCompare || undefined}
                   data-comparison-selected={comparisonIds.includes(route.id) || undefined}
                 >
-                  {onCompare && (
+                  {onCompare ? (
                     <label className="library-comparison-checkbox">
                       <input
                         type="checkbox"
+                        className="library-comparison-input"
                         checked={comparisonIds.includes(route.id)}
                         disabled={
                           busy ||
@@ -843,84 +920,34 @@ export function Library({
                         aria-describedby={comparisonHelpId}
                         onChange={() => toggleComparison(route.id)}
                       />
-                      <span>{t('Select for comparison')}</span>
+                      <RouteThumbnail route={route} />
+                      <span className="library-route-body">
+                        <RouteCardDetails route={route} />
+                      </span>
                     </label>
+                  ) : (
+                    <>
+                      <RouteThumbnail route={route} />
+                      <Button
+                        variant="ghost"
+                        className="library-open library-route-body"
+                        title={route.name}
+                        disabled={busy}
+                        onClick={() => onOpen(route)}
+                      >
+                        <RouteCardDetails route={route} />
+                      </Button>
+                    </>
                   )}
-                  <span className="library-activity-icon">
-                    <svg className="library-thumbnail" viewBox="0 0 64 64" aria-hidden="true">
-                      {thumbnailPaths(route.segments).map((path, index) => (
-                        <path key={index} d={path} />
-                      ))}
-                    </svg>
-                    {route.activity === 'cycling' ? (
-                      <Bike size={18} aria-hidden="true" />
-                    ) : (
-                      <Footprints size={18} aria-hidden="true" />
-                    )}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    className="library-open library-route-body"
-                    title={route.name}
-                    disabled={busy}
-                    onClick={() => onOpen(route)}
-                  >
-                    <strong className="library-route-title" title={route.name}>
-                      {route.name}
-                    </strong>
-                    <span className="library-route-meta">
-                      <span className="library-activity">
-                        {route.activity === 'cycling' ? t('Cycling') : t('Hiking')}
-                      </span>
-                      <span aria-hidden="true"> · </span>
-                      <span className="library-distance">
-                        {formatDistance(route.stats.distance)}
-                      </span>
-                      <span className="library-updated">
-                        {t('· Updated')} {new Date(route.updatedAt).toLocaleDateString(locale())}
-                      </span>
-                    </span>
-                    <span className="library-route-tags" title={(route.tags ?? []).join(' · ')}>
-                      <span className="library-route-tags-accessible">
-                        {(route.tags ?? []).join(', ')}
-                      </span>
-                      {(route.tags ?? []).slice(0, MAX_VISIBLE_ROUTE_TAGS).map((tag, index) => (
-                        <Badge
-                          key={`${index}:${tag}`}
-                          variant="secondary"
-                          className="library-route-tag"
-                          title={tag}
-                          aria-hidden="true"
-                        >
-                          <span className="library-route-tag-label">{tag}</span>
-                        </Badge>
-                      ))}
-                      {(route.tags?.length ?? 0) > MAX_VISIBLE_ROUTE_TAGS && (
-                        <Badge
-                          variant="secondary"
-                          className="library-route-tag library-route-tag-overflow"
-                          title={route.tags?.slice(MAX_VISIBLE_ROUTE_TAGS).join(', ')}
-                          aria-hidden="true"
-                        >
-                          +{(route.tags?.length ?? 0) - MAX_VISIBLE_ROUTE_TAGS}
-                        </Badge>
-                      )}
-                    </span>
-                    <span className="route-description" title={route.description}>
-                      {route.description}
-                    </span>
-                  </Button>
                   <Button
                     variant="outline"
                     className="library-open-action"
-                    aria-label={t('Open')}
+                    aria-label={t('Open {{name}}', { name: route.name })}
                     disabled={busy}
                     onClick={() => onOpen(route)}
                   >
                     <ArrowUpRight size={18} aria-hidden="true" />
-                    <span className="library-open-label">
-                      {t('Open', { defaultValue: locale() === 'ru-RU' ? 'Открыть' : 'Open' })}
-                    </span>
+                    <span className="library-open-label">{t('Open')}</span>
                   </Button>
                   <div
                     className="library-actions"
@@ -944,54 +971,83 @@ export function Library({
                     >
                       <Star size={18} aria-hidden="true" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      className="icon-button"
-                      disabled={busy}
-                      aria-label={t('Edit {{name}}', { name: route.name })}
-                      onClick={(event) => {
-                        actionTrigger.current = event.currentTarget;
-                        restoreFocus.current = false;
-                        setEditing(route);
-                        setDeleting(null);
-                        setName(route.name);
-                        setDescription(route.description);
-                        setTags((route.tags ?? []).join(', '));
-                        setFavorite(route.favorite ?? false);
-                      }}
-                    >
-                      <Pencil size={18} aria-hidden="true" />
-                      <span className="library-action-label">{t('Edit')}</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="icon-button"
-                      disabled={busy}
-                      aria-label={t('Duplicate {{name}}', { name: route.name })}
-                      onClick={(event) => {
-                        actionTrigger.current = event.currentTarget;
-                        void mutate(() => duplicateRoute(route), `duplicate:${route.id}`);
-                      }}
-                    >
-                      <Copy size={18} aria-hidden="true" />
-                      <span className="library-action-label">{t('Copy')}</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="icon-button library-delete-action"
-                      disabled={busy}
-                      aria-label={t('Delete {{name}}', { name: route.name })}
-                      title={t('Delete {{name}}', { name: route.name })}
-                      data-destructive="true"
-                      onClick={(event) => {
-                        actionTrigger.current = event.currentTarget;
-                        restoreFocus.current = false;
-                        setDeleting(route);
-                        setEditing(null);
-                      }}
-                    >
-                      <Trash2 size={18} aria-hidden="true" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="icon-button library-more-action"
+                          disabled={busy}
+                          aria-label={t('More actions for {{name}}', { name: route.name })}
+                          onClick={(event) => {
+                            actionTrigger.current = event.currentTarget;
+                          }}
+                          onKeyDown={(event) => {
+                            if (
+                              event.key === 'Enter' ||
+                              event.key === ' ' ||
+                              event.key === 'ArrowDown' ||
+                              event.key === 'ArrowUp'
+                            )
+                              actionTrigger.current = event.currentTarget;
+                          }}
+                        >
+                          <MoreHorizontal size={18} aria-hidden="true" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="library-route-menu"
+                        collisionPadding={12}
+                        onCloseAutoFocus={(event) => {
+                          if (!suppressMenuFocus.current) return;
+                          suppressMenuFocus.current = false;
+                          event.preventDefault();
+                        }}
+                      >
+                        <DropdownMenuItem
+                          disabled={busy}
+                          aria-label={t('Edit {{name}}', { name: route.name })}
+                          onSelect={() => {
+                            suppressMenuFocus.current = true;
+                            restoreFocus.current = false;
+                            setEditing(route);
+                            setDeleting(null);
+                            setName(route.name);
+                            setDescription(route.description);
+                            setTags((route.tags ?? []).join(', '));
+                            setFavorite(route.favorite ?? false);
+                          }}
+                        >
+                          <Pencil size={18} aria-hidden="true" />
+                          {t('Edit')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={busy}
+                          aria-label={t('Duplicate {{name}}', { name: route.name })}
+                          onSelect={() => {
+                            void mutate(() => duplicateRoute(route), `duplicate:${route.id}`);
+                          }}
+                        >
+                          <Copy size={18} aria-hidden="true" />
+                          {t('Copy')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={busy}
+                          variant="destructive"
+                          className="library-delete-action"
+                          aria-label={t('Delete {{name}}', { name: route.name })}
+                          onSelect={() => {
+                            suppressMenuFocus.current = true;
+                            restoreFocus.current = false;
+                            setDeleting(route);
+                            setEditing(null);
+                          }}
+                        >
+                          <Trash2 size={18} aria-hidden="true" />
+                          {t('Delete')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </li>
               ))}

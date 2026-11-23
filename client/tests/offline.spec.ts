@@ -500,7 +500,7 @@ test('production shell keeps saved routes and GPX export available offline, with
   ).toBeVisible();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'My routes' }).click();
-  await page.getByRole('button', { name: /Offline escape Hiking/ }).click();
+  await page.getByRole('button', { name: 'Open Offline escape', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Offline escape' })).toBeVisible();
   await page.getByRole('button', { name: 'Export' }).click();
   const exportDialog = page.getByRole('dialog', { name: 'Export route', exact: true });

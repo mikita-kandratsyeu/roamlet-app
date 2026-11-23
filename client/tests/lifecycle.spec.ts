@@ -166,7 +166,8 @@ test('favorites, tags and combined library filters survive reload and backup', a
     .locator('.library-route')
     .getByRole('button', { name: /Add to favorites/ })
     .click();
-  await page.getByRole('button', { name: 'Edit Segmented ride', exact: true }).click();
+  await page.getByRole('button', { name: 'More actions for Segmented ride', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit Segmented ride', exact: true }).click();
   await page.getByLabel('Tags', { exact: true }).fill('ridge, weekend');
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await page.getByRole('button', { name: 'Favorites only', exact: true }).click();

@@ -148,7 +148,7 @@ test('schedule edits persist and do not reroute; arrivals cross midnight', async
   await save(page, 'Night ride');
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
-  await page.getByRole('button', { name: /^Night ride Cycling/ }).click();
+  await page.getByRole('button', { name: 'Open Night ride', exact: true }).click();
   await expect(page.locator('.library-screen')).toHaveCount(0);
   await expect(page.locator('.planner-heading h1')).toHaveText('Night ride');
   const scheduleDetails = page.locator('.planner-details').filter({ hasText: 'Route schedule' });
@@ -215,7 +215,10 @@ test('comparison preserves editor and closes back to the selected library routes
   const editorCanvas = await page.locator('.maplibregl-canvas').elementHandle();
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
-  for (let index = 0; index < 5; index++) await page.getByRole('button', { name: `Duplicate ${routeName}`, exact: true }).click();
+  for (let index = 0; index < 5; index++) {
+    await page.getByRole('button', { name: `More actions for ${routeName}`, exact: true }).click();
+    await page.getByRole('menuitem', { name: `Duplicate ${routeName}`, exact: true }).click();
+  }
   const checks = page.getByRole('checkbox', { name: /^Select .* for comparison$/ });
   await expect(checks).toHaveCount(6);
   for (let index = 0; index < 5; index++) await checks.nth(index).check();

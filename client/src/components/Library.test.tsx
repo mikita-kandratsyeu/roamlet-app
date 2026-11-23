@@ -72,8 +72,15 @@ async function openLibrary(onCompare?: (routes: PlannedRoute[]) => void) {
   const onClose = vi.fn();
   const onOpen = vi.fn();
   render(<Library onClose={onClose} onOpen={onOpen} onCompare={onCompare} />);
-  await screen.findByRole('button', { name: /Alpine loop Cycling/ });
+  await screen.findByRole('list', { name: 'Saved routes' });
   return { onClose, onOpen };
+}
+async function chooseRouteAction(name: string, action: 'Edit' | 'Duplicate' | 'Delete') {
+  const user = userEvent.setup();
+  const trigger = screen.getByRole('button', { name: `More actions for ${name}` });
+  await user.click(trigger);
+  await user.click(screen.getByRole('menuitem', { name: `${action} ${name}` }));
+  return trigger;
 }
 function routeNames() {
   return within(screen.getByRole('list', { name: 'Saved routes' }))
@@ -88,7 +95,7 @@ it('loads with search focus, route count, activity and distance, and reopens the
   expect(routeNames()[0]).toContain('Woodland walk');
   const savedRoutes = screen.getByRole('list', { name: 'Saved routes' });
   expect(within(savedRoutes).getAllByRole('listitem')).toHaveLength(2);
-  expect(within(savedRoutes).getByRole('button', { name: 'Edit Alpine loop' })).toBeVisible();
+  expect(within(savedRoutes).getByRole('button', { name: 'More actions for Alpine loop' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: /Alpine loop Cycling.*8\.0 km/ }));
   expect(onOpen).toHaveBeenCalledWith(alpine);
   expect(screen.getByRole('region', { name: 'Saved routes' })).toHaveAccessibleDescription(
@@ -269,8 +276,7 @@ it.each(['resolve', 'reject'])(
 
 it('edits trimmed details, exposes busy state and returns focus to the edit action', async () => {
   await openLibrary();
-  const trigger = screen.getByRole('button', { name: 'Edit Alpine loop' });
-  fireEvent.click(trigger);
+  const trigger = await chooseRouteAction('Alpine loop', 'Edit');
   const name = screen.getByRole('textbox', { name: 'Route name' });
   expect(name).toHaveFocus();
   fireEvent.change(name, { target: { value: ' Updated loop ' } });
@@ -303,7 +309,7 @@ it('edits trimmed details, exposes busy state and returns focus to the edit acti
 
 it('does not save a blank route name and keeps the labeled editor available', async () => {
   await openLibrary();
-  fireEvent.click(screen.getByRole('button', { name: 'Edit Alpine loop' }));
+  await chooseRouteAction('Alpine loop', 'Edit');
   const editor = screen.getByRole('form', { name: 'Edit route details' });
   fireEvent.change(within(editor).getByRole('textbox', { name: 'Route name' }), {
     target: { value: '   ' },
@@ -316,8 +322,7 @@ it('does not save a blank route name and keeps the labeled editor available', as
 
 it('cancels editing without saving and restores the initiating action focus', async () => {
   await openLibrary();
-  const trigger = screen.getByRole('button', { name: 'Edit Alpine loop' });
-  fireEvent.click(trigger);
+  const trigger = await chooseRouteAction('Alpine loop', 'Edit');
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(saveRoute).not.toHaveBeenCalled();
   expect(trigger).toHaveFocus();
@@ -325,9 +330,8 @@ it('cancels editing without saving and restores the initiating action focus', as
 
 it('duplicates using the existing storage capability and restores its action focus', async () => {
   await openLibrary();
-  const trigger = screen.getByRole('button', { name: 'Duplicate Alpine loop' });
   vi.mocked(duplicateRoute).mockResolvedValue({ ...alpine, id: 'copy' });
-  fireEvent.click(trigger);
+  const trigger = await chooseRouteAction('Alpine loop', 'Duplicate');
   await waitFor(() => expect(trigger).not.toBeDisabled());
   expect(duplicateRoute).toHaveBeenCalledWith(alpine);
   expect(listRoutes).toHaveBeenCalledTimes(2);
@@ -336,8 +340,7 @@ it('duplicates using the existing storage capability and restores its action foc
 
 it('focuses the safe deletion choice, keeps or deletes explicitly and falls back to search after removal', async () => {
   await openLibrary();
-  const trigger = screen.getByRole('button', { name: 'Delete Alpine loop' });
-  fireEvent.click(trigger);
+  const trigger = await chooseRouteAction('Alpine loop', 'Delete');
   expect(screen.getByRole('button', { name: 'Keep route' })).toHaveFocus();
   const confirmation = screen.getByRole('alert');
   expect(confirmation).toHaveAccessibleName('Delete route');
@@ -345,11 +348,11 @@ it('focuses the safe deletion choice, keeps or deletes explicitly and falls back
   fireEvent.click(screen.getByRole('button', { name: 'Keep route' }));
   expect(deleteRoute).not.toHaveBeenCalled();
   expect(trigger).toHaveFocus();
-  fireEvent.click(trigger);
+  await chooseRouteAction('Alpine loop', 'Delete');
   vi.mocked(listRoutes).mockResolvedValue([woodland]);
   fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Delete route' }));
   await waitFor(() =>
-    expect(screen.queryByRole('button', { name: 'Delete Alpine loop' })).not.toBeInTheDocument(),
+    expect(screen.queryByRole('button', { name: 'More actions for Alpine loop' })).not.toBeInTheDocument(),
   );
   expect(deleteRoute).toHaveBeenCalledWith('a');
   expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus();
@@ -357,7 +360,7 @@ it('focuses the safe deletion choice, keeps or deletes explicitly and falls back
 
 it('keeps failed edits available with an error and returns focus to the name field', async () => {
   await openLibrary();
-  fireEvent.click(screen.getByRole('button', { name: 'Edit Alpine loop' }));
+  await chooseRouteAction('Alpine loop', 'Edit');
   vi.mocked(saveRoute).mockRejectedValue(new Error('Could not update your library.'));
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   const message = translateMessage('Could not update your library.');
@@ -463,7 +466,7 @@ it('loads library filters lazily from preferences and persists changes across re
 
 it('edits favorite and trimmed deduplicated tags and toggles favorites without opening the editor', async () => {
   const { onOpen } = await openLibrary();
-  fireEvent.click(screen.getByRole('button', { name: 'Edit Alpine loop' }));
+  await chooseRouteAction('Alpine loop', 'Edit');
   fireEvent.change(screen.getByRole('textbox', { name: 'Tags' }), {
     target: { value: ' forest, weekend, forest, ' },
   });
@@ -566,14 +569,13 @@ async function startPromiseAction(action: 'save' | 'delete' | 'duplicate' | 'imp
     });
     fireEvent.click(await screen.findByRole('button', { name: 'Import routes' }));
   } else if (action === 'duplicate') {
-    fireEvent.click(screen.getByRole('button', { name: 'Duplicate Alpine loop' }));
+    await chooseRouteAction('Alpine loop', 'Duplicate');
+  } else if (action === 'save') {
+    await chooseRouteAction('Alpine loop', 'Edit');
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   } else {
-    fireEvent.click(screen.getByRole('button', {
-      name: action === 'save' ? 'Edit Alpine loop' : 'Delete Alpine loop',
-    }));
-    fireEvent.click(screen.getByRole('button', {
-      name: action === 'save' ? 'Save changes' : 'Delete route',
-    }));
+    await chooseRouteAction('Alpine loop', 'Delete');
+    fireEvent.click(screen.getByRole('button', { name: 'Delete route' }));
   }
 }
 
@@ -607,7 +609,7 @@ it.each([
     expect(dialog).toBeInTheDocument();
   } else {
     expect(screen.getByRole('button', { name: 'Back to map' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Duplicate Alpine loop' }));
+    expect(screen.getByRole('button', { name: 'More actions for Alpine loop' })).toBeDisabled();
   }
   expect(onClose).not.toHaveBeenCalled();
   expect(toast.promise).toHaveBeenCalledOnce();
@@ -737,7 +739,7 @@ it('keeps named keyboard-operated filter menus and groups the star with route ac
     'icon-button',
     'library-favorite-action',
   );
-  expect(within(actions).getByRole('button', { name: 'Edit Alpine loop' })).toBeVisible();
+  expect(within(actions).getByRole('button', { name: 'More actions for Alpine loop' })).toBeVisible();
 });
 
 it('renders a separate screen and overlays editing/deletion without placing dialogs in screen flow', async () => {
@@ -746,8 +748,9 @@ it('renders a separate screen and overlays editing/deletion without placing dial
   const libraryScreen = screen.getByRole('region', { name: 'Saved routes' });
   expect(libraryScreen).toHaveClass('library-screen');
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  const edit = screen.getByRole('button', { name: 'Edit Alpine loop' });
+  const edit = screen.getByRole('button', { name: 'More actions for Alpine loop' });
   await user.click(edit);
+  await user.click(screen.getByRole('menuitem', { name: 'Edit Alpine loop' }));
   const dialog = screen.getByRole('dialog', { name: 'Edit route details' });
   expect(libraryScreen.contains(dialog)).toBe(false);
   expect(within(dialog).getByRole('textbox', { name: 'Route name' })).toHaveFocus();
@@ -755,7 +758,8 @@ it('renders a separate screen and overlays editing/deletion without placing dial
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(onClose).not.toHaveBeenCalled();
   await waitFor(() => expect(edit).toHaveFocus());
-  await user.click(screen.getByRole('button', { name: 'Delete Alpine loop' }));
+  await user.click(edit);
+  await user.click(screen.getByRole('menuitem', { name: 'Delete Alpine loop' }));
   const deletion = screen.getByRole('dialog', { name: 'Delete route' });
   expect(libraryScreen.contains(deletion)).toBe(false);
   expect(within(deletion).getByRole('button', { name: 'Keep route' })).toHaveFocus();
@@ -816,17 +820,12 @@ it('renders three short tags as compact badges with complete accessible labels',
   expect(tagRow.querySelector('.library-route-tag-overflow')).toBeNull();
 });
 
-it('reserves an empty tag row without badges for absent and empty tags', async () => {
+it('omits the tag row when a route has no tags', async () => {
   vi.mocked(listRoutes).mockResolvedValue([alpine, { ...woodland, tags: [] }]);
   await openLibrary();
-  const rows = screen
-    .getByRole('list', { name: 'Saved routes' })
-    .querySelectorAll('.library-route-tags');
-  expect(rows).toHaveLength(2);
-  for (const row of rows) {
-    expect(row).toHaveTextContent(/^$/);
-    expect(row.querySelector('[data-slot="badge"]')).toBeNull();
-  }
+  expect(
+    screen.getByRole('list', { name: 'Saved routes' }).querySelector('.library-route-tags'),
+  ).toBeNull();
 });
 
 it('keeps complete long route names/tags/details accessible in consistently reserved card content slots', async () => {
@@ -870,30 +869,31 @@ it('keeps complete long route names/tags/details accessible in consistently rese
   );
   expect(longBody).toHaveAccessibleName(expect.stringContaining(longTags.join(', ')));
   expect(longBody.querySelector('.route-description')).toHaveAttribute('title', longDescription);
-  for (const body of bodies) {
-    expect(body.querySelector('.library-route-title')).toBeInTheDocument();
-    expect(body.querySelector('.library-route-meta')).toBeInTheDocument();
-    expect(body.querySelector('.library-route-tags')).toBeInTheDocument();
-    expect(body.querySelector('.route-description')).toBeInTheDocument();
-  }
+  const shortBody = bodies.find((button) => button !== longBody)!;
+  expect(shortBody.querySelector('.library-route-title')).toBeInTheDocument();
+  expect(shortBody.querySelector('.library-route-meta')).toBeInTheDocument();
+  expect(shortBody.querySelector('.route-description')).not.toBeInTheDocument();
+  expect(shortBody.querySelector('.library-route-tags')).not.toBeInTheDocument();
   const card = longBody.closest('.library-route') as HTMLElement;
   const actions = within(card).getByRole('group');
-  expect(
-    within(actions).getByRole('button', { name: `Edit ${longName.trim()}` }),
-  ).toHaveTextContent('Edit');
-  expect(
-    within(actions).getByRole('button', { name: `Duplicate ${longName.trim()}` }),
-  ).toHaveTextContent('Copy');
-  expect(within(actions).getByRole('button', { name: `Delete ${longName.trim()}` })).toHaveClass(
+  const user = userEvent.setup();
+  await user.click(within(actions).getByRole('button', { name: `More actions for ${longName.trim()}` }));
+  expect(screen.getByRole('menuitem', { name: `Edit ${longName.trim()}` })).toHaveTextContent('Edit');
+  expect(screen.getByRole('menuitem', { name: `Duplicate ${longName.trim()}` })).toHaveTextContent(
+    'Copy',
+  );
+  expect(screen.getByRole('menuitem', { name: `Delete ${longName.trim()}` })).toHaveClass(
     'library-delete-action',
   );
+  await user.keyboard('{Escape}');
   fireEvent.click(longBody);
   expect(onOpen).toHaveBeenCalledWith(longRoute);
   fireEvent.change(screen.getByRole('textbox', { name: 'Search saved routes' }), {
     target: { value: 'hidden-tag' },
   });
   expect(within(list).getAllByRole('listitem')).toHaveLength(1);
-  fireEvent.click(within(actions).getByRole('button', { name: `Edit ${longName.trim()}` }));
+  await user.click(within(list).getByRole('button', { name: `More actions for ${longName.trim()}` }));
+  await user.click(screen.getByRole('menuitem', { name: `Edit ${longName.trim()}` }));
   expect(screen.getByRole('textbox', { name: 'Tags' })).toHaveValue(longTags.join(', '));
 });
 
@@ -946,7 +946,8 @@ it('selects 2–5 routes using keyboard-accessible checkboxes and enforces the m
   expect(select(alpine.name)).toBeChecked();
   expect(screen.getByText('1 route selected. Choose one more to compare.')).toBeVisible();
   expect(compare).toBeDisabled();
-  await user.click(select(woodland.name));
+  await user.click(screen.getByText('Woodland walk', { selector: '.library-route-title' }));
+  expect(select(woodland.name)).toBeChecked();
   expect(screen.getByText('Ready to compare. You can select up to 5 routes.')).toBeVisible();
   expect(compare).toBeEnabled();
   for (const selected of [third, fourth, fifth]) await user.click(select(selected.name));
@@ -996,7 +997,7 @@ it('clears comparison on Escape before exiting while keeping route opening avail
   expect(
     screen.getByRole('checkbox', { name: 'Select Alpine loop for comparison' }),
   ).not.toBeChecked();
-  fireEvent.click(screen.getByRole('button', { name: /Alpine loop Cycling/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open Alpine loop' }));
   expect(onOpen).toHaveBeenCalledWith(alpine);
   fireEvent.keyDown(screen.getByRole('region', { name: 'Saved routes' }), { key: 'Escape' });
   expect(onClose).toHaveBeenCalledOnce();
@@ -1007,7 +1008,7 @@ it('compares current saved edits and drops routes deleted after selection', asyn
   await openLibrary(onCompare);
   fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alpine loop for comparison' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Select Woodland walk for comparison' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Edit Alpine loop' }));
+  await chooseRouteAction('Alpine loop', 'Edit');
   const updated = { ...alpine, name: 'Updated loop' };
   vi.mocked(listRoutes).mockResolvedValue([updated, woodland]);
   fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
@@ -1017,7 +1018,7 @@ it('compares current saved edits and drops routes deleted after selection', asyn
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   fireEvent.click(screen.getByRole('button', { name: 'Compare routes' }));
   expect(onCompare).toHaveBeenCalledWith([updated, woodland]);
-  fireEvent.click(screen.getByRole('button', { name: 'Delete Updated loop' }));
+  await chooseRouteAction('Updated loop', 'Delete');
   vi.mocked(listRoutes).mockResolvedValue([woodland]);
   fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Delete route' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

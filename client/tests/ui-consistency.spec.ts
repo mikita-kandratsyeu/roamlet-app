@@ -347,7 +347,8 @@ test('saved descriptions use two-line previews and open in the planner without m
   await page.getByRole('menuitem', { name: 'My routes', exact: true }).click();
   await expect(page.getByTestId('panel-loader')).toHaveCount(0);
   const tags = ['Scenic', 'Weekend', 'Forest', 'Water', 'LongTag'.repeat(20)];
-  await page.getByRole('button', { name: 'Edit Forest notes', exact: true }).click();
+  await page.getByRole('button', { name: 'More actions for Forest notes', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit Forest notes', exact: true }).click();
   await page.getByRole('textbox', { name: 'Tags', exact: true }).fill(tags.join(', '));
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -839,12 +840,27 @@ test('saved route cards keep uniform heights and aligned actions with long names
     elements.map((element) => {
       const card = element.getBoundingClientRect();
       const footer = element.querySelector('.library-actions')!.getBoundingClientRect();
-      return { height: card.height, footer: footer.top - card.top };
+      return {
+        top: Math.round(card.top),
+        height: card.height,
+        footerBottom: card.bottom - footer.bottom,
+      };
     }),
   );
+  const rows = new Map<number, typeof boxes>();
   for (const box of boxes) {
-    expect(Math.abs(box.height - boxes[0].height)).toBeLessThan(1);
-    expect(Math.abs(box.footer - boxes[0].footer)).toBeLessThan(1);
+    const row = rows.get(box.top) ?? [];
+    row.push(box);
+    rows.set(box.top, row);
+  }
+  expect(rows.size).toBeGreaterThan(1);
+  for (const row of rows.values()) {
+    for (const box of row) {
+      expect(Math.abs(box.height - row[0].height)).toBeLessThan(1);
+      expect(box.footerBottom).toBeGreaterThanOrEqual(0);
+      expect(box.footerBottom).toBeLessThan(24);
+      expect(Math.abs(box.footerBottom - row[0].footerBottom)).toBeLessThan(1);
+    }
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('library-uniform-grid.png') });
@@ -1111,7 +1127,8 @@ test('comparison selection keeps a clear remove icon and touch target with long 
   const select = page.getByRole('checkbox', { name: `Select ${name} for comparison`, exact: true });
   await select.check();
   await expect(page.getByRole('button', { name: 'Compare routes', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: `Duplicate ${name}`, exact: true }).click();
+  await page.getByRole('button', { name: `More actions for ${name}`, exact: true }).click();
+  await page.getByRole('menuitem', { name: `Duplicate ${name}`, exact: true }).click();
   await page
     .getByRole('checkbox', { name: `Select ${name} (copy) for comparison`, exact: true })
     .check();

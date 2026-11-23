@@ -237,6 +237,12 @@ describe('first-visit disclaimer', () => {
 function openMenu() {
   fireEvent.keyDown(screen.getByRole('button', { name: /^(Menu|Меню)$/ }), { key: 'ArrowDown' });
 }
+function openRouteAction(routeName: string, action: 'Edit' | 'Duplicate' | 'Delete') {
+  const trigger = screen.getByRole('button', { name: `More actions for ${routeName}` });
+  fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+  fireEvent.click(screen.getByRole('menuitem', { name: `${action} ${routeName}` }));
+  return trigger;
+}
 function selectLanguage(label: string) {
   openMenu();
   fireEvent.click(screen.getByRole('menuitemradio', { name: label }));
@@ -987,7 +993,7 @@ describe('route planner interactions', () => {
     expect((await routeDb.routes.toArray())[0].source).toBe('manual');
     openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Hand drawn Cycling/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Hand drawn' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Hiking' }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit waypoints' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -1245,20 +1251,19 @@ describe('route planner interactions', () => {
     await waitFor(() =>
       expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus(),
     );
-    const edit = await screen.findByRole('button', { name: 'Edit Focus trip' });
-    fireEvent.click(edit);
+    const more = await screen.findByRole('button', { name: 'More actions for Focus trip' });
+    openRouteAction('Focus trip', 'Edit');
     expect(screen.getByRole('textbox', { name: 'Route name' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(edit).toHaveFocus();
-    const remove = screen.getByRole('button', { name: 'Delete Focus trip' });
-    fireEvent.click(remove);
+    expect(more).toHaveFocus();
+    openRouteAction('Focus trip', 'Delete');
     expect(screen.getByRole('button', { name: 'Keep route' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Keep route' }));
-    expect(remove).toHaveFocus();
-    fireEvent.click(remove);
+    expect(more).toHaveFocus();
+    openRouteAction('Focus trip', 'Delete');
     fireEvent.click(screen.getByRole('button', { name: 'Delete route' }));
     await waitFor(() =>
-      expect(screen.queryByRole('button', { name: 'Delete Focus trip' })).not.toBeInTheDocument(),
+      expect(screen.queryByRole('button', { name: 'More actions for Focus trip' })).not.toBeInTheDocument(),
     );
     await waitFor(() =>
       expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveFocus(),
@@ -1303,7 +1308,7 @@ describe('route planner interactions', () => {
     );
     fireEvent.click(screen.getByRole('menuitem', { name: 'Мои маршруты' }));
     expect(
-      await screen.findByRole('button', { name: /River escape Велосипед/ }),
+      await screen.findByRole('button', { name: 'Открыть River escape' }),
     ).toBeInTheDocument();
     const saved = await routeDb.routes.toArray();
     expect(saved[0].name).toBe('River escape');
@@ -1456,7 +1461,7 @@ describe('route planner interactions', () => {
     render(<App />);
     openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
-    const open = await screen.findByRole('button', { name: /River escape Cycling/ });
+    const open = await screen.findByRole('button', { name: 'Open River escape' });
     fireEvent.click(open);
     expect(screen.getByRole('heading', { name: 'River escape' })).toBeInTheDocument();
     expectRouteActionEnabled('Export');
@@ -1562,17 +1567,19 @@ describe('route planner interactions', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     openMenu();
     fireEvent.click(screen.getByRole('menuitem', { name: 'My routes' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit Sunday' }));
+    await screen.findByRole('button', { name: 'More actions for Sunday' });
+    openRouteAction('Sunday', 'Edit');
     fireEvent.change(screen.getByRole('textbox', { name: 'Route name' }), {
       target: { value: 'Monday' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Duplicate Monday' }));
+    await screen.findByRole('button', { name: 'More actions for Monday' });
+    openRouteAction('Monday', 'Duplicate');
     await waitFor(async () => expect(await routeDb.routes.count()).toBe(2));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Delete Monday' })).toBeEnabled(),
+      expect(screen.getByRole('button', { name: 'More actions for Monday' })).toBeEnabled(),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Monday' }));
+    openRouteAction('Monday', 'Delete');
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByText(/cannot be undone/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Delete route' }));
