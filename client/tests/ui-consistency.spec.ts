@@ -1320,7 +1320,7 @@ test('manual discovery and backup guidance share the existing design in both lan
       const backups = page.getByRole('group', {
         name: /^(Library backup|Резервная копия библиотеки)$/,
       });
-      await expect(backups).toHaveAccessibleDescription(/JSON/);
+      await expect(backups.getByText(/JSON|GPX/)).toHaveCount(0);
       await expect(
         backups.getByRole('button', { name: /^(Download backup|Скачать резервную копию)$/ }),
       ).toBeDisabled();

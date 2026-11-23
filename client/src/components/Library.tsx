@@ -34,7 +34,6 @@ import {
   SlidersHorizontal,
   ArrowLeft,
   ArrowLeftRight,
-  Info,
   X,
 } from 'lucide-react';
 
@@ -253,7 +252,6 @@ export function Library({
   const editTitleId = useId();
   const deleteTitleId = useId();
   const screenDescriptionId = useId();
-  const filterTitleId = useId();
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<PlannedRoute | null>(null);
   const [deleting, setDeleting] = useState<PlannedRoute | null>(null);
@@ -536,7 +534,9 @@ export function Library({
                   </PopoverTrigger>
                   <PopoverContent
                     align="start"
-                    className="route-library library-filter-popover w-[min(560px,calc(100vw-24px))] p-3"
+                    sideOffset={8}
+                    collisionPadding={16}
+                    className="route-library library-filter-popover"
                     onInteractOutside={(event) => {
                       const target = event.target;
                       if (
@@ -547,27 +547,15 @@ export function Library({
                       }
                     }}
                   >
-                    <section className="library-filters" aria-labelledby={filterTitleId}>
-                      <div className="library-filter-heading">
-                        <div className="library-filter-title">
-                          <SlidersHorizontal size={20} aria-hidden="true" />
-                          <h2 id={filterTitleId}>{t('Filter routes')}</h2>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={busy || loading || (!hasFilters && sort === 'updated')}
-                          onClick={resetFilters}
-                        >
-                          {t('Reset filters')}
-                        </Button>
-                      </div>
+                    <section className="library-filters" aria-label={t('Filter routes')}>
                       <div className="library-filter-grid">
                         <LibraryChoice
                           label={t('Activity')}
                           value={activity}
                           disabled={busy || loading}
-                          onChange={(value) => updateFilters({ activity: value as typeof activity })}
+                          onChange={(value) =>
+                            updateFilters({ activity: value as typeof activity })
+                          }
                           options={[
                             { value: 'all', label: t('All activities') },
                             { value: 'cycling', label: t('Cycling') },
@@ -622,6 +610,14 @@ export function Library({
                           </div>
                         </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        className="library-filter-reset"
+                        disabled={busy || loading || (!hasFilters && sort === 'updated')}
+                        onClick={resetFilters}
+                      >
+                        {t('Reset filters')}
+                      </Button>
                     </section>
                   </PopoverContent>
                 </Popover>
@@ -641,22 +637,7 @@ export function Library({
               className="library-backup-tools library-backup-actions"
               role="group"
               aria-label={t('Library backup')}
-              aria-describedby="library-backup-help"
             >
-              <details className="library-backup-disclosure">
-                <summary>
-                  <Info size={16} aria-hidden="true" />
-                  <span className="library-backup-label">{t('Library backup')}</span>
-                </summary>
-                <p className="fine-print" id="library-backup-help">
-                  {t(
-                    'Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.',
-                  )}{' '}
-                  {t(
-                    'JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.',
-                  )}
-                </p>
-              </details>
               <Button
                 variant="outline"
                 disabled={loading || busy || loadFailed || !routes.length}

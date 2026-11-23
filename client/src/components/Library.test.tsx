@@ -378,7 +378,7 @@ it('names the filter widget and length group and disables reset only when every 
   expect(screen.queryByRole('region', { name: 'Filter routes' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Filter routes' }));
   const filters = screen.getByRole('region', { name: 'Filter routes' });
-  expect(within(filters).getByRole('heading', { level: 2, name: 'Filter routes' })).toBeVisible();
+  expect(within(filters).queryByRole('heading', { name: 'Filter routes' })).not.toBeInTheDocument();
   const length = within(filters).getByRole('group', { name: 'Route length (km)' });
   expect(within(length).getByRole('spinbutton', { name: 'Minimum length (km)' })).toHaveValue(null);
   expect(within(length).getByRole('spinbutton', { name: 'Maximum length (km)' })).toHaveValue(null);
@@ -905,26 +905,15 @@ it('keeps complete long route names/tags/details accessible in consistently rese
   expect(screen.getByRole('textbox', { name: 'Tags' })).toHaveValue(longTags.join(', '));
 });
 
-it('keeps backup actions available while storage explanations are collapsed', async () => {
-  const user = userEvent.setup();
+it('keeps backup actions available without a storage explanation', async () => {
   await openLibrary();
   const group = screen.getByRole('group', { name: 'Library backup' });
-  const disclosure = group.querySelector('details') as HTMLDetailsElement;
-  const summary = within(group).getByText('Library backup');
-  expect(disclosure.open).toBe(false);
-  expect(within(group).getByText(/Routes stay only in this browser/)).not.toBeVisible();
-  await user.click(summary);
-  expect(disclosure.open).toBe(true);
-  expect(within(group).getByText(/Routes stay only in this browser/)).toBeVisible();
-  await user.click(summary);
-  expect(disclosure.open).toBe(false);
+  expect(group.querySelector('details')).toBeNull();
+  expect(screen.queryByText(/Routes stay only in this browser/)).not.toBeInTheDocument();
   expect(screen.getByRole('textbox', { name: 'Search saved routes' })).toHaveValue('');
   expect(
     within(screen.getByRole('list', { name: 'Saved routes' })).getAllByRole('listitem'),
   ).toHaveLength(2);
-  expect(group).toHaveAccessibleDescription(
-    'Routes stay only in this browser unless you create a backup. Connections offers optional encrypted cloud copies. Clearing browser data deletes local routes. JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.',
-  );
   expect(within(group).getByRole('button', { name: 'Download backup' })).toBeEnabled();
   expect(within(group).getByRole('button', { name: 'Restore from backup' })).toBeEnabled();
 });

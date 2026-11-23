@@ -63,9 +63,6 @@ for (const [width, columns] of [
             <button class="library-filter-trigger">${icon}${t('Filter routes')}</button>
             <button class="library-favorite-filter" aria-pressed="false">${icon}${t('Favorites only')}</button>
             <div class="library-backup-tools library-backup-actions">
-              <details class="library-backup-disclosure"><summary>${icon}<span class="library-backup-label">${t('Library backup')}</span></summary>
-                <p>${t('Routes stay only in this browser. No cloud copy. Clearing browser data deletes them.')} ${t('JSON backs up all saved routes, not settings or the current draft. GPX exports an individual route for other apps.')}</p>
-              </details>
               <button>${icon}<span class="library-backup-label">${t('Download backup')}</span></button><button>${icon}<span class="library-backup-label">${t('Restore from backup')}</span></button>
             </div>
           </div>
@@ -202,18 +199,8 @@ for (const [width, columns] of [
       else assert.ok(minimum.top > activity.bottom);
       if (width >= 1024)
         assert.ok(metrics.cardWidths.every((cardWidth) => cardWidth >= 300 && cardWidth <= 520));
-
-      const disclosure = page.locator('.library-backup-disclosure');
-      await assert.doesNotReject(() =>
-        page.locator('.library-backup-actions > button').first().click(),
-      );
-      assert.equal(await disclosure.getAttribute('open'), null);
-      await disclosure.locator('summary').focus();
-      await page.keyboard.press('Enter');
-      assert.equal(await disclosure.locator('p').isVisible(), true);
-      await page.keyboard.press('Enter');
-      assert.equal(await disclosure.locator('p').isVisible(), false);
-      assert.equal(await page.locator('.library-backup-actions > button').last().isVisible(), true);
+      assert.equal(await page.locator('.library-backup-disclosure').count(), 0);
+      assert.equal(await page.locator('.library-backup-actions > button').count(), 2);
     } finally {
       await context.close();
       await rm(profile, { recursive: true, force: true });
