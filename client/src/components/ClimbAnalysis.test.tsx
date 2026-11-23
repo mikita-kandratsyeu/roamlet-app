@@ -72,7 +72,7 @@ it('puts results before collapsed detection help, including the ORS disclaimer',
   const icon = details.querySelector('.disclosure-toggle')!;
   expect(icon).toHaveAttribute('aria-hidden', 'true');
   expect(icon.querySelector('svg')).toHaveAttribute('width', '18');
-  const explanation = screen.getByText(/Drops over 3 m split climbs/);
+  const explanation = screen.getByText(/Drops of 3 m or more split climbs/);
   const disclaimer = screen.getByText(
     'ORS terrain heights are estimates, not measured trail elevations.',
   );

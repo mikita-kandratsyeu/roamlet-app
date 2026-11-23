@@ -105,7 +105,7 @@ export function ClimbAnalysis({ route, onHighlight, showHeading = true }: ClimbA
         </summary>
         <p className="fine-print">
           {t(
-            'Drops over {{tolerance}} m split climbs; smaller drops are ignored. Internal flats count, edge flats do not. Segment gaps and stationary points split climbs.',
+            'Drops of {{tolerance}} m or more split climbs; smaller drops are ignored. Internal flats count, edge flats do not. Segment gaps and stationary points split climbs.',
             { tolerance: number(CLIMB_THRESHOLDS.descentToleranceMeters) },
           )}
         </p>

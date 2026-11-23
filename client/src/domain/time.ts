@@ -43,7 +43,7 @@ export type TimeWarning =
 
 /** Straight-line legs are shorter than a path. Applied to the point estimate only. */
 export const DIRECT_DISTANCE_FACTOR = 1.2;
-/** Below this grade, cycling keeps flat speed. At or above it, vertical speed replaces that speed. */
+/** Below this grade on an edge, cycling keeps flat speed. At or above it, vertical speed replaces that edge. */
 export const CYCLING_STEEP_GRADE = 0.04;
 
 /** Filtered ascent shared with route statistics. Stationary jumps and gaps add nothing. */

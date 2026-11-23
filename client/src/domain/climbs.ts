@@ -27,8 +27,9 @@ type ClimbRoute = Pick<PlannedRoute, 'segments' | 'source' | 'elevationSource'>;
 
 /**
  * Metres use the same horizontal, gap-excluding distances as route statistics.
- * A valley-to-peak rise must exceed 3 m to start; a cumulative drop from the
- * running peak greater than 3 m ends it at that peak. Exactly 3 m is tolerated.
+ * A valley-to-peak rise of 3 m or more starts a run; a drop of 3 m or more from
+ * the running peak ends it at that peak. Smaller reversals are noise, matching
+ * the shared elevation filter.
  * Accepted runs span at least 300 m and gain at least 20 m net. Small reversals
  * do not inflate ascent. Internal plateaus count; leading/trailing flats do not.
  * Segment boundaries and zero-distance edges terminate runs: stationary height
@@ -86,13 +87,13 @@ export function analyzeClimbs(route: ClimbRoute | null): ClimbAnalysisResult {
       const height = segment[index][2]!;
       if (!climbing) {
         if (height <= segment[valley][2]!) valley = index;
-        if (height - segment[valley][2]! > CLIMB_THRESHOLDS.descentToleranceMeters) {
+        if (height - segment[valley][2]! >= CLIMB_THRESHOLDS.descentToleranceMeters) {
           peak = index;
           climbing = true;
         }
       } else if (height > segment[peak][2]!) {
         peak = index;
-      } else if (segment[peak][2]! - height > CLIMB_THRESHOLDS.descentToleranceMeters) {
+      } else if (segment[peak][2]! - height >= CLIMB_THRESHOLDS.descentToleranceMeters) {
         finish();
         valley = peak = index;
         climbing = false;

@@ -30,8 +30,12 @@ export const ELEVATION_REVERSAL_METERS = 3;
 export interface FilteredElevation {
   ascent: number;
   descent: number;
-  /** Horizontal metres of climbs at or above the requested grade. */
+  /**
+   * Rise of edges inside a filtered climb whose own grade meets `steepGrade`.
+   * A sub-3 m dip can be regained, so this can slightly exceed net ascent.
+   */
   steepAscent: number;
+  /** Horizontal metres of those steep edges. */
   steepHorizontal: number;
   /** Horizontal metres of every non-stationary edge. */
   horizontal: number;
@@ -53,6 +57,9 @@ function profileIsComplete(segments: Coordinate[][]): boolean {
  * Noise-filtered ascent. `sign` -1 measures descent with the same 3 m hysteresis.
  * A stationary edge closes the current run and adds nothing: a height jump at one
  * coordinate is not gain. Segment gaps never connect.
+ * Steep totals use each edge's own rise/run inside the valley-to-peak span.
+ * The run's average grade is not used, so a gentle continuation does not erase a
+ * steep pitch and an internal flat is not charged at vertical speed.
  */
 function filteredChange(
   segments: Coordinate[][],
@@ -66,20 +73,21 @@ function filteredChange(
   let horizontal = 0;
   for (const segment of segments) {
     if (!segment.length) continue;
-    let along = 0;
     let valley = sign * segment[0][2]!;
-    let valleyAt = 0;
+    let valleyIndex = 0;
     let peak = valley;
-    let peakAt = 0;
+    let peakIndex = 0;
     let climbing = false;
     const close = () => {
       if (!climbing) return;
-      const gain = peak - valley;
-      const length = peakAt - valleyAt;
-      ascent += gain;
-      if (length > 0 && gain / length >= steepGrade) {
-        steepAscent += gain;
-        steepHorizontal += length;
+      ascent += peak - valley;
+      for (let index = valleyIndex + 1; index <= peakIndex; index++) {
+        const edge = distanceBetween(segment[index - 1], segment[index]);
+        const rise = sign * segment[index][2]! - sign * segment[index - 1][2]!;
+        if (edge > 0 && rise / edge >= steepGrade) {
+          steepAscent += rise;
+          steepHorizontal += edge;
+        }
       }
       climbing = false;
     };
@@ -89,28 +97,27 @@ function filteredChange(
       if (!(edge > 0)) {
         close();
         valley = peak = height;
-        valleyAt = peakAt = along;
+        valleyIndex = peakIndex = index;
         continue;
       }
-      along += edge;
       horizontal += edge;
       if (!climbing) {
         if (height < valley) {
           valley = height;
-          valleyAt = along;
+          valleyIndex = index;
         }
         if (height - valley >= ELEVATION_REVERSAL_METERS) {
           peak = height;
-          peakAt = along;
+          peakIndex = index;
           climbing = true;
         }
       } else if (height > peak) {
         peak = height;
-        peakAt = along;
+        peakIndex = index;
       } else if (peak - height >= ELEVATION_REVERSAL_METERS) {
         close();
         valley = peak = height;
-        valleyAt = peakAt = along;
+        valleyIndex = peakIndex = index;
       }
     }
     close();
@@ -119,8 +126,9 @@ function filteredChange(
 }
 
 /**
- * One elevation total for statistics and time. Steep fields use `steepGrade`
- * (rise over horizontal run). The default keeps those fields at zero.
+ * One elevation total for statistics and time. Steep fields sum edges inside a
+ * filtered climb whose own rise/run is at least `steepGrade`. The default keeps
+ * those fields at zero.
  */
 export function measureElevation(
   segments: Coordinate[][],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateStats, elevationSamples } from './stats';
+import { calculateStats, elevationSamples, measureElevation } from './stats';
 import type { Coordinate } from './types';
 
 describe('route statistics', () => {
@@ -88,6 +88,48 @@ describe('route statistics', () => {
     );
     expect(jumped.ascent).toBe(0);
     expect(jumped.descent).toBe(0);
+  });
+  it('grades cycling climbs per edge, so a gentle tail or internal flat does not swallow the steep pitch', () => {
+    const metreDegrees = 180 / (Math.PI * 6_371_008.8);
+    const point = (metres: number, elevation: number): Coordinate => [
+      metres * metreDegrees,
+      0,
+      elevation,
+    ];
+    const diluted = measureElevation(
+      [
+        [
+          point(0, 0),
+          point(1000, 100),
+          point(6000, 110),
+        ],
+      ],
+      0.04,
+    );
+    expect(diluted).toMatchObject({ ascent: 110, steepAscent: 100 });
+    expect(diluted!.steepHorizontal).toBeCloseTo(1000);
+    expect(diluted!.horizontal).toBeCloseTo(6000);
+
+    const plateau = measureElevation(
+      [
+        [
+          point(0, 0),
+          point(500, 80),
+          point(3500, 80),
+          point(4000, 160),
+        ],
+      ],
+      0.04,
+    );
+    expect(plateau).toMatchObject({ ascent: 160, steepAscent: 160 });
+    expect(plateau!.steepHorizontal).toBeCloseTo(1000);
+    expect(plateau!.horizontal).toBeCloseTo(4000);
+
+    const exact = measureElevation([[point(0, 0), point(2500, 100)]], 0.04);
+    expect(exact).toMatchObject({ steepAscent: 100 });
+    expect(exact!.steepHorizontal).toBeCloseTo(2500);
+    const below = measureElevation([[point(0, 0), point(1000, 39)]], 0.04);
+    expect(below).toMatchObject({ ascent: 39, steepAscent: 0, steepHorizontal: 0 });
   });
   it('rejects nonfinite and out-of-bounds coordinates', () => {
     expect(() => calculateStats([[[NaN, 0]]], 'hiking')).toThrow(/coordinate/);

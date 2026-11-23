@@ -61,10 +61,13 @@ it('includes internal plateaus but excludes leading/trailing flats and downhill'
   expect(climbs([profile([100, 90, 80, 70])])).toEqual([]);
 });
 
-it('uses cumulative peak drawdown, tolerating exactly 3 m but splitting larger drops', () => {
-  expect(climbs([profile([0, 10, 7, 15, 20], 110)])).toHaveLength(1);
+it('splits a reversal of exactly 3 m and keeps a smaller dip inside one climb', () => {
+  expect(climbs([profile([0, 10, 7, 15, 20], 110)])).toEqual([]);
   expect(climbs([profile([0, 10, 8, 6, 15, 20], 110)])).toEqual([]);
   expect(climbs([profile([0, 10, 20, 30, 26, 36, 46, 56], 110)])).toHaveLength(2);
+  const split = climbs([profile([0, 30, 27, 57], 300)]);
+  expect(split.map((climb) => climb.ascentMeters)).toEqual([30, 30]);
+  expect(climbs([profile([0, 10, 8, 30], 150)])).toHaveLength(1);
 });
 
 it('guards stationary points: height jumps neither invent gain nor join runs', () => {
