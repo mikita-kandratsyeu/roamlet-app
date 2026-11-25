@@ -220,6 +220,15 @@ export function HeaderMenu({
               <span>{t('New route')}</span>
             </DropdownMenuItem>
           )}
+          {!pwaInstalled && (
+            <>
+              <DropdownMenuItem className="header-menu-item" onSelect={() => activate(onPwa)}>
+                <Download size={18} aria-hidden="true" />
+                <span>{t('App on this device')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="header-menu-separator" />
+            </>
+          )}
           <DropdownMenuItem
             className="header-menu-item"
             onSelect={() => activate(onLibrary)}
@@ -234,12 +243,6 @@ export function HeaderMenu({
             <Plug size={18} aria-hidden="true" />
             <span>{t('Connections')}</span>
           </DropdownMenuItem>
-          {!pwaInstalled && (
-            <DropdownMenuItem className="header-menu-item" onSelect={() => activate(onPwa)}>
-              <Download size={18} aria-hidden="true" />
-              <span>{t('App on this device')}</span>
-            </DropdownMenuItem>
-          )}
           <DropdownMenuSeparator className="header-menu-separator" />
           <DropdownMenuLabel className="header-menu-label">
             {t('Language / LANGUAGE')}

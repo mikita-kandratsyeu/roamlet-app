@@ -59,7 +59,7 @@ it('groups the direct route action and menu trigger, and focuses the first menu 
   await user.click(trigger);
   expect(trigger).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByRole('menu')).toHaveAttribute('id', trigger.getAttribute('aria-controls'));
-  expect(screen.getByRole('menuitem', { name: 'My routes' })).toHaveFocus();
+  expect(screen.getByRole('menuitem', { name: 'App on this device' })).toHaveFocus();
   expect(screen.getByRole('menu')).toHaveAttribute('data-keyboard-navigation', 'false');
   expect(screen.getByRole('menuitemradio', { name: 'English' })).toHaveAttribute(
     'aria-checked',
@@ -170,7 +170,7 @@ it('supports arrows, wrapping, Home/End, type-ahead and Escape with focus restor
   const { user, trigger } = setup();
   trigger.focus();
   await user.keyboard('{ArrowUp}');
-  const first = screen.getByRole('menuitem', { name: 'My routes' });
+  const first = screen.getByRole('menuitem', { name: 'App on this device' });
   const last = screen.getByRole('menuitem', { name: 'Reset settings' });
   await waitFor(() => expect(last).toHaveFocus());
   expect(screen.getByRole('menu')).toHaveAttribute('data-keyboard-navigation', 'true');
@@ -228,7 +228,7 @@ it.each([false, true])(
       ? screen.getByRole('button', { name: 'New route' })
       : screen.getByRole('textbox', { name: 'Next page control' });
     await user.click(trigger);
-    expect(screen.getByRole('menuitem', { name: 'My routes' })).toHaveFocus();
+    expect(screen.getByRole('menuitem', { name: 'App on this device' })).toHaveFocus();
     await user.tab({ shift: backward });
     expect(destination).toHaveFocus();
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
