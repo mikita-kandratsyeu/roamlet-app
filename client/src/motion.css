@@ -1,6 +1,9 @@
 :root {
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-press: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-duration-fast: 180ms;
+  --motion-duration-surface: 220ms;
+  --motion-duration-panel: 280ms;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -34,6 +37,47 @@
 
   .header-menu-trigger svg {
     transition: transform 240ms var(--motion-ease);
+  }
+
+  .activity-selector button,
+  .planning-tabs button,
+  .map-style-tabs button,
+  .map-style-picker .map-style-option,
+  [data-slot='toggle-group'] [data-slot='toggle-group-item'] {
+    transition:
+      background-color var(--motion-duration-fast) var(--motion-ease),
+      color var(--motion-duration-fast) var(--motion-ease),
+      border-color var(--motion-duration-fast) var(--motion-ease),
+      box-shadow var(--motion-duration-fast) var(--motion-ease),
+      outline-color var(--motion-duration-fast) var(--motion-ease);
+  }
+
+  .ui-tab-panel,
+  .manual-planning-discovery,
+  .manual-planning-section {
+    animation: tab-panel-in var(--motion-duration-panel) var(--motion-ease) both;
+  }
+
+  .planner-disclosure .disclosure-toggle > svg,
+  .planner-disclosure .elevation-toggle > svg {
+    transition: transform var(--motion-duration-surface) var(--motion-ease);
+  }
+
+  .planner-disclosure[open] > :not(summary) {
+    animation: disclosure-reveal var(--motion-duration-panel) var(--motion-ease) both;
+  }
+
+  @supports (interpolate-size: allow-keywords) {
+    .planner-disclosure {
+      interpolate-size: allow-keywords;
+    }
+
+    .planner-disclosure::details-content {
+      overflow: clip;
+      transition:
+        block-size var(--motion-duration-panel) var(--motion-ease),
+        content-visibility var(--motion-duration-panel) allow-discrete;
+    }
   }
 
   .waypoint-list li,
@@ -123,6 +167,28 @@
   from {
     opacity: 0;
     translate: 0 5px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes tab-panel-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes disclosure-reveal {
+  from {
+    opacity: 0;
+    translate: 0 4px;
   }
   to {
     opacity: 1;

@@ -211,15 +211,6 @@ export function HeaderMenu({
             }
           }}
         >
-          {compact && (
-            <DropdownMenuItem
-              className="header-menu-item mobile-new-route"
-              onSelect={() => activate(onNewRoute)}
-            >
-              <Plus size={18} aria-hidden="true" />
-              <span>{t('New route')}</span>
-            </DropdownMenuItem>
-          )}
           {!pwaInstalled && (
             <>
               <DropdownMenuItem className="header-menu-item" onSelect={() => activate(onPwa)}>
@@ -228,6 +219,15 @@ export function HeaderMenu({
               </DropdownMenuItem>
               <DropdownMenuSeparator className="header-menu-separator" />
             </>
+          )}
+          {compact && (
+            <DropdownMenuItem
+              className="header-menu-item mobile-new-route"
+              onSelect={() => activate(onNewRoute)}
+            >
+              <Plus size={18} aria-hidden="true" />
+              <span>{t('New route')}</span>
+            </DropdownMenuItem>
           )}
           <DropdownMenuItem
             className="header-menu-item"

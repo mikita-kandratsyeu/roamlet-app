@@ -1401,7 +1401,7 @@ export default function App() {
                   {planningMode !== 'manual' && (
                     <div className="routing-preferences">
                       {activity === 'cycling' && (
-                        <div className="routing-profile-field">
+                        <div className="routing-profile-field ui-tab-panel">
                           <span className="personal-time-label">{t('Cycling route profile')}</span>
                           <PlannerChoice
                             label={t('Cycling route profile')}
